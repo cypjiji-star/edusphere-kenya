@@ -23,7 +23,7 @@ export default function StudentsPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-64 rounded-lg border-2 border-dashed border-muted">
+          <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
             <div className="text-center">
               <Users className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-2 text-sm font-medium text-muted-foreground">No students yet</h3>

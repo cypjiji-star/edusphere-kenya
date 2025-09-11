@@ -7,9 +7,16 @@ import {
   LayoutDashboard,
   Users,
   BookMarked,
-  Sparkles,
   LogOut,
   ChevronDown,
+  ClipboardCheck,
+  FileText,
+  MessageCircle,
+  Calendar,
+  BookOpen,
+  Library,
+  Settings,
+  HelpCircle,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -20,9 +27,6 @@ import {
   SidebarMenuButton,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -34,44 +38,90 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
-const navItems = [
-  { href: '/teacher', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/teacher/students', label: 'Students', icon: Users },
-  { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked },
-  { href: '/learning-path', label: 'AI Tools', icon: Sparkles },
+const navGroups = [
+  {
+    title: 'Core Modules',
+    items: [
+      { href: '/teacher/students', label: 'Class Management', icon: Users },
+      { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck },
+      { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked },
+      { href: '/teacher/grades', label: 'Grades/Reports', icon: FileText },
+    ],
+  },
+  {
+    title: 'Communication',
+    items: [
+      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: true },
+      { href: '/teacher/calendar', label: 'Events Calendar', icon: Calendar, disabled: true },
+    ],
+  },
+  {
+    title: 'Tools & Resources',
+    items: [
+        { href: '/teacher/lesson-plans', label: 'Lesson Plans', icon: BookOpen, disabled: true },
+        { href: '/teacher/library', label: 'Library Access', icon: Library, disabled: true },
+    ],
+  },
 ];
+
 
 export function TeacherSidebar() {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) => pathname === href || (href !== '/teacher' && pathname.startsWith(href));
 
   return (
     <>
       <SidebarHeader>
-        <div className="flex items-center gap-2">
+        <Link href="/teacher" className="flex items-center gap-2">
           <GraduationCap className="size-6 text-primary" />
           <span className="font-bold font-headline text-lg">EduSphere</span>
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive(item.href)}
-                tooltip={{ children: item.label }}
-              >
-                <Link href={item.href}>
-                  <item.icon />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/teacher'} tooltip={{ children: 'Dashboard' }}>
+              <Link href="/teacher">
+                <LayoutDashboard />
+                <span>Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
+
+        {navGroups.map((group) => (
+          <Collapsible key={group.title} defaultOpen>
+            <SidebarGroup>
+                <CollapsibleTrigger asChild>
+                    <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {group.items.map((item) => (
+                                <SidebarMenuItem key={item.href}>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={isActive(item.href)}
+                                    disabled={item.disabled}
+                                    tooltip={{ children: item.label }}
+                                >
+                                    <Link href={item.href}>
+                                        <item.icon />
+                                        <span>{item.label}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
@@ -99,8 +149,8 @@ export function TeacherSidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem><Settings className="mr-2" />Profile & Settings</DropdownMenuItem>
+            <DropdownMenuItem><HelpCircle className="mr-2" />Support & Feedback</DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
                 <Link href="/">
