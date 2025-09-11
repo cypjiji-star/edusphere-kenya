@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { addDays, format } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
+import { addDays, format, eachDayOfInterval } from 'date-fns';
+import { Calendar as CalendarIcon, ChevronDown, Check, History } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
@@ -85,6 +85,12 @@ export default function AttendancePage() {
   const { toast } = useToast();
   
   const isRange = date?.from && date?.to;
+
+  const historicalDates = React.useMemo(() => {
+    if (!isRange) return [];
+    return eachDayOfInterval({ start: date.from, end: date.to });
+  }, [date, isRange]);
+
 
   React.useEffect(() => {
     // In a real app, you would fetch students and their attendance for the selected date.
@@ -199,11 +205,29 @@ export default function AttendancePage() {
         </CardHeader>
         <CardContent>
           {isRange ? (
-             <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                <div className="text-center">
-                    <h3 className="mt-2 text-sm font-medium text-muted-foreground">Historical View Not Implemented</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">The view for a date range is not yet available.</p>
+             <div className="space-y-4">
+                <h3 className="font-headline text-lg flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Historical Records</h3>
+                <div className="rounded-lg border p-4 space-y-2">
+                  {historicalDates.map((d) => (
+                    <div key={d.toString()} className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50">
+                      <p className="font-medium">{format(d, 'EEEE, PPP')}</p>
+                      {/* In a real app, this would check if a record exists */}
+                      {Math.random() > 0.2 ? (
+                        <div className="flex items-center gap-2 text-sm text-green-600">
+                          <Check className="h-4 w-4" />
+                          <span>Record Saved</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                           <span>No Record</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Select a single day to take or edit attendance. A full historical summary for the class will be available here soon.
+                </p>
              </div>
           ) : (
             <div className="w-full overflow-auto rounded-lg border">
@@ -255,7 +279,7 @@ export default function AttendancePage() {
         </CardContent>
         {isRange && (
              <CardFooter>
-                <Button>View Records</Button>
+                <Button disabled>View Detailed Report (Coming Soon)</Button>
             </CardFooter>
         )}
       </Card>
