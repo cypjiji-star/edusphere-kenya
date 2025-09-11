@@ -13,20 +13,21 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { TimetableWidget } from './timetable-widget';
 import { PendingTasksWidget } from './pending-tasks-widget';
+import { AbsentStudentsWidget } from './absent-students-widget';
 
 const quickStats = [
     {
-        title: "Total Students",
-        stat: "124",
+        title: "Class Size (Form 4)",
+        stat: "31",
         icon: <Users className="h-6 w-6 text-muted-foreground" />,
     },
     {
-        title: "Attendance Rate",
-        stat: "92%",
-        icon: <Percent className="h-6 w-6 text-muted-foreground" />,
+        title: "Today's Attendance",
+        stat: "94%",
+        icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" />,
     },
     {
-        title: "Overdue Assignments",
+        title: "Ungraded Assignments",
         stat: "5",
         icon: <BookMarked className="h-6 w-6 text-muted-foreground" />,
     },
@@ -102,7 +103,7 @@ export default function TeacherDashboard() {
         <p className="text-muted-foreground">Here's your summary for today, July 18th, 2024.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {quickStats.map((stat) => (
             <Card key={stat.title}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -172,6 +173,7 @@ export default function TeacherDashboard() {
         </div>
         <div className="lg:col-span-2 space-y-8">
             <PendingTasksWidget />
+            <AbsentStudentsWidget />
             <TimetableWidget />
         </div>
       </div>
