@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 type TimetableEntry = {
   startTime: string; // HH:MM
@@ -81,6 +83,14 @@ export function TimetableWidget() {
           })}
         </div>
       </CardContent>
+      <CardFooter>
+        <Button asChild variant="outline" size="sm" className="w-full">
+            <Link href="/teacher/calendar">
+                View Full Calendar
+                <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+        </Button>
+      </CardFooter>
     </Card>
   );
 }
