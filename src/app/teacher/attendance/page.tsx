@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { addDays, format, eachDayOfInterval } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronDown, Check, History } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
@@ -40,6 +40,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
@@ -132,6 +133,15 @@ export default function AttendancePage() {
     setStudents(currentStudents => currentStudents.map(s => ({...s, status: 'unmarked' })));
   }
 
+  const attendanceSummary = React.useMemo(() => {
+    const totalStudents = students.length;
+    if (totalStudents === 0) return { present: 0 };
+    const presentCount = students.filter(s => s.status === 'present').length;
+    return {
+      present: Math.round((presentCount / totalStudents) * 100),
+    };
+  }, [students]);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Card>
@@ -199,9 +209,30 @@ export default function AttendancePage() {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => markAll('present')} disabled={isRange}>Mark All Present</Button>
-                <Button variant="outline" onClick={clearAll} disabled={isRange}>Clear All</Button>
+                <Button variant="outline" size="sm" onClick={clearAll} disabled={isRange}>Clear All</Button>
               </div>
             </div>
+            {!isRange && (
+                 <Card className="mt-4 bg-muted/50">
+                    <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Percent className="h-5 w-5 text-primary"/>
+                            Today's Summary
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex items-center gap-6">
+                        <div>
+                            <p className="text-2xl font-bold">{attendanceSummary.present}%</p>
+                            <p className="text-sm text-muted-foreground">Present Today</p>
+                        </div>
+                        <Separator orientation="vertical" className="h-10"/>
+                         <div>
+                            <p className="text-2xl font-bold text-muted-foreground/70">88%</p>
+                            <p className="text-sm text-muted-foreground">Class Average</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </CardHeader>
         <CardContent>
           {isRange ? (
@@ -286,3 +317,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
