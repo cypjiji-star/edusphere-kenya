@@ -11,7 +11,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, Search, ArrowRight } from 'lucide-react';
+import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Tabs,
   TabsContent,
@@ -118,10 +124,34 @@ export default function StudentsPage() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <Button className="w-full md:w-auto">
-                    <PlusCircle className="mr-2" />
-                    Add New Student
-                  </Button>
+                  <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+                    <Button className="w-full md:w-auto" variant="outline">
+                      <PlusCircle className="mr-2" />
+                      Add New Student
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button className="w-full md:w-auto" variant="secondary">
+                                Bulk Actions
+                                <ChevronDown className="ml-2" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem asChild>
+                                <Link href="/teacher/attendance">
+                                    <ClipboardCheck className="mr-2" />
+                                    Mark Class Attendance
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href="/teacher/messaging">
+                                    <Megaphone className="mr-2" />
+                                    Send Class Announcement
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
