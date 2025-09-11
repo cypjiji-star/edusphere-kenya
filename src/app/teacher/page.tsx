@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { TimetableWidget } from './timetable-widget';
+import { PendingTasksWidget } from './pending-tasks-widget';
 
 const quickStats = [
     {
@@ -155,7 +156,8 @@ export default function TeacherDashboard() {
             </TabsContent>
           </Tabs>
         </div>
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-8">
+            <PendingTasksWidget />
             <TimetableWidget />
         </div>
       </div>
