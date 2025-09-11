@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -29,6 +30,17 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
+// A simple deterministic "random" number generator based on a seed
+const seededRandom = (seed: number) => {
+  const a = 1664525;
+  const c = 1013904223;
+  const m = 2 ** 32;
+  let state = seed;
+  state = (a * state + c) % m;
+  return state / m;
+};
+
+
 // Mock data for students
 const students = {
   'f4-chem': Array.from({ length: 31 }, (_, i) => ({
@@ -36,21 +48,21 @@ const students = {
     name: `Student ${i + 1}`,
     rollNumber: `F4-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100`,
-    overallGrade: `${Math.floor(Math.random() * (85 - 60 + 1)) + 60}%`,
+    overallGrade: `${Math.floor(seededRandom(i + 1) * (85 - 60 + 1)) + 60}%`,
   })),
   'f3-math': Array.from({ length: 28 }, (_, i) => ({
     id: `f3-math-${i + 1}`,
     name: `Student ${i + 32}`,
     rollNumber: `F3-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100`,
-    overallGrade: `${Math.floor(Math.random() * (90 - 65 + 1)) + 65}%`,
+    overallGrade: `${Math.floor(seededRandom(i + 32) * (90 - 65 + 1)) + 65}%`,
   })),
   'f2-phys': Array.from({ length: 35 }, (_, i) => ({
     id: `f2-phys-${i + 1}`,
     name: `Student ${i + 60}`,
     rollNumber: `F2-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100`,
-    overallGrade: `${Math.floor(Math.random() * (80 - 55 + 1)) + 55}%`,
+    overallGrade: `${Math.floor(seededRandom(i + 60) * (80 - 55 + 1)) + 55}%`,
   })),
 };
 
@@ -141,7 +153,7 @@ export default function StudentsPage() {
                             </TableCell>
                             <TableCell className="text-right">
                               <Button asChild variant="ghost" size="sm">
-                                <Link href={`/teacher/students/${student.id}?classId=${activeTab}`}>
+                                <Link href={`/teacher/students/${student.name.toLowerCase().replace(/ /g, '-')}`}>
                                   View Profile
                                   <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>

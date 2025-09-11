@@ -1,4 +1,5 @@
 
+
 import Link from 'next/link';
 import {
   Card,
@@ -15,10 +16,10 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
 // Mock data fetching - in a real app, this would be an API call.
-const getStudentData = (studentId: string, classId: string) => {
+const getStudentData = (studentId: string) => {
     // This is a simplified mock data fetch. A real implementation would be more robust.
     const name = studentId.replace(/-(.)*$/, '').replace(/-/g, ' ');
-    const studentName = name.charAt(0).toUpperCase() + name.slice(1);
+    const studentName = name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     
     return {
         id: studentId,
@@ -38,8 +39,8 @@ const getStudentData = (studentId: string, classId: string) => {
 }
 
 
-export default function StudentProfilePage({ params, searchParams }: { params: { studentId: string }, searchParams: { classId: string } }) {
-  const student = getStudentData(params.studentId, searchParams.classId);
+export default function StudentProfilePage({ params }: { params: { studentId: string } }) {
+  const student = getStudentData(params.studentId);
 
   if (!student) {
     return (
@@ -139,4 +140,3 @@ export default function StudentProfilePage({ params, searchParams }: { params: {
     </div>
   );
 }
-
