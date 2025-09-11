@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { addDays, format, eachDayOfInterval } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer } from 'lucide-react';
+import { addDays, format, eachDayOfInterval, isBefore, startOfToday } from 'date-fns';
+import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
@@ -50,6 +50,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
@@ -97,6 +98,9 @@ export default function AttendancePage() {
   const { toast } = useToast();
   
   const isRange = date?.from && date?.to;
+  const selectedDate = date?.from && !date.to ? date.from : undefined;
+  const isPastDate = selectedDate ? isBefore(selectedDate, startOfToday()) : false;
+  const isEditable = !isRange && !isPastDate;
 
   const historicalDates = React.useMemo(() => {
     if (!isRange) return [];
@@ -112,6 +116,7 @@ export default function AttendancePage() {
   }, [selectedClass, date]);
 
   const handleSaveAttendance = React.useCallback(() => {
+    if (!isEditable) return;
     let description = '';
     if (date?.from && !date.to) {
         description = `Attendance for ${
@@ -125,9 +130,10 @@ export default function AttendancePage() {
       title: "✓ Saved",
       description,
     });
-  }, [date, selectedClass, toast]);
+  }, [date, selectedClass, toast, isEditable]);
   
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
+    if (!isEditable) return;
     setStudents(currentStudents => 
       currentStudents.map(s => s.id === studentId ? { ...s, status } : s)
     );
@@ -136,6 +142,7 @@ export default function AttendancePage() {
   };
 
   const handleNotesChange = (studentId: string, notes: string) => {
+     if (!isEditable) return;
     setStudents(currentStudents =>
       currentStudents.map(s => s.id === studentId ? { ...s, notes } : s)
     );
@@ -143,11 +150,13 @@ export default function AttendancePage() {
   };
   
   const markAll = (status: AttendanceStatus) => {
+     if (!isEditable) return;
     setStudents(currentStudents => currentStudents.map(s => ({ ...s, status })));
     handleSaveAttendance();
   };
 
   const clearAll = () => {
+    if (!isEditable) return;
     setStudents(currentStudents => currentStudents.map(s => ({...s, status: 'unmarked', notes: '' })));
   }
 
@@ -226,8 +235,8 @@ export default function AttendancePage() {
                   </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => markAll('present')} disabled={isRange}>Mark All Present</Button>
-                <Button variant="outline" size="sm" onClick={clearAll} disabled={isRange}>Clear All</Button>
+                <Button variant="outline" onClick={() => markAll('present')} disabled={!isEditable}>Mark All Present</Button>
+                <Button variant="outline" size="sm" onClick={clearAll} disabled={!isEditable}>Clear All</Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -302,6 +311,16 @@ export default function AttendancePage() {
                 </p>
              </div>
           ) : (
+            <>
+            {isPastDate && (
+              <Alert variant="default" className="mb-4 bg-yellow-50 border-yellow-200 text-yellow-800">
+                <Lock className="h-4 w-4 text-yellow-700" />
+                <AlertTitle>Records Locked</AlertTitle>
+                <AlertDescription>
+                  Attendance records for past dates are view-only. Editing is disabled as per administrative policy.
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="w-full overflow-auto rounded-lg border">
                 <Table>
                 <TableHeader>
@@ -328,17 +347,18 @@ export default function AttendancePage() {
                             value={student.status}
                             onValueChange={(value: AttendanceStatus) => handleStatusChange(student.id, value)}
                             className="flex justify-center space-x-2 md:space-x-8"
+                            disabled={!isEditable}
                             >
                             <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="present" id={`${student.id}-present`} />
+                                <RadioGroupItem value="present" id={`${student.id}-present`} disabled={!isEditable}/>
                                 <Label htmlFor={`${student.id}-present`}>Present</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="absent" id={`${student.id}-absent`} />
+                                <RadioGroupItem value="absent" id={`${student.id}-absent`} disabled={!isEditable}/>
                                 <Label htmlFor={`${student.id}-absent`}>Absent</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="late" id={`${student.id}-late`} />
+                                <RadioGroupItem value="late" id={`${student.id}-late`} disabled={!isEditable}/>
                                 <Label htmlFor={`${student.id}-late`}>Late</Label>
                             </div>
                             </RadioGroup>
@@ -351,6 +371,7 @@ export default function AttendancePage() {
                                     value={student.notes}
                                     onChange={(e) => handleNotesChange(student.id, e.target.value)}
                                     onBlur={() => handleSaveAttendance()}
+                                    disabled={!isEditable}
                                 />
                             )}
                         </TableCell>
@@ -359,6 +380,7 @@ export default function AttendancePage() {
                 </TableBody>
                 </Table>
             </div>
+            </>
           )}
         </CardContent>
         {isRange && (
@@ -370,3 +392,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
