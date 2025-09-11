@@ -54,8 +54,8 @@ export default function LoginPage() {
               </div>
               <Input id="password" type="password" required />
             </div>
-            <Button type="submit" className="w-full">
-              Login
+            <Button type="submit" className="w-full" asChild>
+              <Link href="/teacher">Login</Link>
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
