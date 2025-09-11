@@ -74,37 +74,6 @@ const announcements = [
     }
 ];
 
-const coreModules = [
-  {
-    title: 'Manage Students',
-    description: 'View student profiles, track progress, and manage class lists.',
-    icon: <Users className="h-8 w-8 text-primary" />,
-    href: '/teacher/students',
-    cta: 'View Students',
-  },
-  {
-    title: 'Track Attendance',
-    description: 'Mark and review daily and per-subject student attendance.',
-    icon: <ClipboardCheck className="h-8 w-8 text-primary" />,
-    href: '/teacher/attendance',
-    cta: 'Take Attendance',
-  },
-  {
-    title: 'Create & Grade Assignments',
-    description: 'Design, distribute, and grade assignments for your classes.',
-    icon: <BookMarked className="h-8 w-8 text-primary" />,
-    href: '/teacher/assignments',
-    cta: 'Manage Assignments',
-  },
-  {
-    title: 'Enter Grades',
-    description: 'Input student marks and generate termly progress reports.',
-    icon: <FileText className="h-8 w-8 text-primary" />,
-    href: '/teacher/grades',
-    cta: 'View Grades',
-  },
-];
-
 export default function TeacherDashboard() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -129,19 +98,15 @@ export default function TeacherDashboard() {
         ))}
       </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-           <Tabs defaultValue="announcements" className="w-full">
-            <TabsList>
-              <TabsTrigger value="announcements">
-                <Bell className="mr-2" /> Announcements
-              </TabsTrigger>
-              <TabsTrigger value="modules">Core Modules</TabsTrigger>
-            </TabsList>
-            <TabsContent value="announcements">
-               <Card className="mt-6">
+      <div className="mt-8 grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-8">
+            <MessagesWidget />
+            <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline text-lg">Recent Notices</CardTitle>
+                    <CardTitle className="font-headline text-lg flex items-center gap-2">
+                        <Bell className="h-5 w-5 text-primary" />
+                        Announcements
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {announcements.map((item, index) => (
@@ -156,35 +121,9 @@ export default function TeacherDashboard() {
                         </div>
                     ))}
                 </CardContent>
-               </Card>
-            </TabsContent>
-            <TabsContent value="modules">
-                <div className="grid gap-6 mt-6 sm:grid-cols-2">
-                    {coreModules.map((card) => (
-                        <Card key={card.title} className="flex flex-col">
-                            <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-4">
-                            <div className="flex-shrink-0">{card.icon}</div>
-                            <div className="flex-1">
-                                <CardTitle className="font-headline text-base">{card.title}</CardTitle>
-                                <CardDescription className="text-sm">{card.description}</CardDescription>
-                            </div>
-                            </CardHeader>
-                            <CardContent className="flex-grow flex items-end">
-                            <Button asChild className="w-full">
-                                <Link href={card.href}>
-                                {card.cta}
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                                </Link>
-                            </Button>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            </TabsContent>
-          </Tabs>
+            </Card>
         </div>
-        <div className="lg:col-span-2 space-y-8">
-            <MessagesWidget />
+        <div className="lg:col-span-1 space-y-8">
             <PendingTasksWidget />
             <AbsentStudentsWidget />
             <TimetableWidget />
