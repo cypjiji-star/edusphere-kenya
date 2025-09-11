@@ -104,8 +104,8 @@ export default function AttendancePage() {
   const isEditable = !isRange && !isPastDate;
 
   const historicalDates = React.useMemo(() => {
-    if (!isRange) return [];
-    return eachDayOfInterval({ start: date.from!, end: date.to! });
+    if (!isRange || !date.from || !date.to) return [];
+    return eachDayOfInterval({ start: date.from, end: date.to });
   }, [date, isRange]);
 
 
@@ -180,8 +180,8 @@ export default function AttendancePage() {
             </CardDescription>
             <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                  <div className="flex items-center gap-2">
-                      <Label htmlFor="class-selector" className="text-sm font-medium">Class</Label>
+                  <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2">
+                      <Label htmlFor="class-selector" className="text-sm font-medium shrink-0">Class</Label>
                       <Select value={selectedClass} onValueChange={setSelectedClass}>
                           <SelectTrigger className="w-full md:w-[240px]" id="class-selector">
                               <SelectValue placeholder="Select a class" />
@@ -195,8 +195,8 @@ export default function AttendancePage() {
                           </SelectContent>
                       </Select>
                   </div>
-                  <div className="flex items-center gap-2">
-                      <Label htmlFor="date-picker" className="text-sm font-medium">Date Range</Label>
+                  <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2">
+                      <Label htmlFor="date-picker" className="text-sm font-medium shrink-0">Date Range</Label>
                       <Popover>
                       <PopoverTrigger asChild>
                           <Button
@@ -235,12 +235,12 @@ export default function AttendancePage() {
                       </Popover>
                   </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => markAll('present')} disabled={!isEditable}>Mark All Present</Button>
-                <Button variant="outline" size="sm" onClick={clearAll} disabled={!isEditable}>Clear All</Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button variant="outline" onClick={() => markAll('present')} disabled={!isEditable} className="w-full sm:w-auto">Mark All Present</Button>
+                <Button variant="outline" size="sm" onClick={clearAll} disabled={!isEditable} className="w-full sm:w-auto">Clear All</Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">
                       Export
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
@@ -326,14 +326,14 @@ export default function AttendancePage() {
                 <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead className="w-[250px]">Student</TableHead>
+                    <TableHead className="w-full md:w-[250px]">Student</TableHead>
                     <TableHead className="text-center">Status</TableHead>
-                    <TableHead>Notes</TableHead>
+                    <TableHead className="hidden sm:table-cell">Notes</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {students.map(student => (
-                    <TableRow key={student.id}>
+                    <TableRow key={student.id} className="flex flex-col md:table-row">
                         <TableCell>
                         <div className="flex items-center gap-3">
                             <Avatar>
@@ -347,7 +347,7 @@ export default function AttendancePage() {
                         <RadioGroup
                             value={student.status}
                             onValueChange={(value: AttendanceStatus) => handleStatusChange(student.id, value)}
-                            className="flex justify-center space-x-2 md:space-x-8"
+                            className="flex flex-row justify-around md:justify-center md:space-x-8 py-2"
                             disabled={!isEditable}
                             >
                             <div className="flex items-center space-x-2">
@@ -364,7 +364,7 @@ export default function AttendancePage() {
                             </div>
                             </RadioGroup>
                         </TableCell>
-                        <TableCell className="w-[250px]">
+                        <TableCell className="w-full md:w-[250px]">
                             {(student.status === 'absent' || student.status === 'late') && (
                                 <Input
                                     type="text"
@@ -373,6 +373,7 @@ export default function AttendancePage() {
                                     onChange={(e) => handleNotesChange(student.id, e.target.value)}
                                     onBlur={() => handleSaveAttendance()}
                                     disabled={!isEditable}
+                                    className="mt-2 md:mt-0"
                                 />
                             )}
                         </TableCell>
