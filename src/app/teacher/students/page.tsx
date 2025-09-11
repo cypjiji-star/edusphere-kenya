@@ -32,22 +32,22 @@ import { Badge } from '@/components/ui/badge';
 // Mock data for students
 const students = {
   'f4-chem': Array.from({ length: 31 }, (_, i) => ({
-    id: `f4-${i + 1}`,
+    id: `f4-chem-${i + 1}`,
     name: `Student ${i + 1}`,
     rollNumber: `F4-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100`,
     overallGrade: `${Math.floor(Math.random() * (85 - 60 + 1)) + 60}%`,
   })),
   'f3-math': Array.from({ length: 28 }, (_, i) => ({
-    id: `f3-${i + 1}`,
-    name: `Student ${i + 20}`,
+    id: `f3-math-${i + 1}`,
+    name: `Student ${i + 32}`,
     rollNumber: `F3-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100`,
     overallGrade: `${Math.floor(Math.random() * (90 - 65 + 1)) + 65}%`,
   })),
   'f2-phys': Array.from({ length: 35 }, (_, i) => ({
-    id: `f2-${i + 1}`,
-    name: `Student ${i + 40}`,
+    id: `f2-phys-${i + 1}`,
+    name: `Student ${i + 60}`,
     rollNumber: `F2-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100`,
     overallGrade: `${Math.floor(Math.random() * (80 - 55 + 1)) + 55}%`,
@@ -63,6 +63,7 @@ const teacherClasses = [
 
 export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [activeTab, setActiveTab] = React.useState(teacherClasses[0].id);
 
   const filteredStudents = (students: any[]) =>
     students.filter(student =>
@@ -71,7 +72,7 @@ export default function StudentsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <Tabs defaultValue={teacherClasses[0].id} className="w-full">
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="md:flex md:items-center md:justify-between">
           <div className="mb-4 md:mb-0">
             <h1 className="font-headline text-3xl font-bold">Class & Student Management</h1>
@@ -140,7 +141,7 @@ export default function StudentsPage() {
                             </TableCell>
                             <TableCell className="text-right">
                               <Button asChild variant="ghost" size="sm">
-                                <Link href={`/teacher/students/${student.id}`}>
+                                <Link href={`/teacher/students/${student.id}?classId=${activeTab}`}>
                                   View Profile
                                   <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
