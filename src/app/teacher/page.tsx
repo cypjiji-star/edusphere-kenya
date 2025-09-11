@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { TimetableWidget } from './timetable-widget';
 import { PendingTasksWidget } from './pending-tasks-widget';
 import { AbsentStudentsWidget } from './absent-students-widget';
+import { MessagesWidget } from './messages-widget';
 
 const quickStats = [
     {
@@ -172,6 +173,7 @@ export default function TeacherDashboard() {
           </Tabs>
         </div>
         <div className="lg:col-span-2 space-y-8">
+            <MessagesWidget />
             <PendingTasksWidget />
             <AbsentStudentsWidget />
             <TimetableWidget />

@@ -54,7 +54,7 @@ const navGroups = [
   {
     title: 'Communication',
     items: [
-      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: true },
+      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false },
       { href: '/teacher/calendar', label: 'Events Calendar', icon: Calendar, disabled: true },
     ],
   },
