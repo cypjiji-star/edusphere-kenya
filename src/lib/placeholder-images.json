@@ -1,3 +1,47 @@
+
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "An optimistic Kenyan student smiling and using a tablet in a modern classroom.",
+      "imageUrl": "https://picsum.photos/seed/edusphere-hero/1200/800",
+      "imageHint": "kenyan student"
+    },
+    {
+      "id": "feature-portal",
+      "description": "A secure digital gate symbolizing a school's private portal.",
+      "imageUrl": "https://picsum.photos/seed/edusphere-portal/600/400",
+      "imageHint": "secure data"
+    },
+    {
+      "id": "feature-roles",
+      "description": "Silhouettes of a teacher, student, and administrator.",
+      "imageUrl": "https://picsum.photos/seed/edusphere-roles/600/400",
+      "imageHint": "team collaboration"
+    },
+    {
+      "id": "feature-ai",
+      "description": "Abstract representation of an AI neural network with glowing nodes.",
+      "imageUrl": "https://picsum.photos/seed/edusphere-ai/600/400",
+      "imageHint": "artificial intelligence"
+    },
+    {
+      "id": "feature-brand",
+      "description": "A color palette and design tools, representing customization.",
+      "imageUrl": "https://picsum.photos/seed/edusphere-brand/600/400",
+      "imageHint": "design tools"
+    },
+    {
+      "id": "mission",
+      "description": "A beautiful view of the Kenyan landscape with a school in the distance.",
+      "imageUrl": "https://picsum.photos/seed/edusphere-mission/600/400",
+      "imageHint": "kenyan landscape school"
+    },
+    {
+      "id": "ai-cta",
+      "description": "A student looking thoughtfully at a screen displaying a learning path.",
+      "imageUrl": "https://picsum.photos/seed/edusphere-cta/800/600",
+      "imageHint": "student learning"
+    }
+  ]
 }
