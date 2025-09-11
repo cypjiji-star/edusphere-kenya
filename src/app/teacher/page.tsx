@@ -11,6 +11,7 @@ import { Users, BookMarked, ClipboardCheck, FileText, ArrowRight, Bell, Calendar
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { TimetableWidget } from './timetable-widget';
 
 const quickStats = [
     {
@@ -46,25 +47,6 @@ const announcements = [
         content: "A mandatory meeting for all science teachers will be held on Monday, July 15th at 3:00 PM in the staff room to discuss Science Fair preparations.",
     },
 ];
-
-const upcomingEvents = [
-    {
-        time: "10:00 AM",
-        title: "Form 3 - Mathematics Class",
-        location: "Room 12A",
-    },
-    {
-        time: "11:00 AM",
-        title: "Staff Meeting",
-        location: "Staff Room",
-    },
-    {
-        time: "01:00 PM",
-        title: "Form 2 - Physics Practical",
-        location: "Science Lab",
-    },
-];
-
 
 const coreModules = [
   {
@@ -174,27 +156,7 @@ export default function TeacherDashboard() {
           </Tabs>
         </div>
         <div className="lg:col-span-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline text-lg flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-primary" />
-                        Today's Schedule
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-6">
-                        {upcomingEvents.map((event, index) => (
-                            <div key={index} className="flex items-start gap-4">
-                                <div className="text-sm font-bold text-primary w-20">{event.time}</div>
-                                <div className="flex-1 space-y-1">
-                                    <p className="font-semibold text-sm">{event.title}</p>
-                                    <p className="text-xs text-muted-foreground">{event.location}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+            <TimetableWidget />
         </div>
       </div>
     </div>
