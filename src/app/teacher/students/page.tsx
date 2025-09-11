@@ -44,6 +44,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { ClassAnalytics } from './class-analytics';
 
 // A simple deterministic "random" number generator based on a seed
 const seededRandom = (seed: number) => {
@@ -57,7 +58,7 @@ const seededRandom = (seed: number) => {
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
-type Student = {
+export type Student = {
     id: string;
     name: string;
     rollNumber: string;
@@ -155,7 +156,7 @@ export default function StudentsPage() {
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="md:flex md:items-center md:justify-between">
           <div className="mb-4 md:mb-0">
-            <h1 className="font-headline text-3xl font-bold">Class & Student Management</h1>
+            <h1 className="font-headline text-3xl font-bold">Class &amp; Student Management</h1>
             <p className="text-muted-foreground">Switch between your classes to view student rosters and mark attendance.</p>
           </div>
           <TabsList>
@@ -167,10 +168,11 @@ export default function StudentsPage() {
 
         {teacherClasses.map((cls) => (
           <TabsContent key={cls.id} value={cls.id}>
+             <ClassAnalytics students={classStudents} />
             <Card className="mt-6">
               <CardHeader>
                 <div className="md:flex-row md:items-start md:justify-between">
-                  <CardTitle className="font-headline text-2xl">{cls.name}</CardTitle>
+                  <CardTitle className="font-headline text-2xl">{cls.name} Roster</CardTitle>
                   <CardDescription>
                     A total of {cls.students.length} students are enrolled in this class.
                   </CardDescription>
