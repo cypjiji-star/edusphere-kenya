@@ -9,9 +9,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone } from 'lucide-react';
+import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,8 +34,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 // A simple deterministic "random" number generator based on a seed
 const seededRandom = (seed: number) => {
@@ -46,15 +55,27 @@ const seededRandom = (seed: number) => {
   return state / m;
 };
 
+type AttendanceStatus = 'present' | 'absent' | 'late';
+
+type Student = {
+    id: string;
+    name: string;
+    rollNumber: string;
+    avatarUrl: string;
+    overallGrade: string;
+    attendance: AttendanceStatus;
+};
+
 
 // Mock data for students
-const students = {
+const students: Record<string, Student[]> = {
   'f4-chem': Array.from({ length: 31 }, (_, i) => ({
     id: `f4-chem-${i + 1}`,
     name: `Student ${i + 1}`,
     rollNumber: `F4-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100`,
     overallGrade: `${Math.floor(seededRandom(i + 1) * (85 - 60 + 1)) + 60}%`,
+    attendance: 'present',
   })),
   'f3-math': Array.from({ length: 28 }, (_, i) => ({
     id: `f3-math-${i + 1}`,
@@ -62,6 +83,7 @@ const students = {
     rollNumber: `F3-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100`,
     overallGrade: `${Math.floor(seededRandom(i + 32) * (90 - 65 + 1)) + 65}%`,
+    attendance: 'present',
   })),
   'f2-phys': Array.from({ length: 35 }, (_, i) => ({
     id: `f2-phys-${i + 1}`,
@@ -69,6 +91,7 @@ const students = {
     rollNumber: `F2-00${i + 1}`,
     avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100`,
     overallGrade: `${Math.floor(seededRandom(i + 60) * (80 - 55 + 1)) + 55}%`,
+    attendance: 'present',
   })),
 };
 
@@ -82,9 +105,48 @@ const teacherClasses = [
 export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [activeTab, setActiveTab] = React.useState(teacherClasses[0].id);
+  const { toast } = useToast();
 
-  const filteredStudents = (students: any[]) =>
-    students.filter(student =>
+  const [classStudents, setClassStudents] = React.useState<Student[]>(
+    teacherClasses.find(c => c.id === activeTab)?.students || []
+  );
+
+  React.useEffect(() => {
+    setClassStudents(teacherClasses.find(c => c.id === activeTab)?.students || []);
+  }, [activeTab]);
+
+  const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
+    setClassStudents(prevStudents =>
+        prevStudents.map(s =>
+          s.id === studentId ? { ...s, attendance: status } : s
+        )
+      );
+  };
+  
+  const handleSaveAttendance = () => {
+    // Here you would typically make an API call to save the attendance data.
+    // For this mock, we'll just show a success toast.
+    toast({
+      title: 'Attendance Saved!',
+      description: `Attendance for ${teacherClasses.find(c => c.id === activeTab)?.name} has been successfully updated.`,
+    });
+  };
+
+  const getAttendanceBadgeVariant = (status: AttendanceStatus) => {
+    switch (status) {
+        case 'present':
+            return 'default';
+        case 'absent':
+            return 'destructive';
+        case 'late':
+            return 'secondary';
+        default:
+            return 'outline';
+    }
+  }
+
+  const filteredStudents = 
+    classStudents.filter(student =>
       student.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -94,7 +156,7 @@ export default function StudentsPage() {
         <div className="md:flex md:items-center md:justify-between">
           <div className="mb-4 md:mb-0">
             <h1 className="font-headline text-3xl font-bold">Class & Student Management</h1>
-            <p className="text-muted-foreground">Switch between your classes to view student rosters.</p>
+            <p className="text-muted-foreground">Switch between your classes to view student rosters and mark attendance.</p>
           </div>
           <TabsList>
             {teacherClasses.map((cls) => (
@@ -163,12 +225,13 @@ export default function StudentsPage() {
                         <TableHead>Name</TableHead>
                         <TableHead>Roll Number</TableHead>
                         <TableHead>Overall Grade</TableHead>
+                        <TableHead>Today's Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredStudents(cls.students).length > 0 ? (
-                        filteredStudents(cls.students).map(student => (
+                      {filteredStudents.length > 0 ? (
+                        filteredStudents.map(student => (
                           <TableRow key={student.id}>
                             <TableCell>
                               <Avatar>
@@ -180,6 +243,21 @@ export default function StudentsPage() {
                             <TableCell className="text-muted-foreground">{student.rollNumber}</TableCell>
                             <TableCell>
                               <Badge variant="outline">{student.overallGrade}</Badge>
+                            </TableCell>
+                            <TableCell>
+                                <Select
+                                    value={student.attendance}
+                                    onValueChange={(value: AttendanceStatus) => handleAttendanceChange(student.id, value)}
+                                >
+                                    <SelectTrigger className="w-32">
+                                        <SelectValue placeholder="Mark status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="present">Present</SelectItem>
+                                        <SelectItem value="absent">Absent</SelectItem>
+                                        <SelectItem value="late">Late</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </TableCell>
                             <TableCell className="text-right">
                               <Button asChild variant="ghost" size="sm">
@@ -193,7 +271,7 @@ export default function StudentsPage() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
+                          <TableCell colSpan={6} className="h-24 text-center">
                             No students found matching your search.
                           </TableCell>
                         </TableRow>
@@ -202,6 +280,12 @@ export default function StudentsPage() {
                   </Table>
                 </div>
               </CardContent>
+              <CardFooter>
+                 <Button onClick={handleSaveAttendance}>
+                    <Save className="mr-2" />
+                    Save Attendance
+                </Button>
+              </CardFooter>
             </Card>
           </TabsContent>
         ))}
