@@ -233,14 +233,14 @@ export default function StudentsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="overflow-hidden rounded-lg border">
+                <div className="w-full overflow-auto rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[80px]">Avatar</TableHead>
+                        <TableHead className="w-[80px] hidden sm:table-cell">Avatar</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead>Roll Number</TableHead>
-                        <TableHead>Overall Grade</TableHead>
+                        <TableHead className="hidden md:table-cell">Roll Number</TableHead>
+                        <TableHead className="hidden sm:table-cell">Overall Grade</TableHead>
                         <TableHead>Today's Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -249,15 +249,15 @@ export default function StudentsPage() {
                       {filteredStudents.length > 0 ? (
                         filteredStudents.map(student => (
                           <TableRow key={student.id}>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">
                               <Avatar>
                                 <AvatarImage src={student.avatarUrl} alt={student.name} />
                                 <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                               </Avatar>
                             </TableCell>
                             <TableCell className="font-medium">{student.name}</TableCell>
-                            <TableCell className="text-muted-foreground">{student.rollNumber}</TableCell>
-                            <TableCell>
+                            <TableCell className="text-muted-foreground hidden md:table-cell">{student.rollNumber}</TableCell>
+                            <TableCell className="hidden sm:table-cell">
                               <Badge variant="outline">{student.overallGrade}</Badge>
                             </TableCell>
                             <TableCell>
