@@ -66,7 +66,7 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
         </Button>
       </div>
       <div className="grid gap-8 md:grid-cols-3">
-        <div className="md:col-span-1">
+        <div className="md:col-span-1 space-y-8">
             <Card>
                 <CardContent className="p-6 text-center">
                     <Avatar className="h-24 w-24 mx-auto mb-4">
@@ -77,6 +77,22 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
                     <p className="text-muted-foreground">{student.rollNumber} | {student.class}</p>
                     <div className="mt-4 flex justify-center gap-2">
                          <Badge variant="secondary">Overall Grade: {student.overallGrade}</Badge>
+                    </div>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <History className="h-5 w-5 text-primary"/>
+                        Attendance History
+                    </CardTitle>
+                </CardHeader>
+                 <CardContent>
+                    <div className="flex min-h-[150px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                        <div className="text-center p-4">
+                            <h3 className="mt-2 text-sm font-medium text-muted-foreground">Attendance Data Unavailable</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">Full history will be shown here.</p>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

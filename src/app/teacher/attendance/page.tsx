@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { addDays, format } from 'date-fns';
 import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
 import {
@@ -76,9 +77,14 @@ const teacherClasses = [
 
 export default function AttendancePage() {
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
-  const [date, setDate] = React.useState<Date>(new Date());
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: undefined,
+  });
   const [students, setStudents] = React.useState<Student[]>([]);
   const { toast } = useToast();
+  
+  const isRange = date?.from && date?.to;
 
   React.useEffect(() => {
     // In a real app, you would fetch students and their attendance for the selected date.
@@ -104,11 +110,18 @@ export default function AttendancePage() {
   const isAttendanceMarked = students.some(s => s.status !== 'unmarked');
 
   const handleSaveAttendance = () => {
+    let description = '';
+    if (date?.from && !date.to) {
+        description = `Attendance for ${
+            teacherClasses.find((c) => c.id === selectedClass)?.name
+        } on ${format(date.from, 'PPP')} has been saved.`
+    } else {
+        description = 'Attendance has been saved.';
+    }
+
     toast({
       title: "Attendance Submitted",
-      description: `Attendance for ${
-        teacherClasses.find((c) => c.id === selectedClass)?.name
-      } on ${format(date, 'PPP')} has been saved.`,
+      description,
     });
   };
 
@@ -118,7 +131,7 @@ export default function AttendancePage() {
         <CardHeader>
             <CardTitle className="font-headline text-2xl">Take Attendance</CardTitle>
             <CardDescription>
-              Select a class and date, then mark each student's status.
+              Select a class and date range to view or update attendance records.
             </CardDescription>
             <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -138,87 +151,109 @@ export default function AttendancePage() {
                       </Select>
                   </div>
                   <div className="flex items-center gap-2">
-                      <Label htmlFor="date-picker" className="text-sm font-medium">Date</Label>
+                      <Label htmlFor="date-picker" className="text-sm font-medium">Date Range</Label>
                       <Popover>
                       <PopoverTrigger asChild>
                           <Button
                               id="date-picker"
                               variant={'outline'}
                               className={cn(
-                                  'w-full justify-start text-left font-normal md:w-[240px]',
+                                  'w-full justify-start text-left font-normal md:w-auto',
                                   !date && 'text-muted-foreground'
                               )}
                           >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                          {date?.from ? (
+                            date.to ? (
+                              <>
+                                {format(date.from, 'LLL dd, y')} -{' '}
+                                {format(date.to, 'LLL dd, y')}
+                              </>
+                            ) : (
+                              format(date.from, 'LLL dd, y')
+                            )
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
                           </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
                           <Calendar
-                          mode="single"
-                          selected={date}
-                          onSelect={(newDate) => newDate && setDate(newDate)}
-                          initialFocus
+                            initialFocus
+                            mode="range"
+                            defaultMonth={date?.from}
+                            selected={date}
+                            onSelect={setDate}
+                            numberOfMonths={2}
                           />
                       </PopoverContent>
                       </Popover>
                   </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => markAll('present')}>Mark All Present</Button>
-                <Button variant="outline" onClick={clearAll}>Clear All</Button>
+                <Button variant="outline" onClick={() => markAll('present')} disabled={isRange}>Mark All Present</Button>
+                <Button variant="outline" onClick={clearAll} disabled={isRange}>Clear All</Button>
               </div>
             </div>
         </CardHeader>
         <CardContent>
-          <div className="w-full overflow-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[250px]">Student</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map(student => (
-                  <TableRow key={student.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={student.avatarUrl} alt={student.name} />
-                          <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{student.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                       <RadioGroup
-                          value={student.status}
-                          onValueChange={(value: AttendanceStatus) => handleStatusChange(student.id, value)}
-                          className="flex justify-center space-x-2 md:space-x-8"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="present" id={`${student.id}-present`} />
-                            <Label htmlFor={`${student.id}-present`}>Present</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="absent" id={`${student.id}-absent`} />
-                            <Label htmlFor={`${student.id}-absent`}>Absent</Label>
-                          </div>
-                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="late" id={`${student.id}-late`} />
-                            <Label htmlFor={`${student.id}-late`}>Late</Label>
-                          </div>
-                        </RadioGroup>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          {isRange ? (
+             <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                <div className="text-center">
+                    <h3 className="mt-2 text-sm font-medium text-muted-foreground">Historical View Not Implemented</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">The view for a date range is not yet available.</p>
+                </div>
+             </div>
+          ) : (
+            <div className="w-full overflow-auto rounded-lg border">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead className="w-[250px]">Student</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {students.map(student => (
+                    <TableRow key={student.id}>
+                        <TableCell>
+                        <div className="flex items-center gap-3">
+                            <Avatar>
+                            <AvatarImage src={student.avatarUrl} alt={student.name} />
+                            <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{student.name}</span>
+                        </div>
+                        </TableCell>
+                        <TableCell>
+                        <RadioGroup
+                            value={student.status}
+                            onValueChange={(value: AttendanceStatus) => handleStatusChange(student.id, value)}
+                            className="flex justify-center space-x-2 md:space-x-8"
+                            >
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="present" id={`${student.id}-present`} />
+                                <Label htmlFor={`${student.id}-present`}>Present</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="absent" id={`${student.id}-absent`} />
+                                <Label htmlFor={`${student.id}-absent`}>Absent</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="late" id={`${student.id}-late`} />
+                                <Label htmlFor={`${student.id}-late`}>Late</Label>
+                            </div>
+                            </RadioGroup>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+                </Table>
+            </div>
+          )}
         </CardContent>
         <CardFooter>
-            <Button onClick={handleSaveAttendance} disabled={!isAttendanceMarked}>Save Attendance</Button>
+            <Button onClick={handleSaveAttendance} disabled={!isAttendanceMarked || isRange}>Save Attendance</Button>
         </CardFooter>
       </Card>
     </div>
