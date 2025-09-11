@@ -12,12 +12,13 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save } from 'lucide-react';
+import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save, FileDown, Printer } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Tabs,
@@ -196,7 +197,7 @@ export default function StudentsPage() {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button className="w-full md:w-auto" variant="secondary">
-                                Bulk Actions
+                                Actions
                                 <ChevronDown className="ml-2" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -204,7 +205,7 @@ export default function StudentsPage() {
                             <DropdownMenuItem asChild>
                                 <Link href="/teacher/attendance">
                                     <ClipboardCheck className="mr-2" />
-                                    Mark Class Attendance
+                                    Mark Full Attendance
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
@@ -212,6 +213,19 @@ export default function StudentsPage() {
                                     <Megaphone className="mr-2" />
                                     Send Class Announcement
                                 </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                             <DropdownMenuItem disabled>
+                                <FileDown className="mr-2" />
+                                Download as PDF
+                            </DropdownMenuItem>
+                             <DropdownMenuItem disabled>
+                                <FileDown className="mr-2" />
+                                Download as Excel
+                            </DropdownMenuItem>
+                             <DropdownMenuItem disabled>
+                                <Printer className="mr-2" />
+                                Print List
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
