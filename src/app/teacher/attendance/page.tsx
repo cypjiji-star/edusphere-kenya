@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { addDays, format, eachDayOfInterval } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
@@ -27,6 +27,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Table,
@@ -42,6 +49,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
+
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
@@ -91,7 +100,7 @@ export default function AttendancePage() {
 
   const historicalDates = React.useMemo(() => {
     if (!isRange) return [];
-    return eachDayOfInterval({ start: date.from, end: date.to });
+    return eachDayOfInterval({ start: date.from!, end: date.to! });
   }, [date, isRange]);
 
 
@@ -219,10 +228,29 @@ export default function AttendancePage() {
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => markAll('present')} disabled={isRange}>Mark All Present</Button>
                 <Button variant="outline" size="sm" onClick={clearAll} disabled={isRange}>Clear All</Button>
-                <Button variant="outline" size="sm" disabled>
-                    <FilePenLine className="mr-2 h-4 w-4" />
-                    Notes
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      Export
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem disabled>
+                      <FileDown className="mr-2" />
+                      Download as PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled>
+                      <FileDown className="mr-2" />
+                      Download as Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem disabled>
+                      <Printer className="mr-2" />
+                      Print List
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
             {!isRange && (
@@ -342,5 +370,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    
