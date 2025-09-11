@@ -92,24 +92,8 @@ export default function AttendancePage() {
     const classStudents = allStudents[selectedClass] || [];
     setStudents(classStudents.map(s => ({ ...s, status: 'unmarked' })));
   }, [selectedClass, date]);
-  
-  const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
-    setStudents(currentStudents => 
-      currentStudents.map(s => s.id === studentId ? { ...s, status } : s)
-    );
-  };
-  
-  const markAll = (status: AttendanceStatus) => {
-    setStudents(currentStudents => currentStudents.map(s => ({ ...s, status })));
-  };
 
-  const clearAll = () => {
-    setStudents(currentStudents => currentStudents.map(s => ({...s, status: 'unmarked' })));
-  }
-
-  const isAttendanceMarked = students.some(s => s.status !== 'unmarked');
-
-  const handleSaveAttendance = () => {
+  const handleSaveAttendance = React.useCallback(() => {
     let description = '';
     if (date?.from && !date.to) {
         description = `Attendance for ${
@@ -120,10 +104,27 @@ export default function AttendancePage() {
     }
 
     toast({
-      title: "Attendance Submitted",
+      title: "✓ Saved",
       description,
     });
+  }, [date, selectedClass, toast]);
+  
+  const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
+    setStudents(currentStudents => 
+      currentStudents.map(s => s.id === studentId ? { ...s, status } : s)
+    );
+    // Auto-save on change
+    handleSaveAttendance();
   };
+  
+  const markAll = (status: AttendanceStatus) => {
+    setStudents(currentStudents => currentStudents.map(s => ({ ...s, status })));
+    handleSaveAttendance();
+  };
+
+  const clearAll = () => {
+    setStudents(currentStudents => currentStudents.map(s => ({...s, status: 'unmarked' })));
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -252,9 +253,11 @@ export default function AttendancePage() {
             </div>
           )}
         </CardContent>
-        <CardFooter>
-            <Button onClick={handleSaveAttendance} disabled={!isAttendanceMarked || isRange}>Save Attendance</Button>
-        </CardFooter>
+        {isRange && (
+             <CardFooter>
+                <Button>View Records</Button>
+            </CardFooter>
+        )}
       </Card>
     </div>
   );
