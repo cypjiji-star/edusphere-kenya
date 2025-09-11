@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { addDays, format, eachDayOfInterval, isBefore, startOfToday } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock, Bell } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
@@ -51,6 +51,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
@@ -383,14 +384,33 @@ export default function AttendancePage() {
             </>
           )}
         </CardContent>
-        {isRange && (
+        {isRange ? (
              <CardFooter>
                 <Button disabled>View Detailed Report (Coming Soon)</Button>
+            </CardFooter>
+        ) : (
+            <CardFooter className="flex-col items-start gap-4">
+                <Separator />
+                <div className="space-y-2">
+                    <h4 className="font-medium flex items-center gap-2">
+                        <Bell className="h-5 w-5 text-primary" />
+                        Notification Settings (Optional)
+                    </h4>
+                    <p className="text-sm text-muted-foreground">These actions are triggered after attendance is submitted.</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                        <Switch id="notify-parents" disabled />
+                        <Label htmlFor="notify-parents">Notify parents of absent students</Label>
+                    </div>
+                     <div className="flex items-center space-x-2">
+                        <Switch id="notify-admin" disabled />
+                        <Label htmlFor="notify-admin">Alert admin for low attendance</Label>
+                    </div>
+                </div>
             </CardFooter>
         )}
       </Card>
     </div>
   );
 }
-
-    
