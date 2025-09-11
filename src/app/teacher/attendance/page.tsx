@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { addDays, format, eachDayOfInterval } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
@@ -41,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
@@ -49,10 +50,11 @@ type Student = {
     name: string;
     avatarUrl: string;
     status: AttendanceStatus | 'unmarked';
+    notes?: string;
 };
 
 // Mock data - this would come from an API in a real app
-const allStudents: Record<string, Omit<Student, 'status'>[]> = {
+const allStudents: Record<string, Omit<Student, 'status' | 'notes'>[]> = {
   'f4-chem': Array.from({ length: 31 }, (_, i) => ({
     id: `f4-chem-${i + 1}`,
     name: `Student ${i + 1}`,
@@ -97,7 +99,7 @@ export default function AttendancePage() {
     // In a real app, you would fetch students and their attendance for the selected date.
     // For this mock, we'll just initialize them with 'unmarked' status.
     const classStudents = allStudents[selectedClass] || [];
-    setStudents(classStudents.map(s => ({ ...s, status: 'unmarked' })));
+    setStudents(classStudents.map(s => ({ ...s, status: 'unmarked', notes: '' })));
   }, [selectedClass, date]);
 
   const handleSaveAttendance = React.useCallback(() => {
@@ -123,6 +125,13 @@ export default function AttendancePage() {
     // Auto-save on change
     handleSaveAttendance();
   };
+
+  const handleNotesChange = (studentId: string, notes: string) => {
+    setStudents(currentStudents =>
+      currentStudents.map(s => s.id === studentId ? { ...s, notes } : s)
+    );
+    handleSaveAttendance();
+  };
   
   const markAll = (status: AttendanceStatus) => {
     setStudents(currentStudents => currentStudents.map(s => ({ ...s, status })));
@@ -130,7 +139,7 @@ export default function AttendancePage() {
   };
 
   const clearAll = () => {
-    setStudents(currentStudents => currentStudents.map(s => ({...s, status: 'unmarked' })));
+    setStudents(currentStudents => currentStudents.map(s => ({...s, status: 'unmarked', notes: '' })));
   }
 
   const attendanceSummary = React.useMemo(() => {
@@ -210,6 +219,10 @@ export default function AttendancePage() {
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => markAll('present')} disabled={isRange}>Mark All Present</Button>
                 <Button variant="outline" size="sm" onClick={clearAll} disabled={isRange}>Clear All</Button>
+                <Button variant="outline" size="sm" disabled>
+                    <FilePenLine className="mr-2 h-4 w-4" />
+                    Notes
+                </Button>
               </div>
             </div>
             {!isRange && (
@@ -267,6 +280,7 @@ export default function AttendancePage() {
                     <TableRow>
                     <TableHead className="w-[250px]">Student</TableHead>
                     <TableHead className="text-center">Status</TableHead>
+                    <TableHead>Notes</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -300,6 +314,17 @@ export default function AttendancePage() {
                                 <Label htmlFor={`${student.id}-late`}>Late</Label>
                             </div>
                             </RadioGroup>
+                        </TableCell>
+                        <TableCell className="w-[250px]">
+                            {(student.status === 'absent' || student.status === 'late') && (
+                                <Input
+                                    type="text"
+                                    placeholder="Add a note (e.g., Sick, family emergency)"
+                                    value={student.notes}
+                                    onChange={(e) => handleNotesChange(student.id, e.target.value)}
+                                    onBlur={() => handleSaveAttendance()}
+                                />
+                            )}
                         </TableCell>
                     </TableRow>
                     ))}
