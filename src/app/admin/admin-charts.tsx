@@ -20,6 +20,7 @@ import {
 import { CircleDollarSign, BarChart3, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 
 const feeData = [
@@ -33,6 +34,10 @@ const feeChartConfig = {
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
 export function FinanceSnapshot() {
+  const totalCollected = 8200000;
+  const totalExpenses = 6500000;
+  const netIncome = totalCollected - totalExpenses;
+    
   return (
       <Card>
         <CardHeader>
@@ -40,7 +45,7 @@ export function FinanceSnapshot() {
                 <CircleDollarSign className="h-6 w-6 text-primary"/>
                 Finance Snapshot
             </CardTitle>
-            <CardDescription>Term 2 Fee Collection Status</CardDescription>
+            <CardDescription>Term 2 Income vs. Expenses Overview</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row items-center gap-6">
           <div className="flex-1">
@@ -71,18 +76,21 @@ export function FinanceSnapshot() {
                 </PieChart>
             </ChartContainer>
           </div>
-          <div className="flex-1 space-y-4">
-              <div className="text-center md:text-left">
-                  <p className="text-xs text-muted-foreground">Total Collected</p>
-                  <p className="text-2xl font-bold">KES 8,200,000</p>
+          <div className="flex-1 space-y-4 w-full">
+              <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">Total Collected (Income)</p>
+                  <p className="text-lg font-bold">KES 8,200,000</p>
               </div>
-              <div className="text-center md:text-left">
-                  <p className="text-xs text-muted-foreground">Total Outstanding</p>
-                  <p className="text-2xl font-bold">KES 1,800,000</p>
+               <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">Total Expenses</p>
+                  <p className="text-lg font-bold text-destructive">- KES 6,500,000</p>
               </div>
-               <div className="text-center md:text-left pt-2">
-                  <p className="text-xs text-red-600 font-semibold">Overdue Balances</p>
-                  <p className="text-2xl font-bold text-red-600">KES 540,000</p>
+              <Separator />
+               <div className="flex justify-between items-center">
+                  <p className="text-sm font-semibold">Net Income</p>
+                  <p className={`text-xl font-bold ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    KES {netIncome.toLocaleString()}
+                  </p>
               </div>
           </div>
         </CardContent>
