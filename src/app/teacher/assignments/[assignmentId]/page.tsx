@@ -23,17 +23,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-
-type SubmissionStatus = 'Submitted' | 'Not Submitted' | 'Late';
-
-type Submission = {
-  studentId: string;
-  studentName: string;
-  avatarUrl: string;
-  status: SubmissionStatus;
-  submittedDate?: string;
-  grade?: string;
-};
+import { GradingDialog } from './grading-dialog';
+import type { Submission } from './types';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock Data
 const assignmentDetails = {
@@ -43,15 +35,16 @@ const assignmentDetails = {
     dueDate: '2024-07-22',
 };
 
-const submissions: Submission[] = [
+const initialSubmissions: Submission[] = [
   { studentId: 'f4-chem-1', studentName: 'Student 1', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', status: 'Submitted', submittedDate: '2024-07-21', grade: 'A' },
   { studentId: 'f4-chem-2', studentName: 'Student 2', avatarUrl: 'https://picsum.photos/seed/f4-student2/100', status: 'Submitted', submittedDate: '2024-07-22', grade: 'B+' },
   { studentId: 'f4-chem-3', studentName: 'Student 3', avatarUrl: 'https://picsum.photos/seed/f4-student3/100', status: 'Not Submitted' },
   { studentId: 'f4-chem-4', studentName: 'Student 4', avatarUrl: 'https://picsum.photos/seed/f4-student4/100', status: 'Late', submittedDate: '2024-07-23', grade: 'C' },
-  { studentId: 'f4-chem-5', studentName: 'Student 5', avatarUrl: 'https://picsum.photos/seed/f4-student5/100', status: 'Not Submitted' },
+  { studentId: 'f4-chem-5', studentName: 'Student 5', avatarUrl: 'https://picsum.photos/seed/f4-student5/100', status: 'Submitted', submittedDate: '2024-07-22', grade: undefined },
+  { studentId: 'f4-chem-6', studentName: 'Student 6', avatarUrl: 'https://picsum.photos/seed/f4-student6/100', status: 'Not Submitted' },
 ];
 
-const getStatusBadge = (status: SubmissionStatus) => {
+const getStatusBadge = (status: Submission['status']) => {
     switch(status) {
         case 'Submitted': return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Submitted</Badge>;
         case 'Not Submitted': return <Badge variant="destructive"><Clock className="mr-1 h-3 w-3"/>Not Submitted</Badge>;
@@ -62,6 +55,19 @@ const getStatusBadge = (status: SubmissionStatus) => {
 
 export default function AssignmentSubmissionsPage({ params }: { params: { assignmentId: string } }) {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [submissions, setSubmissions] = React.useState(initialSubmissions);
+  const [gradingStudent, setGradingStudent] = React.useState<Submission | null>(null);
+  const { toast } = useToast();
+
+  const handleGradeSave = (studentId: string, grade: string) => {
+    setSubmissions(prev => 
+      prev.map(s => s.studentId === studentId ? { ...s, grade } : s)
+    );
+    toast({
+      title: 'Grade Saved!',
+      description: `The grade for the submission has been successfully saved.`,
+    });
+  };
 
   const filteredSubmissions = submissions.filter(s => 
     s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -69,6 +75,18 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
   
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      <GradingDialog
+        student={gradingStudent}
+        assignmentId={params.assignmentId}
+        open={!!gradingStudent}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setGradingStudent(null);
+          }
+        }}
+        onGradeSave={handleGradeSave}
+      />
+
        <div className="mb-6">
         <Button asChild variant="outline" size="sm">
             <Link href="/teacher/assignments">
@@ -137,8 +155,13 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                           {submission.grade ? <Badge variant="outline">{submission.grade}</Badge> : <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" disabled={submission.status === 'Not Submitted'}>
-                            View & Grade
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            disabled={submission.status === 'Not Submitted'}
+                            onClick={() => setGradingStudent(submission)}
+                          >
+                            {submission.grade ? 'View/Edit Grade' : 'View & Grade'}
                           </Button>
                         </TableCell>
                       </TableRow>
