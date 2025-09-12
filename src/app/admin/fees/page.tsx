@@ -36,7 +36,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CircleDollarSign, Search, Filter, ChevronDown, Percent, FileDown, Receipt, Send, PlusCircle, Edit, Trash2, Tag, HandHelping, FileText } from 'lucide-react';
+import { CircleDollarSign, Search, Filter, ChevronDown, Percent, FileDown, Receipt, Send, PlusCircle, Edit, Trash2, Tag, HandHelping, FileText, Bell } from 'lucide-react';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
   ChartContainer,
@@ -189,19 +189,25 @@ function NewTransactionDialog() {
                     </div>
                 </div>
                 {transactionType === 'payment' && (
-                     <div className="space-y-2">
-                        <Label htmlFor="payment-method">Payment Method</Label>
-                        <Select>
-                            <SelectTrigger id="payment-method">
-                                <SelectValue placeholder="Select a payment method" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="mpesa">M-PESA</SelectItem>
-                                <SelectItem value="bank">Bank Transfer</SelectItem>
-                                <SelectItem value="cash">Cash</SelectItem>
-                                <SelectItem value="cheque">Cheque</SelectItem>
-                            </SelectContent>
-                        </Select>
+                    <div className='space-y-4'>
+                        <div className="space-y-2">
+                            <Label htmlFor="payment-method">Payment Method</Label>
+                            <Select>
+                                <SelectTrigger id="payment-method">
+                                    <SelectValue placeholder="Select a payment method" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="mpesa">M-PESA</SelectItem>
+                                    <SelectItem value="bank">Bank Transfer</SelectItem>
+                                    <SelectItem value="cash">Cash</SelectItem>
+                                    <SelectItem value="cheque">Cheque</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center space-x-2 pt-2">
+                            <Switch id="notify-parent" defaultChecked disabled />
+                            <Label htmlFor="notify-parent">Notify parent/guardian of this payment</Label>
+                        </div>
                     </div>
                 )}
                  <div className="space-y-2">
@@ -758,3 +764,5 @@ export default function FeesPage() {
         </Dialog>
     );
 }
+
+    
