@@ -13,6 +13,17 @@ import {
   HelpCircle,
   Palette,
   Building,
+  ClipboardCheck,
+  FileText,
+  BookOpen,
+  Shapes,
+  ShieldCheck,
+  Megaphone,
+  MessageCircle,
+  Calendar,
+  CircleDollarSign,
+  Receipt,
+  FileClock,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -32,16 +43,63 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 
-const navItems = [
-  { href: '/admin/branding', label: 'Branding', icon: Palette },
-  { href: '/admin/users', label: 'User Management', icon: Users },
-  { href: '/admin/settings', label: 'School Settings', icon: Building },
+
+const navGroups = [
+  {
+    title: 'Academics',
+    items: [
+      { href: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
+      { href: '/admin/grades', label: 'Grades & Exams', icon: FileText },
+      { href: '/admin/lesson-plans', label: 'Lesson Plans', icon: BookOpen },
+      { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
+    ],
+  },
+   {
+    title: 'Users',
+    items: [
+      { href: '/admin/users', label: 'User Management', icon: Users },
+      { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
+    ],
+  },
+  {
+    title: 'Communication',
+    items: [
+      { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+      { href: '/admin/messaging', label: 'Messaging', icon: MessageCircle },
+      { href: '/admin/calendar', label: 'Calendar', icon: Calendar },
+    ],
+  },
+  {
+    title: 'Finance',
+    items: [
+        { href: '/admin/fees', label: 'Fees & Payments', icon: CircleDollarSign },
+        { href: '/admin/expenses', label: 'Expenses', icon: Receipt },
+    ],
+  },
+  {
+    title: 'School Settings',
+    items: [
+        { href: '/admin/profile', label: 'School Profile', icon: Building },
+        { href: '/admin/branding', label: 'Branding', icon: Palette },
+        { href: '/admin/settings', label: 'System Settings', icon: Settings },
+    ]
+  },
+  {
+    title: 'System',
+    items: [
+        { href: '/admin/logs', label: 'Audit Logs', icon: FileClock },
+        { href: '/admin/support', label: 'Support & Feedback', icon: HelpCircle },
+    ]
+  }
 ];
+
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href);
+  const isActive = (href: string) => pathname.startsWith(href);
 
   return (
     <>
@@ -62,21 +120,37 @@ export function AdminSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive(item.href)}
-                tooltip={{ children: item.label }}
-              >
-                <Link href={item.href}>
-                  <item.icon />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
         </SidebarMenu>
+         {navGroups.map((group) => (
+          <Collapsible key={group.title} defaultOpen>
+              <SidebarMenuItem className="px-2 pt-2">
+                <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between">
+                         <span className="text-xs font-semibold text-muted-foreground">{group.title}</span>
+                         <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [&[data-state=open]]:rotate-180" />
+                    </div>
+                </CollapsibleTrigger>
+              </SidebarMenuItem>
+            <CollapsibleContent>
+                <SidebarMenu>
+                    {group.items.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={isActive(item.href)}
+                            tooltip={{ children: item.label }}
+                        >
+                            <Link href={item.href}>
+                                <item.icon />
+                                <span>{item.label}</span>
+                            </Link>
+                        </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
