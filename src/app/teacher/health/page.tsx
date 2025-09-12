@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock, Mic } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock, Mic, ClipboardCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -68,6 +68,7 @@ const incidentSchema = z.object({
   description: z.string().min(20, 'Please provide a detailed description (at least 20 characters).'),
   actionsTaken: z.string().min(10, 'Please describe the actions taken.'),
   urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
+  markAsAbsent: z.boolean().default(false),
   notifyParents: z.boolean().default(false),
   notifyAdmin: z.boolean().default(true),
   notifyNurse: z.boolean().default(false),
@@ -138,6 +139,7 @@ export default function HealthPage() {
       incidentType: 'Health',
       incidentTime: format(new Date(), 'HH:mm'),
       urgency: 'Low',
+      markAsAbsent: false,
       notifyParents: false,
       notifyAdmin: true,
       notifyNurse: false,
@@ -407,6 +409,27 @@ export default function HealthPage() {
                                                 </RadioGroup>
                                             </FormControl>
                                             <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="markAsAbsent"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                            <div className="space-y-0.5">
+                                                <FormLabel>Update Attendance</FormLabel>
+                                                <FormDescription>
+                                                    Mark student as absent for this date due to illness.
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    disabled
+                                                />
+                                            </FormControl>
                                             </FormItem>
                                         )}
                                     />
@@ -784,5 +807,3 @@ export default function HealthPage() {
     </div>
   );
 }
-
-    
