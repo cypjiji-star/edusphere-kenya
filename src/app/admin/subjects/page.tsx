@@ -25,7 +25,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck } from 'lucide-react';
+import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck, FileDown, Printer, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 
 type SchoolClass = {
@@ -186,63 +192,78 @@ export default function ClassesAndSubjectsPage() {
                              <CardTitle>Class List</CardTitle>
                             <CardDescription>View, create, and edit classes and streams.</CardDescription>
                         </div>
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button>
-                                <PlusCircle className="mr-2" />
-                                Add New Class
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Add a New Class</DialogTitle>
-                                    <DialogDescription>
-                                        Fill in the details below. A unique class code will be generated automatically.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="class-name" className="text-right">Class Name</Label>
-                                        <Input id="class-name" placeholder="e.g., Form 1" className="col-span-3" />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="class-stream" className="text-right">Stream</Label>
-                                        <Input id="class-stream" placeholder="e.g., A, North (Optional)" className="col-span-3" />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="class-teacher" className="text-right">Class Teacher</Label>
-                                        <Select>
-                                            <SelectTrigger id="class-teacher" className="col-span-3">
-                                                <SelectValue placeholder="Select a teacher" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {mockTeachers.map(teacher => (
-                                                    <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="class-capacity" className="text-right">Capacity</Label>
-                                        <Input id="class-capacity" type="number" placeholder="e.g., 45" className="col-span-3" />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-start gap-4">
-                                        <Label className="text-right pt-2">Co-Teachers</Label>
-                                        <div className="col-span-3">
-                                            <Button variant="outline" size="sm" disabled>
-                                                <UserPlus className="mr-2 h-4 w-4"/>
-                                                Assign Co-Teacher
-                                            </Button>
-                                            <p className="text-xs text-muted-foreground mt-2">Multiple teacher assignment is coming soon.</p>
+                        <div className="flex gap-2">
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                    <PlusCircle className="mr-2" />
+                                    Add New Class
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Add a New Class</DialogTitle>
+                                        <DialogDescription>
+                                            Fill in the details below. A unique class code will be generated automatically.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="class-name" className="text-right">Class Name</Label>
+                                            <Input id="class-name" placeholder="e.g., Form 1" className="col-span-3" />
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="class-stream" className="text-right">Stream</Label>
+                                            <Input id="class-stream" placeholder="e.g., A, North (Optional)" className="col-span-3" />
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="class-teacher" className="text-right">Class Teacher</Label>
+                                            <Select>
+                                                <SelectTrigger id="class-teacher" className="col-span-3">
+                                                    <SelectValue placeholder="Select a teacher" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {mockTeachers.map(teacher => (
+                                                        <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="class-capacity" className="text-right">Capacity</Label>
+                                            <Input id="class-capacity" type="number" placeholder="e.g., 45" className="col-span-3" />
+                                        </div>
+                                        <div className="grid grid-cols-4 items-start gap-4">
+                                            <Label className="text-right pt-2">Co-Teachers</Label>
+                                            <div className="col-span-3">
+                                                <Button variant="outline" size="sm" disabled>
+                                                    <UserPlus className="mr-2 h-4 w-4"/>
+                                                    Assign Co-Teacher
+                                                </Button>
+                                                <p className="text-xs text-muted-foreground mt-2">Multiple teacher assignment is coming soon.</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <DialogFooter>
-                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                    <Button disabled>Save Class</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <Button disabled>Save Class</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline">
+                                        <FileDown className="mr-2 h-4 w-4" />
+                                        Export
+                                        <ChevronDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -455,6 +476,19 @@ export default function ClassesAndSubjectsPage() {
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline">
+                                        <FileDown className="mr-2 h-4 w-4" />
+                                        Export
+                                        <ChevronDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
                 </CardHeader>
@@ -499,8 +533,25 @@ export default function ClassesAndSubjectsPage() {
         <TabsContent value="assignments">
             <Card>
                 <CardHeader>
-                    <CardTitle>Per-Class Teacher Assignments</CardTitle>
-                    <CardDescription>View which teacher is teaching which subject in each class and identify any unassigned subjects.</CardDescription>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                         <div>
+                            <CardTitle>Per-Class Teacher Assignments</CardTitle>
+                            <CardDescription>View which teacher is teaching which subject in each class and identify any unassigned subjects.</CardDescription>
+                         </div>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    <FileDown className="mr-2 h-4 w-4"/>
+                                    Export / Print
+                                    <ChevronDown className="ml-2 h-4 w-4"/>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export Full Report (PDF)</DropdownMenuItem>
+                                <DropdownMenuItem disabled><Printer className="mr-2 h-4 w-4" />Print Teacher Allocations</DropdownMenuItem>
+                            </DropdownMenuContent>
+                         </DropdownMenu>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <TooltipProvider>
