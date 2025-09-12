@@ -47,6 +47,14 @@ const conversations = [
     timestamp: 'Yesterday',
     unread: true,
   },
+    {
+    id: 'msg-5',
+    name: 'Form 4 Chemistry Announcements',
+    avatar: 'https://picsum.photos/seed/group2/100',
+    lastMessage: 'Reminder: The lab report is due this Friday.',
+    timestamp: 'Yesterday',
+    unread: false,
+  },
   {
     id: 'msg-3',
     name: 'Admin Office',
@@ -78,6 +86,9 @@ const messages = {
     ],
     'msg-4': [
          { sender: 'other', text: "Mr. Kamau: Is the trip confirmed for next week?", timestamp: '2 days ago' },
+    ],
+    'msg-5': [
+        { sender: 'me', text: "Hello everyone, just a reminder that the Acid-Base Titration lab report is due this Friday. Please make sure to submit it on time.", timestamp: 'Yesterday' },
     ]
 }
 
@@ -173,7 +184,7 @@ export function ChatLayout() {
                 <div className="relative">
                   <Textarea
                     placeholder="Type your message..."
-                    className="pr-24"
+                    className="pr-32"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                      onKeyDown={(e) => {
