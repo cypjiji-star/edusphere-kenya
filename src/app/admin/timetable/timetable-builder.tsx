@@ -19,9 +19,10 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Edit, GripVertical, Plus, Save, Settings, Trash2 } from 'lucide-react';
+import { Edit, GripVertical, Plus, Save, Settings, Trash2, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const teachers = ['Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri', 'Mr. Kamau'];
@@ -52,20 +53,23 @@ const subjects = [
     { name: 'Geography', teacher: 'Mr. Otieno', color: 'bg-teal-500' },
 ];
 
-const mockTimetable: Record<string, Record<number, typeof subjects[number]>> = {
+const mockTimetable: Record<string, Record<number, { subject: typeof subjects[number], clash?: boolean }>> = {
     Monday: {
-        1: subjects[0], // Math
-        2: subjects[2], // Chemistry
+        1: { subject: subjects[0] }, // Math - Mr. Otieno
+        2: { subject: subjects[2] }, // Chemistry - Ms. Wanjiku
     },
     Tuesday: {
-        3: subjects[1], // English
+        3: { subject: subjects[1] }, // English - Ms. Njeri
     },
     Wednesday: {
-        5: subjects[3], // Physics
-        6: subjects[4], // Biology
+        5: { subject: subjects[3] }, // Physics - Mr. Kamau
+        6: { subject: subjects[4] }, // Biology - Ms. Wanjiku
+    },
+    Thursday: {
+        2: { subject: subjects[2], clash: true }, // Chemistry - Ms. Wanjiku (CLASH)
     },
     Friday: {
-        8: subjects[0], // Math
+        8: { subject: subjects[0] }, // Math - Mr. Otieno
     }
 }
 
@@ -148,17 +152,24 @@ export function TimetableBuilder() {
                                 {periods.map(period => (
                                     <tr key={period.id} className="border-b">
                                         <td className="p-2 font-semibold text-primary text-sm border-r text-center">{period.time}</td>
-                                        {days.map(day => (
-                                            <td key={day} className="h-24 p-1 align-top border-r">
+                                        {days.map(day => {
+                                            const cellData = mockTimetable[day]?.[period.id];
+                                            return (
+                                            <td key={day} className={cn("h-24 p-1 align-top border-r", cellData?.clash && 'relative ring-2 ring-destructive ring-inset')}>
+                                                {cellData?.clash && (
+                                                    <div className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 z-10">
+                                                         <AlertTriangle className="h-3 w-3" />
+                                                    </div>
+                                                )}
                                                 {period.isBreak ? (
                                                     period.id === 4 ? <div className="h-full flex items-center justify-center bg-gray-100 rounded-md"><p className="text-xs font-semibold text-gray-500 transform -rotate-90">{period.title}</p></div> :
                                                     <div className="h-full flex items-center justify-center bg-gray-200 rounded-md"><p className="font-semibold text-gray-600">{period.title}</p></div>
                                                 ) : (
-                                                    mockTimetable[day]?.[period.id] && (
-                                                        <div className={`p-2 rounded-md text-white h-full flex flex-col justify-between cursor-pointer ${mockTimetable[day][period.id].color}`}>
+                                                    cellData && (
+                                                        <div className={cn('p-2 rounded-md text-white h-full flex flex-col justify-between cursor-pointer', cellData.subject.color)}>
                                                             <div>
-                                                                <p className="font-bold text-sm">{mockTimetable[day][period.id].name}</p>
-                                                                <p className="text-xs opacity-80">{mockTimetable[day][period.id].teacher}</p>
+                                                                <p className="font-bold text-sm">{cellData.subject.name}</p>
+                                                                <p className="text-xs opacity-80">{cellData.subject.teacher}</p>
                                                             </div>
                                                             <div className="text-right">
                                                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
@@ -169,7 +180,8 @@ export function TimetableBuilder() {
                                                     )
                                                 )}
                                             </td>
-                                        ))}
+                                            )
+                                        })}
                                     </tr>
                                 ))}
                             </tbody>
