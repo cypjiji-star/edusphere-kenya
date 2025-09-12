@@ -30,10 +30,11 @@ import {
   } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload } from 'lucide-react';
+import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload, Save, Trophy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 
 
 // Mock Data
@@ -155,11 +156,13 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
       </div>
       
       <Tabs defaultValue="roster">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 grid w-full grid-cols-2 md:w-auto md:inline-flex">
             <TabsTrigger value="roster">Roster</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="media">Media &amp; Highlights</TabsTrigger>
+            <TabsTrigger value="media">Media</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
+
         <TabsContent value="roster">
             <Card>
                 <CardHeader>
@@ -248,6 +251,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                 </CardContent>
             </Card>
         </TabsContent>
+
         <TabsContent value="schedule">
             <Card>
                 <CardHeader>
@@ -284,6 +288,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                 </CardFooter>
              </Card>
         </TabsContent>
+
         <TabsContent value="media">
              <Card>
                 <CardHeader>
@@ -324,8 +329,85 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                 </CardContent>
              </Card>
         </TabsContent>
+
+        <TabsContent value="performance">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Attendance &amp; Performance</CardTitle>
+                    <CardDescription>Record attendance and log stats for practices and matches.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center">
+                        <Label htmlFor="event-select" className="shrink-0">Select Event:</Label>
+                        <Select defaultValue={upcomingEvents[0].id}>
+                            <SelectTrigger id="event-select" className="w-full md:w-auto md:min-w-[300px]">
+                                <SelectValue placeholder="Select an event to record stats for" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {upcomingEvents.map(event => (
+                                    <SelectItem key={event.id} value={event.id}>
+                                        {event.title} ({new Date(event.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="w-full overflow-auto rounded-lg border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead>Attendance</TableHead>
+                                    <TableHead className="text-center">Goals</TableHead>
+                                    <TableHead className="text-center">Assists</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {members.map(member => (
+                                    <TableRow key={member.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={member.avatarUrl} alt={member.name} />
+                                                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium text-sm">{member.name}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Select defaultValue="present">
+                                                <SelectTrigger className="w-32">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="present">Present</SelectItem>
+                                                    <SelectItem value="absent">Absent</SelectItem>
+                                                    <SelectItem value="excused">Excused</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input type="number" min="0" className="w-20 mx-auto text-center" placeholder="0" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input type="number" min="0" className="w-20 mx-auto text-center" placeholder="0" />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button disabled>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Records
+                    </Button>
+                </CardFooter>
+            </Card>
+        </TabsContent>
+
       </Tabs>
     </div>
   );
 }
-
