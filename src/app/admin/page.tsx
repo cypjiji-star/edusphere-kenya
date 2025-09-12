@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { FinanceSnapshot } from './admin-charts';
 
 const overviewStats = [
     {
@@ -176,17 +177,7 @@ export default function AdminDashboard() {
                 </div>
             </CardContent>
          </Card>
-          <Card>
-            <CardHeader>
-                <CardTitle>System Status</CardTitle>
-                <CardDescription>Placeholder for system health and status updates.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                 <div className="flex h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                    <p className="text-muted-foreground">System status indicators coming soon...</p>
-                 </div>
-            </CardContent>
-         </Card>
+          <FinanceSnapshot />
       </div>
     </div>
   );
