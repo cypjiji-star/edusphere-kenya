@@ -1,0 +1,287 @@
+
+'use client';
+
+import { useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format } from 'date-fns';
+import { lessonPlanSchema, generateContentAction, LessonPlanFormValues } from './actions';
+
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2, PlusCircle, Sparkles, Wand2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
+
+const teacherClasses = [
+  { id: 'f4-chem', name: 'Form 4 - Chemistry', subject: 'Chemistry', grade: 'Form 4' },
+  { id: 'f3-math', name: 'Form 3 - Mathematics', subject: 'Mathematics', grade: 'Form 3' },
+  { id: 'f2-phys', name: 'Form 2 - Physics', subject: 'Physics', grade: 'Form 2' },
+  { id: 'f1-eng', name: 'Form 1 - English', subject: 'English', grade: 'Form 1'},
+  { id: 'g6-hist', name: 'Grade 6 - History', subject: 'History', grade: 'Grade 6'},
+];
+
+type AiField = 'objectives' | 'activities' | 'assessment';
+
+export function LessonPlanForm() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
+  const { toast } = useToast();
+
+  const form = useForm<LessonPlanFormValues>({
+    resolver: zodResolver(lessonPlanSchema),
+    defaultValues: {
+      topic: '',
+      subject: '',
+      grade: '',
+      objectives: '',
+      materials: '',
+      activities: '',
+      assessment: '',
+    },
+  });
+  
+  const formState = useWatch({ control: form.control });
+
+  async function onSubmit(values: LessonPlanFormValues) {
+    setIsLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsLoading(false);
+    
+    toast({
+      title: 'Lesson Plan Saved!',
+      description: `"${values.topic}" has been successfully saved.`,
+    });
+    console.log(values);
+  }
+  
+  const handleGenerateContent = async (field: AiField) => {
+    setAiLoadingField(field);
+
+    const result = await generateContentAction({
+        topic: formState.topic,
+        subject: formState.subject,
+        grade: formState.grade,
+        fieldToGenerate: field,
+        existingContent: {
+            objectives: formState.objectives,
+            activities: formState.activities,
+            assessment: formState.assessment,
+        }
+    });
+
+    setAiLoadingField(null);
+    if (result.success && result.data) {
+        form.setValue(field, result.data.generatedContent);
+         toast({
+            title: `${field.charAt(0).toUpperCase() + field.slice(1)} Generated!`,
+            description: `AI has generated content for the ${field} section.`,
+        });
+    } else {
+         toast({
+            variant: 'destructive',
+            title: 'AI Generation Failed',
+            description: result.error || 'Could not generate content for this field.',
+        });
+    }
+  };
+
+  const renderAiButton = (field: AiField, label: string) => (
+    <div className="flex items-center justify-between mb-2">
+        <FormLabel>{label}</FormLabel>
+        <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleGenerateContent(field)}
+            disabled={!formState.topic || !formState.subject || !formState.grade || !!aiLoadingField}
+        >
+            {aiLoadingField === field ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <Sparkles className="mr-2 h-4 w-4 text-accent" />
+            )}
+            Generate with AI
+        </Button>
+    </div>
+  )
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
+            <div className="md:col-span-1 space-y-6">
+                <h3 className="font-headline text-lg">Basic Information</h3>
+                <FormField
+                    control={form.control}
+                    name="topic"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Lesson Topic</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., Photosynthesis" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="subject"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subject</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a subject" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {[...new Set(teacherClasses.map(c => c.subject))].map((subject) => (
+                            <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="grade"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Grade / Form</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a grade" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {[...new Set(teacherClasses.map(c => c.grade))].map((grade) => (
+                            <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                    control={form.control}
+                    name="materials"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Materials & Resources</FormLabel>
+                        <FormControl>
+                            <Textarea
+                                placeholder="List all required materials, e.g., Textbooks, chalk, charts, lab equipment..."
+                                className="min-h-[100px]"
+                                {...field}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <div className="md:col-span-2 space-y-6">
+                 <h3 className="font-headline text-lg flex items-center gap-2">
+                    <Wand2 className="h-5 w-5 text-primary"/>
+                    AI-Assisted Content
+                </h3>
+                <FormField
+                    control={form.control}
+                    name="objectives"
+                    render={({ field }) => (
+                        <FormItem>
+                        {renderAiButton('objectives', 'Learning Objectives')}
+                        <FormControl>
+                            <Textarea
+                            placeholder="e.g., By the end of the lesson, students will be able to define photosynthesis and write its chemical equation..."
+                            className="min-h-[120px]"
+                            {...field}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="activities"
+                    render={({ field }) => (
+                        <FormItem>
+                         {renderAiButton('activities', 'Lesson Activities')}
+                        <FormControl>
+                            <Textarea
+                            placeholder="Describe the sequence of activities, e.g., 1. Introduction (5 mins), 2. Group Discussion (15 mins), 3. Practical Demo (15 mins)..."
+                            className="min-h-[150px]"
+                            {...field}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="assessment"
+                    render={({ field }) => (
+                        <FormItem>
+                         {renderAiButton('assessment', 'Assessment & Evaluation')}
+                        <FormControl>
+                            <Textarea
+                            placeholder="How will you check for understanding? e.g., Q&A session, short quiz, homework assignment..."
+                            className="min-h-[120px]"
+                            {...field}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+        
+        <Separator className="my-8"/>
+
+        <div className="flex justify-end">
+            <Button type="submit" disabled={isLoading || !!aiLoadingField} className="w-full md:w-auto">
+                {isLoading ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                </>
+                ) : (
+                <>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Save Lesson Plan
+                </>
+                )}
+            </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}

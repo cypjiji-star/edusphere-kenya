@@ -66,7 +66,7 @@ const navGroups = [
   {
     title: 'Tools & Resources',
     items: [
-        { href: '/teacher/lesson-plans', label: 'Lesson Plans', icon: BookOpen, disabled: true },
+        { href: '/teacher/lesson-plans', label: 'Lesson Plans', icon: BookOpen, disabled: false },
         { href: '/teacher/library', label: 'Library Access', icon: Library, disabled: true },
     ],
   },
