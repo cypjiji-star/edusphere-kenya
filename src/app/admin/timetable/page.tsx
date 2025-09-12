@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   Card,
   CardContent,
@@ -6,30 +8,28 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Calendar } from 'lucide-react';
+import { Calendar, PlusCircle } from 'lucide-react';
+import { TimetableBuilder } from './timetable-builder';
+import { Button } from '@/components/ui/button';
 
 export default function TimetablePage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-            <Calendar className="h-8 w-8 text-primary"/>
-            Timetable Management
-        </h1>
-        <p className="text-muted-foreground">Create and manage school-wide class and teacher timetables.</p>
+      <div className="mb-6 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+              <Calendar className="h-8 w-8 text-primary"/>
+              Timetable Management
+          </h1>
+          <p className="text-muted-foreground">Create and manage school-wide class and teacher timetables.</p>
+        </div>
+        <Button disabled>
+            <PlusCircle className="mr-2"/>
+            Create New Timetable
+        </Button>
       </div>
 
-       <Card>
-            <CardHeader>
-                <CardTitle>Master Timetable</CardTitle>
-                <CardDescription>This is a placeholder for where the timetable creation and assignment tools will go.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex h-[400px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                    <p className="text-muted-foreground">Timetable functionality is coming soon.</p>
-                </div>
-            </CardContent>
-        </Card>
+      <TimetableBuilder />
     </div>
   );
 }
