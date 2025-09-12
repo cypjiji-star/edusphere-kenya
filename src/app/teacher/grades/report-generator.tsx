@@ -24,13 +24,17 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Loader2, Printer, GraduationCap } from 'lucide-react';
+import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+type ReportType = 'individual' | 'summary' | 'ranking';
 
 export function ReportGenerator() {
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
   const [selectedStudent, setSelectedStudent] = React.useState<string | null>(null);
+  const [reportType, setReportType] = React.useState<ReportType>('individual');
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [report, setReport] = React.useState<{ student: StudentGrades, assessments: Assessment[] } | null>(null);
 
@@ -39,19 +43,20 @@ export function ReportGenerator() {
   React.useEffect(() => {
     setSelectedStudent(null);
     setReport(null);
-  }, [selectedClass]);
+  }, [selectedClass, reportType]);
 
   const handleGenerateReport = () => {
-    if (!selectedStudent) return;
+    if (reportType === 'individual' && !selectedStudent) return;
     
     setIsGenerating(true);
-    const studentData = studentsInClass.find(s => s.studentId === selectedStudent);
-    const assessmentData = assessmentsByClass[selectedClass] || [];
-    
     // Simulate generation time
     setTimeout(() => {
-      if (studentData) {
-        setReport({ student: studentData, assessments: assessmentData });
+      if (reportType === 'individual') {
+        const studentData = studentsInClass.find(s => s.studentId === selectedStudent);
+        const assessmentData = assessmentsByClass[selectedClass] || [];
+        if (studentData) {
+          setReport({ student: studentData, assessments: assessmentData });
+        }
       }
       setIsGenerating(false);
     }, 1000);
@@ -62,14 +67,29 @@ export function ReportGenerator() {
     return grade ? grade.score : '—';
   };
 
+  const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
+
   return (
     <div className="grid gap-8 md:grid-cols-3">
         <Card className="md:col-span-1">
             <CardHeader>
                 <CardTitle>Generate Report</CardTitle>
-                <CardDescription>Select a class and student to generate their academic report card.</CardDescription>
+                <CardDescription>Select a report type and options to generate a report.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+                <div className="space-y-2">
+                    <Label htmlFor="report-type-select">Report Type</Label>
+                    <Select value={reportType} onValueChange={(value: ReportType) => setReportType(value)}>
+                        <SelectTrigger id="report-type-select">
+                            <SelectValue placeholder="Select a report type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="individual">Individual Student Report</SelectItem>
+                            <SelectItem value="summary">Class Performance Summary</SelectItem>
+                            <SelectItem value="ranking">Student Ranking &amp; Percentiles</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="class-select">Select Class</Label>
                     <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -83,22 +103,24 @@ export function ReportGenerator() {
                         </SelectContent>
                     </Select>
                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="student-select">Select Student</Label>
-                    <Select value={selectedStudent || ''} onValueChange={setSelectedStudent} disabled={studentsInClass.length === 0}>
-                        <SelectTrigger id="student-select">
-                            <SelectValue placeholder="Select a student" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {studentsInClass.map((student) => (
-                                <SelectItem key={student.studentId} value={student.studentId}>{student.studentName}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                 {reportType === 'individual' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="student-select">Select Student</Label>
+                        <Select value={selectedStudent || ''} onValueChange={setSelectedStudent} disabled={studentsInClass.length === 0}>
+                            <SelectTrigger id="student-select">
+                                <SelectValue placeholder="Select a student" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {studentsInClass.map((student) => (
+                                    <SelectItem key={student.studentId} value={student.studentId}>{student.studentName}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                 )}
             </CardContent>
             <CardFooter>
-                 <Button onClick={handleGenerateReport} disabled={!selectedStudent || isGenerating} className="w-full">
+                 <Button onClick={handleGenerateReport} disabled={isGenerateDisabled} className="w-full">
                     {isGenerating ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -119,9 +141,9 @@ export function ReportGenerator() {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Report Preview</CardTitle>
-                        <CardDescription>This is a preview of the student's report card.</CardDescription>
+                        <CardDescription>A preview of the generated report will appear below.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" disabled={!report}>
+                    <Button variant="outline" size="sm" disabled={!report && reportType !== 'summary'}>
                         <Printer className="mr-2 h-4 w-4" />
                         Print
                     </Button>
@@ -130,17 +152,17 @@ export function ReportGenerator() {
                     {isGenerating && (
                         <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32">
                             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                            <p className="font-semibold">Compiling student data...</p>
+                            <p className="font-semibold">Compiling data...</p>
                         </div>
                     )}
-                    {!isGenerating && !report && (
+                    {!isGenerating && reportType === 'individual' && !report && (
                         <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32">
                             <FileText className="h-12 w-12 text-primary/50" />
                             <p className="font-semibold">Your generated report will appear here.</p>
                             <p className="text-sm">Select a student and click "Generate Report".</p>
                         </div>
                     )}
-                    {report && (
+                    {!isGenerating && reportType === 'individual' && report && (
                         <div className="border rounded-lg p-6 bg-background shadow-none">
                             <header className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
@@ -202,6 +224,18 @@ export function ReportGenerator() {
                              <footer className="text-center text-xs text-muted-foreground">
                                 <p>This is an official school document. &copy; {new Date().getFullYear()} EduSphere High School</p>
                              </footer>
+                        </div>
+                    )}
+                    {!isGenerating && (reportType === 'summary' || reportType === 'ranking') && (
+                        <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32 opacity-60">
+                            {reportType === 'summary' && <BarChart className="h-12 w-12 text-primary/50" />}
+                            {reportType === 'ranking' && <Crown className="h-12 w-12 text-primary/50" />}
+                             <Alert variant="default" className="text-left">
+                                <AlertTitle>Feature Coming Soon</AlertTitle>
+                                <AlertDescription>
+                                   The "{reportType === 'summary' ? 'Class Performance Summary' : 'Student Ranking & Percentiles'}" report is currently in development. This preview shows the intended layout.
+                                </AlertDescription>
+                            </Alert>
                         </div>
                     )}
                 </CardContent>
