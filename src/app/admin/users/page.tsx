@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -54,6 +54,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent';
 type UserStatus = 'Active' | 'Pending' | 'Suspended';
+type ParentRelationship = 'Father' | 'Mother' | 'Guardian';
+
+type ParentLink = {
+    id: string;
+    name: string;
+    relationship: ParentRelationship;
+    contact: string;
+}
 
 type User = {
     id: string;
@@ -64,20 +72,22 @@ type User = {
     status: UserStatus;
     lastLogin: string;
     class?: string;
+    parents?: ParentLink[];
 };
 
 const mockUsers: User[] = [
     { id: 'usr-1', name: 'Admin User', email: 'admin@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100', role: 'Admin', status: 'Active', lastLogin: '2024-07-18T10:00:00Z' },
     { id: 'usr-2', name: 'Ms. Wanjiku', email: 'wanjiku@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-18T09:30:00Z' },
     { id: 'usr-3', name: 'Mr. Otieno', email: 'otieno@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-17T14:00:00Z' },
-    { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z', class: 'Form 4' },
-    { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never', class: 'Form 4' },
+    { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z', class: 'Form 4', parents: [{ id: 'usr-5', name: 'Joseph Kariuki', relationship: 'Father', contact: '0722123456' }] },
+    { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never' },
     { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Suspended', lastLogin: '2024-06-10T08:00:00Z', class: 'Form 3' },
 ];
 
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended'];
 const roles: UserRole[] = ['Admin', 'Teacher', 'Student', 'Parent'];
 const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
+const relationships: ParentRelationship[] = ['Father', 'Mother', 'Guardian'];
 
 const getStatusBadge = (status: UserStatus) => {
     switch (status) {
@@ -154,7 +164,7 @@ export default function UserManagementPage() {
                                                         <DialogTitle>Edit User: {user.name}</DialogTitle>
                                                         <DialogDescription>Update user details, role, and status.</DialogDescription>
                                                     </DialogHeader>
-                                                    <div className="grid gap-6 py-4">
+                                                    <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
                                                          <div className="grid grid-cols-2 gap-4">
                                                             <div className="space-y-2">
                                                                 <Label htmlFor="name">Full Name</Label>
@@ -190,6 +200,7 @@ export default function UserManagementPage() {
                                                             </div>
                                                         </div>
                                                         {user.role === 'Student' && (
+                                                            <>
                                                             <div className="space-y-2">
                                                                 <Label htmlFor="class">Class</Label>
                                                                 <Select defaultValue={user.class}>
@@ -201,6 +212,54 @@ export default function UserManagementPage() {
                                                                     </SelectContent>
                                                                 </Select>
                                                             </div>
+                                                            <Separator />
+                                                            <div className="space-y-4">
+                                                                <h4 className="font-semibold text-base">Linked Parents/Guardians</h4>
+                                                                <div className="space-y-3">
+                                                                    {user.parents?.map(parent => (
+                                                                        <div key={parent.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
+                                                                            <div className="space-y-1">
+                                                                                <p className="font-medium">{parent.name} <Badge variant="secondary" className="ml-2">{parent.relationship}</Badge></p>
+                                                                                <p className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="h-3 w-3"/>{parent.contact}</p>
+                                                                            </div>
+                                                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                                                <Trash2 className="h-4 w-4"/>
+                                                                            </Button>
+                                                                        </div>
+                                                                    ))}
+                                                                    <Card>
+                                                                        <CardHeader>
+                                                                            <CardTitle className="text-base">Link New Parent/Guardian</CardTitle>
+                                                                        </CardHeader>
+                                                                        <CardContent className="space-y-4">
+                                                                            <div className="space-y-2">
+                                                                                <Label>Parent/Guardian Name</Label>
+                                                                                <Input placeholder="e.g., Mary Wambui" />
+                                                                            </div>
+                                                                             <div className="grid grid-cols-2 gap-4">
+                                                                                 <div className="space-y-2">
+                                                                                    <Label>Relationship</Label>
+                                                                                    <Select>
+                                                                                        <SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger>
+                                                                                        <SelectContent>
+                                                                                            {relationships.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                                                                        </SelectContent>
+                                                                                    </Select>
+                                                                                </div>
+                                                                                <div className="space-y-2">
+                                                                                    <Label>Contact Number</Label>
+                                                                                    <Input type="tel" placeholder="e.g., 0712345678" />
+                                                                                </div>
+                                                                            </div>
+                                                                             <Button variant="secondary" size="sm">
+                                                                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                                                                Add Parent
+                                                                            </Button>
+                                                                        </CardContent>
+                                                                    </Card>
+                                                                </div>
+                                                            </div>
+                                                            </>
                                                         )}
                                                         <Separator />
                                                         <div className="space-y-4">
@@ -218,7 +277,7 @@ export default function UserManagementPage() {
                                                         </div>
                                                     </div>
                                                     <DialogFooter>
-                                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                                                         <Button>Save Changes</Button>
                                                     </DialogFooter>
                                                 </DialogContent>
@@ -328,7 +387,7 @@ export default function UserManagementPage() {
                                                 Import Users from CSV...
                                             </DropdownMenuItem>
                                         </DialogTrigger>
-                                        <DropdownMenuItem disabled>
+                                        <DropdownMenuItem>
                                             <FileDown className="mr-2 h-4 w-4" />
                                             Export All Users (CSV)
                                         </DropdownMenuItem>
@@ -469,5 +528,3 @@ export default function UserManagementPage() {
         </div>
     );
 }
-
-    
