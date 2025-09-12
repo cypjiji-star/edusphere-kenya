@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import {
   Card,
@@ -16,6 +17,7 @@ import { PendingTasksWidget } from './pending-tasks-widget';
 import { AbsentStudentsWidget } from './absent-students-widget';
 import { MessagesWidget } from './messages-widget';
 import { DashboardCharts } from './dashboard-charts';
+import { LibraryNoticesWidget } from './library-notices-widget';
 
 const quickStats = [
     {
@@ -77,6 +79,7 @@ export default function TeacherDashboard() {
             <PendingTasksWidget />
             <AbsentStudentsWidget />
             <TimetableWidget />
+            <LibraryNoticesWidget />
         </div>
       </div>
     </div>
