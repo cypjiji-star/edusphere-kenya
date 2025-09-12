@@ -49,7 +49,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GradeEntryForm } from './grade-entry-form';
 import { ReportGenerator } from './report-generator';
 
 
@@ -143,7 +142,7 @@ export default function GradesPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Tabs defaultValue="gradebook">
-        <CardHeader>
+        <CardHeader className="px-0">
           <div className="md:flex md:items-start md:justify-between">
             <div>
               <CardTitle className="font-headline text-2xl">Gradebook</CardTitle>
@@ -296,7 +295,10 @@ export default function GradesPage() {
                         <div className="text-center">
                             <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
                             <h3 className="mt-4 text-xl font-semibold">No Grade Data</h3>
-                            <p className="mt-2 text-sm text-muted-foreground">There is no grade information for this class yet. Switch to the 'Enter Grades' tab to start.</p>
+                            <p className="mt-2 text-sm text-muted-foreground">There is no grade information for this class yet.</p>
+                            <Button asChild className="mt-4">
+                                <Link href="/teacher/grades/new">Enter Grades</Link>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -309,15 +311,27 @@ export default function GradesPage() {
           </Card>
         </TabsContent>
         <TabsContent value="entry">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline text-2xl">Enter New Grades</CardTitle>
-              <CardDescription>Fill out the form to add a new assessment and enter grades for your class.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <GradeEntryForm />
-            </CardContent>
-          </Card>
+           <Card>
+                <CardHeader>
+                    <CardTitle>Create New Assessment</CardTitle>
+                    <CardDescription>
+                        Create a new assessment record (e.g., Exam, Quiz) and enter grades for your class.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex min-h-[400px] flex-col items-center justify-center">
+                     <div className="text-center">
+                        <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-xl font-semibold">Ready to Enter Grades?</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">Click the button below to go to the grade entry form.</p>
+                        <Button asChild className="mt-6">
+                            <Link href="/teacher/grades/new">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Create New Assessment
+                            </Link>
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </TabsContent>
         <TabsContent value="reports">
             <ReportGenerator />

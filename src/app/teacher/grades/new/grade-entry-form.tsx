@@ -87,7 +87,8 @@ export function GradeEntryForm() {
   React.useEffect(() => {
     const students = studentsByClass[selectedClass] || [];
     replace(students.map(s => ({ studentId: s.id, grade: '' })));
-  }, [selectedClass, replace]);
+    form.setValue('classId', selectedClass);
+  }, [selectedClass, replace, form]);
 
   async function onSubmit(values: GradeEntryFormValues) {
     setIsLoading(true);

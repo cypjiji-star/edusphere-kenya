@@ -3,20 +3,23 @@
 
 import { z } from 'zod';
 
-// Zod schemas and types are defined in the component using this action.
+const studentGradeSchema = z.object({
+  studentId: z.string(),
+  grade: z.string().min(1, { message: "Grade is required" }),
+});
+
+export const gradeEntrySchema = z.object({
+  classId: z.string({ required_error: 'Please select a class.' }),
+  assessmentTitle: z.string().min(3, 'Assessment title must be at least 3 characters.'),
+  assessmentType: z.enum(['Exam', 'Quiz', 'Assignment', 'Project']),
+  assessmentDate: z.date({ required_error: 'An assessment date is required.' }),
+  grades: z.array(studentGradeSchema),
+});
+
 
 // Define the type based on how it's used in the form.
 // This should be kept in sync with the schema in grade-entry-form.tsx
-export type GradeEntryFormValues = {
-  classId: string;
-  assessmentTitle: string;
-  assessmentType: 'Exam' | 'Quiz' | 'Assignment' | 'Project';
-  assessmentDate: Date;
-  grades: {
-      studentId: string;
-      grade: string;
-  }[];
-};
+export type GradeEntryFormValues = z.infer<typeof gradeEntrySchema>;
 
 
 // In a real app, this would save to a database.
