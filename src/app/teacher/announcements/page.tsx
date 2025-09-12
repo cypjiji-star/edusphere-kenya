@@ -27,6 +27,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -41,6 +43,7 @@ const announcementCategories: Record<AnnouncementCategory, { label: string; colo
 const pastAnnouncements = [
     {
         id: 'ann-1',
+        sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
         content: 'Reminder: Staff meeting today at 3:00 PM in the staff room. Please be punctual.',
         audience: 'All Staff',
         sentAt: '2024-07-18 09:00 AM',
@@ -51,6 +54,7 @@ const pastAnnouncements = [
     },
     {
         id: 'ann-2',
+        sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
         content: 'The school will be closed tomorrow for the public holiday. Classes will resume on Friday.',
         audience: 'All Students, All Parents',
         sentAt: '2024-07-17 02:30 PM',
@@ -58,6 +62,28 @@ const pastAnnouncements = [
         totalRecipients: 900,
         acknowledgements: 0, // Not required for this type
         category: 'General' as AnnouncementCategory,
+    },
+    {
+        id: 'ann-3',
+        sender: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-avatar/100' },
+        content: 'Form 4 Chemistry students: Please remember to bring your lab coats for tomorrow\'s practical session.',
+        audience: 'Form 4 Chemistry',
+        sentAt: '2024-07-17 11:00 AM',
+        views: 30,
+        totalRecipients: 31,
+        acknowledgements: 25,
+        category: 'Academic' as AnnouncementCategory,
+    },
+     {
+        id: 'ann-4',
+        sender: { name: 'Mr. Otieno', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100' },
+        content: 'Football practice for the boys\' team is cancelled today due to the weather. It will be rescheduled.',
+        audience: 'Football Team (Boys)',
+        sentAt: '2024-07-16 01:15 PM',
+        views: 20,
+        totalRecipients: 22,
+        acknowledgements: 0,
+        category: 'Event' as AnnouncementCategory,
     }
 ];
 
@@ -244,18 +270,30 @@ export default function AnnouncementsPage() {
                     {pastAnnouncements.map((ann, index) => (
                         <div key={ann.id}>
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <Badge className={cn(announcementCategories[ann.category].color)}>
+                                 <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-9 w-9">
+                                            <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
+                                            <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="text-sm font-semibold">{ann.sender.name}</p>
+                                            <p className="text-xs text-muted-foreground">To: {ann.audience}</p>
+                                        </div>
+                                    </div>
+                                    <Badge className={cn(announcementCategories[ann.category].color, 'ml-auto')}>
                                         {announcementCategories[ann.category].label}
                                     </Badge>
                                 </div>
-                                <p className="text-sm leading-relaxed">{ann.content}</p>
-                                <div className="text-xs text-muted-foreground flex items-center justify-between">
-                                    <span>To: <span className="font-medium">{ann.audience}</span></span>
+
+                                <p className="text-sm leading-relaxed pl-12">{ann.content}</p>
+                                
+                                <div className="text-xs text-muted-foreground flex items-center justify-end">
                                     <span>{ann.sentAt}</span>
                                 </div>
+
                                 <Separator className="my-2"/>
-                                 <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                 <div className="flex items-center justify-between text-xs text-muted-foreground pl-12">
                                     <div className="flex items-center gap-4">
                                         <div className="flex items-center gap-1.5" title="Views">
                                             <Eye className="h-4 w-4" />
