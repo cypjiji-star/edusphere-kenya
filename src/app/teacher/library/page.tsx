@@ -163,7 +163,7 @@ export default function LibraryPage() {
                                             {statusConfig[res.status].label}
                                         </Badge>
                                         {res.status === 'Out' && (
-                                            <p className="text-xs text-muted-foreground mt-1">Due: {res.dueDate ? new Date(res.dueDate).toLocaleDateString() : 'N/A'}</p>
+                                            <p className="text-xs text-muted-foreground mt-1">Due: {res.dueDate ? new Date(res.dueDate).toLocaleDateString('en-US', { timeZone: 'UTC' }) : 'N/A'}</p>
                                         )}
                                     </td>
                                     <td className="p-4 align-middle text-right" onClick={(e) => e.stopPropagation()}>
