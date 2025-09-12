@@ -26,12 +26,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck } from 'lucide-react';
+import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck, AlertCircle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion';
+type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns';
 
 export function ReportGenerator() {
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
@@ -70,6 +70,17 @@ export function ReportGenerator() {
   };
 
   const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
+  
+  const comingSoonReports: ReportType[] = ['summary', 'ranking', 'assignment-completion', 'daily-log', 'absentee-patterns'];
+  
+  const reportTitles: Record<ReportType, string> = {
+    'individual': 'Individual Student Report',
+    'summary': 'Class Performance Summary',
+    'ranking': 'Student Ranking & Percentiles',
+    'assignment-completion': 'Assignment Completion Report',
+    'daily-log': 'Daily/Weekly Attendance Log',
+    'absentee-patterns': 'Absentee Pattern Analysis',
+  };
 
   return (
     <div className="grid gap-8 md:grid-cols-3">
@@ -93,8 +104,13 @@ export function ReportGenerator() {
                                 <SelectItem value="ranking">Student Ranking &amp; Percentiles</SelectItem>
                             </SelectGroup>
                              <SelectGroup>
-                                <SelectLabel>Assignment & Submission Reports</SelectLabel>
+                                <SelectLabel>Assignment Reports</SelectLabel>
                                 <SelectItem value="assignment-completion">Assignment Completion Report</SelectItem>
+                            </SelectGroup>
+                             <SelectGroup>
+                                <SelectLabel>Attendance Reports</SelectLabel>
+                                <SelectItem value="daily-log">Daily/Weekly Attendance Log</SelectItem>
+                                <SelectItem value="absentee-patterns">Absentee Pattern Analysis</SelectItem>
                             </SelectGroup>
                         </SelectContent>
                     </Select>
@@ -235,21 +251,16 @@ export function ReportGenerator() {
                              </footer>
                         </div>
                     )}
-                    {!isGenerating && (reportType === 'summary' || reportType === 'ranking' || reportType === 'assignment-completion') && (
+                    {!isGenerating && comingSoonReports.includes(reportType) && (
                         <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32 opacity-60">
                             {reportType === 'summary' && <BarChart className="h-12 w-12 text-primary/50" />}
                             {reportType === 'ranking' && <Crown className="h-12 w-12 text-primary/50" />}
                             {reportType === 'assignment-completion' && <BookCheck className="h-12 w-12 text-primary/50" />}
+                            {(reportType === 'daily-log' || reportType === 'absentee-patterns') && <AlertCircle className="h-12 w-12 text-primary/50" />}
                              <Alert variant="default" className="text-left">
                                 <AlertTitle>Feature Coming Soon</AlertTitle>
                                 <AlertDescription>
-                                   The "{
-                                    {
-                                        'summary': 'Class Performance Summary',
-                                        'ranking': 'Student Ranking & Percentiles',
-                                        'assignment-completion': 'Assignment Completion Report'
-                                    }[reportType]
-                                   }" report is currently in development. This preview shows the intended layout.
+                                   The "{reportTitles[reportType]}" report is currently in development. This preview shows the intended layout.
                                 </AlertDescription>
                             </Alert>
                         </div>
@@ -260,5 +271,3 @@ export function ReportGenerator() {
     </div>
   );
 }
-
-    
