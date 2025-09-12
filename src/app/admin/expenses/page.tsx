@@ -31,10 +31,11 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass } from 'lucide-react';
+import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,6 +44,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 
 type ExpenseStatus = 'Paid' | 'Pending Approval' | 'Reimbursed' | 'Declined';
 
@@ -155,102 +157,183 @@ export default function ExpensesPage() {
                             <CardTitle>Expense Records</CardTitle>
                             <CardDescription>A detailed log of all expenses recorded in the system.</CardDescription>
                         </div>
-                        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                             <Dialog>
+                         <Dialog>
+                            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                                 <DialogTrigger asChild>
                                     <Button>
                                         <PlusCircle className="mr-2 h-4 w-4"/>
                                         Add New Expense
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="sm:max-w-xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Log New Expense</DialogTitle>
-                                        <DialogDescription>
-                                            Record a new school expenditure or a request for reimbursement.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="grid gap-6 py-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="exp-category">Category</Label>
-                                                <Select>
-                                                    <SelectTrigger id="exp-category">
-                                                        <SelectValue placeholder="Select a category" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="exp-amount">Amount (KES)</Label>
-                                                <Input id="exp-amount" type="number" placeholder="e.g., 5000" />
-                                            </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" className="w-full md:w-auto">
+                                        Bulk Actions
+                                        <ChevronDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DialogTrigger asChild>
+                                            <DropdownMenuItem>
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Import from CSV/Excel...
+                                            </DropdownMenuItem>
+                                        </DialogTrigger>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem disabled>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export as PDF
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem disabled>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export as CSV
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            {/* Add Expense Dialog */}
+                            <DialogContent className="sm:max-w-xl">
+                                <DialogHeader>
+                                    <DialogTitle>Log New Expense</DialogTitle>
+                                    <DialogDescription>
+                                        Record a new school expenditure or a request for reimbursement.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-6 py-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exp-category">Category</Label>
+                                            <Select>
+                                                <SelectTrigger id="exp-category">
+                                                    <SelectValue placeholder="Select a category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
-                                         <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="exp-date">Date of Expense</Label>
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant={"outline"}
-                                                        className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
-                                                    >
-                                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                                        {date ? format(date, "PPP") : <span>Pick a date</span>}
-                                                    </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0">
-                                                        <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </div>
-                                             <div className="space-y-2">
-                                                <Label htmlFor="exp-vendor">Vendor / Payee</Label>
-                                                <Input id="exp-vendor" placeholder="e.g., KPLC, Text Book Centre" />
-                                            </div>
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="exp-desc">Description</Label>
-                                            <Textarea id="exp-desc" placeholder="Provide a brief description of the expense..." />
-                                        </div>
-                                        <Separator/>
-                                         <div className="space-y-4">
-                                            <Label>Attach Receipt / Invoice</Label>
-                                            <div className="flex items-center justify-center w-full">
-                                                <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                                        <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                                        <p className="mb-2 text-sm text-muted-foreground">Attach file</p>
-                                                        <p className="text-xs text-muted-foreground">(PDF, JPG, PNG)</p>
-                                                    </div>
-                                                    <Input id="dropzone-file" type="file" className="hidden" disabled/>
-                                                </Label>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">Receipt scanning feature coming soon.</p>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exp-amount">Amount (KES)</Label>
+                                            <Input id="exp-amount" type="number" placeholder="e.g., 5000" />
                                         </div>
                                     </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button disabled>Save Expense</Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full md:w-auto">
-                                    <FileDown className="mr-2 h-4 w-4" />
-                                    Export
-                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem disabled>Export as PDF</DropdownMenuItem>
-                                    <DropdownMenuItem disabled>Export as CSV</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exp-date">Date of Expense</Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                                                </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0">
+                                                    <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exp-vendor">Vendor / Payee</Label>
+                                            <Input id="exp-vendor" placeholder="e.g., KPLC, Text Book Centre" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="exp-desc">Description (Notes)</Label>
+                                        <Textarea id="exp-desc" placeholder="Provide a brief description of the expense..." />
+                                    </div>
+                                     <Separator/>
+                                      <div className="space-y-4">
+                                        <Label>Attach Receipt / Invoice</Label>
+                                        <div className="flex items-center justify-center w-full">
+                                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                    <p className="mb-2 text-sm text-muted-foreground">Attach file</p>
+                                                    <p className="text-xs text-muted-foreground">(PDF, JPG, PNG)</p>
+                                                </div>
+                                                <Input id="dropzone-file" type="file" className="hidden" disabled/>
+                                            </Label>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">Receipt scanning feature coming soon.</p>
+                                    </div>
+                                    <Separator/>
+                                     <div className="space-y-2">
+                                        <div className="flex items-center space-x-2">
+                                            <Switch id="recurring-expense" disabled />
+                                            <Label htmlFor="recurring-expense" className="flex items-center gap-2">
+                                                <Repeat className="h-4 w-4" />
+                                                This is a recurring expense
+                                            </Label>
+                                        </div>
+                                        <FormDescription>
+                                            Set up automated generation for monthly or termly expenses. (Coming soon)
+                                        </FormDescription>
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <Button disabled>Save Expense</Button>
+                                </DialogFooter>
+                            </DialogContent>
+
+                            {/* Bulk Upload Dialog */}
+                             <DialogContent className="sm:max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Import Expenses from CSV/Excel</DialogTitle>
+                                    <DialogDescription>
+                                        Upload a file to bulk add new expenses.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-6 py-4">
+                                    <div className="space-y-2">
+                                        <Label>Step 1: Upload File</Label>
+                                        <div className="flex items-center justify-center w-full">
+                                            <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                    <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                                    <p className="text-xs text-muted-foreground">CSV or Excel (up to 2MB)</p>
+                                                </div>
+                                                <Input id="dropzone-file-bulk" type="file" className="hidden" />
+                                            </Label>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-2">
+                                            <Columns className="h-5 w-5 text-primary" />
+                                            <h4 className="font-medium">Step 2: Map Columns</h4>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                <Label>Date</Label>
+                                                <Select defaultValue="col1"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col1">Column A</SelectItem></SelectContent></Select>
+                                            </div>
+                                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                <Label>Amount</Label>
+                                                <Select defaultValue="col2"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col2">Column B</SelectItem></SelectContent></Select>
+                                            </div>
+                                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                <Label>Description</Label>
+                                                <Select defaultValue="col3"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col3">Column C</SelectItem></SelectContent></Select>
+                                            </div>
+                                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                <Label>Category</Label>
+                                                <Select><SelectTrigger><SelectValue placeholder="Assign..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <Button disabled>Process File</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                         </Dialog>
                     </div>
                     <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center">
                         <div className="relative w-full md:max-w-sm">
