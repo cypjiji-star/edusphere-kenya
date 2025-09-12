@@ -130,6 +130,13 @@ export default function FeesPage() {
             description: 'In a real app, this would trigger SMS/email reminders to selected parents.',
         });
     }
+    
+    const generateInvoices = () => {
+        toast({
+            title: 'Invoices Generated (Simulation)',
+            description: 'New invoices have been created for the selected students.',
+        });
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -411,21 +418,68 @@ export default function FeesPage() {
                                 <PlusCircle className="mr-2 h-4 w-4"/>
                                 Record Payment
                             </Button>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="secondary">
-                                        Bulk Actions
-                                        <ChevronDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem disabled><Receipt className="mr-2"/>Generate Invoices</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={sendReminders}><Send className="mr-2"/>Send Reminders</DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem disabled><FileDown className="mr-2"/>Export Report (PDF)</DropdownMenuItem>
-                                    <DropdownMenuItem disabled><FileDown className="mr-2"/>Export as CSV</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Dialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="secondary">
+                                            Bulk Actions
+                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DialogTrigger asChild>
+                                            <DropdownMenuItem>
+                                                <Receipt className="mr-2"/>Generate Invoices
+                                            </DropdownMenuItem>
+                                        </DialogTrigger>
+                                        <DropdownMenuItem onClick={sendReminders}><Send className="mr-2"/>Send Reminders</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem disabled><FileDown className="mr-2"/>Export Report (PDF)</DropdownMenuItem>
+                                        <DropdownMenuItem disabled><FileDown className="mr-2"/>Export as CSV</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Generate Bulk Invoices</DialogTitle>
+                                        <DialogDescription>
+                                            This will create new invoices for all students based on their class and the current fee structure for the selected term.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="py-4 grid gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="invoice-term">Select Term</Label>
+                                            <Select defaultValue="term2-2024">
+                                                <SelectTrigger id="invoice-term">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                                    <SelectItem value="term3-2024">Term 3, 2024 (Upcoming)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="invoice-classes">Select Classes</Label>
+                                            <Select defaultValue="all">
+                                                <SelectTrigger id="invoice-classes">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All Classes</SelectItem>
+                                                    <SelectItem value="f4">Form 4 Only</SelectItem>
+                                                    <SelectItem value="f3">Form 3 Only</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <DialogClose asChild>
+                                            <Button onClick={generateInvoices}>Generate Invoices</Button>
+                                        </DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </div>
                      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center">
