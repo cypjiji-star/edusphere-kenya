@@ -4,6 +4,7 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
+import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 
 import { cn } from '@/lib/utils';
 import {
@@ -46,6 +47,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import {
   ClipboardCheck,
   CalendarIcon,
   Search,
@@ -55,7 +61,9 @@ import {
   Percent,
   UserCheck,
   UserX,
+  TrendingUp,
 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
 
@@ -77,6 +85,9 @@ const MOCK_RECORDS: AttendanceRecord[] = [
   { id: 'rec-3', studentName: 'Student 32', studentAvatar: 'https://picsum.photos/seed/f3-student1/100', class: 'Form 3', teacher: 'Mr. Otieno', date: '2024-07-18', status: 'Late' },
   { id: 'rec-4', studentName: 'Student 33', studentAvatar: 'https://picsum.photos/seed/f3-student2/100', class: 'Form 3', teacher: 'Mr. Otieno', date: '2024-07-17', status: 'Present' },
   { id: 'rec-5', studentName: 'Student 60', studentAvatar: 'https://picsum.photos/seed/f2-student1/100', class: 'Form 2', teacher: 'Ms. Njeri', date: '2024-07-17', status: 'Absent' },
+  { id: 'rec-6', studentName: 'Student 61', studentAvatar: 'https://picsum.photos/seed/f2-student2/100', class: 'Form 2', teacher: 'Ms. Njeri', date: '2024-07-16', status: 'Present' },
+  { id: 'rec-7', studentName: 'Student 62', studentAvatar: 'https://picsum.photos/seed/f2-student3/100', class: 'Form 2', teacher: 'Ms. Njeri', date: '2024-07-16', status: 'Present' },
+  { id: 'rec-8', studentName: 'Student 3', studentAvatar: 'https://picsum.photos/seed/f4-student3/100', class: 'Form 4', teacher: 'Ms. Wanjiku', date: '2024-07-15', status: 'Present' },
 ];
 
 const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
@@ -90,6 +101,18 @@ const getStatusBadge = (status: AttendanceStatus) => {
         case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Late</Badge>;
     }
 }
+
+const dailyTrendData = [
+  { date: 'Jul 15', rate: 95 },
+  { date: 'Jul 16', rate: 92 },
+  { date: 'Jul 17', rate: 88 },
+  { date: 'Jul 18', rate: 91 },
+  { date: 'Jul 19', rate: 94 },
+];
+
+const chartConfig = {
+    rate: { label: 'Attendance Rate', color: 'hsl(var(--primary))' },
+} satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
 export default function AdminAttendancePage() {
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -121,8 +144,8 @@ export default function AdminAttendancePage() {
   const attendanceRate = totalRecords > 0 ? Math.round(((summaryStats.present + summaryStats.late) / totalRecords) * 100) : 0;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="mb-2">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
           <ClipboardCheck className="h-8 w-8 text-primary" />
           Attendance Records
@@ -130,7 +153,7 @@ export default function AdminAttendancePage() {
         <p className="text-muted-foreground">View and export attendance data for the entire school.</p>
       </div>
 
-      <Card className="mb-6">
+      <Card>
         <CardHeader>
             <CardTitle>Attendance Summary</CardTitle>
             <CardDescription>
@@ -173,6 +196,50 @@ export default function AdminAttendancePage() {
              </div>
         </CardContent>
       </Card>
+
+       <Card>
+            <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                         <TrendingUp className="h-6 w-6 text-primary" />
+                        <div>
+                            <CardTitle>Attendance Trends</CardTitle>
+                            <CardDescription>Daily attendance rate for the selected period.</CardDescription>
+                        </div>
+                    </div>
+                     <div className="flex w-full md:w-auto items-center gap-2">
+                         <Select defaultValue="term2" disabled>
+                            <SelectTrigger className="w-full md:w-auto">
+                                <SelectValue placeholder="Select term" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="term2">Term 2, 2024</SelectItem>
+                                <SelectItem value="term1">Term 1, 2024</SelectItem>
+                            </SelectContent>
+                         </Select>
+                         <Button variant="outline" disabled>Compare</Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                    <BarChart data={dailyTrendData}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        tickMargin={10}
+                        axisLine={false}
+                        />
+                        <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" />}
+                        />
+                        <Bar dataKey="rate" fill="var(--color-rate)" radius={8} />
+                    </BarChart>
+                </ChartContainer>
+            </CardContent>
+        </Card>
 
       <Card>
         <CardHeader>
