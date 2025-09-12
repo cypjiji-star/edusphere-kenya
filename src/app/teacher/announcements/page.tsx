@@ -9,13 +9,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { FormDescription } from '@/components/ui/form';
 
 const pastAnnouncements = [
     {
@@ -54,6 +55,22 @@ export default function AnnouncementsPage() {
                      <div className="space-y-2">
                         <Label htmlFor="message">Message</Label>
                         <Textarea id="message" placeholder="Type your announcement here..." className="min-h-[150px]" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label>File Attachments</Label>
+                        <div className="flex items-center justify-center w-full">
+                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                    <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                    <p className="mb-2 text-sm text-muted-foreground">Attach files, images, or videos</p>
+                                    <p className="text-xs text-muted-foreground">(PDF, JPG, MP4, etc.)</p>
+                                </div>
+                                <Input id="dropzone-file" type="file" className="hidden" disabled />
+                            </Label>
+                        </div>
+                        <FormDescription>
+                          This feature is coming soon.
+                        </FormDescription>
                     </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
