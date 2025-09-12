@@ -390,16 +390,15 @@ export default function AttendancePage() {
                 <Button disabled>View Detailed Report (Coming Soon)</Button>
             </CardFooter>
         ) : (
-            <CardFooter className="flex-col items-start gap-4">
-                <Separator />
+            <CardFooter className="flex-col items-start gap-4 border-t pt-6">
                 <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
+                    <h4 className="font-semibold flex items-center gap-2">
                         <Bell className="h-5 w-5 text-primary" />
-                        Notification Settings (Optional)
+                        Notification Settings
                     </h4>
-                    <p className="text-sm text-muted-foreground">These actions are triggered after attendance is submitted.</p>
+                    <p className="text-sm text-muted-foreground">These actions are triggered after attendance is submitted. (Feature coming soon)</p>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
                     <div className="flex items-center space-x-2">
                         <Switch id="notify-parents" disabled />
                         <Label htmlFor="notify-parents">Notify parents of absent students</Label>

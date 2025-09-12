@@ -23,10 +23,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Book } from 'lucide-react';
+import { Loader2, Book, Bell } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { gradingSchema, GradingFormValues, saveGradeAction } from './actions';
 import type { Submission } from './types';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface GradingDialogProps {
   student: Submission | null;
@@ -138,6 +140,20 @@ export function GradingDialog({
                   </FormItem>
                 )}
               />
+
+              <Separator />
+
+              <div className="space-y-4">
+                 <h4 className="font-semibold flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" />
+                    Notification
+                </h4>
+                <div className="flex items-center space-x-2">
+                    <Switch id="notify-student" disabled />
+                    <Label htmlFor="notify-student">Notify student/parent when grade is saved</Label>
+                </div>
+                 <p className="text-xs text-muted-foreground">Notification system integration is coming soon.</p>
+              </div>
             </div>
 
             <DialogFooter>
