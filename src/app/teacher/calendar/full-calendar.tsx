@@ -228,7 +228,7 @@ export function FullCalendar() {
                             <div className="w-24 text-sm font-semibold text-primary">
                                 {event.startTime && event.endTime ? `${event.startTime} - ${event.endTime}` : 'All Day'}
                             </div>
-                            <div className={cn("w-2 h-full rounded-full", eventColors[event.type])} />
+                            <div className={cn("w-2 h-full rounded-full self-stretch", eventColors[event.type])} />
                              <div className="flex-1">
                                 <p className="font-bold">{event.title}</p>
                                 <Badge variant="secondary" className="capitalize">{event.type}</Badge>
