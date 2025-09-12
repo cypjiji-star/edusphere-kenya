@@ -25,7 +25,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2 } from 'lucide-react';
+import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -114,12 +114,12 @@ const mockTeachers = [
 ];
 
 const mockSubjects = [
-    { id: 'sub-math', name: 'Mathematics', teachers: ['Mr. Otieno', 'Mr. Kimani'] },
-    { id: 'sub-eng', name: 'English', teachers: ['Ms. Njeri'] },
-    { id: 'sub-chem', name: 'Chemistry', teachers: ['Ms. Wanjiku'] },
-    { id: 'sub-phy', name: 'Physics', teachers: ['Mr. Kamau'] },
-    { id: 'sub-bio', name: 'Biology', teachers: ['Ms. Wanjiku', 'Ms. Akinyi'] },
-    { id: 'sub-hist', name: 'History', teachers: ['Mr. Kamau'] },
+    { id: 'sub-math', name: 'Mathematics', code: 'MATH-101', teachers: ['Mr. Otieno', 'Mr. Kimani'], classes: ['Form 1', 'Form 2', 'Form 3', 'Form 4'] },
+    { id: 'sub-eng', name: 'English', code: 'ENG-101', teachers: ['Ms. Njeri'], classes: ['Form 1', 'Form 2', 'Form 3', 'Form 4'] },
+    { id: 'sub-chem', name: 'Chemistry', code: 'CHEM-301', teachers: ['Ms. Wanjiku'], classes: ['Form 3', 'Form 4'] },
+    { id: 'sub-phy', name: 'Physics', code: 'PHY-301', teachers: ['Mr. Kamau'], classes: ['Form 3', 'Form 4'] },
+    { id: 'sub-bio', name: 'Biology', code: 'BIO-101', teachers: ['Ms. Wanjiku', 'Ms. Akinyi'], classes: ['Form 1', 'Form 2'] },
+    { id: 'sub-hist', name: 'History', code: 'HIST-101', teachers: ['Mr. Kamau'], classes: ['Form 1', 'Form 2', 'Form 3'] },
 ]
 
 
@@ -281,7 +281,7 @@ export default function ClassesAndSubjectsPage() {
                                                         </div>
                                                     </div>
                                                     <DialogFooter className="justify-between">
-                                                        <Button variant="destructive" disabled>
+                                                         <Button variant="destructive" disabled>
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Archive Class
                                                         </Button>
@@ -313,10 +313,30 @@ export default function ClassesAndSubjectsPage() {
                              <CardTitle>Subject List</CardTitle>
                             <CardDescription>Manage all subjects offered by the school and assign teachers.</CardDescription>
                         </div>
-                        <Button disabled>
-                            <PlusCircle className="mr-2 h-4 w-4"/>
-                            Add New Subject
-                        </Button>
+                        <div className="flex w-full flex-wrap gap-2 md:w-auto">
+                            <Select disabled>
+                                <SelectTrigger className="w-full md:w-[180px]">
+                                    <Filter className="mr-2 h-4 w-4" />
+                                    <SelectValue placeholder="Filter by class" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="f4">Form 4</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select disabled>
+                                <SelectTrigger className="w-full md:w-[180px]">
+                                     <Filter className="mr-2 h-4 w-4" />
+                                    <SelectValue placeholder="Filter by teacher" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                     <SelectItem value="t1">Ms. Wanjiku</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button disabled className="w-full md:w-auto">
+                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                Add New Subject
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -325,7 +345,9 @@ export default function ClassesAndSubjectsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Subject Name</TableHead>
-                                    <TableHead>Teachers Assigned</TableHead>
+                                    <TableHead>Code</TableHead>
+                                    <TableHead>Assigned Classes</TableHead>
+                                    <TableHead>Teachers</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -333,10 +355,18 @@ export default function ClassesAndSubjectsPage() {
                                 {mockSubjects.map(subject => (
                                     <TableRow key={subject.id}>
                                         <TableCell className="font-semibold">{subject.name}</TableCell>
+                                        <TableCell><Badge variant="outline">{subject.code}</Badge></TableCell>
+                                         <TableCell>
+                                            <div className="flex flex-wrap gap-1">
+                                                {subject.classes.map(cls => (
+                                                    <Badge key={cls} variant="secondary" className="font-normal">{cls}</Badge>
+                                                ))}
+                                            </div>
+                                        </TableCell>
                                         <TableCell>
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-wrap gap-1">
                                                 {subject.teachers.map(teacher => (
-                                                    <Badge key={teacher} variant="secondary">{teacher}</Badge>
+                                                    <Badge key={teacher} variant="outline">{teacher}</Badge>
                                                 ))}
                                             </div>
                                         </TableCell>
