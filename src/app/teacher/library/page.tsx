@@ -18,12 +18,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye } from 'lucide-react';
+import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye, Printer, FileDown, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ResourceDetailsDialog } from './resource-details-dialog';
 import type { Resource } from './types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 
 const mockResources: Resource[] = [
@@ -129,6 +135,28 @@ export default function LibraryPage() {
                         {subjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                 </Select>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full md:w-auto">
+                            Export
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem disabled>
+                            <FileDown className="mr-2" />
+                            Export as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled>
+                            <FileDown className="mr-2" />
+                            Export as CSV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled>
+                            <Printer className="mr-2" />
+                            Print List
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
           </div>
         </CardHeader>

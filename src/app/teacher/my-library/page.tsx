@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle } from 'lucide-react';
+import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 
@@ -118,9 +118,15 @@ export default function MyLibraryPage() {
             
              <TabsContent value="history">
                  <Card>
-                    <CardHeader>
-                        <CardTitle>Borrowing History</CardTitle>
-                        <CardDescription>A log of all the items you have previously borrowed.</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Borrowing History</CardTitle>
+                            <CardDescription>A log of all the items you have previously borrowed.</CardDescription>
+                        </div>
+                        <Button variant="outline" disabled>
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print History
+                        </Button>
                     </CardHeader>
                     <CardContent>
                          {historyItems.length > 0 ? (
