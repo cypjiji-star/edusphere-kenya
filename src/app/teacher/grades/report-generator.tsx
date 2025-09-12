@@ -26,12 +26,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck, AlertCircle } from 'lucide-react';
+import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns';
+type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns' | 'participation-records' | 'performance-stats' | 'team-rosters';
 
 export function ReportGenerator() {
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
@@ -71,7 +71,7 @@ export function ReportGenerator() {
 
   const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
   
-  const comingSoonReports: ReportType[] = ['summary', 'ranking', 'assignment-completion', 'daily-log', 'absentee-patterns'];
+  const comingSoonReports: ReportType[] = ['summary', 'ranking', 'assignment-completion', 'daily-log', 'absentee-patterns', 'participation-records', 'performance-stats', 'team-rosters'];
   
   const reportTitles: Record<ReportType, string> = {
     'individual': 'Individual Student Report',
@@ -80,6 +80,9 @@ export function ReportGenerator() {
     'assignment-completion': 'Assignment Completion Report',
     'daily-log': 'Daily/Weekly Attendance Log',
     'absentee-patterns': 'Absentee Pattern Analysis',
+    'participation-records': 'Participation Records',
+    'performance-stats': 'Performance Stats and Awards',
+    'team-rosters': 'Event Attendance and Team Rosters',
   };
 
   return (
@@ -111,6 +114,12 @@ export function ReportGenerator() {
                                 <SelectLabel>Attendance Reports</SelectLabel>
                                 <SelectItem value="daily-log">Daily/Weekly Attendance Log</SelectItem>
                                 <SelectItem value="absentee-patterns">Absentee Pattern Analysis</SelectItem>
+                            </SelectGroup>
+                            <SelectGroup>
+                                <SelectLabel>Sports &amp; Activities Reports</SelectLabel>
+                                <SelectItem value="participation-records">Participation Records</SelectItem>
+                                <SelectItem value="performance-stats">Performance Stats &amp; Awards</SelectItem>
+                                <SelectItem value="team-rosters">Event Attendance &amp; Rosters</SelectItem>
                             </SelectGroup>
                         </SelectContent>
                     </Select>
@@ -257,6 +266,9 @@ export function ReportGenerator() {
                             {reportType === 'ranking' && <Crown className="h-12 w-12 text-primary/50" />}
                             {reportType === 'assignment-completion' && <BookCheck className="h-12 w-12 text-primary/50" />}
                             {(reportType === 'daily-log' || reportType === 'absentee-patterns') && <AlertCircle className="h-12 w-12 text-primary/50" />}
+                            {reportType === 'participation-records' && <Users className="h-12 w-12 text-primary/50" />}
+                            {reportType === 'performance-stats' && <Trophy className="h-12 w-12 text-primary/50" />}
+                            {reportType === 'team-rosters' && <ClipboardList className="h-12 w-12 text-primary/50" />}
                              <Alert variant="default" className="text-left">
                                 <AlertTitle>Feature Coming Soon</AlertTitle>
                                 <AlertDescription>
