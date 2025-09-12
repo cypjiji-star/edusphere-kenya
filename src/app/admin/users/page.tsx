@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -40,7 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent';
-type UserStatus = 'Active' | 'Pending' | 'Inactive';
+type UserStatus = 'Active' | 'Pending' | 'Suspended';
 
 type User = {
     id: string;
@@ -58,17 +58,17 @@ const mockUsers: User[] = [
     { id: 'usr-3', name: 'Mr. Otieno', email: 'otieno@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-17T14:00:00Z' },
     { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z' },
     { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never' },
-    { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Inactive', lastLogin: '2024-06-10T08:00:00Z' },
+    { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Suspended', lastLogin: '2024-06-10T08:00:00Z' },
 ];
 
-const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Inactive'];
+const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended'];
 const roles: UserRole[] = ['Admin', 'Teacher', 'Student', 'Parent'];
 
 const getStatusBadge = (status: UserStatus) => {
     switch (status) {
         case 'Active': return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white"><CheckCircle className="mr-1 h-3 w-3"/>Active</Badge>;
         case 'Pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600"><Clock className="mr-1 h-3 w-3"/>Pending</Badge>;
-        case 'Inactive': return <Badge variant="destructive" className="bg-gray-500 text-white hover:bg-gray-600">Inactive</Badge>;
+        case 'Suspended': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Suspended</Badge>;
     }
 }
 
@@ -82,11 +82,17 @@ export default function UserManagementPage() {
     }, []);
 
     const renderUserTable = (roleFilter: UserRole | 'All') => {
-        const filteredUsers = mockUsers.filter(user => 
-            user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-            (roleFilter === 'All' || user.role === roleFilter) &&
-            (statusFilter === 'All Statuses' || user.status === statusFilter)
-        );
+        const filteredUsers = mockUsers.filter(user => {
+            const searchLower = searchTerm.toLowerCase();
+            const matchesSearch = user.name.toLowerCase().includes(searchLower) ||
+                                  user.email.toLowerCase().includes(searchLower) ||
+                                  user.id.toLowerCase().includes(searchLower);
+
+            const matchesRole = roleFilter === 'All' || user.role === roleFilter;
+            const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
+
+            return matchesSearch && matchesRole && matchesStatus;
+        });
 
         return (
             <>
@@ -188,7 +194,7 @@ export default function UserManagementPage() {
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                             type="search"
-                            placeholder="Search by name..."
+                            placeholder="Search by name, email, or ID..."
                             className="w-full bg-background pl-8"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
