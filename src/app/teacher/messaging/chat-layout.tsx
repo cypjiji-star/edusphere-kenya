@@ -173,7 +173,7 @@ export function ChatLayout() {
                         {msg.sender === 'other' && <Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback>{selectedConvo.name.charAt(0)}</AvatarFallback></Avatar>}
                         <div className="group relative">
                           <div className={cn(
-                              "max-w-xs lg:max-w-md rounded-2xl p-3 text-sm",
+                              "max-w-xs lg:max-w-md rounded-2xl p-3 text-sm shadow-sm",
                               msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-secondary rounded-bl-none'
                           )}>
                               <p>{msg.text}</p>
