@@ -107,12 +107,12 @@ const mockClasses: SchoolClass[] = [
 ];
 
 const mockTeachers = [
-    { id: 't-1', name: 'Ms. Wanjiku' },
-    { id: 't-2', name: 'Mr. Kamau' },
-    { id: 't-3', name: 'Mr. Otieno' },
-    { id: 't-4', name: 'Ms. Njeri' },
-    { id: 't-5', name: 'Mr. Kimani' },
-    { id: 't-6', name: 'Ms. Akinyi' },
+    { id: 't-1', name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' },
+    { id: 't-2', name: 'Mr. Kamau', avatarUrl: 'https://picsum.photos/seed/teacher-kamau/100' },
+    { id: 't-3', name: 'Mr. Otieno', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100' },
+    { id: 't-4', name: 'Ms. Njeri', avatarUrl: 'https://picsum.photos/seed/teacher-njeri/100' },
+    { id: 't-5', name: 'Mr. Kimani', avatarUrl: 'https://picsum.photos/seed/teacher-kimani/100' },
+    { id: 't-6', name: 'Ms. Akinyi', avatarUrl: 'https://picsum.photos/seed/teacher-akinyi/100' },
 ];
 
 const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', 'Technical Subjects', 'Creative Arts'];
@@ -139,9 +139,10 @@ export default function ClassesAndSubjectsPage() {
       </div>
 
       <Tabs defaultValue="classes">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 grid w-full grid-cols-3 md:w-auto md:inline-flex">
             <TabsTrigger value="classes">Class Management</TabsTrigger>
             <TabsTrigger value="subjects">Subject Management</TabsTrigger>
+            <TabsTrigger value="assignments">Teacher Assignments</TabsTrigger>
         </TabsList>
         <TabsContent value="classes">
             <Card>
@@ -458,6 +459,55 @@ export default function ClassesAndSubjectsPage() {
                             </TableBody>
                         </Table>
                     </div>
+                </CardContent>
+            </Card>
+        </TabsContent>
+        <TabsContent value="assignments">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Teacher Assignments</CardTitle>
+                    <CardDescription>View and manage subject and class assignments for each teacher.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6 md:grid-cols-2">
+                    {mockTeachers.map(teacher => {
+                        const classTeacherOf = mockClasses.filter(c => c.classTeacher.name === teacher.name).map(c => `${c.name} ${c.stream || ''}`);
+                        const subjectAssignments = mockSubjects.filter(s => s.teachers.includes(teacher.name));
+                        
+                        return (
+                            <Card key={teacher.id}>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarImage src={teacher.avatarUrl} alt={teacher.name} />
+                                                <AvatarFallback>{teacher.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <CardTitle className="text-lg">{teacher.name}</CardTitle>
+                                                {classTeacherOf.length > 0 && <CardDescription>Class Teacher for {classTeacherOf.join(', ')}</CardDescription>}
+                                            </div>
+                                        </div>
+                                        <Button variant="outline" size="sm" disabled>
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            Edit
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <h4 className="font-semibold text-sm mb-2">Subject Assignments:</h4>
+                                    {subjectAssignments.length > 0 ? (
+                                         <div className="flex flex-wrap gap-2">
+                                            {subjectAssignments.map(subject => (
+                                                <Badge key={subject.id} variant="secondary">{subject.name} ({subject.classes.join(', ')})</Badge>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No subjects assigned.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )
+                    })}
                 </CardContent>
             </Card>
         </TabsContent>
