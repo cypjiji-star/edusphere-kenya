@@ -37,7 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CircleDollarSign, Search, Filter, ChevronDown, Percent, FileDown, Receipt, Send, PlusCircle, Edit, Trash2, Tag, HandHelping } from 'lucide-react';
-import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
@@ -48,6 +48,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Overdue';
 
@@ -110,6 +116,99 @@ const collectionData = [
 const chartConfig = {
   collected: { label: 'Collected', color: 'hsl(var(--primary))' },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
+
+type TransactionType = 'payment' | 'charge' | 'waiver';
+
+function NewTransactionDialog() {
+    const [transactionType, setTransactionType] = React.useState<TransactionType>('payment');
+    const [date, setDate] = React.useState<Date | undefined>(new Date());
+
+    return (
+         <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+                <DialogTitle>New Manual Transaction</DialogTitle>
+                <DialogDescription>Record a payment, add a manual charge, or apply a credit/waiver for a student.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="student-select">Student</Label>
+                    <Select>
+                        <SelectTrigger id="student-select">
+                            <SelectValue placeholder="Select a student" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {mockStudents.map(student => (
+                                <SelectItem key={student.id} value={student.id}>{student.name} ({student.class})</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="transaction-type">Transaction Type</Label>
+                    <Select value={transactionType} onValueChange={(v: TransactionType) => setTransactionType(v)}>
+                        <SelectTrigger id="transaction-type">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="payment">Record Payment</SelectItem>
+                            <SelectItem value="charge">Add Manual Charge</SelectItem>
+                            <SelectItem value="waiver">Apply Discount / Waiver</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="transaction-amount">Amount (KES)</Label>
+                        <Input id="transaction-amount" type="number" placeholder="e.g., 10000" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="transaction-date">Transaction Date</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {date ? format(date, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
+                {transactionType === 'payment' && (
+                     <div className="space-y-2">
+                        <Label htmlFor="payment-method">Payment Method</Label>
+                        <Select>
+                            <SelectTrigger id="payment-method">
+                                <SelectValue placeholder="Select a payment method" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="mpesa">M-PESA</SelectItem>
+                                <SelectItem value="bank">Bank Transfer</SelectItem>
+                                <SelectItem value="cash">Cash</SelectItem>
+                                <SelectItem value="cheque">Cheque</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+                 <div className="space-y-2">
+                    <Label htmlFor="transaction-description">Description / Notes</Label>
+                    <Textarea id="transaction-description" placeholder="e.g., 'Term 2 Fee Payment', 'Charge for lost textbook'" />
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                <Button>Save Transaction</Button>
+            </DialogFooter>
+        </DialogContent>
+    )
+}
+
 
 export default function FeesPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -414,10 +513,15 @@ export default function FeesPage() {
                             <CardDescription>A detailed list of fee payments for all students.</CardDescription>
                         </div>
                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                             <Button disabled>
-                                <PlusCircle className="mr-2 h-4 w-4"/>
-                                Record Payment
-                            </Button>
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <PlusCircle className="mr-2 h-4 w-4"/>
+                                        New Transaction
+                                    </Button>
+                                </DialogTrigger>
+                                <NewTransactionDialog />
+                            </Dialog>
                             <Dialog>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -429,7 +533,7 @@ export default function FeesPage() {
                                     <DropdownMenuContent>
                                         <DialogTrigger asChild>
                                             <DropdownMenuItem>
-                                                <Receipt className="mr-2"/>Generate Invoices
+                                                <Receipt className="mr-2"/>Generate Bulk Invoices
                                             </DropdownMenuItem>
                                         </DialogTrigger>
                                         <DropdownMenuItem onClick={sendReminders}><Send className="mr-2"/>Send Reminders</DropdownMenuItem>
