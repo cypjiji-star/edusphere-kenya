@@ -40,7 +40,8 @@ const getStudentData = (studentId: string) => {
 
 
 export default function StudentProfilePage({ params }: { params: { studentId: string } }) {
-  const student = getStudentData(params.studentId);
+  const { studentId } = params;
+  const student = getStudentData(studentId);
 
   if (!student) {
     return (
@@ -156,3 +157,5 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
     </div>
   );
 }
+
+    
