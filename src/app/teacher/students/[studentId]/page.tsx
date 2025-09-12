@@ -1,4 +1,5 @@
 
+'use client';
 
 import Link from 'next/link';
 import {
@@ -47,7 +48,7 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
 
   useEffect(() => {
     if (student) {
-        setFormattedDob(new Date(student.dateOfBirth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric'}));
+        setFormattedDob(new Date(student.dateOfBirth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'}));
     }
   }, [student]);
 
@@ -165,5 +166,3 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
     </div>
   );
 }
-
-    
