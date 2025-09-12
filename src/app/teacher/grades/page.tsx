@@ -30,7 +30,22 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Search, FileDown, Edit, FileText } from 'lucide-react';
+import {
+  PlusCircle,
+  Search,
+  FileDown,
+  Edit,
+  FileText,
+  ChevronDown,
+  Printer,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -82,11 +97,11 @@ const gradesByClass: Record<string, StudentGrades[]> = {
     studentAvatar: `https://picsum.photos/seed/f4-student${i + 1}/100`,
     rollNumber: `F4-0${i + 1}`,
     grades: [
-      { assessmentId: 'assess-1', score: 60 + (i % 36) }, // Deterministic grade
+      { assessmentId: 'assess-1', score: 60 + (i % 36) },
       { assessmentId: 'assess-2', score: 'A' },
-      { assessmentId: 'assess-3', score: 70 + (i % 31) }, // Deterministic grade
+      { assessmentId: 'assess-3', score: 70 + (i % 31) },
     ],
-    overall: 65 + (i % 21), // Deterministic grade
+    overall: 65 + ((i * 3) % 35),
   })),
   'f3-math': Array.from({ length: 28 }, (_, i) => ({
     studentId: `f3-math-${i + 1}`,
@@ -94,10 +109,10 @@ const gradesByClass: Record<string, StudentGrades[]> = {
     studentAvatar: `https://picsum.photos/seed/f3-student${i + 1}/100`,
     rollNumber: `F3-0${i + 1}`,
     grades: [
-        { assessmentId: 'assess-4', score: 70 + (i % 29) }, // Deterministic grade
+        { assessmentId: 'assess-4', score: 70 + (i % 29) },
         { assessmentId: 'assess-5', score: 'B+' },
     ],
-    overall: 70 + (i % 21), // Deterministic grade
+    overall: 70 + ((i * 3) % 30),
   })),
   'f2-phys': [],
 };
@@ -168,10 +183,29 @@ export default function GradesPage() {
                     </div>
                   </div>
                   <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                    <Button variant="outline" disabled>
-                        <FileDown className="mr-2" />
-                        Export Grades
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline">
+                          <ChevronDown className="mr-2" />
+                          Export & Reports
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem disabled>
+                          <FileDown className="mr-2" />
+                          Download as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled>
+                          <FileDown className="mr-2" />
+                          Download as Excel
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem disabled>
+                          <Printer className="mr-2" />
+                          Print Gradebook
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
             </CardHeader>
