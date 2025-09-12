@@ -18,36 +18,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Library, Search, Book, FileText, Newspaper, Download, Upload } from 'lucide-react';
+import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+type ResourceType = 'Textbook' | 'Past Paper' | 'Curriculum Guide' | 'Journal';
+type ResourceStatus = 'Available' | 'Out' | 'Digital';
 
 type Resource = {
   id: string;
   title: string;
-  type: 'Textbook' | 'Past Paper' | 'Curriculum Guide' | 'Journal';
+  type: ResourceType;
   subject: string;
   grade: string;
-  fileUrl: string;
+  status: ResourceStatus;
+  dueDate?: string;
 };
 
 const mockResources: Resource[] = [
-  { id: 'res-1', title: 'Form 4 Chemistry Textbook', type: 'Textbook', subject: 'Chemistry', grade: 'Form 4', fileUrl: '#' },
-  { id: 'res-2', title: '2023 KCSE Mathematics Paper 1', type: 'Past Paper', subject: 'Mathematics', grade: 'Form 4', fileUrl: '#' },
-  { id: 'res-3', title: 'History & Government Curriculum', type: 'Curriculum Guide', subject: 'History', grade: 'All Grades', fileUrl: '#' },
-  { id: 'res-4', title: 'Journal of African History Vol. 65', type: 'Journal', subject: 'History', grade: 'Senior School', fileUrl: '#' },
-  { id: 'res-5', title: 'Physics for Secondary Schools F2', type: 'Textbook', subject: 'Physics', grade: 'Form 2', fileUrl: '#' },
+  { id: 'res-1', title: 'Form 4 Chemistry Textbook', type: 'Textbook', subject: 'Chemistry', grade: 'Form 4', status: 'Available' },
+  { id: 'res-2', title: '2023 KCSE Mathematics Paper 1', type: 'Past Paper', subject: 'Mathematics', grade: 'Form 4', status: 'Digital' },
+  { id: 'res-3', title: 'History & Government Curriculum', type: 'Curriculum Guide', subject: 'History', grade: 'All Grades', status: 'Digital' },
+  { id: 'res-4', title: 'Journal of African History Vol. 65', type: 'Journal', subject: 'History', grade: 'Senior School', status: 'Out', dueDate: '2024-08-05' },
+  { id: 'res-5', title: 'Physics for Secondary Schools F2', type: 'Textbook', subject: 'Physics', grade: 'Form 2', status: 'Available' },
+  { id: 'res-6', title: 'The River and The Source Novel', type: 'Textbook', subject: 'English', grade: 'Form 3', status: 'Out', dueDate: '2024-07-30'},
 ];
 
 const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 const subjects = ['All Subjects', 'Chemistry', 'Mathematics', 'History', 'Physics', 'English'];
-const grades = ['All Grades', 'Senior School', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
 
-const typeIcons: Record<Resource['type'], React.ElementType> = {
+const typeIcons: Record<ResourceType, React.ElementType> = {
   Textbook: Book,
   'Past Paper': FileText,
   'Curriculum Guide': Newspaper,
   Journal: Newspaper,
 };
+
+const statusConfig: Record<ResourceStatus, { label: string; className: string }> = {
+    Available: { label: 'Available', className: 'bg-green-100 text-green-800 border-green-200' },
+    Out: { label: 'Out', className: 'bg-red-100 text-red-800 border-red-200' },
+    Digital: { label: 'Digital', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+}
 
 export default function LibraryPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -59,6 +71,17 @@ export default function LibraryPage() {
     (filteredType === 'All Types' || res.type === filteredType) &&
     (filteredSubject === 'All Subjects' || res.subject === filteredSubject)
   );
+
+  const renderActionButton = (resource: Resource) => {
+    switch (resource.status) {
+        case 'Available':
+            return <Button variant="outline" size="sm" disabled><Bookmark className="mr-2 h-4 w-4" />Borrow</Button>;
+        case 'Out':
+            return <Button variant="outline" size="sm" disabled><Clock className="mr-2 h-4 w-4" />Reserve</Button>;
+        case 'Digital':
+             return <Button variant="outline" size="sm" disabled><Eye className="mr-2 h-4 w-4" />View Digital</Button>;
+    }
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -116,9 +139,9 @@ export default function LibraryPage() {
                         <thead className="bg-muted/50">
                             <tr className="border-b">
                                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Title</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden sm:table-cell">Subject</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">Grade</th>
+                                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden sm:table-cell">Type</th>
+                                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">Subject</th>
+                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
                             </tr>
                         </thead>
@@ -133,16 +156,18 @@ export default function LibraryPage() {
                                             <span>{res.title}</span>
                                         </div>
                                     </td>
-                                    <td className="p-4 align-middle text-muted-foreground">{res.type}</td>
-                                    <td className="p-4 align-middle text-muted-foreground hidden sm:table-cell">{res.subject}</td>
-                                    <td className="p-4 align-middle text-muted-foreground hidden md:table-cell">{res.grade}</td>
+                                    <td className="p-4 align-middle text-muted-foreground hidden sm:table-cell">{res.type}</td>
+                                    <td className="p-4 align-middle text-muted-foreground hidden md:table-cell">{res.subject}</td>
+                                    <td className="p-4 align-middle">
+                                        <Badge className={cn('whitespace-nowrap', statusConfig[res.status].className)}>
+                                            {statusConfig[res.status].label}
+                                        </Badge>
+                                        {res.status === 'Out' && (
+                                            <p className="text-xs text-muted-foreground mt-1">Due: {res.dueDate ? new Date(res.dueDate).toLocaleDateString() : 'N/A'}</p>
+                                        )}
+                                    </td>
                                     <td className="p-4 align-middle text-right">
-                                        <Button asChild variant="outline" size="sm" disabled>
-                                            <Link href={res.fileUrl}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Download
-                                            </Link>
-                                        </Button>
+                                       {renderActionButton(res)}
                                     </td>
                                 </tr>
                                 );
