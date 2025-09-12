@@ -24,8 +24,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
 const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
-const teachers = ['All Teachers', 'Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri'];
-const views = ['Class View', 'Teacher View', 'Master View'];
+const teachers = ['Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri', 'Mr. Kamau'];
+const rooms = ['Science Lab', 'Room 12A', 'Room 10B', 'Staff Room'];
+const views = ['Class View', 'Teacher View', 'Room View'];
 
 const periods = [
     { id: 1, time: '08:00 - 09:00' },
@@ -70,6 +71,34 @@ const mockTimetable: Record<string, Record<number, typeof subjects[number]>> = {
 
 
 export function TimetableBuilder() {
+  const [view, setView] = React.useState(views[0]);
+  const [selectedItem, setSelectedItem] = React.useState(classes[0]);
+
+  const renderFilterDropdown = () => {
+    let items: string[] = [];
+    switch(view) {
+        case 'Class View':
+            items = classes;
+            break;
+        case 'Teacher View':
+            items = teachers;
+            break;
+        case 'Room View':
+            items = rooms;
+            break;
+    }
+    
+    return (
+        <Select value={selectedItem} onValueChange={setSelectedItem}>
+            <SelectTrigger className="w-full md:w-auto">
+                <SelectValue placeholder={`Select ${view.split(' ')[0]}`} />
+            </SelectTrigger>
+            <SelectContent>
+                {items.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+            </SelectContent>
+        </Select>
+    )
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -78,11 +107,17 @@ export function TimetableBuilder() {
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <CardTitle>Timetable for Form 4</CardTitle>
+                            <CardTitle>Timetable for {selectedItem}</CardTitle>
                             <CardDescription>Drag subjects from the right panel and drop them into time slots.</CardDescription>
                         </div>
                         <div className="flex w-full md:w-auto items-center gap-2">
-                             <Select defaultValue="Class View">
+                             <Select value={view} onValueChange={(v) => {
+                                setView(v);
+                                // Reset selected item when view changes
+                                if (v === 'Class View') setSelectedItem(classes[0]);
+                                if (v === 'Teacher View') setSelectedItem(teachers[0]);
+                                if (v === 'Room View') setSelectedItem(rooms[0]);
+                             }}>
                                 <SelectTrigger className="w-full md:w-auto">
                                     <SelectValue placeholder="Select view" />
                                 </SelectTrigger>
@@ -90,14 +125,7 @@ export function TimetableBuilder() {
                                     {views.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                                 </SelectContent>
                              </Select>
-                            <Select defaultValue="Form 4">
-                                <SelectTrigger className="w-full md:w-auto">
-                                    <SelectValue placeholder="Select class" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                </SelectContent>
-                             </Select>
+                            {renderFilterDropdown()}
                              <Button variant="outline" disabled>
                                 <Settings className="mr-2 h-4 w-4" />
                                 Define Periods
