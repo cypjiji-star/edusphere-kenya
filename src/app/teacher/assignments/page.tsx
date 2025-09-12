@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, BookMarked } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AssignmentsPage() {
   return (
@@ -17,9 +18,11 @@ export default function AssignmentsPage() {
             <CardTitle className="font-headline text-2xl">Manage Assignments</CardTitle>
             <CardDescription>Create, view, and grade student assignments.</CardDescription>
           </div>
-          <Button className="mt-4 md:mt-0">
-            <PlusCircle className="mr-2" />
-            Create Assignment
+          <Button asChild className="mt-4 md:mt-0">
+            <Link href="/teacher/assignments/new">
+              <PlusCircle className="mr-2" />
+              Create Assignment
+            </Link>
           </Button>
         </CardHeader>
         <CardContent>
