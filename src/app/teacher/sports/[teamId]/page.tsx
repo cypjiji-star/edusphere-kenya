@@ -270,8 +270,8 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                         <div key={event.id}>
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col items-center justify-center w-16 text-center bg-muted/50 rounded-md p-2">
-                                    {clientReady && <span className="text-sm font-bold uppercase text-primary">{new Date(event.date).toLocaleDateString('en-US', { month: 'short' })}</span>}
-                                    {clientReady && <span className="text-xl font-bold">{new Date(event.date).getDate()}</span>}
+                                    {clientReady && <span className="text-sm font-bold uppercase text-primary">{new Date(event.date).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</span>}
+                                    {clientReady && <span className="text-xl font-bold">{new Date(event.date).getUTCDate()}</span>}
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-semibold">{event.title}</p>
@@ -353,7 +353,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                             <SelectContent>
                                 {upcomingEvents.map(event => (
                                     <SelectItem key={event.id} value={event.id}>
-                                        {event.title} {clientReady && `(${new Date(event.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})})`}
+                                        {event.title} {clientReady && `(${new Date(event.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', timeZone: 'UTC'})})`}
                                     </SelectItem>
                                 ))}
                             </SelectContent>

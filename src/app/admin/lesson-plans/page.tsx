@@ -105,6 +105,11 @@ export default function AdminLessonPlansPage() {
   const [teacherFilter, setTeacherFilter] = React.useState('All Teachers');
   const [classFilter, setClassFilter] = React.useState('All Classes');
   const [subjectFilter, setSubjectFilter] = React.useState('All Subjects');
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const filteredSubmissions = MOCK_SUBMISSIONS.filter(submission => {
       const recordDate = new Date(submission.date);
@@ -259,7 +264,7 @@ export default function AdminLessonPlansPage() {
                                 <div>{submission.class}</div>
                                 <div className="text-sm text-muted-foreground">{submission.subject}</div>
                             </TableCell>
-                            <TableCell>{new Date(submission.date).toLocaleDateString()}</TableCell>
+                            <TableCell>{clientReady ? new Date(submission.date).toLocaleDateString() : ''}</TableCell>
                             <TableCell>{getStatusBadge(submission.status)}</TableCell>
                             <TableCell className="text-right">
                                 <Button asChild variant="outline" size="sm">

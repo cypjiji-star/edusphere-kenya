@@ -45,10 +45,12 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
   const { studentId } = params;
   const student = getStudentData(studentId);
   const [formattedDob, setFormattedDob] = useState('');
+  const [clientReady, setClientReady] = useState(false);
 
   useEffect(() => {
+    setClientReady(true);
     if (student) {
-        setFormattedDob(new Date(student.dateOfBirth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'}));
+        setFormattedDob(new Date(student.dateOfBirth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric'}));
     }
   }, [student]);
 
@@ -122,7 +124,7 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                        <div>
                            <p className="font-medium text-muted-foreground">Date of Birth</p>
-                           <p>{formattedDob}</p>
+                           <p>{clientReady ? formattedDob : ''}</p>
                        </div>
                        <div>
                            <p className="font-medium text-muted-foreground">Student Phone</p>

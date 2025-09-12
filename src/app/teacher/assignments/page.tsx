@@ -129,7 +129,7 @@ export default function AssignmentsPage() {
                     <BookMarked className="h-6 w-6 text-primary" />
                     {clientReady && (
                         <Badge variant={new Date(assignment.dueDate) < new Date() ? 'destructive' : 'secondary'}>
-                            Due {new Date(assignment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+                            Due {new Date(assignment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </Badge>
                     )}
                 </div>

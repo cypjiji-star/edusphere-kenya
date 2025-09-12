@@ -76,8 +76,11 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
   const [gradingStudent, setGradingStudent] = React.useState<Submission | null>(null);
   const [formattedDueDate, setFormattedDueDate] = React.useState('');
   const { toast } = useToast();
+  const [clientReady, setClientReady] = React.useState(false);
+
 
   React.useEffect(() => {
+    setClientReady(true);
     setFormattedDueDate(
       new Date(assignmentDetails.dueDate).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -127,7 +130,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-2xl">{assignmentDetails.title}</CardTitle>
-          <CardDescription>{assignmentDetails.className} - Due: {formattedDueDate}</CardDescription>
+          <CardDescription>{assignmentDetails.className} - Due: {clientReady ? formattedDueDate : ''}</CardDescription>
            <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
               <div className="relative w-full md:max-w-sm">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -206,7 +209,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                         </TableCell>
                         <TableCell>{getStatusBadge(submission.status)}</TableCell>
                         <TableCell className="text-muted-foreground">
-                          {submission.submittedDate ? new Date(submission.submittedDate).toLocaleDateString() : '—'}
+                          {clientReady && submission.submittedDate ? new Date(submission.submittedDate).toLocaleDateString() : '—'}
                         </TableCell>
                         <TableCell>
                           {submission.grade ? <Badge variant="outline">{submission.grade}</Badge> : <span className="text-muted-foreground">—</span>}
@@ -254,7 +257,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                       <Separator/>
                        <div className="flex justify-between items-center text-sm">
                           <span className="font-medium text-muted-foreground">Handed In:</span>
-                          <span>{submission.submittedDate ? new Date(submission.submittedDate).toLocaleDateString() : '—'}</span>
+                          <span>{clientReady && submission.submittedDate ? new Date(submission.submittedDate).toLocaleDateString() : '—'}</span>
                        </div>
                        <div className="flex justify-between items-center text-sm">
                           <span className="font-medium text-muted-foreground">Grade:</span>
