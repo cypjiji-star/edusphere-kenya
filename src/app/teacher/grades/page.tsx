@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Search, FileDown, Printer, Edit, FileText } from 'lucide-react';
+import { PlusCircle, Search, FileDown, Edit, FileText } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { GradeSummaryWidget } from './grade-summary-widget';
 
