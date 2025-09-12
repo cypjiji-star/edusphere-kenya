@@ -30,6 +30,16 @@ export function ResourceDetailsDialog({
   open,
   onOpenChange,
 }: ResourceDetailsDialogProps) {
+  const [formattedDueDate, setFormattedDueDate] = React.useState('');
+
+  React.useEffect(() => {
+    if (resource?.status === 'Out' && resource.dueDate) {
+      setFormattedDueDate(new Date(resource.dueDate).toLocaleDateString());
+    } else {
+      setFormattedDueDate('');
+    }
+  }, [resource]);
+
   if (!resource) return null;
 
   return (
@@ -55,8 +65,8 @@ export function ResourceDetailsDialog({
                  <div>
                     <h4 className="font-semibold text-primary">Availability</h4>
                     <Badge variant={resource.status === 'Available' || resource.status === 'Digital' ? 'default' : 'destructive'}>{resource.status}</Badge>
-                    {resource.status === 'Out' && resource.dueDate && (
-                        <p className="text-sm text-muted-foreground">Due back on: {new Date(resource.dueDate).toLocaleDateString()}</p>
+                    {resource.status === 'Out' && formattedDueDate && (
+                        <p className="text-sm text-muted-foreground">Due back on: {formattedDueDate}</p>
                     )}
                 </div>
                 <Separator />

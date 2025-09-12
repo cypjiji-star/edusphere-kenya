@@ -37,6 +37,11 @@ const requestItems = [
 ]
 
 export default function MyLibraryPage() {
+    const [clientReady, setClientReady] = React.useState(false);
+
+    React.useEffect(() => {
+        setClientReady(true);
+    }, []);
   return (
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
@@ -69,7 +74,7 @@ export default function MyLibraryPage() {
                                         <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                             <div>
                                                 <p className="font-semibold">{item.title}</p>
-                                                <p className="text-sm text-muted-foreground">Borrowed: {new Date(item.borrowedDate).toLocaleDateString()} | Due: {new Date(item.dueDate).toLocaleDateString()}</p>
+                                                {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {new Date(item.borrowedDate).toLocaleDateString()} | Due: {new Date(item.dueDate).toLocaleDateString()}</p>}
                                             </div>
                                             <Button variant="outline" size="sm" disabled>
                                                 <RotateCw className="mr-2 h-4 w-4" />
@@ -135,7 +140,7 @@ export default function MyLibraryPage() {
                                      <Card key={item.id} className="bg-muted/50">
                                         <CardContent className="p-4">
                                             <p className="font-semibold">{item.title}</p>
-                                            <p className="text-sm text-muted-foreground">Borrowed: {new Date(item.borrowedDate).toLocaleDateString()} | Returned: {new Date(item.returnedDate).toLocaleDateString()}</p>
+                                            {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {new Date(item.borrowedDate).toLocaleDateString()} | Returned: {new Date(item.returnedDate).toLocaleDateString()}</p>}
                                         </CardContent>
                                     </Card>
                                 ))}

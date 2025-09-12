@@ -79,6 +79,11 @@ const teacherClasses = [
 
 export default function AssignmentsPage() {
   const [filteredClass, setFilteredClass] = React.useState('All Classes');
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const assignments = allAssignments.filter(assignment => 
     filteredClass === 'All Classes' || assignment.className === filteredClass
@@ -122,9 +127,11 @@ export default function AssignmentsPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                     <BookMarked className="h-6 w-6 text-primary" />
-                    <Badge variant={new Date(assignment.dueDate) < new Date() ? 'destructive' : 'secondary'}>
-                        Due {new Date(assignment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-                    </Badge>
+                    {clientReady && (
+                        <Badge variant={new Date(assignment.dueDate) < new Date() ? 'destructive' : 'secondary'}>
+                            Due {new Date(assignment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+                        </Badge>
+                    )}
                 </div>
                 <CardTitle className="font-headline text-xl pt-2">{assignment.title}</CardTitle>
                 <CardDescription>{assignment.className}</CardDescription>

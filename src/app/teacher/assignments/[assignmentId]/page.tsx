@@ -74,7 +74,18 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
   const [statusFilter, setStatusFilter] = React.useState<SubmissionStatus | 'All'>('All');
   const [submissions, setSubmissions] = React.useState(initialSubmissions);
   const [gradingStudent, setGradingStudent] = React.useState<Submission | null>(null);
+  const [formattedDueDate, setFormattedDueDate] = React.useState('');
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    setFormattedDueDate(
+      new Date(assignmentDetails.dueDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    );
+  }, []);
 
   const handleGradeSave = (studentId: string, grade: string) => {
     setSubmissions(prev => 
@@ -116,7 +127,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-2xl">{assignmentDetails.title}</CardTitle>
-          <CardDescription>{assignmentDetails.className} - Due: {new Date(assignmentDetails.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</CardDescription>
+          <CardDescription>{assignmentDetails.className} - Due: {formattedDueDate}</CardDescription>
            <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
               <div className="relative w-full md:max-w-sm">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

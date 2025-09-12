@@ -14,6 +14,7 @@ import { ArrowLeft, User, Phone, Users, History, FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useEffect, useState } from 'react';
 
 // Mock data fetching - in a real app, this would be an API call.
 const getStudentData = (studentId: string) => {
@@ -42,6 +43,13 @@ const getStudentData = (studentId: string) => {
 export default function StudentProfilePage({ params }: { params: { studentId: string } }) {
   const { studentId } = params;
   const student = getStudentData(studentId);
+  const [formattedDob, setFormattedDob] = useState('');
+
+  useEffect(() => {
+    if (student) {
+        setFormattedDob(new Date(student.dateOfBirth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric'}));
+    }
+  }, [student]);
 
   if (!student) {
     return (
@@ -113,7 +121,7 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                        <div>
                            <p className="font-medium text-muted-foreground">Date of Birth</p>
-                           <p>{new Date(student.dateOfBirth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                           <p>{formattedDob}</p>
                        </div>
                        <div>
                            <p className="font-medium text-muted-foreground">Student Phone</p>

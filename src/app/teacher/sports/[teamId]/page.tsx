@@ -110,6 +110,11 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
   
   const [members, setMembers] = React.useState(initialMembers);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const handleRoleChange = (studentId: string, newRole: StudentMember['role']) => {
     setMembers(currentMembers =>
@@ -265,8 +270,8 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                         <div key={event.id}>
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col items-center justify-center w-16 text-center bg-muted/50 rounded-md p-2">
-                                    <span className="text-sm font-bold uppercase text-primary">{new Date(event.date).toLocaleDateString('en-US', { month: 'short' })}</span>
-                                    <span className="text-xl font-bold">{new Date(event.date).getDate()}</span>
+                                    {clientReady && <span className="text-sm font-bold uppercase text-primary">{new Date(event.date).toLocaleDateString('en-US', { month: 'short' })}</span>}
+                                    {clientReady && <span className="text-xl font-bold">{new Date(event.date).getDate()}</span>}
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-semibold">{event.title}</p>
@@ -313,8 +318,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                                 </CardContent>
                                 <CardFooter className="p-4 flex-col items-start">
                                     <p className="text-sm font-medium">{item.caption}</p>
-                                    <p className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
-
+                                    {clientReady && <p className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>}
                                 </CardFooter>
                             </Card>
                         ))}
@@ -349,7 +353,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                             <SelectContent>
                                 {upcomingEvents.map(event => (
                                     <SelectItem key={event.id} value={event.id}>
-                                        {event.title} ({new Date(event.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})})
+                                        {event.title} {clientReady && `(${new Date(event.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})})`}
                                     </SelectItem>
                                 ))}
                             </SelectContent>

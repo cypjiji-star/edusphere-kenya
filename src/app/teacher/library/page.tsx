@@ -64,6 +64,11 @@ export default function LibraryPage() {
   const [filteredType, setFilteredType] = React.useState('All Types');
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [selectedResource, setSelectedResource] = React.useState<Resource | null>(null);
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const filteredResources = mockResources.filter(res => 
     res.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -207,7 +212,7 @@ export default function LibraryPage() {
                                         <Badge className={cn('whitespace-nowrap', statusConfig[res.status].className)}>
                                             {statusConfig[res.status].label}
                                         </Badge>
-                                        {res.status === 'Out' && (
+                                        {res.status === 'Out' && clientReady && (
                                             <p className="text-xs text-muted-foreground mt-1">Due: {res.dueDate ? new Date(res.dueDate).toLocaleDateString('en-US', { timeZone: 'UTC' }) : 'N/A'}</p>
                                         )}
                                     </td>
@@ -245,7 +250,7 @@ export default function LibraryPage() {
                                         <Star className="mr-1 h-3 w-3" /> Recommended
                                     </Badge>
                                 )}
-                               {res.status === 'Out' && (
+                               {res.status === 'Out' && clientReady && (
                                     <p className="text-xs text-muted-foreground">Due: {res.dueDate ? new Date(res.dueDate).toLocaleDateString('en-US', { timeZone: 'UTC' }) : 'N/A'}</p>
                                 )}
                             </CardContent>
