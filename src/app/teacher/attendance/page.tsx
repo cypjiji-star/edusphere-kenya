@@ -292,27 +292,47 @@ export default function AttendancePage() {
           {isRange ? (
              <div className="space-y-4">
                 <h3 className="font-headline text-lg flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Historical Records</h3>
-                <div className="rounded-lg border p-4 space-y-2">
-                  {historicalDates.map((d) => (
-                    <div key={d.toString()} className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50">
-                      <p className="font-medium">{format(d, 'EEEE, PPP')}</p>
-                      {/* In a real app, this would check if a record exists */}
-                      {Math.random() > 0.2 ? (
-                        <div className="flex items-center gap-2 text-sm text-green-600">
-                          <Check className="h-4 w-4" />
-                          <span>Record Saved</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                           <span>No Record</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div className="w-full overflow-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-center">Attendance Rate</TableHead>
+                        <TableHead>Marked By</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {historicalDates.map((d) => (
+                      <TableRow key={d.toString()}>
+                          <TableCell>
+                            <Button variant="link" className="p-0 h-auto" onClick={() => setDate({ from: d, to: undefined })}>
+                              {format(d, 'EEEE, PPP')}
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                             {Math.random() > 0.2 ? (
+                              <div className="flex items-center gap-2 text-sm text-green-600">
+                                <Check className="h-4 w-4" />
+                                <span>Record Saved</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>No Record</span>
+                              </div>
+                            )}
+                          </TableCell>
+                           <TableCell className="text-center">
+                              {Math.random() > 0.2 ? `${Math.floor(Math.random() * (100 - 85 + 1)) + 85}%` : '—'}
+                          </TableCell>
+                           <TableCell>
+                              {Math.random() > 0.2 ? "Ms. Wanjiku" : '—'}
+                          </TableCell>
+                      </TableRow>
+                    ))}
+                    </TableBody>
+                  </Table>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Select a single day to take or edit attendance. A full historical summary for the class will be available here soon.
-                </p>
              </div>
           ) : (
             <>
@@ -418,7 +438,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    
-
-    
