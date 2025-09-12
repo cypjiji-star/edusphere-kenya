@@ -103,9 +103,9 @@ const mediaHighlights = [
     { id: 'media-3', type: 'video', url: 'https://picsum.photos/seed/match-highlight-3/800/600', caption: 'Match highlights video vs. Starehe.', date: '2024-07-12' },
 ]
 
-export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
-  const teamDetails = teams[params.teamId] || { name: 'Unknown Team', coach: 'N/A' };
-  const initialMembers = studentMembers[params.teamId] || [];
+export default function TeamDetailsPage({ params: { teamId } }: { params: { teamId: string } }) {
+  const teamDetails = teams[teamId] || { name: 'Unknown Team', coach: 'N/A' };
+  const initialMembers = studentMembers[teamId] || [];
   
   const [members, setMembers] = React.useState(initialMembers);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -411,5 +411,3 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
     </div>
   );
 }
-
-    
