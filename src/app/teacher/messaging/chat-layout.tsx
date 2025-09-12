@@ -100,9 +100,9 @@ export function ChatLayout() {
   const [message, setMessage] = React.useState("");
 
   return (
-    <div className="z-10 h-full w-full bg-background border rounded-lg">
-      <div className="flex flex-col md:flex-row h-full">
-        <div className="flex flex-col w-full md:w-[320px] border-b md:border-r md:border-b-0">
+    <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden">
+      <div className="flex h-full">
+        <div className="flex flex-col w-full md:w-[320px] border-r">
           <div className="flex-shrink-0 p-4 border-b">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold font-headline">Inbox</h2>
@@ -116,7 +116,7 @@ export function ChatLayout() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <div className="p-2">
+            <div className="p-2 space-y-1">
             {conversations.map((convo) => (
                 <button
                 key={convo.id}
@@ -174,7 +174,7 @@ export function ChatLayout() {
                         <div className="group relative">
                           <div className={cn(
                               "max-w-xs lg:max-w-md rounded-2xl p-3 text-sm",
-                              msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'
+                              msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-secondary rounded-bl-none'
                           )}>
                               <p>{msg.text}</p>
                               <div className={cn("text-xs mt-2 flex items-center gap-2", msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
@@ -207,13 +207,22 @@ export function ChatLayout() {
                     }}
                   />
                   <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-2">
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled
-                    >
-                        <Paperclip className="h-5 w-5 text-muted-foreground" />
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                              size="icon"
+                              variant="ghost"
+                              disabled
+                          >
+                              <Paperclip className="h-5 w-5 text-muted-foreground" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Attach file (coming soon)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <Button
                         size="icon"
                         disabled={!message}
