@@ -19,11 +19,19 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Edit, GripVertical, Plus, Save, Settings, Share, Trash2, AlertTriangle } from 'lucide-react';
+import { Edit, GripVertical, Plus, Save, Settings, Share, Trash2, AlertTriangle, FileDown, Printer, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const teachers = ['Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri', 'Mr. Kamau'];
@@ -146,6 +154,29 @@ export function TimetableBuilder() {
                                 <Settings className="mr-2 h-4 w-4" />
                                 Define Periods
                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline">
+                                        Export / Print
+                                        <ChevronDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem disabled>
+                                        <FileDown className="mr-2 h-4 w-4"/>
+                                        Export as PDF
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem disabled>
+                                        <FileDown className="mr-2 h-4 w-4"/>
+                                        Export as Excel
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                     <DropdownMenuItem disabled>
+                                        <Printer className="mr-2 h-4 w-4"/>
+                                        Print View
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
                         </div>
                     </div>
                 </CardHeader>
@@ -262,4 +293,3 @@ export function TimetableBuilder() {
   );
 }
 
-    
