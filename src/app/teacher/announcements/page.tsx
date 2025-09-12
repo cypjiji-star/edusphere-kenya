@@ -143,24 +143,23 @@ export default function AnnouncementsPage() {
                           </Alert>
                           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
                               <div className="flex items-center space-x-2">
-                                  <Switch id="notify-app" disabled checked />
+                                  <Switch id="notify-app" defaultChecked />
                                   <Label htmlFor="notify-app">In-App Notification</Label>
                               </div>
                               <div className="flex items-center space-x-2">
-                                  <Switch id="notify-email" disabled />
+                                  <Switch id="notify-email" />
                                   <Label htmlFor="notify-email">Send as Email</Label>
                               </div>
                               <div className="flex items-center space-x-2">
-                                  <Switch id="notify-sms" disabled />
+                                  <Switch id="notify-sms" />
                                   <Label htmlFor="notify-sms">Send as SMS</Label>
                               </div>
                           </div>
-                          <p className="text-xs text-muted-foreground">Delivery settings will be configurable soon.</p>
                       </div>
                   </CardContent>
                 </Form>
                 <CardFooter>
-                    <Button disabled>
+                    <Button>
                         <Send className="mr-2 h-4 w-4" />
                         {isScheduling ? 'Schedule Announcement' : 'Send Announcement'}
                     </Button>
