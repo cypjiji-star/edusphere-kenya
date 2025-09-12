@@ -188,22 +188,23 @@ export function AssignmentForm() {
                     <Label>File Attachments</Label>
                     <div className="flex items-center justify-center w-full">
                         <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                                 <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                                <p className="mb-2 text-sm text-muted-foreground text-center">Attach files (PDF, Word, etc.)</p>
+                                <p className="mb-2 text-sm text-muted-foreground">Attach files</p>
+                                <p className="text-xs text-muted-foreground">(PDF, Word, etc.)</p>
                             </div>
                             <Input id="dropzone-file" type="file" className="hidden" disabled />
                         </Label>
                     </div>
                      <FormDescription>
-                      You can attach supporting materials for the assignment. This feature is coming soon.
+                      This feature is coming soon.
                     </FormDescription>
                 </div>
             </div>
         </div>
         
         <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
                 {isLoading ? (
                 <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -77,12 +77,12 @@ export default function AssignmentsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="md:flex md:items-center md:justify-between mb-6">
+      <div className="flex flex-col items-center text-center md:flex-row md:items-center md:justify-between md:text-left mb-6">
           <div>
             <h1 className="font-headline text-3xl font-bold">Manage Assignments</h1>
             <p className="text-muted-foreground">Create, view, and grade student assignments.</p>
           </div>
-          <Button asChild className="mt-4 md:mt-0">
+          <Button asChild className="mt-4 md:mt-0 w-full md:w-auto">
             <Link href="/teacher/assignments/new">
               <PlusCircle className="mr-2" />
               Create Assignment

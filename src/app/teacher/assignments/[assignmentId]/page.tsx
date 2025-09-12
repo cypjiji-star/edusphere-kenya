@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 // Mock Data
 const assignmentDetails = {
@@ -141,7 +142,8 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
             </div>
         </CardHeader>
         <CardContent>
-           <div className="w-full overflow-auto rounded-lg border">
+           {/* Desktop Table */}
+           <div className="w-full overflow-auto rounded-lg border hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -193,6 +195,53 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                   )}
                 </TableBody>
               </Table>
+            </div>
+             {/* Mobile Cards */}
+            <div className="grid gap-4 md:hidden">
+              {filteredSubmissions.length > 0 ? (
+                filteredSubmissions.map(submission => (
+                  <Card key={submission.studentId} className="w-full">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={submission.avatarUrl} alt={submission.studentName} />
+                              <AvatarFallback>{submission.studentName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{submission.studentName}</span>
+                          </div>
+                          {getStatusBadge(submission.status)}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <Separator/>
+                       <div className="flex justify-between items-center text-sm">
+                          <span className="font-medium text-muted-foreground">Submitted:</span>
+                          <span>{submission.submittedDate ? new Date(submission.submittedDate).toLocaleDateString() : '—'}</span>
+                       </div>
+                       <div className="flex justify-between items-center text-sm">
+                          <span className="font-medium text-muted-foreground">Grade:</span>
+                           {submission.grade ? <Badge variant="outline">{submission.grade}</Badge> : <span className="text-muted-foreground">—</span>}
+                       </div>
+                    </CardContent>
+                    <CardFooter>
+                       <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            disabled={submission.status === 'Not Submitted'}
+                            onClick={() => setGradingStudent(submission)}
+                          >
+                            {submission.grade ? 'View/Edit Grade' : 'View & Grade'}
+                          </Button>
+                    </CardFooter>
+                  </Card>
+                ))
+              ) : (
+                 <div className="text-center p-8 text-muted-foreground">
+                    No submissions found matching your filters.
+                 </div>
+              )}
             </div>
         </CardContent>
       </Card>
