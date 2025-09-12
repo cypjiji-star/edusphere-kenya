@@ -20,6 +20,8 @@ import {
   ChevronDown,
   Settings,
   BarChart2,
+  Save,
+  Trash2,
 } from 'lucide-react';
 import {
   Table,
@@ -45,6 +47,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -71,6 +75,21 @@ const statusColors: Record<ExamStatus, string> = {
     'Completed': 'bg-green-600',
     'Grading': 'bg-purple-500',
 };
+
+const gradingScale = [
+    { grade: 'A', min: 80, max: 100 },
+    { grade: 'A-', min: 75, max: 79 },
+    { grade: 'B+', min: 70, max: 74 },
+    { grade: 'B', min: 65, max: 69 },
+    { grade: 'B-', min: 60, max: 64 },
+    { grade: 'C+', min: 55, max: 59 },
+    { grade: 'C', min: 50, max: 54 },
+    { grade: 'C-', min: 45, max: 49 },
+    { grade: 'D+', min: 40, max: 44 },
+    { grade: 'D', min: 35, max: 39 },
+    { grade: 'D-', min: 30, max: 34 },
+    { grade: 'E', min: 0, max: 29 },
+]
 
 export default function AdminGradesPage() {
     const [clientReady, setClientReady] = React.useState(false);
@@ -199,21 +218,66 @@ export default function AdminGradesPage() {
                     </Card>
                 </TabsContent>
                  <TabsContent value="settings">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Settings &amp; Policies</CardTitle>
-                            <CardDescription>Manage school-wide grading scales, report card templates, and GPA calculations.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                           <div className="flex h-[400px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                                <div className="text-center text-muted-foreground">
-                                    <Settings className="mx-auto h-12 w-12" />
-                                    <h3 className="mt-4 text-lg font-semibold">Grading Policy Management Coming Soon</h3>
-                                    <p className="mt-1 text-sm">Controls for setting grading scales and report card formats will be here.</p>
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Grading Scale</CardTitle>
+                                <CardDescription>Define the marks required for each grade. This will be applied school-wide.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2">
+                                {gradingScale.map((item, index) => (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <Input value={item.grade} className="w-16 font-bold" readOnly />
+                                        <Input type="number" value={item.min} readOnly className="w-20" />
+                                        <span>-</span>
+                                        <Input type="number" value={item.max} readOnly className="w-20" />
+                                        <Button variant="ghost" size="icon" disabled>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
                                 </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                            <CardFooter className="flex justify-between">
+                                <Button variant="outline" disabled>
+                                    <PlusCircle className="mr-2 h-4 w-4"/>
+                                    Add Row
+                                </Button>
+                                <Button disabled>
+                                    <Save className="mr-2 h-4 w-4"/>
+                                    Save Scale
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                         <div className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Report Card Templates</CardTitle>
+                                    <CardDescription>Manage templates for official student report cards.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex h-[150px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                                        <div className="text-center text-muted-foreground">
+                                            <p>Template management coming soon.</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>GPA Calculation</CardTitle>
+                                    <CardDescription>Configure how Grade Point Average is calculated.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                   <div className="flex items-center space-x-2">
+                                        <Switch id="gpa-switch" disabled />
+                                        <Label htmlFor="gpa-switch">Enable GPA on reports</Label>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>
