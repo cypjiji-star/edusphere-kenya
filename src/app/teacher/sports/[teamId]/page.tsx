@@ -157,11 +157,12 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
       </div>
       
       <Tabs defaultValue="roster">
-        <TabsList className="mb-4 grid w-full grid-cols-4 md:w-auto md:inline-flex">
+        <TabsList className="mb-4 grid w-full grid-cols-5 md:w-auto md:inline-flex">
             <TabsTrigger value="roster">Roster</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="media">Media</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="awards">Awards</TabsTrigger>
         </TabsList>
 
         <TabsContent value="roster">
@@ -313,6 +314,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                                 <CardFooter className="p-4 flex-col items-start">
                                     <p className="text-sm font-medium">{item.caption}</p>
                                     <p className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
+
                                 </CardFooter>
                             </Card>
                         ))}
@@ -403,6 +405,77 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                     <Button disabled>
                         <Save className="mr-2 h-4 w-4" />
                         Save Records
+                    </Button>
+                </CardFooter>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="awards">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Awards &amp; Recognition</CardTitle>
+                    <CardDescription>Highlight top performers and sportsmanship awards for the season.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Most Valuable Player (MVP)</CardTitle>
+                            <Trophy className="h-5 w-5 text-yellow-500" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center gap-3">
+                                <Avatar>
+                                    <AvatarImage src="https://picsum.photos/seed/bf-player1/100" alt="MVP" />
+                                    <AvatarFallback>P1</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-bold">Player 1</p>
+                                    <p className="text-xs text-muted-foreground">Season Top Performer</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Top Scorer</CardTitle>
+                            <Trophy className="h-5 w-5 text-gray-400" />
+                        </CardHeader>
+                        <CardContent>
+                             <div className="flex items-center gap-3">
+                                <Avatar>
+                                    <AvatarImage src="https://picsum.photos/seed/bf-player7/100" alt="Top Scorer" />
+                                    <AvatarFallback>P7</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-bold">Player 7</p>
+                                    <p className="text-xs text-muted-foreground">12 Goals this Season</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Sportsmanship Award</CardTitle>
+                            <Trophy className="h-5 w-5 text-green-600" />
+                        </CardHeader>
+                        <CardContent>
+                             <div className="flex items-center gap-3">
+                                <Avatar>
+                                    <AvatarImage src="https://picsum.photos/seed/bf-player15/100" alt="Sportsmanship" />
+                                    <AvatarFallback>P15</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-bold">Player 15</p>
+                                    <p className="text-xs text-muted-foreground">Exemplary Conduct</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </CardContent>
+                <CardFooter>
+                    <Button disabled>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add New Award
                     </Button>
                 </CardFooter>
             </Card>
