@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -411,6 +411,15 @@ export default function UserManagementPage() {
                                             <FileDown className="mr-2 h-4 w-4" />
                                             Export Teacher List (PDF)
                                         </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem disabled>
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            Print Student ID Cards (PDF)
+                                        </DropdownMenuItem>
+                                         <DropdownMenuItem disabled>
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            Print Teacher ID Cards (PDF)
+                                        </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                                 <DialogContent className="sm:max-w-2xl">
@@ -548,5 +557,3 @@ export default function UserManagementPage() {
         </div>
     );
 }
-
-    
