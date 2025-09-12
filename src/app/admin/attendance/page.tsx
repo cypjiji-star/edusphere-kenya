@@ -264,7 +264,7 @@ export default function AdminAttendancePage() {
                             <ChevronDown className="ml-2 h-4 w-4" />
                         </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="p-4 space-y-4 w-64">
+                        <DropdownMenuContent align="end" className="p-4 space-y-4 w-64">
                             <div>
                                 <label className="text-sm font-medium">Class</label>
                                 <Select value={classFilter} onValueChange={setClassFilter}>
@@ -328,9 +328,9 @@ export default function AdminAttendancePage() {
                 </div>
             </div>
              <div className="flex flex-wrap items-center gap-2">
-                {classFilter !== 'All Classes' && <Badge variant="secondary" onClick={() => setClassFilter('All Classes')}>Class: {classFilter} &times;</Badge>}
-                {teacherFilter !== 'All Teachers' && <Badge variant="secondary" onClick={() => setTeacherFilter('All Teachers')}>Teacher: {teacherFilter} &times;</Badge>}
-                {statusFilter !== 'All Statuses' && <Badge variant="secondary" onClick={() => setStatusFilter('All Statuses')}>Status: {statusFilter} &times;</Badge>}
+                {classFilter !== 'All Classes' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setClassFilter('All Classes')}>Class: {classFilter} &times;</Badge>}
+                {teacherFilter !== 'All Teachers' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setTeacherFilter('All Teachers')}>Teacher: {teacherFilter} &times;</Badge>}
+                {statusFilter !== 'All Statuses' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setStatusFilter('All Statuses')}>Status: {statusFilter} &times;</Badge>}
             </div>
           </div>
         </CardHeader>
@@ -385,3 +385,5 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
+    
