@@ -246,7 +246,7 @@ export default function ClassesAndSubjectsPage() {
                                     </div>
                                     <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button disabled>Save Class</Button>
+                                        <Button>Save Class</Button>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
@@ -341,13 +341,13 @@ export default function ClassesAndSubjectsPage() {
                                                         </div>
                                                     </div>
                                                     <DialogFooter className="justify-between">
-                                                         <Button variant="destructive" disabled>
+                                                         <Button variant="destructive">
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Archive Class
                                                         </Button>
                                                         <div className="flex gap-2">
                                                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                            <Button disabled>Save Changes</Button>
+                                                            <Button>Save Changes</Button>
                                                         </div>
                                                     </DialogFooter>
                                                 </DialogContent>
@@ -387,7 +387,7 @@ export default function ClassesAndSubjectsPage() {
                                                     </div>
                                                     <DialogFooter>
                                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                        <Button disabled>Save Assignments</Button>
+                                                        <Button>Save Assignments</Button>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
@@ -472,7 +472,7 @@ export default function ClassesAndSubjectsPage() {
                                     </div>
                                      <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button disabled>Save Subject</Button>
+                                        <Button>Save Subject</Button>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
@@ -518,7 +518,7 @@ export default function ClassesAndSubjectsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" disabled>
+                                            <Button variant="ghost" size="sm">
                                                 <Edit className="mr-2 h-4 w-4" /> Edit
                                             </Button>
                                         </TableCell>
@@ -625,3 +625,5 @@ export default function ClassesAndSubjectsPage() {
     </div>
   );
 }
+
+    
