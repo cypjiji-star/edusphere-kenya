@@ -25,7 +25,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter } from 'lucide-react';
+import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -125,6 +125,20 @@ const mockSubjects = [
     { id: 'sub-bio', name: 'Biology', code: '231', department: 'Sciences', teachers: ['Ms. Wanjiku', 'Ms. Akinyi'], classes: ['Form 1', 'Form 2'] },
     { id: 'sub-hist', name: 'History & Government', code: '311', department: 'Humanities', teachers: ['Mr. Kamau'], classes: ['Form 1', 'Form 2', 'Form 3'] },
 ];
+
+const mockClassAssignments = {
+    'form-4-a': [
+        { subject: 'Mathematics', teacher: 'Mr. Otieno' },
+        { subject: 'English', teacher: 'Ms. Njeri' },
+        { subject: 'Chemistry', teacher: 'Ms. Wanjiku' },
+        { subject: 'Physics', teacher: null },
+    ],
+    'form-3-north': [
+        { subject: 'Mathematics', teacher: 'Mr. Kimani' },
+        { subject: 'English', teacher: 'Ms. Njeri' },
+        { subject: 'History & Government', teacher: 'Mr. Kamau' },
+    ],
+};
 
 
 export default function ClassesAndSubjectsPage() {
@@ -465,45 +479,38 @@ export default function ClassesAndSubjectsPage() {
         <TabsContent value="assignments">
             <Card>
                 <CardHeader>
-                    <CardTitle>Teacher Assignments</CardTitle>
-                    <CardDescription>View and manage subject and class assignments for each teacher.</CardDescription>
+                    <CardTitle>Per-Class Teacher Assignments</CardTitle>
+                    <CardDescription>View which teacher is teaching which subject in each class and identify any unassigned subjects.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-6 md:grid-cols-2">
-                    {mockTeachers.map(teacher => {
-                        const classTeacherOf = mockClasses.filter(c => c.classTeacher.name === teacher.name).map(c => `${c.name} ${c.stream || ''}`);
-                        const subjectAssignments = mockSubjects.filter(s => s.teachers.includes(teacher.name));
+                <CardContent className="space-y-6">
+                    {mockClasses.filter(c => mockClassAssignments[c.id]).map(schoolClass => {
+                        const assignments = mockClassAssignments[schoolClass.id as keyof typeof mockClassAssignments] || [];
                         
                         return (
-                            <Card key={teacher.id}>
+                            <Card key={schoolClass.id}>
                                 <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar>
-                                                <AvatarImage src={teacher.avatarUrl} alt={teacher.name} />
-                                                <AvatarFallback>{teacher.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <CardTitle className="text-lg">{teacher.name}</CardTitle>
-                                                {classTeacherOf.length > 0 && <CardDescription>Class Teacher for {classTeacherOf.join(', ')}</CardDescription>}
-                                            </div>
-                                        </div>
-                                        <Button variant="outline" size="sm" disabled>
-                                            <Edit className="mr-2 h-4 w-4" />
-                                            Edit
-                                        </Button>
-                                    </div>
+                                    <CardTitle className="text-lg">{schoolClass.name} {schoolClass.stream || ''}</CardTitle>
+                                    <CardDescription>Class Teacher: {schoolClass.classTeacher.name}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <h4 className="font-semibold text-sm mb-2">Subject Assignments:</h4>
-                                    {subjectAssignments.length > 0 ? (
-                                         <div className="flex flex-wrap gap-2">
-                                            {subjectAssignments.map(subject => (
-                                                <Badge key={subject.id} variant="secondary">{subject.name} ({subject.classes.join(', ')})</Badge>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">No subjects assigned.</p>
-                                    )}
+                                    <div className="space-y-2">
+                                        {assignments.map(assignment => (
+                                            <div key={assignment.subject} className="flex items-center justify-between border-b py-2">
+                                                <span className="font-medium">{assignment.subject}</span>
+                                                {assignment.teacher ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <User className="h-4 w-4 text-muted-foreground"/>
+                                                        <span className="text-sm text-muted-foreground">{assignment.teacher}</span>
+                                                    </div>
+                                                ) : (
+                                                    <Badge variant="destructive">
+                                                        <AlertCircle className="mr-2 h-4 w-4"/>
+                                                        Unassigned
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </CardContent>
                             </Card>
                         )
