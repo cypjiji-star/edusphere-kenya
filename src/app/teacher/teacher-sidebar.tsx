@@ -59,6 +59,12 @@ const navGroups = [
     ],
   },
   {
+    title: 'Instructional Tools',
+    items: [
+      { href: '/teacher/lesson-plans', label: 'Lesson Plans', icon: BookOpen, disabled: false },
+    ],
+  },
+  {
     title: 'Communication',
     items: [
       { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false },
@@ -69,7 +75,6 @@ const navGroups = [
   {
     title: 'Tools & Resources',
     items: [
-        { href: '/teacher/timetable', label: 'Timetable', icon: Calendar, disabled: false },
         { href: '/teacher/library', label: 'Library Access', icon: Library, disabled: false },
         { href: '/teacher/my-library', label: 'My Library', icon: User, disabled: false },
     ],
