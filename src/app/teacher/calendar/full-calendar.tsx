@@ -237,7 +237,7 @@ export function FullCalendar() {
       <div className="border rounded-lg">
         <div className="grid grid-cols-7 text-center font-semibold text-sm text-muted-foreground border-b">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="py-2">{day}</div>
+            <div key={day} className="py-2 text-xs md:text-sm">{day}</div>
           ))}
         </div>
         <div className="grid grid-cols-7">
@@ -248,16 +248,16 @@ export function FullCalendar() {
                 <div
                   key={day.toString()}
                   className={cn(
-                    'h-32 p-2 border-t border-l flex flex-col',
+                    'h-24 md:h-32 p-1 md:p-2 border-t border-l flex flex-col',
                     !isSameMonth(day, monthStart) && 'bg-muted/50 text-muted-foreground',
                      isToday(day) && 'bg-accent/20 relative'
                   )}
                 >
                     {isToday(day) && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
-                  <span className={cn('font-medium', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
+                  <span className={cn('font-medium text-xs md:text-sm', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
                    <div className="mt-1 space-y-1 overflow-y-auto">
                         {eventsForDay.map(event => (
-                            <Badge key={event.id} className={cn('w-full truncate text-white', eventColors[event.type])}>
+                            <Badge key={event.id} className={cn('w-full truncate text-white text-[10px] md:text-xs', eventColors[event.type])}>
                                 {event.title}
                             </Badge>
                         ))}
@@ -295,7 +295,7 @@ export function FullCalendar() {
                             </div>
                         ))}
                     </div>
-                    <div className="col-start-2 row-start-2 grid grid-cols-7 relative">
+                    <div className="col-start-2 row-start-2 grid grid-cols-7 relative overflow-x-auto">
                         {days.map(day => (
                             <div key={day.toISOString()} className="border-l relative">
                                 {hours.map(hour => (
@@ -363,3 +363,4 @@ export function FullCalendar() {
     </div>
   );
 }
+
