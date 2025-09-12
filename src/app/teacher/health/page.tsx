@@ -53,9 +53,11 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 
 const incidentSchema = z.object({
@@ -78,6 +80,27 @@ const students = [
   { id: 'f3-math-1', name: 'Student 32', class: 'Form 3' },
 ];
 
+const studentHealthRecords = {
+    'f4-chem-1': {
+        studentName: 'Student 1',
+        allergies: ['Peanuts', 'Pollen'],
+        conditions: ['Asthma (mild)'],
+        emergencyContact: { name: 'Joseph Kariuki', relationship: 'Father', phone: '0722 123 456' }
+    },
+    'f4-chem-2': {
+        studentName: 'Student 2',
+        allergies: ['None known'],
+        conditions: ['None known'],
+        emergencyContact: { name: 'Mary Wambui', relationship: 'Mother', phone: '0722 987 654' }
+    },
+    'f3-math-1': {
+        studentName: 'Student 32',
+        allergies: ['Lactose Intolerance'],
+        conditions: ['None known'],
+        emergencyContact: { name: 'David Omondi', relationship: 'Father', phone: '0711 555 888' }
+    }
+}
+
 const incidentLog = [
     { id: 'inc-1', studentName: 'Student 1', studentAvatar: 'https://picsum.photos/seed/f4-student1/100', type: 'Health', description: 'Complained of a headache and feeling dizzy during the chemistry lesson.', date: '2024-07-15', status: 'Reported' },
     { id: 'inc-2', studentName: 'Student 32', studentAvatar: 'https://picsum.photos/seed/f3-student1/100', type: 'Accident', description: 'Slipped and fell during break time. Minor scrape on the knee.', date: '2024-07-12', status: 'Resolved' },
@@ -94,6 +117,8 @@ const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
 
 export default function HealthPage() {
   const { toast } = useToast();
+  const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<keyof typeof studentHealthRecords | null>(null);
+
   const form = useForm<IncidentFormValues>({
     resolver: zodResolver(incidentSchema),
     defaultValues: {
@@ -113,6 +138,8 @@ export default function HealthPage() {
     });
     form.reset();
   }
+  
+  const currentHealthRecord = selectedHealthStudent ? studentHealthRecords[selectedHealthStudent] : null;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -125,9 +152,10 @@ export default function HealthPage() {
       </div>
       
       <Tabs defaultValue="report">
-        <TabsList>
-            <TabsTrigger value="report">New Incident Report</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex">
+            <TabsTrigger value="report">New Incident</TabsTrigger>
             <TabsTrigger value="log">Incident Log</TabsTrigger>
+            <TabsTrigger value="records">Health Records</TabsTrigger>
         </TabsList>
 
         <TabsContent value="report">
@@ -415,6 +443,83 @@ export default function HealthPage() {
                     </div>
                 </CardContent>
              </Card>
+        </TabsContent>
+         <TabsContent value="records">
+            <Card className="mt-4">
+                <CardHeader>
+                    <CardTitle>Student Health Records</CardTitle>
+                    <CardDescription>Look up important health information for a student.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="max-w-md mb-6">
+                        <Label htmlFor="student-health-select">Select a Student</Label>
+                        <Select onValueChange={(value: keyof typeof studentHealthRecords) => setSelectedHealthStudent(value)}>
+                            <SelectTrigger id="student-health-select">
+                                <SelectValue placeholder="Search and select a student..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {students.map((s) => (
+                                    <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {currentHealthRecord ? (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <User className="h-5 w-5 text-primary" />
+                                    {currentHealthRecord.studentName}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4>
+                                    <div className="space-x-2">
+                                        {currentHealthRecord.allergies.map(allergy => (
+                                            <Badge key={allergy} variant="destructive">{allergy}</Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Stethoscope className="h-4 w-4" /> Ongoing Conditions</h4>
+                                    <div className="space-x-2">
+                                         {currentHealthRecord.conditions.map(condition => (
+                                            <Badge key={condition} variant="secondary">{condition}</Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Phone className="h-4 w-4" /> Emergency Contact</h4>
+                                    <div className="text-sm">
+                                        <p><span className="font-medium">{currentHealthRecord.emergencyContact.name}</span> ({currentHealthRecord.emergencyContact.relationship})</p>
+                                        <p className="text-muted-foreground">{currentHealthRecord.emergencyContact.phone}</p>
+                                    </div>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><FileText className="h-4 w-4" /> Medical History</h4>
+                                    <Alert variant="default">
+                                        <AlertTitle>No Detailed History</AlertTitle>
+                                        <AlertDescription>
+                                            A comprehensive medical or vaccination history has not been provided for this student. For detailed records, please contact the school administration or the student's guardian.
+                                        </AlertDescription>
+                                    </Alert>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="flex min-h-[300px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                            <div className="text-center text-muted-foreground">
+                                <Stethoscope className="mx-auto h-12 w-12" />
+                                <h3 className="mt-4 text-lg font-semibold">Select a student to view their record.</h3>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </TabsContent>
       </Tabs>
     </div>
