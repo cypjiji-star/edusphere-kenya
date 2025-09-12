@@ -250,7 +250,7 @@ export function ReportGenerator() {
                         <CardTitle>Report Preview</CardTitle>
                         <CardDescription>A preview of the generated report will appear below.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" disabled={(!report && reportType !== 'summary') || isGenerating}>
+                    <Button variant="outline" size="sm" disabled={!report || isGenerating}>
                         <Printer className="mr-2 h-4 w-4" />
                         Print
                     </Button>
