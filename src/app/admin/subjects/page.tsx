@@ -284,9 +284,15 @@ export default function ClassesAndSubjectsPage() {
                                                     <Input id="class-capacity-edit" type="number" defaultValue={schoolClass.capacity} className="col-span-3" />
                                                 </div>
                                             </div>
-                                            <DialogFooter>
-                                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                <Button disabled>Save Changes</Button>
+                                            <DialogFooter className="justify-between">
+                                                <Button variant="destructive" disabled>
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Archive Class
+                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                    <Button disabled>Save Changes</Button>
+                                                </div>
                                             </DialogFooter>
                                         </DialogContent>
                                     </Dialog>
