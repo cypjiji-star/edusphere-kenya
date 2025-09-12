@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle } from 'lucide-react';
+import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,10 +59,11 @@ type Expense = {
     amount: number;
     status: ExpenseStatus;
     submittedBy: string;
+    hasAttachment?: boolean;
 };
 
 const mockExpenses: Expense[] = [
-    { id: 'exp-1', date: '2024-07-15', category: 'Utilities', description: 'KPLC Electricity Bill', amount: 25000, status: 'Paid', submittedBy: 'Admin Office' },
+    { id: 'exp-1', date: '2024-07-15', category: 'Utilities', description: 'KPLC Electricity Bill', amount: 25000, status: 'Paid', submittedBy: 'Admin Office', hasAttachment: true },
     { id: 'exp-2', date: '2024-07-12', category: 'Supplies', description: 'Purchase of lab chemicals', amount: 15000, status: 'Pending Approval', submittedBy: 'Ms. Wanjiku' },
     { id: 'exp-3', date: '2024-07-10', category: 'Maintenance', description: 'Repair of school gate', amount: 8000, status: 'Reimbursed', submittedBy: 'Mr. Kamau' },
     { id: 'exp-4', date: '2024-07-05', category: 'Salaries', description: 'July Teacher Salaries', amount: 1200000, status: 'Paid', submittedBy: 'Admin Office' },
@@ -253,13 +254,13 @@ export default function ExpensesPage() {
                                             <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
                                                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                                                     <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                                    <p className="mb-2 text-sm text-muted-foreground">Attach file</p>
+                                                    <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
                                                     <p className="text-xs text-muted-foreground">(PDF, JPG, PNG)</p>
                                                 </div>
-                                                <Input id="dropzone-file" type="file" className="hidden" disabled/>
+                                                <Input id="dropzone-file" type="file" className="hidden" />
                                             </Label>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">Receipt scanning feature coming soon.</p>
+                                        <p className="text-xs text-muted-foreground">You can attach supporting documents like receipts or invoices.</p>
                                     </div>
                                     <Separator/>
                                      <div className="space-y-2">
@@ -388,7 +389,10 @@ export default function ExpensesPage() {
                                     <TableRow key={expense.id}>
                                         <TableCell>{clientReady ? new Date(expense.date).toLocaleDateString() : ''}</TableCell>
                                         <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
-                                        <TableCell className="font-medium">{expense.description}</TableCell>
+                                        <TableCell className="font-medium flex items-center gap-2">
+                                            {expense.description}
+                                            {expense.hasAttachment && <Paperclip className="h-4 w-4 text-muted-foreground" />}
+                                        </TableCell>
                                         <TableCell>{expense.submittedBy}</TableCell>
                                         <TableCell>{getStatusBadge(expense.status)}</TableCell>
                                         <TableCell className="text-right font-semibold">{formatCurrency(expense.amount)}</TableCell>
