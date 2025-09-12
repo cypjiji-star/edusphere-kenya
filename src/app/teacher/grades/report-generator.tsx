@@ -9,7 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -24,12 +26,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown } from 'lucide-react';
+import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-type ReportType = 'individual' | 'summary' | 'ranking';
+type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion';
 
 export function ReportGenerator() {
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
@@ -84,9 +86,16 @@ export function ReportGenerator() {
                             <SelectValue placeholder="Select a report type" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="individual">Individual Student Report</SelectItem>
-                            <SelectItem value="summary">Class Performance Summary</SelectItem>
-                            <SelectItem value="ranking">Student Ranking &amp; Percentiles</SelectItem>
+                            <SelectGroup>
+                                <SelectLabel>Academic Reports</SelectLabel>
+                                <SelectItem value="individual">Individual Student Report</SelectItem>
+                                <SelectItem value="summary">Class Performance Summary</SelectItem>
+                                <SelectItem value="ranking">Student Ranking &amp; Percentiles</SelectItem>
+                            </SelectGroup>
+                             <SelectGroup>
+                                <SelectLabel>Assignment & Submission Reports</SelectLabel>
+                                <SelectItem value="assignment-completion">Assignment Completion Report</SelectItem>
+                            </SelectGroup>
                         </SelectContent>
                     </Select>
                 </div>
@@ -226,14 +235,21 @@ export function ReportGenerator() {
                              </footer>
                         </div>
                     )}
-                    {!isGenerating && (reportType === 'summary' || reportType === 'ranking') && (
+                    {!isGenerating && (reportType === 'summary' || reportType === 'ranking' || reportType === 'assignment-completion') && (
                         <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32 opacity-60">
                             {reportType === 'summary' && <BarChart className="h-12 w-12 text-primary/50" />}
                             {reportType === 'ranking' && <Crown className="h-12 w-12 text-primary/50" />}
+                            {reportType === 'assignment-completion' && <BookCheck className="h-12 w-12 text-primary/50" />}
                              <Alert variant="default" className="text-left">
                                 <AlertTitle>Feature Coming Soon</AlertTitle>
                                 <AlertDescription>
-                                   The "{reportType === 'summary' ? 'Class Performance Summary' : 'Student Ranking & Percentiles'}" report is currently in development. This preview shows the intended layout.
+                                   The "{
+                                    {
+                                        'summary': 'Class Performance Summary',
+                                        'ranking': 'Student Ranking & Percentiles',
+                                        'assignment-completion': 'Assignment Completion Report'
+                                    }[reportType]
+                                   }" report is currently in development. This preview shows the intended layout.
                                 </AlertDescription>
                             </Alert>
                         </div>
@@ -244,3 +260,5 @@ export function ReportGenerator() {
     </div>
   );
 }
+
+    
