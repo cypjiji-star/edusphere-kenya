@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat } from 'lucide-react';
+import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -380,6 +380,7 @@ export default function ExpensesPage() {
                                     <TableHead>Submitted By</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -391,6 +392,22 @@ export default function ExpensesPage() {
                                         <TableCell>{expense.submittedBy}</TableCell>
                                         <TableCell>{getStatusBadge(expense.status)}</TableCell>
                                         <TableCell className="text-right font-semibold">{formatCurrency(expense.amount)}</TableCell>
+                                        <TableCell className="text-right space-x-2">
+                                            {expense.status === 'Pending Approval' ? (
+                                                <>
+                                                    <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700">
+                                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                                        Approve
+                                                    </Button>
+                                                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                                                        <XCircle className="mr-2 h-4 w-4" />
+                                                        Decline
+                                                    </Button>
+                                                </>
+                                            ) : (
+                                                <Button variant="ghost" size="sm" disabled>View Details</Button>
+                                            )}
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
