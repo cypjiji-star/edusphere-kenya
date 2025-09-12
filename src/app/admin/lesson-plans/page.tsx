@@ -4,6 +4,7 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
+import Link from 'next/link';
 
 import { cn } from '@/lib/utils';
 import {
@@ -250,9 +251,11 @@ export default function AdminLessonPlansPage() {
                       <TableCell>{new Date(submission.date).toLocaleDateString()}</TableCell>
                       <TableCell>{getStatusBadge(submission.status)}</TableCell>
                       <TableCell className="text-right">
-                          <Button variant="outline" size="sm" disabled>
-                            View Plan
-                            <ArrowRight className="ml-2 h-4 w-4" />
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/admin/lesson-plans/${submission.id}`}>
+                                View Plan
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Link>
                           </Button>
                       </TableCell>
                     </TableRow>
