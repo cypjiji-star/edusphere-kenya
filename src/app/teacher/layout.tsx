@@ -14,7 +14,11 @@ export default function TeacherLayout({
           <TeacherSidebar />
         </Suspense>
       </Sidebar>
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
+        <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
+          {children}
+        </main>
+      </SidebarInset>
     </SidebarProvider>
   );
 }
