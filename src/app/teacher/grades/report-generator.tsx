@@ -35,6 +35,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 
 type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns' | 'participation-records' | 'performance-stats' | 'team-rosters' | 'message-delivery' | 'interaction-logs' | 'notification-history';
 
@@ -99,7 +100,7 @@ export function ReportGenerator() {
         <Card className="md:col-span-1">
             <CardHeader>
                 <CardTitle>Generate Report</CardTitle>
-                <CardDescription>Select a report type and options to generate a report.</CardDescription>
+                <CardDescription>Select options to generate academic, attendance, or activity reports.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="space-y-2">
@@ -222,6 +223,24 @@ export function ReportGenerator() {
                     )}
                 </Button>
             </CardFooter>
+             <Separator className="my-4" />
+             <div className="p-4 space-y-4">
+                <h4 className="font-semibold flex items-center gap-2 text-base">
+                    <Bell className="h-5 w-5 text-primary" />
+                    Automated Alerts
+                </h4>
+                <p className="text-xs text-muted-foreground">Set up automated reports for specific triggers. (Coming soon)</p>
+                 <div className="space-y-3">
+                    <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
+                        <Label htmlFor="alert-low-perf" className="text-sm">Low performance alert</Label>
+                        <Switch id="alert-low-perf" disabled />
+                    </div>
+                    <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
+                        <Label htmlFor="alert-absenteeism" className="text-sm">High absenteeism alert</Label>
+                        <Switch id="alert-absenteeism" disabled />
+                    </div>
+                 </div>
+             </div>
         </Card>
         
         <div className="md:col-span-2">

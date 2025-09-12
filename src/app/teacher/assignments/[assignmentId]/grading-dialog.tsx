@@ -29,6 +29,7 @@ import { gradingSchema, GradingFormValues, saveGradeAction } from './actions';
 import type { Submission } from './types';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface GradingDialogProps {
   student: Submission | null;
@@ -144,11 +145,14 @@ export function GradingDialog({
               <Separator />
 
               <div className="space-y-4">
-                 <h4 className="font-semibold flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-primary" />
-                    Notification
-                </h4>
-                <div className="flex items-center space-x-2">
+                <Alert>
+                  <Bell className="h-4 w-4" />
+                  <AlertTitle>Notifications</AlertTitle>
+                  <AlertDescription>
+                    You can automatically notify students and parents when a grade is saved.
+                  </AlertDescription>
+                </Alert>
+                <div className="flex items-center space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
                     <Switch id="notify-student" disabled />
                     <Label htmlFor="notify-student">Notify student/parent when grade is saved</Label>
                 </div>

@@ -247,11 +247,11 @@ export default function AttendancePage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem disabled>
+                    <DropdownMenuItem>
                       <FileDown className="mr-2" />
                       Download as PDF
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled>
+                    <DropdownMenuItem>
                       <FileDown className="mr-2" />
                       Download as Excel/CSV
                     </DropdownMenuItem>
@@ -395,20 +395,21 @@ export default function AttendancePage() {
                 <div className="space-y-2">
                     <h4 className="font-semibold flex items-center gap-2">
                         <Bell className="h-5 w-5 text-primary" />
-                        Notification Settings
+                        Automated Alerts & Notifications
                     </h4>
-                    <p className="text-sm text-muted-foreground">These actions are triggered after attendance is submitted. (Feature coming soon)</p>
+                    <p className="text-sm text-muted-foreground">Configure actions to be triggered automatically after attendance is submitted.</p>
                 </div>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
-                    <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                    <div className="flex items-center space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
                         <Switch id="notify-parents" disabled />
                         <Label htmlFor="notify-parents">Notify parents of absent students</Label>
                     </div>
-                     <div className="flex items-center space-x-2">
+                     <div className="flex items-center space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
                         <Switch id="notify-admin" disabled />
                         <Label htmlFor="notify-admin">Alert admin for low attendance</Label>
                     </div>
                 </div>
+                 <p className="text-xs text-muted-foreground pt-2">Full alert customization is coming soon.</p>
             </CardFooter>
         )}
       </Card>
