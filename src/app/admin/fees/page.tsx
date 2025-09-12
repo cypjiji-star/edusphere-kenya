@@ -124,7 +124,7 @@ const chartConfig = {
   collected: { label: 'Collected', color: 'hsl(var(--primary))' },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-type TransactionType = 'payment' | 'charge' | 'waiver';
+type TransactionType = 'payment' | 'charge' | 'waiver' | 'refund';
 
 function NewTransactionDialog() {
     const [transactionType, setTransactionType] = React.useState<TransactionType>('payment');
@@ -159,7 +159,8 @@ function NewTransactionDialog() {
                         <SelectContent>
                             <SelectItem value="payment">Record Payment</SelectItem>
                             <SelectItem value="charge">Add Manual Charge</SelectItem>
-                            <SelectItem value="waiver">Apply Discount / Waiver</SelectItem>
+                            <SelectItem value="waiver">Apply Credit / Waiver</SelectItem>
+                            <SelectItem value="refund">Process Refund</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
