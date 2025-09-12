@@ -1,36 +1,268 @@
+'use client';
+
+import * as React from 'react';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { PlusCircle, Search, FileDown, Printer, Edit } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { GradeSummaryWidget } from './grade-summary-widget';
+
+
+// --- Mock Data ---
+
+type Grade = {
+  assessmentId: string;
+  score: number | string; // Can be percentage or letter grade
+};
+
+type StudentGrades = {
+  studentId: string;
+  studentName: string;
+  studentAvatar: string;
+  rollNumber: string;
+  grades: Grade[];
+  overall: number;
+};
+
+type Assessment = {
+  id: string;
+  title: string;
+  type: 'Exam' | 'Assignment' | 'Quiz';
+  date: string;
+};
+
+const assessmentsByClass: Record<string, Assessment[]> = {
+  'f4-chem': [
+    { id: 'assess-1', title: 'Mid-Term Exam', type: 'Exam', date: '2024-06-15' },
+    { id: 'assess-2', title: 'Titration Lab Report', type: 'Assignment', date: '2024-07-22' },
+    { id: 'assess-3', title: 'Organic Compounds Quiz', type: 'Quiz', date: '2024-07-28' },
+  ],
+  'f3-math': [
+    { id: 'assess-4', title: 'Mid-Term Exam', type: 'Exam', date: '2024-06-18' },
+    { id: 'assess-5', title: 'Algebra Problem Set', type: 'Assignment', date: '2024-07-10' },
+  ],
+  'f2-phys': [
+     { id: 'assess-6', title: 'Mid-Term Exam', type: 'Exam', date: '2024-06-20' },
+  ],
+};
+
+const gradesByClass: Record<string, StudentGrades[]> = {
+  'f4-chem': Array.from({ length: 31 }, (_, i) => ({
+    studentId: `f4-chem-${i + 1}`,
+    studentName: `Student ${i + 1}`,
+    studentAvatar: `https://picsum.photos/seed/f4-student${i + 1}/100`,
+    rollNumber: `F4-0${i + 1}`,
+    grades: [
+      { assessmentId: 'assess-1', score: Math.floor(Math.random() * (95 - 60 + 1)) + 60 },
+      { assessmentId: 'assess-2', score: 'A' },
+      { assessmentId: 'assess-3', score: Math.floor(Math.random() * (100 - 70 + 1)) + 70 },
+    ],
+    overall: Math.floor(Math.random() * (85 - 65 + 1)) + 65,
+  })),
+  'f3-math': Array.from({ length: 28 }, (_, i) => ({
+    studentId: `f3-math-${i + 1}`,
+    studentName: `Student ${i + 32}`,
+    studentAvatar: `https://picsum.photos/seed/f3-student${i + 1}/100`,
+    rollNumber: `F3-0${i + 1}`,
+    grades: [
+        { assessmentId: 'assess-4', score: Math.floor(Math.random() * (98 - 70 + 1)) + 70 },
+        { assessmentId: 'assess-5', score: 'B+' },
+    ],
+    overall: Math.floor(Math.random() * (90 - 70 + 1)) + 70,
+  })),
+  'f2-phys': [],
+};
+
+const teacherClasses = [
+    { id: 'f4-chem', name: 'Form 4 - Chemistry' },
+    { id: 'f3-math', name: 'Form 3 - Mathematics' },
+    { id: 'f2-phys', name: 'Form 2 - Physics' },
+];
 
 export default function GradesPage() {
+    const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
+    const [searchTerm, setSearchTerm] = React.useState('');
+
+    const currentAssessments = assessmentsByClass[selectedClass] || [];
+    const currentStudents = gradesByClass[selectedClass] || [];
+
+    const filteredStudents = currentStudents.filter(s => 
+        s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const getGradeForStudent = (student: StudentGrades, assessmentId: string) => {
+        const grade = student.grades.find(g => g.assessmentId === assessmentId);
+        return grade ? grade.score : '—';
+    };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Card>
-        <CardHeader className="md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle className="font-headline text-2xl">Grades & Reports</CardTitle>
-            <CardDescription>Enter marks and generate progress reports.</CardDescription>
-          </div>
-          <Button className="mt-4 md:mt-0">
-            <PlusCircle className="mr-2" />
-            Enter Grades
-          </Button>
+        <CardHeader>
+          <CardTitle className="font-headline text-2xl">Gradebook</CardTitle>
+          <CardDescription>View, manage, and export student grades for your classes.</CardDescription>
+           <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center">
+                 <Select value={selectedClass} onValueChange={setSelectedClass}>
+                    <SelectTrigger className="w-full md:w-[240px]">
+                        <SelectValue placeholder="Select a class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {teacherClasses.map((cls) => (
+                            <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                 </Select>
+                 <div className="relative w-full md:max-w-xs">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                    type="search"
+                    placeholder="Search by student name..."
+                    className="w-full bg-background pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+              </div>
+              <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+                <Button variant="outline" disabled>
+                    <FileDown className="mr-2" />
+                    Export Grades
+                </Button>
+                <Button>
+                  <PlusCircle className="mr-2" />
+                  Enter New Grades
+                </Button>
+              </div>
+            </div>
         </CardHeader>
         <CardContent>
-          <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-            <div className="text-center">
-              <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-medium text-muted-foreground">No grades entered</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Click "Enter Grades" to get started.</p>
-            </div>
-          </div>
+            {currentStudents.length > 0 ? (
+                <>
+                    <GradeSummaryWidget students={currentStudents} />
+                    {/* Desktop Table */}
+                    <div className="w-full overflow-auto rounded-lg border hidden md:block">
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                <TableHead className="sticky left-0 bg-background z-10">Student Name</TableHead>
+                                {currentAssessments.map(assessment => (
+                                    <TableHead key={assessment.id} className="text-center whitespace-nowrap">{assessment.title}</TableHead>
+                                ))}
+                                <TableHead className="text-center font-bold">Overall</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {filteredStudents.map(student => (
+                                <TableRow key={student.studentId}>
+                                    <TableCell className="sticky left-0 bg-background z-10">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={student.studentAvatar} alt={student.studentName} />
+                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">{student.studentName}</span>
+                                        </div>
+                                    </TableCell>
+                                    {currentAssessments.map(assessment => (
+                                        <TableCell key={assessment.id} className="text-center">
+                                            <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
+                                        </TableCell>
+                                    ))}
+                                     <TableCell className="text-center font-bold">
+                                        <Badge>{student.overall}%</Badge>
+                                     </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="sm" disabled>
+                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="grid gap-4 md:hidden">
+                        {filteredStudents.map(student => (
+                            <Card key={student.studentId} className="w-full">
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                            <AvatarImage src={student.studentAvatar} alt={student.studentName} />
+                                            <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <span className="font-medium">{student.studentName}</span>
+                                                <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
+                                            </div>
+                                        </div>
+                                        <Badge>{student.overall}%</Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-4 pt-2">
+                                     <Separator/>
+                                     {currentAssessments.map(assessment => (
+                                         <div key={assessment.id} className="flex justify-between items-center text-sm">
+                                            <span className="font-medium text-muted-foreground">{assessment.title}:</span>
+                                            <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
+                                         </div>
+                                     ))}
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                    <div className="text-center">
+                        <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-xl font-semibold">No Grade Data</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">There is no grade information for this class yet. Click below to start.</p>
+                        <Button className="mt-6">
+                            <PlusCircle className="mr-2" />
+                            Enter Grades
+                        </Button>
+                    </div>
+                </div>
+            )}
         </CardContent>
+         <CardFooter>
+            <p className="text-xs text-muted-foreground">
+                This is a summary of student performance. For detailed reports, visit the student's profile.
+            </p>
+         </CardFooter>
       </Card>
     </div>
   );
