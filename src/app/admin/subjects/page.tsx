@@ -296,10 +296,45 @@ export default function ClassesAndSubjectsPage() {
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
-                                            <Button variant="ghost" size="sm" disabled>
-                                                Manage Subjects
-                                                <ArrowRight className="ml-2 h-4 w-4" />
-                                            </Button>
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="sm">
+                                                        Manage Subjects
+                                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="sm:max-w-2xl">
+                                                    <DialogHeader>
+                                                        <DialogTitle>Manage Subjects for {schoolClass.name} {schoolClass.stream || ''}</DialogTitle>
+                                                        <DialogDescription>Select the subjects taught in this class and assign a primary teacher for each.</DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="py-4 max-h-[60vh] overflow-y-auto">
+                                                        <div className="space-y-4">
+                                                            {mockSubjects.map(subject => (
+                                                                <div key={subject.id} className="grid grid-cols-[auto_1fr_1fr] items-center gap-4 border-b pb-4">
+                                                                    <Checkbox id={`subj-${schoolClass.id}-${subject.id}`} />
+                                                                    <Label htmlFor={`subj-${schoolClass.id}-${subject.id}`} className="font-medium">{subject.name}</Label>
+                                                                    <Select>
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Assign Teacher" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {subject.teachers.map(teacherName => {
+                                                                                const teacher = mockTeachers.find(t => t.name === teacherName);
+                                                                                return teacher ? <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem> : null;
+                                                                            })}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                        <Button disabled>Save Assignments</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
                                         </TableCell>
                                     </TableRow>
                                 ))}
