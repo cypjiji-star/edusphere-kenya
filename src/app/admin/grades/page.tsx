@@ -22,6 +22,8 @@ import {
   BarChart2,
   Save,
   Trash2,
+  CheckCircle,
+  Clock,
 } from 'lucide-react';
 import {
   Table,
@@ -52,6 +54,7 @@ import { Switch } from '@/components/ui/switch';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
+type SubmissionStatus = 'Pending' | 'Submitted' | 'Approved';
 
 type Exam = {
     id: string;
@@ -63,11 +66,30 @@ type Exam = {
     status: ExamStatus;
 };
 
+type Submission = {
+    id: string;
+    examId: string;
+    subject: string;
+    teacher: string;
+    class: string;
+    status: SubmissionStatus;
+    lastUpdated: string;
+};
+
+
 const mockExams: Exam[] = [
     { id: 'ex-1', title: 'Term 2 Mid-Term Exams', term: 'Term 2, 2024', classes: 'All Classes', startDate: '2024-07-29', endDate: '2024-08-02', status: 'Scheduled' },
     { id: 'ex-2', title: 'Form 4 Chemistry Practical', term: 'Term 2, 2024', classes: 'Form 4', startDate: '2024-07-22', endDate: '2024-07-22', status: 'Grading' },
     { id: 'ex-3', title: 'Term 1 Final Exams', term: 'Term 1, 2024', classes: 'All Classes', startDate: '2024-04-15', endDate: '2024-04-19', status: 'Completed' },
 ];
+
+const mockSubmissions: Submission[] = [
+    { id: 'sub-1', examId: 'ex-1', subject: 'Mathematics', teacher: 'Mr. Otieno', class: 'Form 4', status: 'Submitted', lastUpdated: '2024-08-03' },
+    { id: 'sub-2', examId: 'ex-1', subject: 'English', teacher: 'Ms. Njeri', class: 'Form 4', status: 'Submitted', lastUpdated: '2024-08-04' },
+    { id: 'sub-3', examId: 'ex-1', subject: 'Chemistry', teacher: 'Ms. Wanjiku', class: 'Form 4', status: 'Pending', lastUpdated: 'N/A' },
+    { id: 'sub-4', examId: 'ex-1', subject: 'Physics', teacher: 'Mr. Kamau', class: 'Form 4', status: 'Pending', lastUpdated: 'N/A' },
+    { id: 'sub-5', examId: 'ex-2', subject: 'Chemistry Practical', teacher: 'Ms. Wanjiku', class: 'Form 4', status: 'Approved', lastUpdated: '2024-07-25' },
+]
 
 const statusColors: Record<ExamStatus, string> = {
     'Scheduled': 'bg-blue-500',
@@ -75,6 +97,21 @@ const statusColors: Record<ExamStatus, string> = {
     'Completed': 'bg-green-600',
     'Grading': 'bg-purple-500',
 };
+
+const submissionStatusColors: Record<SubmissionStatus, string> = {
+    'Pending': 'bg-yellow-500',
+    'Submitted': 'bg-blue-500',
+    'Approved': 'bg-green-600',
+}
+
+const getSubmissionStatusBadge = (status: SubmissionStatus) => {
+    switch (status) {
+        case 'Pending': return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600"><Clock className="mr-1 h-3 w-3" />Pending</Badge>;
+        case 'Submitted': return <Badge className="bg-blue-500 text-white hover:bg-blue-600"><CheckCircle className="mr-1 h-3 w-3" />Submitted</Badge>;
+        case 'Approved': return <Badge className="bg-green-600 text-white hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3" />Approved</Badge>;
+    }
+}
+
 
 const gradingScale = [
     { grade: 'A', min: 80, max: 100 },
@@ -109,8 +146,9 @@ export default function AdminGradesPage() {
             </div>
 
             <Tabs defaultValue="schedules">
-                <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex mb-6">
+                <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex mb-6">
                     <TabsTrigger value="schedules">Exam Schedules</TabsTrigger>
+                    <TabsTrigger value="submissions">Submission Status</TabsTrigger>
                     <TabsTrigger value="analysis">Grade Analysis</TabsTrigger>
                     <TabsTrigger value="settings">Settings &amp; Policies</TabsTrigger>
                 </TabsList>
@@ -191,6 +229,69 @@ export default function AdminGradesPage() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="ghost" size="sm" disabled>View Details</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="submissions">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Grade Submission Status</CardTitle>
+                            <CardDescription>Track the progress of grade submissions from teachers for each exam.</CardDescription>
+                            <div className="mt-4 flex flex-col md:flex-row md:items-center gap-4">
+                                <div className="grid w-full md:w-auto gap-1.5">
+                                    <Label htmlFor="exam-filter">Exam</Label>
+                                    <Select defaultValue="ex-1">
+                                        <SelectTrigger id="exam-filter" className="w-full md:w-auto">
+                                            <SelectValue placeholder="Filter by exam" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {mockExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                 <div className="grid w-full md:w-auto gap-1.5">
+                                    <Label htmlFor="class-filter">Class</Label>
+                                    <Select defaultValue="f4">
+                                        <SelectTrigger id="class-filter" className="w-full md:w-auto">
+                                            <SelectValue placeholder="Filter by class" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="f4">Form 4</SelectItem>
+                                            <SelectItem value="f3">Form 3</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Subject</TableHead>
+                                            <TableHead>Teacher</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Last Updated</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {mockSubmissions.filter(s => s.examId === 'ex-1' && s.class === 'Form 4').map(submission => (
+                                            <TableRow key={submission.id}>
+                                                <TableCell className="font-medium">{submission.subject}</TableCell>
+                                                <TableCell>{submission.teacher}</TableCell>
+                                                <TableCell>{getSubmissionStatusBadge(submission.status)}</TableCell>
+                                                <TableCell>{clientReady && submission.lastUpdated !== 'N/A' ? new Date(submission.lastUpdated).toLocaleDateString() : 'N/A'}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="outline" size="sm" disabled={submission.status === 'Pending'}>
+                                                        View Grades
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
