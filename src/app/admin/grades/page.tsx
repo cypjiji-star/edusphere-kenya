@@ -98,12 +98,6 @@ const statusColors: Record<ExamStatus, string> = {
     'Grading': 'bg-purple-500',
 };
 
-const submissionStatusColors: Record<SubmissionStatus, string> = {
-    'Pending': 'bg-yellow-500',
-    'Submitted': 'bg-blue-500',
-    'Approved': 'bg-green-600',
-}
-
 const getSubmissionStatusBadge = (status: SubmissionStatus) => {
     switch (status) {
         case 'Pending': return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600"><Clock className="mr-1 h-3 w-3" />Pending</Badge>;
