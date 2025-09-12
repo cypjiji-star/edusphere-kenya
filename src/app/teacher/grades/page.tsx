@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -79,11 +80,11 @@ const gradesByClass: Record<string, StudentGrades[]> = {
     studentAvatar: `https://picsum.photos/seed/f4-student${i + 1}/100`,
     rollNumber: `F4-0${i + 1}`,
     grades: [
-      { assessmentId: 'assess-1', score: Math.floor(Math.random() * (95 - 60 + 1)) + 60 },
+      { assessmentId: 'assess-1', score: 60 + (i % 36) }, // Deterministic grade
       { assessmentId: 'assess-2', score: 'A' },
-      { assessmentId: 'assess-3', score: Math.floor(Math.random() * (100 - 70 + 1)) + 70 },
+      { assessmentId: 'assess-3', score: 70 + (i % 31) }, // Deterministic grade
     ],
-    overall: Math.floor(Math.random() * (85 - 65 + 1)) + 65,
+    overall: 65 + (i % 21), // Deterministic grade
   })),
   'f3-math': Array.from({ length: 28 }, (_, i) => ({
     studentId: `f3-math-${i + 1}`,
@@ -91,10 +92,10 @@ const gradesByClass: Record<string, StudentGrades[]> = {
     studentAvatar: `https://picsum.photos/seed/f3-student${i + 1}/100`,
     rollNumber: `F3-0${i + 1}`,
     grades: [
-        { assessmentId: 'assess-4', score: Math.floor(Math.random() * (98 - 70 + 1)) + 70 },
+        { assessmentId: 'assess-4', score: 70 + (i % 29) }, // Deterministic grade
         { assessmentId: 'assess-5', score: 'B+' },
     ],
-    overall: Math.floor(Math.random() * (90 - 70 + 1)) + 70,
+    overall: 70 + (i % 21), // Deterministic grade
   })),
   'f2-phys': [],
 };
