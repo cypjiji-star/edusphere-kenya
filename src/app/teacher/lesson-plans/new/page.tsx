@@ -29,8 +29,9 @@ const versionHistory = [
     { version: 1, date: '2024-07-26 09:00 AM', author: 'Ms. Wanjiku', summary: 'Initial draft created.' },
 ]
 
-export default function NewLessonPlanPage({ searchParams }: { searchParams: { id?: string }}) {
+export default function NewLessonPlanPage({ searchParams }: { searchParams: { id?: string, date?: string }}) {
   const lessonPlanId = searchParams.id;
+  const prefilledDate = searchParams.date;
   const isEditMode = !!lessonPlanId;
 
   return (
@@ -91,7 +92,7 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
                     </TabsList>
                 )}
                 <TabsContent value="editor">
-                     <LessonPlanForm lessonPlanId={lessonPlanId} />
+                     <LessonPlanForm lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} />
                 </TabsContent>
                 <TabsContent value="history">
                     <Card>

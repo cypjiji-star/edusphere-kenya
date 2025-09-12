@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { lessonPlanSchema, generateContentAction, LessonPlanFormValues } from './actions';
 
 import { Button } from '@/components/ui/button';
@@ -50,9 +50,10 @@ type AiField = 'objectives' | 'activities' | 'assessment';
 
 interface LessonPlanFormProps {
     lessonPlanId?: string;
+    prefilledDate?: string;
 }
 
-export function LessonPlanForm({ lessonPlanId }: LessonPlanFormProps) {
+export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
@@ -68,6 +69,7 @@ export function LessonPlanForm({ lessonPlanId }: LessonPlanFormProps) {
       materials: '',
       activities: '',
       assessment: '',
+      date: prefilledDate ? parse(prefilledDate, 'yyyy-MM-dd', new Date()) : undefined,
     },
   });
 
