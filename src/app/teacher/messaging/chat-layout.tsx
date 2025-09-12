@@ -10,6 +10,7 @@ import {
   PlusCircle,
   Archive,
   Trash2,
+  Paperclip,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -172,7 +173,7 @@ export function ChatLayout() {
                 <div className="relative">
                   <Textarea
                     placeholder="Type your message..."
-                    className="pr-16"
+                    className="pr-24"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                      onKeyDown={(e) => {
@@ -182,13 +183,21 @@ export function ChatLayout() {
                       }
                     }}
                   />
-                  <Button
-                    size="icon"
-                    className="absolute top-1/2 right-3 -translate-y-1/2"
-                    disabled={!message}
-                  >
-                    <Send className="h-5 w-5" />
-                  </Button>
+                  <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-2">
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled
+                    >
+                        <Paperclip className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                    <Button
+                        size="icon"
+                        disabled={!message}
+                    >
+                        <Send className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>
