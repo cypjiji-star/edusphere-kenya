@@ -64,8 +64,10 @@ import {
   TrendingUp,
   AlertTriangle,
   Send,
+  Lock,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
 
@@ -138,10 +140,19 @@ function LowAttendanceAlerts() {
                             <p className="font-bold">{alert.class} <span className="text-red-600">({alert.rate}%)</span></p>
                             <p className="text-sm text-muted-foreground">{alert.teacher}</p>
                         </div>
-                        <Button variant="secondary" size="sm" disabled>
-                            <Send className="mr-2 h-4 w-4"/>
-                            Send Reminder
-                        </Button>
+                         <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Button variant="secondary" size="sm" disabled>
+                                        <Send className="mr-2 h-4 w-4"/>
+                                        Send Reminder
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Teachers handle attendance marking and reminders.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 ))}
             </CardContent>
@@ -256,7 +267,16 @@ export default function AdminAttendancePage() {
                                 <SelectItem value="term1">Term 1, 2024</SelectItem>
                             </SelectContent>
                          </Select>
-                         <Button variant="outline" disabled>Compare</Button>
+                         <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                     <Button variant="outline" disabled>Compare</Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Term comparison feature is coming soon.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
             </CardHeader>
@@ -423,5 +443,4 @@ export default function AdminAttendancePage() {
       </Card>
     </div>
   );
-
-    
+}
