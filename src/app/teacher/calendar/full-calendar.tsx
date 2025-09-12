@@ -18,7 +18,7 @@ import {
   isToday,
   parse,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, PlusCircle, Bell, Clock, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Bell, Clock, Users, Printer, FileDown, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type CalendarView = 'month' | 'week' | 'day';
 
@@ -208,6 +214,16 @@ export function FullCalendar() {
                 </div>
             </PopoverContent>
         </Popover>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline">Export <ChevronDown className="ml-2 h-4 w-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <DropdownMenuItem disabled><Printer className="mr-2 h-4 w-4" /> Print View</DropdownMenuItem>
+                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
+                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" /> Export as iCal (.ics)</DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
