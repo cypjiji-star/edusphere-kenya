@@ -1,16 +1,14 @@
-
-
 'use client';
 
 import * as React from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { format } from 'date-fns';
 import {
-  gradeEntrySchema,
-  GradeEntryFormValues,
   saveGradesAction,
 } from './actions';
+import type { GradeEntryFormValues } from './actions';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +50,21 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
+
+const studentGradeSchema = z.object({
+  studentId: z.string(),
+  grade: z.string().min(1, { message: "Grade is required" }),
+});
+
+export const gradeEntrySchema = z.object({
+  classId: z.string({ required_error: 'Please select a class.' }),
+  assessmentTitle: z.string().min(3, 'Assessment title must be at least 3 characters.'),
+  assessmentType: z.enum(['Exam', 'Quiz', 'Assignment', 'Project']),
+  assessmentDate: z.date({ required_error: 'An assessment date is required.' }),
+  grades: z.array(studentGradeSchema),
+});
+
+
 // Mock Data
 const studentsByClass: Record<string, { id: string; name: string; avatarUrl: string }[]> = {
   'f4-chem': Array.from({ length: 31 }, (_, i) => ({ id: `f4-chem-${i + 1}`, name: `Student ${i + 1}`, avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100` })),
@@ -88,7 +101,8 @@ export function GradeEntryForm() {
   React.useEffect(() => {
     const students = studentsByClass[selectedClass] || [];
     replace(students.map(s => ({ studentId: s.id, grade: '' })));
-  }, [selectedClass, replace]);
+    form.setValue('classId', selectedClass);
+  }, [selectedClass, replace, form]);
 
   async function onSubmit(values: GradeEntryFormValues) {
     setIsLoading(true);
