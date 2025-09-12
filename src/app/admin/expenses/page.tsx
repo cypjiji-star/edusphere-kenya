@@ -278,7 +278,7 @@ export default function ExpensesPage() {
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                    <Button disabled>Save Expense</Button>
+                                    <Button>Save Expense</Button>
                                 </DialogFooter>
                             </DialogContent>
 
@@ -409,7 +409,7 @@ export default function ExpensesPage() {
                                                     </Button>
                                                 </>
                                             ) : (
-                                                <Button variant="ghost" size="sm" disabled>View Details</Button>
+                                                <Button variant="ghost" size="sm">View Details</Button>
                                             )}
                                         </TableCell>
                                     </TableRow>
