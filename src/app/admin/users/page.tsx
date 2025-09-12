@@ -47,6 +47,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -221,7 +222,7 @@ export default function UserManagementPage() {
                                                                         <div key={parent.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
                                                                             <div className="space-y-1">
                                                                                 <div className="font-medium flex items-center">{parent.name} <Badge variant="secondary" className="ml-2">{parent.relationship}</Badge></div>
-                                                                                <p className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="h-3 w-3"/>{parent.contact}</p>
+                                                                                <div className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="h-3 w-3"/>{parent.contact}</div>
                                                                             </div>
                                                                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
                                                                                 <Trash2 className="h-4 w-4"/>
@@ -266,9 +267,9 @@ export default function UserManagementPage() {
                                                         <div className="space-y-4">
                                                             <h4 className="font-semibold text-base flex items-center gap-2"><History className="h-4 w-4" />User History</h4>
                                                              <div className="text-sm text-muted-foreground space-y-2">
-                                                                <p><strong>Account Created:</strong> {clientReady ? new Date(user.createdAt).toLocaleString() : ''}</p>
-                                                                <p><strong>Last Login:</strong> {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleString() : 'Never'}</p>
-                                                                 <p><strong>Last Profile Update:</strong> {clientReady ? new Date(user.lastLogin).toLocaleDateString() : ''} by Admin</p>
+                                                                <div><strong>Account Created:</strong> {clientReady ? new Date(user.createdAt).toLocaleString() : ''}</div>
+                                                                <div><strong>Last Login:</strong> {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleString() : 'Never'}</div>
+                                                                 <div><strong>Last Profile Update:</strong> {clientReady ? new Date(user.lastLogin).toLocaleDateString() : ''} by Admin</div>
                                                             </div>
                                                         </div>
                                                         <Separator />
@@ -397,9 +398,18 @@ export default function UserManagementPage() {
                                                 Import Users from CSV...
                                             </DropdownMenuItem>
                                         </DialogTrigger>
+                                        <DropdownMenuSeparator />
                                         <DropdownMenuItem>
                                             <FileDown className="mr-2 h-4 w-4" />
                                             Export All Users (CSV)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem disabled>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export Student List by Class (PDF)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem disabled>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export Teacher List (PDF)
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -538,3 +548,5 @@ export default function UserManagementPage() {
         </div>
     );
 }
+
+    
