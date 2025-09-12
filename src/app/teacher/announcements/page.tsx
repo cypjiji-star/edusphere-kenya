@@ -2,15 +2,20 @@
 'use client';
 
 import * as React from 'react';
+import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 const pastAnnouncements = [
     {
@@ -28,6 +33,8 @@ const pastAnnouncements = [
 ];
 
 export default function AnnouncementsPage() {
+  const [isScheduling, setIsScheduling] = React.useState(false);
+  const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -64,11 +71,45 @@ export default function AnnouncementsPage() {
                             </Select>
                             <p className="text-xs text-muted-foreground">Multi-group selection coming soon.</p>
                         </div>
-                        <div className="flex items-end space-x-2">
-                             <div className="flex items-center space-x-2 w-full">
-                                <Switch id="schedule-send" disabled />
+                        <div className="space-y-2">
+                            <div className="flex items-center space-x-2 mb-2">
+                                <Switch id="schedule-send" checked={isScheduling} onCheckedChange={setIsScheduling} />
                                 <Label htmlFor="schedule-send">Schedule for later</Label>
                             </div>
+                            {isScheduling && (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !scheduledDate && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {scheduledDate ? format(scheduledDate, "PPP 'at' h:mm a") : <span>Pick a date and time</span>}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                      <Calendar
+                                        mode="single"
+                                        selected={scheduledDate}
+                                        onSelect={setScheduledDate}
+                                        initialFocus
+                                        disabled={(date) => date < new Date()}
+                                      />
+                                      <div className="p-3 border-t border-border">
+                                        <div className="flex items-center gap-2">
+                                          <Clock className="h-4 w-4 text-muted-foreground"/>
+                                          <Label>Time</Label>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <Input type="time" defaultValue={scheduledDate ? format(scheduledDate, "HH:mm") : format(new Date(), "HH:mm")} className="w-full" />
+                                        </div>
+                                      </div>
+                                    </PopoverContent>
+                                </Popover>
+                            )}
                         </div>
                      </div>
                       <Separator />
@@ -100,7 +141,7 @@ export default function AnnouncementsPage() {
                 <CardFooter>
                     <Button disabled>
                         <Send className="mr-2 h-4 w-4" />
-                        Send Announcement
+                        {isScheduling ? 'Schedule Announcement' : 'Send Announcement'}
                     </Button>
                 </CardFooter>
             </Card>
