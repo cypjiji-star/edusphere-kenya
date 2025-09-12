@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { AssignmentAnalytics } from './assignment-analytics';
 
 export type Assignment = {
   id: string;
@@ -87,12 +86,12 @@ export default function AssignmentsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col items-center text-center md:flex-row md:items-center md:justify-between md:text-left mb-6">
-          <div>
+      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-6">
+          <div className="text-left">
             <h1 className="font-headline text-3xl font-bold">Assignment Tracking</h1>
             <p className="text-muted-foreground">Create, view, and grade offline student assignments.</p>
           </div>
-          <Button asChild className="mt-4 md:mt-0 w-full md:w-auto">
+          <Button asChild className="w-full md:w-auto">
             <Link href="/teacher/assignments/new">
               <PlusCircle className="mr-2" />
               Create Assignment
@@ -116,8 +115,6 @@ export default function AssignmentsPage() {
         </Select>
       </div>
 
-      <AssignmentAnalytics assignments={assignments} />
-
       {assignments.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {assignments.map((assignment) => (
@@ -125,7 +122,7 @@ export default function AssignmentsPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                     <BookMarked className="h-6 w-6 text-primary" />
-                    <Badge variant={assignment.submissions === assignment.totalStudents ? 'default' : 'secondary'}>
+                    <Badge variant={new Date(assignment.dueDate) < new Date() ? 'destructive' : 'secondary'}>
                         Due {new Date(assignment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
                     </Badge>
                 </div>
