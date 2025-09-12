@@ -100,8 +100,8 @@ export function ChatLayout() {
 
   return (
     <div className="z-10 h-full w-full bg-background border rounded-lg">
-      <div className="flex h-full">
-        <div className="hidden md:flex md:flex-col md:w-[320px] border-r">
+      <div className="flex flex-col md:flex-row h-full">
+        <div className="flex flex-col w-full md:w-[320px] border-b md:border-r md:border-b-0">
           <div className="flex-shrink-0 p-4 border-b">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold font-headline">Inbox</h2>
@@ -217,7 +217,7 @@ export function ChatLayout() {
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+            <div className="flex-col items-center justify-center h-full text-muted-foreground hidden md:flex">
               <MessageCircle className="h-16 w-16" />
               <p className="mt-4 text-lg font-semibold">Select a conversation</p>
               <p>Your messages will appear here.</p>
