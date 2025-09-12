@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { addDays, format, eachDayOfInterval, isBefore, startOfToday } from 'date-fns';
+import { addDays, format, eachDayOfInterval, isBefore, startOfToday, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock, Bell } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
@@ -35,6 +35,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Table,
@@ -104,9 +110,9 @@ export default function AttendancePage() {
   const isPastDate = selectedDate ? isBefore(selectedDate, startOfToday()) : false;
   const isEditable = !isRange && !isPastDate;
 
-  const historicalDates = React.useMemo(() => {
+  const weeklyIntervals = React.useMemo(() => {
     if (!isRange || !date.from || !date.to) return [];
-    return eachDayOfInterval({ start: date.from, end: date.to });
+    return eachWeekOfInterval({ start: date.from, end: date.to }, { weekStartsOn: 1 });
   }, [date, isRange]);
 
 
@@ -289,50 +295,65 @@ export default function AttendancePage() {
             )}
         </CardHeader>
         <CardContent>
-          {isRange ? (
+          {isRange && date?.from && date?.to ? (
              <div className="space-y-4">
                 <h3 className="font-headline text-lg flex items-center gap-2"><History className="h-5 w-5 text-primary" /> Historical Records</h3>
-                <div className="w-full overflow-auto rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-center">Attendance Rate</TableHead>
-                        <TableHead>Marked By</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {historicalDates.map((d) => (
-                      <TableRow key={d.toString()}>
-                          <TableCell>
-                            <Button variant="link" className="p-0 h-auto" onClick={() => setDate({ from: d, to: undefined })}>
-                              {format(d, 'EEEE, PPP')}
-                            </Button>
-                          </TableCell>
-                          <TableCell>
-                             {Math.random() > 0.2 ? (
-                              <div className="flex items-center gap-2 text-sm text-green-600">
-                                <Check className="h-4 w-4" />
-                                <span>Record Saved</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span>No Record</span>
-                              </div>
-                            )}
-                          </TableCell>
-                           <TableCell className="text-center">
-                              {Math.random() > 0.2 ? `${Math.floor(Math.random() * (100 - 85 + 1)) + 85}%` : '—'}
-                          </TableCell>
-                           <TableCell>
-                              {Math.random() > 0.2 ? "Ms. Wanjiku" : '—'}
-                          </TableCell>
-                      </TableRow>
-                    ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <Accordion type="single" collapsible className="w-full">
+                {weeklyIntervals.map((weekStart, index) => {
+                    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+                    const weekLabel = `Week of ${format(weekStart, 'LLL dd')} - ${format(weekEnd, 'LLL dd, yyyy')}`;
+                    const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd }).filter(d => d >= date.from! && d <= date.to!);
+
+                    return (
+                        <AccordionItem value={`item-${index}`} key={index}>
+                            <AccordionTrigger>{weekLabel}</AccordionTrigger>
+                            <AccordionContent>
+                                <div className="w-full overflow-auto rounded-lg border">
+                                    <Table>
+                                        <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-center">Attendance Rate</TableHead>
+                                            <TableHead>Marked By</TableHead>
+                                        </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                        {daysInWeek.map((d) => (
+                                        <TableRow key={d.toString()}>
+                                            <TableCell>
+                                                <Button variant="link" className="p-0 h-auto" onClick={() => setDate({ from: d, to: undefined })}>
+                                                {format(d, 'EEEE, PPP')}
+                                                </Button>
+                                            </TableCell>
+                                            <TableCell>
+                                                {Math.random() > 0.2 ? (
+                                                <div className="flex items-center gap-2 text-sm text-green-600">
+                                                    <Check className="h-4 w-4" />
+                                                    <span>Record Saved</span>
+                                                </div>
+                                                ) : (
+                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                    <span>No Record</span>
+                                                </div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {Math.random() > 0.2 ? `${Math.floor(Math.random() * (100 - 85 + 1)) + 85}%` : '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                {Math.random() > 0.2 ? "Ms. Wanjiku" : '—'}
+                                            </TableCell>
+                                        </TableRow>
+                                        ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    );
+                })}
+                </Accordion>
              </div>
           ) : (
             <>
