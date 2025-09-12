@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Pie, PieChart, Cell } from 'recharts';
+import { Pie, PieChart, Cell, BarChart, Bar, CartesianGrid, XAxis } from 'recharts';
 import {
   Card,
   CardContent,
@@ -17,7 +17,9 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
-import { CircleDollarSign } from 'lucide-react';
+import { CircleDollarSign, BarChart3, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 
 const feeData = [
@@ -85,5 +87,73 @@ export function FinanceSnapshot() {
           </div>
         </CardContent>
       </Card>
+  );
+}
+
+
+const performanceData = [
+  { subject: 'Math', avgScore: 82 },
+  { subject: 'Eng', avgScore: 78 },
+  { subject: 'Sci', avgScore: 85 },
+  { subject: 'Hist', avgScore: 75 },
+  { subject: 'Geo', avgScore: 72 },
+  { subject: 'Kisw', avgScore: 80 },
+];
+
+const performanceChartConfig = {
+  avgScore: {
+    label: 'Avg. Score',
+    color: 'hsl(var(--primary))',
+  },
+};
+
+export function PerformanceSnapshot() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BarChart3 className="h-6 w-6 text-primary" />
+          Performance Snapshot
+        </CardTitle>
+        <CardDescription>Average scores by subject across the school.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={performanceChartConfig} className="h-[200px] w-full">
+          <BarChart
+            accessibilityLayer
+            data={performanceData}
+            margin={{
+              top: 20,
+              right: 20,
+              left: 0,
+              bottom: 0,
+            }}
+          >
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey="subject"
+              tickLine={false}
+              tickMargin={10}
+              axisLine={false}
+            />
+            <ChartTooltip
+              cursor={false}
+              content={<ChartTooltipContent indicator="dot" />}
+            />
+            <Bar dataKey="avgScore" fill="var(--color-avgScore)" radius={8}>
+                 {(Bar as any).labelList && <(Bar as any).labelList position="top" offset={8} className="fill-foreground text-xs" />}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
+         <div className="mt-4 flex justify-end">
+            <Button variant="link" asChild disabled>
+                <Link href="#">
+                    View Detailed Reports
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+            </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

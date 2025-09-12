@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { FinanceSnapshot } from './admin-charts';
+import { FinanceSnapshot, PerformanceSnapshot } from './admin-charts';
 
 const overviewStats = [
     {
@@ -166,8 +166,8 @@ export default function AdminDashboard() {
             </div>
        </div>
 
-       <div className="mt-8 grid gap-8 lg:grid-cols-2">
-         <Card>
+       <div className="mt-8 grid gap-8 lg:grid-cols-3">
+         <Card className="lg:col-span-1">
             <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
                 <CardDescription>A live feed of important events across the school.</CardDescription>
@@ -189,7 +189,10 @@ export default function AdminDashboard() {
                 </div>
             </CardContent>
          </Card>
-          <FinanceSnapshot />
+          <div className="lg:col-span-2 space-y-8">
+            <FinanceSnapshot />
+            <PerformanceSnapshot />
+          </div>
       </div>
     </div>
   );
