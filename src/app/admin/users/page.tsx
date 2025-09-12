@@ -219,7 +219,7 @@ export default function UserManagementPage() {
                                                                     {user.parents?.map(parent => (
                                                                         <div key={parent.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
                                                                             <div className="space-y-1">
-                                                                                <p className="font-medium">{parent.name} <Badge variant="secondary" className="ml-2">{parent.relationship}</Badge></p>
+                                                                                <div className="font-medium">{parent.name} <Badge variant="secondary" className="ml-2">{parent.relationship}</Badge></div>
                                                                                 <p className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="h-3 w-3"/>{parent.contact}</p>
                                                                             </div>
                                                                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
