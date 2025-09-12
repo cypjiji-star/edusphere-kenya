@@ -181,11 +181,11 @@ export default function ExpensesPage() {
                                             </DropdownMenuItem>
                                         </DialogTrigger>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem disabled>
+                                        <DropdownMenuItem>
                                             <FileDown className="mr-2 h-4 w-4" />
                                             Export as PDF
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem disabled>
+                                        <DropdownMenuItem>
                                             <FileDown className="mr-2 h-4 w-4" />
                                             Export as CSV
                                         </DropdownMenuItem>
