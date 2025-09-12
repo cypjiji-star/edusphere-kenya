@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -71,17 +71,18 @@ type User = {
     role: UserRole;
     status: UserStatus;
     lastLogin: string;
+    createdAt: string;
     class?: string;
     parents?: ParentLink[];
 };
 
 const mockUsers: User[] = [
-    { id: 'usr-1', name: 'Admin User', email: 'admin@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100', role: 'Admin', status: 'Active', lastLogin: '2024-07-18T10:00:00Z' },
-    { id: 'usr-2', name: 'Ms. Wanjiku', email: 'wanjiku@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-18T09:30:00Z' },
-    { id: 'usr-3', name: 'Mr. Otieno', email: 'otieno@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-17T14:00:00Z' },
-    { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z', class: 'Form 4', parents: [{ id: 'usr-5', name: 'Joseph Kariuki', relationship: 'Father', contact: '0722123456' }] },
-    { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never' },
-    { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Suspended', lastLogin: '2024-06-10T08:00:00Z', class: 'Form 3' },
+    { id: 'usr-1', name: 'Admin User', email: 'admin@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100', role: 'Admin', status: 'Active', lastLogin: '2024-07-18T10:00:00Z', createdAt: '2024-01-15T09:00:00Z' },
+    { id: 'usr-2', name: 'Ms. Wanjiku', email: 'wanjiku@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-18T09:30:00Z', createdAt: '2024-01-20T11:00:00Z' },
+    { id: 'usr-3', name: 'Mr. Otieno', email: 'otieno@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-17T14:00:00Z', createdAt: '2024-01-20T11:05:00Z' },
+    { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z', createdAt: '2024-02-01T10:00:00Z', class: 'Form 4', parents: [{ id: 'usr-5', name: 'Joseph Kariuki', relationship: 'Father', contact: '0722123456' }] },
+    { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never', createdAt: '2024-02-01T10:01:00Z' },
+    { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Suspended', lastLogin: '2024-06-10T08:00:00Z', createdAt: '2024-02-05T14:00:00Z', class: 'Form 3' },
 ];
 
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended'];
@@ -219,7 +220,7 @@ export default function UserManagementPage() {
                                                                     {user.parents?.map(parent => (
                                                                         <div key={parent.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
                                                                             <div className="space-y-1">
-                                                                                <div className="font-medium">{parent.name} <Badge variant="secondary" className="ml-2">{parent.relationship}</Badge></div>
+                                                                                <div className="font-medium flex items-center">{parent.name} <Badge variant="secondary" className="ml-2">{parent.relationship}</Badge></div>
                                                                                 <p className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="h-3 w-3"/>{parent.contact}</p>
                                                                             </div>
                                                                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
@@ -261,6 +262,15 @@ export default function UserManagementPage() {
                                                             </div>
                                                             </>
                                                         )}
+                                                        <Separator />
+                                                        <div className="space-y-4">
+                                                            <h4 className="font-semibold text-base flex items-center gap-2"><History className="h-4 w-4" />User History</h4>
+                                                             <div className="text-sm text-muted-foreground space-y-2">
+                                                                <p><strong>Account Created:</strong> {clientReady ? new Date(user.createdAt).toLocaleString() : ''}</p>
+                                                                <p><strong>Last Login:</strong> {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleString() : 'Never'}</p>
+                                                                 <p><strong>Last Profile Update:</strong> {clientReady ? new Date(user.lastLogin).toLocaleDateString() : ''} by Admin</p>
+                                                            </div>
+                                                        </div>
                                                         <Separator />
                                                         <div className="space-y-4">
                                                             <h4 className="font-semibold text-base">Administrative Actions</h4>
