@@ -1,0 +1,114 @@
+
+'use client';
+
+import * as React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Megaphone, Send, History, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+
+const pastAnnouncements = [
+    {
+        id: 'ann-1',
+        content: 'Reminder: Staff meeting today at 3:00 PM in the staff room. Please be punctual.',
+        audience: 'All Staff',
+        sentAt: '2024-07-18 09:00 AM',
+    },
+    {
+        id: 'ann-2',
+        content: 'The school will be closed tomorrow for the public holiday. Classes will resume on Friday.',
+        audience: 'All Students, All Parents',
+        sentAt: '2024-07-17 02:30 PM',
+    }
+];
+
+export default function AnnouncementsPage() {
+  const [date, setDate] = React.useState<Date | undefined>();
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8">
+       <div className="mb-6">
+        <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Megaphone className="h-8 w-8 text-primary"/>Announcements</h1>
+        <p className="text-muted-foreground">Broadcast messages to students, parents, and staff.</p>
+       </div>
+
+       <div className="grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Compose New Announcement</CardTitle>
+                    <CardDescription>Draft and send a new broadcast message.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                     <div className="space-y-2">
+                        <Label htmlFor="message">Message</Label>
+                        <Textarea id="message" placeholder="Type your announcement here..." className="min-h-[150px]" />
+                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="audience">Audience</Label>
+                            <Select disabled>
+                                <SelectTrigger id="audience">
+                                    <SelectValue placeholder="Select target groups" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Students, Parents & Staff</SelectItem>
+                                    <SelectItem value="all-students">All Students</SelectItem>
+                                    <SelectItem value="all-parents">All Parents</SelectItem>
+                                    <SelectItem value="all-staff">All Staff</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">Multi-group selection coming soon.</p>
+                        </div>
+                        <div className="flex items-end space-x-2">
+                             <div className="flex items-center space-x-2 w-full">
+                                <Switch id="schedule-send" disabled />
+                                <Label htmlFor="schedule-send">Schedule for later</Label>
+                            </div>
+                        </div>
+                     </div>
+                </CardContent>
+                <CardFooter>
+                    <Button disabled>
+                        <Send className="mr-2 h-4 w-4" />
+                        Send Announcement
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
+        <div className="lg:col-span-1">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <History className="h-5 w-5 text-primary" />
+                        Sent History
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {pastAnnouncements.map((ann, index) => (
+                        <div key={ann.id}>
+                            <div className="space-y-2">
+                                <p className="text-sm">{ann.content}</p>
+                                <div className="text-xs text-muted-foreground flex items-center justify-between">
+                                    <span>To: <span className="font-medium">{ann.audience}</span></span>
+                                    <span>{ann.sentAt}</span>
+                                </div>
+                            </div>
+                            {index < pastAnnouncements.length - 1 && <Separator className="my-4"/>}
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+        </div>
+       </div>
+    </div>
+  );
+}

@@ -19,6 +19,7 @@ import {
   Settings,
   HelpCircle,
   Trophy,
+  Megaphone,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -58,6 +59,7 @@ const navGroups = [
     title: 'Communication',
     items: [
       { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false },
+      { href: '/teacher/announcements', label: 'Announcements', icon: Megaphone, disabled: false },
       { href: '/teacher/calendar', label: 'Events Calendar', icon: Calendar, disabled: false },
     ],
   },
