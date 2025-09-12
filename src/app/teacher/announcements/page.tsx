@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,6 +19,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Form, FormDescription } from '@/components/ui/form';
+import Link from 'next/link';
 
 const pastAnnouncements = [
     {
@@ -25,12 +27,18 @@ const pastAnnouncements = [
         content: 'Reminder: Staff meeting today at 3:00 PM in the staff room. Please be punctual.',
         audience: 'All Staff',
         sentAt: '2024-07-18 09:00 AM',
+        views: 28,
+        totalRecipients: 30,
+        acknowledgements: 15,
     },
     {
         id: 'ann-2',
         content: 'The school will be closed tomorrow for the public holiday. Classes will resume on Friday.',
         audience: 'All Students, All Parents',
         sentAt: '2024-07-17 02:30 PM',
+        views: 850,
+        totalRecipients: 900,
+        acknowledgements: 0, // Not required for this type
     }
 ];
 
@@ -174,17 +182,37 @@ export default function AnnouncementsPage() {
                         Sent History
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                     {pastAnnouncements.map((ann, index) => (
                         <div key={ann.id}>
-                            <div className="space-y-2">
-                                <p className="text-sm">{ann.content}</p>
+                            <div className="space-y-3">
+                                <p className="text-sm leading-relaxed">{ann.content}</p>
                                 <div className="text-xs text-muted-foreground flex items-center justify-between">
                                     <span>To: <span className="font-medium">{ann.audience}</span></span>
                                     <span>{ann.sentAt}</span>
                                 </div>
+                                <Separator className="my-2"/>
+                                 <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-1.5" title="Views">
+                                            <Eye className="h-4 w-4" />
+                                            <span className="font-medium">{Math.round((ann.views / ann.totalRecipients) * 100)}% viewed</span>
+                                        </div>
+                                         {ann.acknowledgements > 0 && (
+                                            <div className="flex items-center gap-1.5" title="Acknowledged">
+                                                <CheckCircle className="h-4 w-4" />
+                                                <span className="font-medium">{ann.acknowledgements} acknowledged</span>
+                                            </div>
+                                         )}
+                                    </div>
+                                    <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs">
+                                        <Link href="#">
+                                            View Details
+                                            <ArrowRight className="ml-1 h-3 w-3" />
+                                        </Link>
+                                    </Button>
+                                </div>
                             </div>
-                            {index < pastAnnouncements.length - 1 && <Separator className="my-4"/>}
                         </div>
                     ))}
                 </CardContent>
