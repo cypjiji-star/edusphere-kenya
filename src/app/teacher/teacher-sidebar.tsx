@@ -21,6 +21,7 @@ import {
   Trophy,
   Megaphone,
   User,
+  HeartPulse,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -54,6 +55,7 @@ const navGroups = [
       { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked },
       { href: '/teacher/grades', label: 'Grades/Reports', icon: FileText },
       { href: '/teacher/sports', label: 'Sports', icon: Trophy },
+      { href: '/teacher/health', label: 'Health & Incidents', icon: HeartPulse },
     ],
   },
   {
@@ -157,8 +159,8 @@ export function TeacherSidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem><Settings className="mr-2" />Profile & Settings</DropdownMenuItem>
-            <DropdownMenuItem><HelpCircle className="mr-2" />Support & Feedback</DropdownMenuItem>
+            <DropdownMenuItem><Settings className="mr-2" />Profile &amp; Settings</DropdownMenuItem>
+            <DropdownMenuItem><HelpCircle className="mr-2" />Support &amp; Feedback</DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
                 <Link href="/">
