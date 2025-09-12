@@ -46,10 +46,12 @@ import { Separator } from '@/components/ui/separator';
 
 type ExpenseStatus = 'Paid' | 'Pending Approval' | 'Reimbursed' | 'Declined';
 
+type ExpenseCategory = 'Utilities' | 'Supplies' | 'Maintenance' | 'Salaries' | 'Marketing' | 'Transport' | 'Stationery';
+
 type Expense = {
     id: string;
     date: string;
-    category: 'Utilities' | 'Supplies' | 'Maintenance' | 'Salaries' | 'Marketing';
+    category: ExpenseCategory;
     description: string;
     amount: number;
     status: ExpenseStatus;
@@ -62,9 +64,11 @@ const mockExpenses: Expense[] = [
     { id: 'exp-3', date: '2024-07-10', category: 'Maintenance', description: 'Repair of school gate', amount: 8000, status: 'Reimbursed', submittedBy: 'Mr. Kamau' },
     { id: 'exp-4', date: '2024-07-05', category: 'Salaries', description: 'July Teacher Salaries', amount: 1200000, status: 'Paid', submittedBy: 'Admin Office' },
     { id: 'exp-5', date: '2024-07-02', category: 'Marketing', description: 'Newspaper Ad for admissions', amount: 30000, status: 'Declined', submittedBy: 'Admin Office' },
+    { id: 'exp-6', date: '2024-07-01', category: 'Transport', description: 'Bus fuel for the month', amount: 50000, status: 'Paid', submittedBy: 'Transport Dept.' },
+    { id: 'exp-7', date: '2024-06-28', category: 'Stationery', description: 'Bulk purchase of printing paper', amount: 12000, status: 'Paid', submittedBy: 'Admin Office' },
 ];
 
-const categories: Expense['category'][] = ['Utilities', 'Supplies', 'Maintenance', 'Salaries', 'Marketing'];
+const categories: ExpenseCategory[] = ['Utilities', 'Supplies', 'Maintenance', 'Salaries', 'Marketing', 'Transport', 'Stationery'];
 const statuses: ExpenseStatus[] = ['Paid', 'Pending Approval', 'Reimbursed', 'Declined'];
 
 
