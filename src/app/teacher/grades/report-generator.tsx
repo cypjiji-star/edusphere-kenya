@@ -3,6 +3,8 @@
 
 import * as React from 'react';
 import { teacherClasses, gradesByClass, assessmentsByClass, StudentGrades, Assessment } from './page';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -26,10 +28,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList, Send, History, Bell } from 'lucide-react';
+import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList, Send, History, Bell, Calendar as CalendarIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns' | 'participation-records' | 'performance-stats' | 'team-rosters' | 'message-delivery' | 'interaction-logs' | 'notification-history';
 
@@ -39,6 +44,7 @@ export function ReportGenerator() {
   const [reportType, setReportType] = React.useState<ReportType>('individual');
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [report, setReport] = React.useState<{ student: StudentGrades, assessments: Assessment[] } | null>(null);
+  const [date, setDate] = React.useState<DateRange | undefined>();
 
   const studentsInClass = gradesByClass[selectedClass] || [];
 
@@ -161,6 +167,45 @@ export function ReportGenerator() {
                         </Select>
                     </div>
                  )}
+                 <div className="space-y-2">
+                    <Label htmlFor="date-range-picker">Date Range (Optional)</Label>
+                      <Popover>
+                      <PopoverTrigger asChild>
+                          <Button
+                              id="date-range-picker"
+                              variant={'outline'}
+                              className={cn(
+                                  'w-full justify-start text-left font-normal',
+                                  !date && 'text-muted-foreground'
+                              )}
+                          >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {date?.from ? (
+                            date.to ? (
+                              <>
+                                {format(date.from, 'LLL dd, y')} -{' '}
+                                {format(date.to, 'LLL dd, y')}
+                              </>
+                            ) : (
+                              format(date.from, 'LLL dd, y')
+                            )
+                          ) : (
+                            <span>Pick a date range</span>
+                          )}
+                          </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={date?.from}
+                            selected={date}
+                            onSelect={setDate}
+                            numberOfMonths={2}
+                          />
+                      </PopoverContent>
+                      </Popover>
+                 </div>
             </CardContent>
             <CardFooter>
                  <Button onClick={handleGenerateReport} disabled={isGenerateDisabled} className="w-full">
@@ -186,7 +231,7 @@ export function ReportGenerator() {
                         <CardTitle>Report Preview</CardTitle>
                         <CardDescription>A preview of the generated report will appear below.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" disabled={!report && reportType !== 'summary'}>
+                    <Button variant="outline" size="sm" disabled={(!report && reportType !== 'summary') || isGenerating}>
                         <Printer className="mr-2 h-4 w-4" />
                         Print
                     </Button>
