@@ -54,6 +54,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { GradeAnalysisCharts } from './grade-analysis-charts';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -326,21 +327,7 @@ export default function AdminGradesPage() {
                     </Card>
                 </TabsContent>
                 <TabsContent value="analysis">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Grade Analysis</CardTitle>
-                            <CardDescription>Analyze school-wide academic performance trends.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex h-[400px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                                <div className="text-center text-muted-foreground">
-                                    <BarChart2 className="mx-auto h-12 w-12" />
-                                    <h3 className="mt-4 text-lg font-semibold">Performance Analysis Coming Soon</h3>
-                                    <p className="mt-1 text-sm">Cross-subject and cross-term performance charts will be available here.</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                     <GradeAnalysisCharts />
                 </TabsContent>
                  <TabsContent value="settings">
                     <div className="grid gap-6 md:grid-cols-2">
@@ -407,5 +394,4 @@ export default function AdminGradesPage() {
             </Tabs>
         </div>
     );
-
-    
+}
