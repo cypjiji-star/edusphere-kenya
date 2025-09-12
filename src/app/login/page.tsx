@@ -28,7 +28,7 @@ export default function LoginPage() {
           </Link>
           <CardTitle className="text-2xl font-headline">Access Your Portal</CardTitle>
           <CardDescription>
-            Enter your credentials to log in to your school's dashboard.
+            Select your role to log in to the school dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -54,9 +54,14 @@ export default function LoginPage() {
               </div>
               <Input id="password" type="password" required />
             </div>
-            <Button type="submit" className="w-full" asChild>
-              <Link href="/teacher">Login</Link>
-            </Button>
+            <div className="grid grid-cols-2 gap-4">
+              <Button type="submit" asChild>
+                <Link href="/teacher">Login as Teacher</Link>
+              </Button>
+              <Button type="submit" variant="secondary" asChild>
+                <Link href="/admin">Login as Admin</Link>
+              </Button>
+            </div>
           </form>
           <div className="mt-4 text-center text-sm">
             Don't have an account?{' '}
