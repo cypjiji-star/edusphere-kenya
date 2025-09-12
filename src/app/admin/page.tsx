@@ -7,9 +7,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, UserCheck, UserPlus, ClipboardCheck, CircleDollarSign, Calendar, ArrowUp, PlusCircle, Megaphone, Shapes } from 'lucide-react';
+import { Users, UserCheck, UserPlus, ClipboardCheck, CircleDollarSign, Calendar, ArrowUp, PlusCircle, Megaphone, Shapes, AlertTriangle, FileText, BookOpen } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 const overviewStats = [
     {
@@ -52,6 +54,33 @@ const quickStats = [
         title: "Upcoming Events",
         stat: "3",
         icon: <Calendar className="h-6 w-6 text-muted-foreground" />,
+    },
+];
+
+const recentActivities = [
+    {
+        icon: <UserPlus className="h-5 w-5 text-blue-500" />,
+        title: "New student registration pending for John Doe.",
+        time: "5m ago",
+        category: "Registration",
+    },
+     {
+        icon: <FileText className="h-5 w-5 text-green-500" />,
+        title: "Ms. Wanjiku submitted grades for Form 4 Chemistry.",
+        time: "2h ago",
+        category: "Grades",
+    },
+     {
+        icon: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
+        title: "Low attendance alert for Form 2 Physics (75%).",
+        time: "3h ago",
+        category: "Attendance",
+    },
+      {
+        icon: <BookOpen className="h-5 w-5 text-purple-500" />,
+        title: "Mr. Otieno published a new lesson plan for Form 3 English.",
+        time: "1d ago",
+        category: "Academics",
     },
 ];
 
@@ -128,12 +157,23 @@ export default function AdminDashboard() {
          <Card>
             <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Placeholder for recent system-wide activity log.</CardDescription>
+                <CardDescription>A live feed of important events across the school.</CardDescription>
             </CardHeader>
             <CardContent>
-                 <div className="flex h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                    <p className="text-muted-foreground">Activity feed coming soon...</p>
-                 </div>
+                <div className="space-y-6">
+                    {recentActivities.map((activity, index) => (
+                        <div key={index} className="flex items-start gap-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                                {activity.icon}
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-medium">{activity.title}</p>
+                                <p className="text-xs text-muted-foreground">{activity.time}</p>
+                            </div>
+                            <Badge variant="outline">{activity.category}</Badge>
+                        </div>
+                    ))}
+                </div>
             </CardContent>
          </Card>
           <Card>
