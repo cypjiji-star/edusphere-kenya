@@ -179,10 +179,10 @@ export default function AttendancePage() {
             <CardDescription>
               Select a class and date range to view or update attendance records.
             </CardDescription>
-            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                  <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2">
-                      <Label htmlFor="class-selector" className="text-sm font-medium shrink-0">Class</Label>
+            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                  <div className="grid w-full md:w-auto gap-1.5">
+                      <Label htmlFor="class-selector">Class</Label>
                       <Select value={selectedClass} onValueChange={setSelectedClass}>
                           <SelectTrigger className="w-full md:w-[240px]" id="class-selector">
                               <SelectValue placeholder="Select a class" />
@@ -196,8 +196,8 @@ export default function AttendancePage() {
                           </SelectContent>
                       </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-2">
-                      <Label htmlFor="date-picker" className="text-sm font-medium shrink-0">Date Range</Label>
+                  <div className="grid w-full md:w-auto gap-1.5">
+                      <Label htmlFor="date-picker">Date Range</Label>
                       <Popover>
                       <PopoverTrigger asChild>
                           <Button
@@ -238,15 +238,18 @@ export default function AttendancePage() {
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button variant="outline" onClick={() => markAll('present')} disabled={!isEditable} className="w-full sm:w-auto">Mark All Present</Button>
-                <Button variant="outline" size="sm" onClick={clearAll} disabled={!isEditable} className="w-full sm:w-auto">Clear All</Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                      Export
+                      Actions
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
+                    <DropdownMenuItem onClick={clearAll} disabled={!isEditable}>
+                      Clear All Selections
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem disabled>
                       <FileDown className="mr-2" />
                       Download as PDF
@@ -255,7 +258,6 @@ export default function AttendancePage() {
                       <FileDown className="mr-2" />
                       Download as Excel/CSV
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem disabled>
                       <Printer className="mr-2" />
                       Print List
@@ -416,3 +418,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
