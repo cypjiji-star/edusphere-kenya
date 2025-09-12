@@ -18,17 +18,10 @@ import {
   isToday,
   parse,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, PlusCircle, Bell, Clock, Users, Printer, FileDown, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell, Clock, Users, Printer, FileDown, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from '@/components/ui/popover';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,111 +102,6 @@ export function FullCalendar() {
             </Button>
             ))}
         </div>
-        <Popover>
-            <PopoverTrigger asChild>
-                <Button><PlusCircle className="mr-2"/> Add Event</Button>
-            </PopoverTrigger>
-             <PopoverContent className="w-96">
-                <div className="grid gap-4">
-                    <div className="space-y-1">
-                        <h4 className="font-medium leading-none">Add New Event</h4>
-                        <p className="text-sm text-muted-foreground">
-                        Fill in the details to add a new event to the calendar.
-                        </p>
-                    </div>
-                    <div className="grid gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="event-title">Title</Label>
-                        <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="start-time">Start Time</Label>
-                            <Input id="start-time" type="time" defaultValue="10:00" />
-                        </div>
-                         <div className="grid gap-2">
-                            <Label htmlFor="end-time">End Time</Label>
-                            <Input id="end-time" type="time" defaultValue="11:00" />
-                        </div>
-                      </div>
-                       <div className="grid grid-cols-2 gap-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="event-type">Event Type</Label>
-                            <Select>
-                                <SelectTrigger id="event-type">
-                                    <SelectValue placeholder="Select a type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(eventColors).map(([type, colorClass]) => (
-                                        <SelectItem key={type} value={type}>
-                                            <div className="flex items-center gap-2">
-                                                <div className={cn("w-2 h-2 rounded-full", colorClass)} />
-                                                <span className="capitalize">{type}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                          </div>
-                           <div className="grid gap-2">
-                            <Label htmlFor="audience">Audience</Label>
-                             <Select disabled>
-                                <SelectTrigger id="audience">
-                                    <SelectValue placeholder="Select audience" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Staff & Students</SelectItem>
-                                    <SelectItem value="staff">Teachers Only</SelectItem>
-                                    <SelectItem value="f4">Form 4 Students</SelectItem>
-                                    <SelectItem value="parents">All Parents</SelectItem>
-                                </SelectContent>
-                              </Select>
-                          </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground -mt-2">Audience selection coming soon.</p>
-
-
-                      <Separator />
-
-                      <div className="space-y-3">
-                         <h4 className="font-medium leading-none flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Reminders & Notifications</h4>
-                          <div className="grid gap-2">
-                            <Label htmlFor="reminder">Reminder</Label>
-                             <Select defaultValue="30" disabled>
-                                <SelectTrigger id="reminder">
-                                    <SelectValue placeholder="Set a reminder" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">None</SelectItem>
-                                    <SelectItem value="5">5 minutes before</SelectItem>
-                                    <SelectItem value="15">15 minutes before</SelectItem>
-                                    <SelectItem value="30">30 minutes before</SelectItem>
-                                    <SelectItem value="60">1 hour before</SelectItem>
-                                    <SelectItem value="1440">1 day before</SelectItem>
-                                </SelectContent>
-                              </Select>
-                          </div>
-                          <div className="flex flex-col space-y-2 pt-2">
-                              <Label>Notify via (coming soon)</Label>
-                               <div className="flex items-center space-x-2">
-                                  <Switch id="notify-app" defaultChecked disabled />
-                                  <Label htmlFor="notify-app">In-App Notification</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                  <Switch id="notify-email" disabled />
-                                  <Label htmlFor="notify-email">Email</Label>
-                              </div>
-                          </div>
-                      </div>
-
-                      <Button disabled className="w-full">
-                        <PlusCircle className="mr-2 h-4 w-4"/>
-                        Add to Calendar
-                      </Button>
-                    </div>
-                </div>
-            </PopoverContent>
-        </Popover>
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline">Export <ChevronDown className="ml-2 h-4 w-4" /></Button>
@@ -363,4 +251,3 @@ export function FullCalendar() {
     </div>
   );
 }
-
