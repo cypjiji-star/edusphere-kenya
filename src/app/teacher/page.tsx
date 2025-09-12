@@ -15,6 +15,7 @@ import { TimetableWidget } from './timetable-widget';
 import { PendingTasksWidget } from './pending-tasks-widget';
 import { AbsentStudentsWidget } from './absent-students-widget';
 import { MessagesWidget } from './messages-widget';
+import { DashboardCharts } from './dashboard-charts';
 
 const quickStats = [
     {
@@ -40,37 +41,6 @@ const quickStats = [
         stat: "78%",
         icon: <Percent className="h-6 w-6 text-muted-foreground" />,
         href: "/teacher/grades",
-    }
-];
-
-const announcements = [
-    {
-        title: "Mid-term Break Announcement",
-        date: "2024-07-15",
-        category: "School-wide",
-        variant: "default" as const,
-        content: "Please be advised that the school will be closed for mid-term break from July 22nd to July 26th. Classes will resume on July 29th.",
-    },
-    {
-        title: "Form 4 - Guest Speaker Session",
-        date: "2024-07-13",
-        category: "Class Update",
-        variant: "outline" as const,
-        content: "Reminder: Dr. Onyango will be giving a talk on renewable energy to all Form 4 science classes tomorrow during Period 3.",
-    },
-    {
-        title: "Science Fair Preparation Meeting",
-        date: "2024-07-12",
-        category: "Event",
-        variant: "secondary" as const,
-        content: "A mandatory meeting for all science teachers will be held on Monday, July 15th at 3:00 PM in the staff room to discuss Science Fair preparations.",
-    },
-    {
-        title: "New Library Books Available",
-        date: "2024-07-11",
-        category: "Resources",
-        variant: "secondary" as const,
-        content: "The library has received a new shipment of fiction and non-fiction books. Encourage your students to visit.",
     }
 ];
 
@@ -100,28 +70,8 @@ export default function TeacherDashboard() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
+            <DashboardCharts />
             <MessagesWidget />
-            <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline text-lg flex items-center gap-2">
-                        <Bell className="h-5 w-5 text-primary" />
-                        Announcements
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {announcements.map((item, index) => (
-                        <div key={index} className="flex flex-col gap-2">
-                           <div className="flex items-center gap-4">
-                             <h4 className="font-semibold">{item.title}</h4>
-                             <Badge variant={item.variant}>{item.category}</Badge>
-                           </div>
-                           <p className="text-sm text-muted-foreground">{item.content}</p>
-                           <p className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                           {index < announcements.length -1 && <Separator className="mt-4"/>}
-                        </div>
-                    ))}
-                </CardContent>
-            </Card>
         </div>
         <div className="lg:col-span-1 space-y-8">
             <PendingTasksWidget />
