@@ -14,8 +14,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Star } from 'lucide-react';
 import type { Resource } from './types';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 interface ResourceDetailsDialogProps {
   resource: Resource | null;
@@ -56,6 +58,18 @@ export function ResourceDetailsDialog({
                     {resource.status === 'Out' && resource.dueDate && (
                         <p className="text-sm text-muted-foreground">Due back on: {new Date(resource.dueDate).toLocaleDateString()}</p>
                     )}
+                </div>
+                <Separator />
+                 <div>
+                    <h4 className="font-semibold text-primary mb-2">Teacher Actions</h4>
+                     <div className="flex items-center space-x-2">
+                        <Switch id="recommend-switch" checked={resource.recommended} disabled />
+                        <Label htmlFor="recommend-switch" className="flex items-center gap-2">
+                            <Star className="h-4 w-4 text-yellow-500" />
+                            Recommend for Students
+                        </Label>
+                    </div>
+                     <p className="text-xs text-muted-foreground mt-2">This feature is coming soon.</p>
                 </div>
             </div>
             <div>

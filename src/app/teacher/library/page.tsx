@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye, Printer, FileDown, ChevronDown } from 'lucide-react';
+import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye, Printer, FileDown, ChevronDown, Star } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -33,12 +33,12 @@ import {
 
 
 const mockResources: Resource[] = [
-  { id: 'res-1', title: 'Form 4 Chemistry Textbook', type: 'Textbook', subject: 'Chemistry', grade: 'Form 4', status: 'Available', author: 'Kenya Literature Bureau', description: 'The official KCSE curriculum chemistry textbook for form 4 students, covering all topics for the final year.' },
-  { id: 'res-2', title: '2023 KCSE Mathematics Paper 1', type: 'Past Paper', subject: 'Mathematics', grade: 'Form 4', status: 'Digital', author: 'KNEC', description: 'The official 2023 Kenya Certificate of Secondary Education (KCSE) Mathematics Paper 1 for revision.' },
+  { id: 'res-1', title: 'Form 4 Chemistry Textbook', type: 'Textbook', subject: 'Chemistry', grade: 'Form 4', status: 'Available', author: 'Kenya Literature Bureau', description: 'The official KCSE curriculum chemistry textbook for form 4 students, covering all topics for the final year.', recommended: true },
+  { id: 'res-2', title: '2023 KCSE Mathematics Paper 1', type: 'Past Paper', subject: 'Mathematics', grade: 'Form 4', status: 'Digital', author: 'KNEC', description: 'The official 2023 Kenya Certificate of Secondary Education (KCSE) Mathematics Paper 1 for revision.', recommended: true },
   { id: 'res-3', title: 'History & Government Curriculum', type: 'Curriculum Guide', subject: 'History', grade: 'All Grades', status: 'Digital', author: 'KICD', description: 'The complete curriculum guide for History & Government for all secondary school levels.' },
   { id: 'res-4', title: 'Journal of African History Vol. 65', type: 'Journal', subject: 'History', grade: 'Senior School', status: 'Out', dueDate: '2024-08-05', author: 'Cambridge University Press', description: 'A scholarly journal focusing on the history of the African continent.' },
   { id: 'res-5', title: 'Physics for Secondary Schools F2', type: 'Textbook', subject: 'Physics', grade: 'Form 2', status: 'Available', author: 'Longhorn Publishers', description: 'A comprehensive textbook for Form 2 Physics, aligned with the current syllabus.' },
-  { id: 'res-6', title: 'The River and The Source Novel', type: 'Textbook', subject: 'English', grade: 'Form 3', status: 'Out', dueDate: '2024-07-30', author: 'Margaret Ogola', description: 'The award-winning novel, a set book for Form 3 English literature.'},
+  { id: 'res-6', title: 'The River and The Source Novel', type: 'Textbook', subject: 'English', grade: 'Form 3', status: 'Out', dueDate: '2024-07-30', author: 'Margaret Ogola', description: 'The award-winning novel, a set book for Form 3 English literature.', recommended: true },
 ];
 
 const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
@@ -181,7 +181,14 @@ export default function LibraryPage() {
                                     <td className="p-4 align-middle font-medium">
                                         <div className="flex items-center gap-3">
                                             <Icon className="h-5 w-5 text-primary/80 hidden sm:block" />
-                                            <span className="hover:underline">{res.title}</span>
+                                            <div className="flex flex-col">
+                                                <span className="hover:underline">{res.title}</span>
+                                                {res.recommended && (
+                                                    <Badge className="w-fit bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 mt-1">
+                                                        <Star className="mr-1 h-3 w-3" /> Recommended
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="p-4 align-middle text-muted-foreground hidden sm:table-cell">{res.type}</td>
