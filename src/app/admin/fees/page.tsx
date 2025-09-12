@@ -36,7 +36,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CircleDollarSign, Search, Filter, ChevronDown, Percent, FileDown, Receipt, Send, PlusCircle } from 'lucide-react';
+import { CircleDollarSign, Search, Filter, ChevronDown, Percent, FileDown, Receipt, Send, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
   ChartContainer,
@@ -44,6 +44,8 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Overdue';
 
@@ -65,6 +67,14 @@ const mockStudents: StudentFee[] = [
     { id: 'std-4', name: 'Student 33', avatarUrl: 'https://picsum.photos/seed/f3-student2/100', class: 'Form 3', feeStatus: 'Unpaid', totalFee: 95000, amountPaid: 0, balance: 95000 },
     { id: 'std-5', name: 'Student 60', avatarUrl: 'https://picsum.photos/seed/f2-student1/100', class: 'Form 2', feeStatus: 'Paid', totalFee: 90000, amountPaid: 90000, balance: 0 },
 ];
+
+const mockFeeStructure = [
+    { id: 'fs-1', category: 'Tuition', appliesTo: 'All Students', amount: 50000 },
+    { id: 'fs-2', category: 'Boarding', appliesTo: 'Boarders', amount: 35000 },
+    { id: 'fs-3', category: 'Transport', appliesTo: 'Day Scholars (Bus)', amount: 10000 },
+    { id: 'fs-4', category: 'Activities', appliesTo: 'All Students', amount: 5000 },
+    { id: 'fs-5', category: 'Computer Lab Fee', appliesTo: 'Form 3 & 4', amount: 2000 },
+]
 
 const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const statuses: (PaymentStatus | 'All Statuses')[] = ['All Statuses', 'Paid', 'Partial', 'Unpaid', 'Overdue'];
@@ -114,8 +124,8 @@ export default function FeesPage() {
     }
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8">
-            <div className="mb-6">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+            <div className="mb-2">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                     <CircleDollarSign className="h-8 w-8 text-primary" />
                     Fees & Payments Management
@@ -123,7 +133,7 @@ export default function FeesPage() {
                 <p className="text-muted-foreground">Track fee collection, manage student balances, and send reminders.</p>
             </div>
 
-            <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Collected (Term 2)</CardTitle>
@@ -166,7 +176,7 @@ export default function FeesPage() {
                 </Card>
             </div>
             
-             <Card className="mb-6">
+             <Card>
                 <CardHeader>
                     <CardTitle>Collection by Class</CardTitle>
                     <CardDescription>Percentage of fees collected per form for the current term.</CardDescription>
@@ -182,6 +192,80 @@ export default function FeesPage() {
                         </BarChart>
                     </ChartContainer>
                 </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div className="flex-1">
+                    <CardTitle>Fee Structure Management</CardTitle>
+                    <CardDescription>Define and manage fee categories for different classes and terms.</CardDescription>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <PlusCircle className="mr-2 h-4 w-4"/>
+                        Create Fee Category
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                          <DialogTitle>Create New Fee Category</DialogTitle>
+                          <DialogDescription>Add a new item to the school's fee structure.</DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                          <div className="space-y-2">
+                              <Label htmlFor="category-name">Category Name</Label>
+                              <Input id="category-name" placeholder="e.g., Swimming Club Fee" />
+                          </div>
+                          <div className="space-y-2">
+                              <Label htmlFor="category-amount">Amount (KES)</Label>
+                              <Input id="category-amount" type="number" placeholder="e.g., 3000" />
+                          </div>
+                          <div className="space-y-2">
+                              <Label htmlFor="category-applies">Applies To</Label>
+                              <Input id="category-applies" placeholder="e.g., All Students, Boarders, Form 1" />
+                          </div>
+                      </div>
+                      <DialogFooter>
+                          <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                          <Button disabled>Save Category</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full overflow-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Category Name</TableHead>
+                        <TableHead>Applies To</TableHead>
+                        <TableHead className="text-right">Amount (KES)</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mockFeeStructure.map(item => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.category}</TableCell>
+                          <TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" disabled>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" disabled>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
             </Card>
 
             <Card>
