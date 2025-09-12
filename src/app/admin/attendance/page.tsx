@@ -142,7 +142,7 @@ function LowAttendanceAlerts() {
                         </div>
                          <TooltipProvider>
                             <Tooltip>
-                                <TooltipTrigger>
+                                <TooltipTrigger asChild>
                                     <Button variant="secondary" size="sm" disabled>
                                         <Send className="mr-2 h-4 w-4"/>
                                         Send Reminder
@@ -269,7 +269,7 @@ export default function AdminAttendancePage() {
                          </Select>
                          <TooltipProvider>
                             <Tooltip>
-                                <TooltipTrigger>
+                                <TooltipTrigger asChild>
                                      <Button variant="outline" disabled>Compare</Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -444,3 +444,5 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
+    
