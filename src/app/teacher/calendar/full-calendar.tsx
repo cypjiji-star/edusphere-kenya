@@ -166,8 +166,8 @@ export function FullCalendar() {
         const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8am to 7pm
 
         return (
-             <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[60px_1fr] h-full">
+             <div className="border rounded-lg overflow-x-auto">
+                <div className="grid grid-cols-[60px_1fr] h-full min-w-[800px]">
                     <div className="col-start-2 grid grid-cols-7 border-b">
                          {days.map(day => (
                             <div key={day.toString()} className="text-center p-2 border-l">
@@ -183,7 +183,7 @@ export function FullCalendar() {
                             </div>
                         ))}
                     </div>
-                    <div className="col-start-2 row-start-2 grid grid-cols-7 relative overflow-x-auto">
+                    <div className="col-start-2 row-start-2 grid grid-cols-7 relative">
                         {days.map(day => (
                             <div key={day.toISOString()} className="border-l relative">
                                 {hours.map(hour => (
