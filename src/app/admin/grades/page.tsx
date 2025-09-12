@@ -24,6 +24,8 @@ import {
   Trash2,
   CheckCircle,
   Clock,
+  Send,
+  BookCheck,
 } from 'lucide-react';
 import {
   Table,
@@ -46,6 +48,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -235,8 +238,35 @@ export default function AdminGradesPage() {
                 <TabsContent value="submissions">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Grade Submission Status</CardTitle>
-                            <CardDescription>Track the progress of grade submissions from teachers for each exam.</CardDescription>
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div>
+                                    <CardTitle>Grade Submission Status</CardTitle>
+                                    <CardDescription>Track the progress of grade submissions from teachers for each exam.</CardDescription>
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button>
+                                            Bulk Actions
+                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem disabled>
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Approve All Submitted
+                                        </DropdownMenuItem>
+                                         <DropdownMenuItem disabled>
+                                            <BookCheck className="mr-2 h-4 w-4" />
+                                            Publish All Approved Grades
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem disabled>
+                                            <Send className="mr-2 h-4 w-4" />
+                                            Send Submission Reminders
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                             <div className="mt-4 flex flex-col md:flex-row md:items-center gap-4">
                                 <div className="grid w-full md:w-auto gap-1.5">
                                     <Label htmlFor="exam-filter">Exam</Label>
@@ -377,4 +407,5 @@ export default function AdminGradesPage() {
             </Tabs>
         </div>
     );
-}
+
+    
