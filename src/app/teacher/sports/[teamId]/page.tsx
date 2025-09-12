@@ -1,0 +1,207 @@
+
+'use client';
+
+import * as React from 'react';
+import Link from 'next/link';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, UserPlus, Shield, Star, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
+
+
+// Mock Data
+const teams: Record<string, { name: string; coach: string }> = {
+    'boys-football': { name: 'Football (Boys)', coach: 'Mr. David Otieno' },
+    'girls-volleyball': { name: 'Volleyball (Girls)', coach: 'Ms. Grace Njeri' },
+    'athletics-club': { name: 'Athletics Club (Mixed)', coach: 'Mr. Paul Kimani' },
+    'basketball-team': { name: 'Basketball Team', coach: 'Mr. Ben Carter' },
+    'chess-club': { name: 'Chess Club', coach: 'Ms. Fatuma Ali' },
+};
+
+type StudentMember = {
+    id: string;
+    name: string;
+    class: string;
+    avatarUrl: string;
+    role: 'Member' | 'Captain' | 'Vice-Captain' | 'Treasurer';
+};
+
+const studentMembers: Record<string, StudentMember[]> = {
+    'boys-football': Array.from({ length: 22 }, (_, i) => ({
+        id: `student-${i + 1}`,
+        name: `Player ${i + 1}`,
+        class: `Form ${2 + (i % 3)}`,
+        avatarUrl: `https://picsum.photos/seed/bf-player${i + 1}/100`,
+        role: i === 0 ? 'Captain' : i === 1 ? 'Vice-Captain' : 'Member',
+    })),
+    'girls-volleyball': Array.from({ length: 16 }, (_, i) => ({
+        id: `student-v-${i + 1}`,
+        name: `Player ${i + 1}`,
+        class: `Form ${1 + (i % 4)}`,
+        avatarUrl: `https://picsum.photos/seed/gv-player${i + 1}/100`,
+        role: i === 0 ? 'Captain' : 'Member',
+    })),
+};
+
+const ROLES: StudentMember['role'][] = ['Member', 'Captain', 'Vice-Captain', 'Treasurer'];
+
+export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
+  const teamDetails = teams[params.teamId] || { name: 'Unknown Team', coach: 'N/A' };
+  const initialMembers = studentMembers[params.teamId] || [];
+  
+  const [members, setMembers] = React.useState(initialMembers);
+  const [searchTerm, setSearchTerm] = React.useState('');
+
+  const handleRoleChange = (studentId: string, newRole: StudentMember['role']) => {
+    setMembers(currentMembers =>
+        currentMembers.map(member =>
+            member.id === studentId ? { ...member, role: newRole } : member
+        )
+    );
+    // In a real app, you'd save this change via a server action.
+  };
+
+  const filteredMembers = members.filter(m => 
+    m.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getRoleIcon = (role: StudentMember['role']) => {
+    switch(role) {
+        case 'Captain': return <Star className="h-4 w-4 text-yellow-500" />;
+        case 'Vice-Captain': return <Star className="h-4 w-4 text-gray-400" />;
+        case 'Treasurer': return <Shield className="h-4 w-4 text-green-600" />;
+        default: return null;
+    }
+  }
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6">
+        <Button asChild variant="outline" size="sm">
+            <Link href="/teacher/sports">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to All Teams
+            </Link>
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-headline text-2xl">{teamDetails.name}</CardTitle>
+          <CardDescription>Managed by {teamDetails.coach}</CardDescription>
+           <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="relative w-full md:max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search members..."
+                  className="w-full bg-background pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                <Button disabled>
+                    <UserPlus className="mr-2" />
+                    Add Student
+                </Button>
+              </div>
+            </div>
+        </CardHeader>
+        <CardContent>
+           <div className="w-full overflow-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMembers.length > 0 ? (
+                    filteredMembers.map(member => (
+                      <TableRow key={member.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={member.avatarUrl} alt={member.name} />
+                              <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{member.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{member.class}</TableCell>
+                        <TableCell>
+                           <Select value={member.role} onValueChange={(value: StudentMember['role']) => handleRoleChange(member.id, value)}>
+                                <SelectTrigger className="w-40">
+                                    <div className="flex items-center gap-2">
+                                        {getRoleIcon(member.role)}
+                                        <SelectValue placeholder="Assign role" />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ROLES.map(role => (
+                                        <SelectItem key={role} value={role}>
+                                            <div className="flex items-center gap-2">
+                                                {getRoleIcon(role)}
+                                                <span>{role}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                           </Select>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            disabled
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove</span>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center">
+                        No members found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+

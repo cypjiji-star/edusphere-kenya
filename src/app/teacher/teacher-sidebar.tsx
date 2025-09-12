@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -17,6 +18,7 @@ import {
   Library,
   Settings,
   HelpCircle,
+  Trophy,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -49,6 +51,7 @@ const navGroups = [
       { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck },
       { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked },
       { href: '/teacher/grades', label: 'Grades/Reports', icon: FileText },
+      { href: '/teacher/sports', label: 'Sports', icon: Trophy },
     ],
   },
   {
