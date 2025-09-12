@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, UserCheck, UserPlus, ClipboardCheck, CircleDollarSign, Calendar, ArrowUp, PlusCircle, Megaphone, Shapes, AlertTriangle, FileText, BookOpen } from 'lucide-react';
+import { Users, UserCheck, UserPlus, ClipboardCheck, CircleDollarSign, Calendar, ArrowUp, PlusCircle, Megaphone, Shapes, AlertTriangle, FileText, BookOpen, ShieldAlert } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -60,6 +60,12 @@ const quickStats = [
 
 const recentActivities = [
     {
+        icon: <ShieldAlert className="h-5 w-5 text-red-600" />,
+        title: "Urgent: Critical health incident reported for student Jane Doe.",
+        time: "2m ago",
+        category: "Urgent",
+    },
+    {
         icon: <UserPlus className="h-5 w-5 text-blue-500" />,
         title: "New student registration pending for John Doe.",
         time: "5m ago",
@@ -82,6 +88,12 @@ const recentActivities = [
         title: "Mr. Otieno published a new lesson plan for Form 3 English.",
         time: "1d ago",
         category: "Academics",
+    },
+    {
+        icon: <Megaphone className="h-5 w-5 text-cyan-500" />,
+        title: "School-wide announcement posted about PTA meeting.",
+        time: "2d ago",
+        category: "Comms",
     },
 ];
 
@@ -171,7 +183,7 @@ export default function AdminDashboard() {
                                 <p className="text-sm font-medium">{activity.title}</p>
                                 <p className="text-xs text-muted-foreground">{activity.time}</p>
                             </div>
-                            <Badge variant="outline">{activity.category}</Badge>
+                             <Badge variant={activity.category === 'Urgent' ? 'destructive' : 'outline'}>{activity.category}</Badge>
                         </div>
                     ))}
                 </div>
