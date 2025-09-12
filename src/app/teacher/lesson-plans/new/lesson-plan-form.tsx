@@ -27,9 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, PlusCircle, Sparkles, Wand2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Loader2, PlusCircle, Sparkles, Wand2, CalendarIcon, Paperclip } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 
 const teacherClasses = [
   { id: 'f4-chem', name: 'Form 4 - Chemistry', subject: 'Chemistry', grade: 'Form 4' },
@@ -188,6 +192,44 @@ export function LessonPlanForm() {
                   )}
                 />
                 <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Lesson Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
                     control={form.control}
                     name="materials"
                     render={({ field }) => (
@@ -261,6 +303,19 @@ export function LessonPlanForm() {
                         </FormItem>
                     )}
                 />
+                 <div className="space-y-2">
+                    <Label>File Attachments</Label>
+                    <div className="flex items-center justify-center w-full">
+                        <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                <p className="mb-2 text-sm text-muted-foreground">Attach files, links, etc.</p>
+                                <p className="text-xs text-muted-foreground">(Feature coming soon)</p>
+                            </div>
+                            <Input id="dropzone-file" type="file" className="hidden" disabled />
+                        </Label>
+                    </div>
+                </div>
             </div>
         </div>
         
