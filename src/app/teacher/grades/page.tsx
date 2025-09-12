@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Search, FileDown, Printer, Edit } from 'lucide-react';
+import { PlusCircle, Search, FileDown, Printer, Edit, FileText } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { GradeSummaryWidget } from './grade-summary-widget';
 
@@ -157,9 +157,11 @@ export default function GradesPage() {
                     <FileDown className="mr-2" />
                     Export Grades
                 </Button>
-                <Button>
-                  <PlusCircle className="mr-2" />
-                  Enter New Grades
+                <Button asChild>
+                  <Link href="/teacher/grades/new">
+                    <PlusCircle className="mr-2" />
+                    Enter New Grades
+                  </Link>
                 </Button>
               </div>
             </div>
@@ -250,9 +252,11 @@ export default function GradesPage() {
                         <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
                         <h3 className="mt-4 text-xl font-semibold">No Grade Data</h3>
                         <p className="mt-2 text-sm text-muted-foreground">There is no grade information for this class yet. Click below to start.</p>
-                        <Button className="mt-6">
-                            <PlusCircle className="mr-2" />
-                            Enter Grades
+                        <Button className="mt-6" asChild>
+                            <Link href="/teacher/grades/new">
+                                <PlusCircle className="mr-2" />
+                                Enter Grades
+                            </Link>
                         </Button>
                     </div>
                 </div>
