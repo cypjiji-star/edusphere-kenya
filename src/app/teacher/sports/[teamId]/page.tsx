@@ -156,7 +156,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
       </div>
       
       <Tabs defaultValue="roster">
-        <TabsList className="mb-4 grid w-full grid-cols-2 md:w-auto md:inline-flex">
+        <TabsList className="mb-4 grid w-full grid-cols-4 md:w-auto md:inline-flex">
             <TabsTrigger value="roster">Roster</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="media">Media</TabsTrigger>
@@ -339,7 +339,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                 <CardContent>
                     <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center">
                         <Label htmlFor="event-select" className="shrink-0">Select Event:</Label>
-                        <Select defaultValue={upcomingEvents[0].id}>
+                        <Select defaultValue={upcomingEvents.length > 0 ? upcomingEvents[0].id : undefined}>
                             <SelectTrigger id="event-select" className="w-full md:w-auto md:min-w-[300px]">
                                 <SelectValue placeholder="Select an event to record stats for" />
                             </SelectTrigger>
@@ -411,3 +411,5 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
     </div>
   );
 }
+
+    
