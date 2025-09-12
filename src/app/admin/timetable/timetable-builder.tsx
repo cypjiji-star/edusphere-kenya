@@ -114,7 +114,16 @@ export function TimetableBuilder() {
                             <CardTitle>Timetable for {selectedItem}</CardTitle>
                             <CardDescription>Drag subjects from the right panel and drop them into time slots.</CardDescription>
                         </div>
-                        <div className="flex w-full md:w-auto items-center gap-2">
+                        <div className="flex w-full flex-wrap md:w-auto items-center gap-2">
+                             <Select defaultValue="term2-2024" disabled>
+                                <SelectTrigger className="w-full sm:w-auto">
+                                    <SelectValue placeholder="Select term" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                    <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                </SelectContent>
+                             </Select>
                              <Select value={view} onValueChange={(v) => {
                                 setView(v);
                                 // Reset selected item when view changes
@@ -122,7 +131,7 @@ export function TimetableBuilder() {
                                 if (v === 'Teacher View') setSelectedItem(teachers[0]);
                                 if (v === 'Room View') setSelectedItem(rooms[0]);
                              }}>
-                                <SelectTrigger className="w-full md:w-auto">
+                                <SelectTrigger className="w-full sm:w-auto">
                                     <SelectValue placeholder="Select view" />
                                 </SelectTrigger>
                                 <SelectContent>
