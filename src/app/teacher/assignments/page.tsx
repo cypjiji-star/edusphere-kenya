@@ -157,8 +157,14 @@ export default function AssignmentsPage() {
             <CardContent className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
                 <div className="text-center">
                 <BookMarked className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-2 text-sm font-medium text-muted-foreground">No assignments found</h3>
-                <p className="mt-1 text-sm text-muted-foreground">No assignments match your current filter.</p>
+                <h3 className="mt-4 text-xl font-semibold">No Assignments Found</h3>
+                <p className="mt-2 text-sm text-muted-foreground">No assignments match your current filter. Why not create one?</p>
+                  <Button asChild className="mt-6">
+                    <Link href="/teacher/assignments/new">
+                      <PlusCircle className="mr-2" />
+                      Create a New Assignment
+                    </Link>
+                  </Button>
                 </div>
             </CardContent>
          </Card>
