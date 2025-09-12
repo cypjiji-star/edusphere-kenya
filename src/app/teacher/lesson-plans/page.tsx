@@ -164,7 +164,7 @@ export default function LessonPlansPage() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-muted-foreground">
-                            Last Updated: {new Date(plan.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                            Last Updated: {new Date(plan.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
                         </p>
                     </CardContent>
                     <CardFooter>
