@@ -1,4 +1,5 @@
 
+
 import {
   Card,
   CardContent,
@@ -11,7 +12,10 @@ import { ArrowLeft, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { LessonPlanForm } from './lesson-plan-form';
 
-export default function NewLessonPlanPage() {
+export default function NewLessonPlanPage({ searchParams }: { searchParams: { id?: string }}) {
+  const lessonPlanId = searchParams.id;
+  const isEditMode = !!lessonPlanId;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
@@ -26,12 +30,16 @@ export default function NewLessonPlanPage() {
         <CardHeader>
           <CardTitle className="font-headline text-2xl flex items-center gap-2">
             <BookOpen className="h-6 w-6 text-primary"/>
-            Lesson Plan Builder
+            {isEditMode ? 'Edit Lesson Plan' : 'Lesson Plan Builder'}
           </CardTitle>
-          <CardDescription>Fill in the details below. Use the AI Assistant to help generate content.</CardDescription>
+          <CardDescription>
+            {isEditMode
+              ? 'Update the details for your existing lesson plan.'
+              : 'Fill in the details below. Use the AI Assistant to help generate content.'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <LessonPlanForm />
+          <LessonPlanForm lessonPlanId={lessonPlanId} />
         </CardContent>
       </Card>
     </div>

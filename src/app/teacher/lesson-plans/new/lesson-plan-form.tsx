@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,11 +29,14 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Loader2, PlusCircle, Sparkles, Wand2, CalendarIcon, Paperclip } from 'lucide-react';
+import { Loader2, PlusCircle, Sparkles, Wand2, CalendarIcon, Paperclip, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
+import { allLessonPlans } from '../page';
+import type { LessonPlan } from '../page';
+
 
 const teacherClasses = [
   { id: 'f4-chem', name: 'Form 4 - Chemistry', subject: 'Chemistry', grade: 'Form 4' },
@@ -45,10 +48,15 @@ const teacherClasses = [
 
 type AiField = 'objectives' | 'activities' | 'assessment';
 
-export function LessonPlanForm() {
+interface LessonPlanFormProps {
+    lessonPlanId?: string;
+}
+
+export function LessonPlanForm({ lessonPlanId }: LessonPlanFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const form = useForm<LessonPlanFormValues>({
     resolver: zodResolver(lessonPlanSchema),
@@ -62,6 +70,27 @@ export function LessonPlanForm() {
       assessment: '',
     },
   });
+
+   useEffect(() => {
+    if (lessonPlanId) {
+      const lessonPlanToEdit = allLessonPlans.find(lp => lp.id === lessonPlanId);
+      if (lessonPlanToEdit) {
+        setIsEditMode(true);
+        // This is a mock implementation. A real app would fetch full details.
+        form.reset({
+            topic: lessonPlanToEdit.topic,
+            subject: lessonPlanToEdit.subject,
+            grade: lessonPlanToEdit.gradeLevel,
+            date: new Date(lessonPlanToEdit.lastUpdated),
+            // Mocking content for the form
+            objectives: `Define ${lessonPlanToEdit.topic} and explain its importance.`,
+            activities: `1. Introduction to ${lessonPlanToEdit.topic}.\n2. Group discussion.`,
+            assessment: `Short quiz on the key concepts of ${lessonPlanToEdit.topic}.`,
+            materials: 'Textbook, whiteboard, markers.'
+        });
+      }
+    }
+  }, [lessonPlanId, form]);
   
   const formState = useWatch({ control: form.control });
 
@@ -71,8 +100,8 @@ export function LessonPlanForm() {
     setIsLoading(false);
     
     toast({
-      title: 'Lesson Plan Saved!',
-      description: `"${values.topic}" has been successfully saved.`,
+      title: `Lesson Plan ${isEditMode ? 'Updated' : 'Saved'}!`,
+      description: `"${values.topic}" has been successfully ${isEditMode ? 'updated' : 'saved'}.`,
     });
     console.log(values);
   }
@@ -153,7 +182,7 @@ export function LessonPlanForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subject</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a subject" />
@@ -175,7 +204,7 @@ export function LessonPlanForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade / Form</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a grade" />
@@ -327,6 +356,11 @@ export function LessonPlanForm() {
                 <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Saving...
+                </>
+                ) : isEditMode ? (
+                <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
                 </>
                 ) : (
                 <>

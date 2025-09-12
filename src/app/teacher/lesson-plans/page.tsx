@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
-type LessonPlan = {
+export type LessonPlan = {
   id: string;
   topic: string;
   subject: string;
@@ -34,7 +34,7 @@ type LessonPlan = {
   status: 'Draft' | 'Published';
 };
 
-const allLessonPlans: LessonPlan[] = [
+export const allLessonPlans: LessonPlan[] = [
   {
     id: 'lp-1',
     topic: 'Photosynthesis & Respiration',
