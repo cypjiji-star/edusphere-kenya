@@ -149,7 +149,7 @@ function LowAttendanceAlerts() {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Teachers handle attendance marking and reminders.</p>
+                                    <p>Reminder functionality is coming soon. Teachers handle attendance marking.</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
