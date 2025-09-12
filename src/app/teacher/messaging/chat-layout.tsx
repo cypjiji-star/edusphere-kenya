@@ -11,6 +11,7 @@ import {
   Archive,
   Trash2,
   Paperclip,
+  CheckCircle2,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -76,7 +77,7 @@ const conversations = [
 const messages = {
     'msg-1': [
         { sender: 'other', text: "Good morning, I wanted to check on John's progress in Chemistry. He mentioned he was finding it a bit challenging.", timestamp: '9:15 AM' },
-        { sender: 'me', text: "Good morning Mr. Omondi. John is a bright student and is picking up the concepts. I'll be sure to give him some extra attention during our next practical.", timestamp: '9:17 AM' },
+        { sender: 'me', text: "Good morning Mr. Omondi. John is a bright student and is picking up the concepts. I'll be sure to give him some extra attention during our next practical.", timestamp: '9:17 AM', read: true },
     ],
     'msg-2': [
         { sender: 'other', text: "Hello Ms. Wanjiku, I have a question about the assignment deadline.", timestamp: 'Yesterday' },
@@ -88,7 +89,7 @@ const messages = {
          { sender: 'other', text: "Mr. Kamau: Is the trip confirmed for next week?", timestamp: '2 days ago' },
     ],
     'msg-5': [
-        { sender: 'me', text: "Hello everyone, just a reminder that the Acid-Base Titration lab report is due this Friday. Please make sure to submit it on time.", timestamp: 'Yesterday' },
+        { sender: 'me', text: "Hello everyone, just a reminder that the Acid-Base Titration lab report is due this Friday. Please make sure to submit it on time.", timestamp: 'Yesterday', read: true },
     ]
 }
 
@@ -174,7 +175,10 @@ export function ChatLayout() {
                             msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'
                         )}>
                             <p>{msg.text}</p>
-                            <p className={cn("text-xs mt-2", msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{msg.timestamp}</p>
+                            <div className={cn("text-xs mt-2 flex items-center gap-2", msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                                <span>{msg.timestamp}</span>
+                                {msg.sender === 'me' && msg.read && <CheckCircle2 className="h-4 w-4" />}
+                            </div>
                         </div>
                          {msg.sender === 'me' && <Avatar className="h-8 w-8"><AvatarImage src="https://picsum.photos/seed/teacher-avatar/100" /><AvatarFallback>T</AvatarFallback></Avatar>}
                     </div>
