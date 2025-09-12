@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -45,19 +43,19 @@ const assignmentDetails = {
 };
 
 const initialSubmissions: Submission[] = [
-  { studentId: 'f4-chem-1', studentName: 'Student 1', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', status: 'Submitted', submittedDate: '2024-07-21', grade: 'A' },
-  { studentId: 'f4-chem-2', studentName: 'Student 2', avatarUrl: 'https://picsum.photos/seed/f4-student2/100', status: 'Submitted', submittedDate: '2024-07-22', grade: 'B+' },
-  { studentId: 'f4-chem-3', studentName: 'Student 3', avatarUrl: 'https://picsum.photos/seed/f4-student3/100', status: 'Not Submitted' },
-  { studentId: 'f4-chem-4', studentName: 'Student 4', avatarUrl: 'https://picsum.photos/seed/f4-student4/100', status: 'Late', submittedDate: '2024-07-23', grade: 'C' },
-  { studentId: 'f4-chem-5', studentName: 'Student 5', avatarUrl: 'https://picsum.photos/seed/f4-student5/100', status: 'Submitted', submittedDate: '2024-07-22', grade: undefined },
-  { studentId: 'f4-chem-6', studentName: 'Student 6', avatarUrl: 'https://picsum.photos/seed/f4-student6/100', status: 'Not Submitted' },
+  { studentId: 'f4-chem-1', studentName: 'Student 1', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', status: 'Graded', submittedDate: '2024-07-21', grade: 'A' },
+  { studentId: 'f4-chem-2', studentName: 'Student 2', avatarUrl: 'https://picsum.photos/seed/f4-student2/100', status: 'Graded', submittedDate: '2024-07-22', grade: 'B+' },
+  { studentId: 'f4-chem-3', studentName: 'Student 3', avatarUrl: 'https://picsum.photos/seed/f4-student3/100', status: 'Not Handed In' },
+  { studentId: 'f4-chem-4', studentName: 'Student 4', avatarUrl: 'https://picsum.photos/seed/f4-student4/100', status: 'Handed In', submittedDate: '2024-07-23', grade: undefined },
+  { studentId: 'f4-chem-5', studentName: 'Student 5', avatarUrl: 'https://picsum.photos/seed/f4-student5/100', status: 'Handed In', submittedDate: '2024-07-22', grade: undefined },
+  { studentId: 'f4-chem-6', studentName: 'Student 6', avatarUrl: 'https://picsum.photos/seed/f4-student6/100', status: 'Not Handed In' },
 ];
 
 const getStatusBadge = (status: Submission['status']) => {
     switch(status) {
-        case 'Submitted': return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Submitted</Badge>;
-        case 'Not Submitted': return <Badge variant="destructive"><Clock className="mr-1 h-3 w-3"/>Not Submitted</Badge>;
-        case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600"><Clock className="mr-1 h-3 w-3"/>Late</Badge>;
+        case 'Graded': return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Graded</Badge>;
+        case 'Not Handed In': return <Badge variant="destructive"><Clock className="mr-1 h-3 w-3"/>Not Handed In</Badge>;
+        case 'Handed In': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600"><Clock className="mr-1 h-3 w-3"/>Handed In</Badge>;
     }
 }
 
@@ -71,7 +69,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
 
   const handleGradeSave = (studentId: string, grade: string) => {
     setSubmissions(prev => 
-      prev.map(s => s.studentId === studentId ? { ...s, grade } : s)
+      prev.map(s => s.studentId === studentId ? { ...s, grade, status: 'Graded' } : s)
     );
     toast({
       title: 'Grade Saved!',
@@ -129,14 +127,14 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All">All Statuses</SelectItem>
-                        <SelectItem value="Submitted">Submitted</SelectItem>
-                        <SelectItem value="Not Submitted">Not Submitted</SelectItem>
-                        <SelectItem value="Late">Late</SelectItem>
+                        <SelectItem value="Graded">Graded</SelectItem>
+                        <SelectItem value="Handed In">Handed In</SelectItem>
+                        <SelectItem value="Not Handed In">Not Handed In</SelectItem>
                     </SelectContent>
                  </Select>
                 <Button variant="secondary" disabled>
                     <FileDown className="mr-2" />
-                    Download All
+                    Download Grades
                 </Button>
               </div>
             </div>
@@ -149,7 +147,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                   <TableRow>
                     <TableHead>Student</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Submitted On</TableHead>
+                    <TableHead>Handed In On</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -178,10 +176,10 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            disabled={submission.status === 'Not Submitted'}
+                            disabled={submission.status === 'Not Handed In'}
                             onClick={() => setGradingStudent(submission)}
                           >
-                            {submission.grade ? 'View/Edit Grade' : 'View & Grade'}
+                            {submission.grade ? 'View/Edit Grade' : 'Enter Grade'}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -189,7 +187,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                   ) : (
                     <TableRow>
                       <TableCell colSpan={5} className="h-24 text-center">
-                        No submissions found matching your filters.
+                        No students found matching your filters.
                       </TableCell>
                     </TableRow>
                   )}
@@ -216,7 +214,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                     <CardContent className="space-y-4">
                       <Separator/>
                        <div className="flex justify-between items-center text-sm">
-                          <span className="font-medium text-muted-foreground">Submitted:</span>
+                          <span className="font-medium text-muted-foreground">Handed In:</span>
                           <span>{submission.submittedDate ? new Date(submission.submittedDate).toLocaleDateString() : '—'}</span>
                        </div>
                        <div className="flex justify-between items-center text-sm">
@@ -229,17 +227,17 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                             variant="outline" 
                             size="sm" 
                             className="w-full"
-                            disabled={submission.status === 'Not Submitted'}
+                            disabled={submission.status === 'Not Handed In'}
                             onClick={() => setGradingStudent(submission)}
                           >
-                            {submission.grade ? 'View/Edit Grade' : 'View & Grade'}
+                            {submission.grade ? 'View/Edit Grade' : 'Enter Grade'}
                           </Button>
                     </CardFooter>
                   </Card>
                 ))
               ) : (
                  <div className="text-center p-8 text-muted-foreground">
-                    No submissions found matching your filters.
+                    No students found matching your filters.
                  </div>
               )}
             </div>

@@ -89,8 +89,8 @@ export default function AssignmentsPage() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col items-center text-center md:flex-row md:items-center md:justify-between md:text-left mb-6">
           <div>
-            <h1 className="font-headline text-3xl font-bold">Manage Assignments</h1>
-            <p className="text-muted-foreground">Create, view, and grade student assignments.</p>
+            <h1 className="font-headline text-3xl font-bold">Assignment Tracking</h1>
+            <p className="text-muted-foreground">Create, view, and grade offline student assignments.</p>
           </div>
           <Button asChild className="mt-4 md:mt-0 w-full md:w-auto">
             <Link href="/teacher/assignments/new">
@@ -135,8 +135,8 @@ export default function AssignmentsPage() {
               <CardContent>
                 <div className="space-y-2">
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Submissions</span>
-                        <span>{assignment.submissions} / {assignment.totalStudents}</span>
+                        <span className="text-muted-foreground">Grading Progress</span>
+                        <span>{assignment.submissions} / {assignment.totalStudents} Graded</span>
                     </div>
                     <Progress value={(assignment.submissions / assignment.totalStudents) * 100} />
                 </div>
@@ -144,7 +144,7 @@ export default function AssignmentsPage() {
               <CardFooter>
                  <Button asChild variant="outline" className="w-full">
                     <Link href={`/teacher/assignments/${assignment.id}`}>
-                        View Submissions
+                        Track & Grade
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                 </Button>

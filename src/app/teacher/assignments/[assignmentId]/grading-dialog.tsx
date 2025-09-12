@@ -23,7 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, Book } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { gradingSchema, GradingFormValues, saveGradeAction } from './actions';
 import type { Submission } from './types';
@@ -84,21 +84,21 @@ export function GradingDialog({
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <DialogHeader>
               <DialogTitle className="font-headline text-xl">
-                Grade Submission: {student.studentName}
+                Grade Assignment for: {student.studentName}
               </DialogTitle>
               <DialogDescription>
-                Review the submission and provide feedback.
+                Enter the grade and provide feedback for the student's offline work.
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-6 py-6">
               <div className="space-y-4">
-                <h4 className="font-medium">Submitted Work</h4>
-                <div className="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20">
+                <h4 className="font-medium">Assignment Details</h4>
+                <div className="flex min-h-[150px] items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20">
                     <div className="text-center text-muted-foreground p-4">
-                        <FileText className="mx-auto h-12 w-12" />
-                        <p className="mt-2 text-sm font-medium">Student submission will be displayed here.</p>
-                        <p className="text-xs"> (e.g., PDF viewer, image, or document content)</p>
+                        <Book className="mx-auto h-12 w-12" />
+                        <p className="mt-2 text-sm font-medium">Grading physical or offline work.</p>
+                        <p className="text-xs"> (Enter grade and feedback below)</p>
                     </div>
                 </div>
               </div>
