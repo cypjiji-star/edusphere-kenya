@@ -26,10 +26,23 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,19 +63,21 @@ type User = {
     role: UserRole;
     status: UserStatus;
     lastLogin: string;
+    class?: string;
 };
 
 const mockUsers: User[] = [
     { id: 'usr-1', name: 'Admin User', email: 'admin@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100', role: 'Admin', status: 'Active', lastLogin: '2024-07-18T10:00:00Z' },
     { id: 'usr-2', name: 'Ms. Wanjiku', email: 'wanjiku@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-18T09:30:00Z' },
     { id: 'usr-3', name: 'Mr. Otieno', email: 'otieno@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-17T14:00:00Z' },
-    { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z' },
-    { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never' },
-    { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Suspended', lastLogin: '2024-06-10T08:00:00Z' },
+    { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z', class: 'Form 4' },
+    { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never', class: 'Form 4' },
+    { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Suspended', lastLogin: '2024-06-10T08:00:00Z', class: 'Form 3' },
 ];
 
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended'];
 const roles: UserRole[] = ['Admin', 'Teacher', 'Student', 'Parent'];
+const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
 
 const getStatusBadge = (status: UserStatus) => {
     switch (status) {
@@ -128,9 +143,86 @@ export default function UserManagementPage() {
                                             {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" disabled>
-                                                <Edit className="mr-2 h-4 w-4" /> Edit
-                                            </Button>
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="sm">
+                                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="sm:max-w-xl">
+                                                    <DialogHeader>
+                                                        <DialogTitle>Edit User: {user.name}</DialogTitle>
+                                                        <DialogDescription>Update user details, role, and status.</DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="grid gap-6 py-4">
+                                                         <div className="grid grid-cols-2 gap-4">
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="name">Full Name</Label>
+                                                                <Input id="name" defaultValue={user.name} />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="email">Email</Label>
+                                                                <Input id="email" type="email" defaultValue={user.email} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                             <div className="space-y-2">
+                                                                <Label htmlFor="role">Role</Label>
+                                                                <Select defaultValue={user.role}>
+                                                                    <SelectTrigger id="role">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="status">Account Status</Label>
+                                                                <Select defaultValue={user.status}>
+                                                                    <SelectTrigger id="status">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {statuses.filter(s => s !== 'All Statuses').map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        </div>
+                                                        {user.role === 'Student' && (
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="class">Class</Label>
+                                                                <Select defaultValue={user.class}>
+                                                                    <SelectTrigger id="class">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        )}
+                                                        <Separator />
+                                                        <div className="space-y-4">
+                                                            <h4 className="font-semibold text-base">Administrative Actions</h4>
+                                                            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
+                                                                <Button variant="outline" disabled>
+                                                                    <KeyRound className="mr-2 h-4 w-4" />
+                                                                    Send Password Reset
+                                                                </Button>
+                                                                <Button variant="destructive" disabled>
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete User
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                        <Button>Save Changes</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -170,10 +262,57 @@ export default function UserManagementPage() {
                             <CardDescription>A list of all users in the system, organized by role.</CardDescription>
                         </div>
                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                            <Button disabled>
-                                <PlusCircle className="mr-2 h-4 w-4"/>
-                                Create User
-                            </Button>
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <PlusCircle className="mr-2 h-4 w-4"/>
+                                        Create User
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Create New User</DialogTitle>
+                                        <DialogDescription>
+                                            Fill in the details below to create a new user account.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-6 py-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="role-create">User Role</Label>
+                                            <Select>
+                                                <SelectTrigger id="role-create">
+                                                    <SelectValue placeholder="Select a role" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                         <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="name-create">Full Name</Label>
+                                                <Input id="name-create" placeholder="e.g., John Doe" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="email-create">Email Address</Label>
+                                                <Input id="email-create" type="email" placeholder="user@example.com" />
+                                            </div>
+                                        </div>
+                                        <Separator />
+                                        <div className="space-y-2">
+                                            <div className="flex items-center space-x-2">
+                                                <Switch id="send-invite" defaultChecked disabled />
+                                                <Label htmlFor="send-invite">Send invitation link with auto-generated password</Label>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">The user will be prompted to set a new password on their first login. This feature is coming soon.</p>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <Button>Create & Send Invite</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline">
