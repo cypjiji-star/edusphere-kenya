@@ -12,6 +12,7 @@ import {
   Trash2,
   Paperclip,
   CheckCircle2,
+  Languages,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -170,15 +171,22 @@ export function ChatLayout() {
                         msg.sender === 'me' ? 'justify-end' : 'justify-start'
                     )}>
                         {msg.sender === 'other' && <Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback>{selectedConvo.name.charAt(0)}</AvatarFallback></Avatar>}
-                        <div className={cn(
-                            "max-w-xs lg:max-w-md rounded-2xl p-3 text-sm",
-                            msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'
-                        )}>
-                            <p>{msg.text}</p>
-                            <div className={cn("text-xs mt-2 flex items-center gap-2", msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                                <span>{msg.timestamp}</span>
-                                {msg.sender === 'me' && msg.read && <CheckCircle2 className="h-4 w-4" />}
-                            </div>
+                        <div className="group relative">
+                          <div className={cn(
+                              "max-w-xs lg:max-w-md rounded-2xl p-3 text-sm",
+                              msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted rounded-bl-none'
+                          )}>
+                              <p>{msg.text}</p>
+                              <div className={cn("text-xs mt-2 flex items-center gap-2", msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                                  <span>{msg.timestamp}</span>
+                                  {msg.sender === 'me' && msg.read && <CheckCircle2 className="h-4 w-4" />}
+                              </div>
+                          </div>
+                          {msg.sender === 'other' && (
+                             <Button variant="ghost" size="icon" className="absolute -top-2 -right-10 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" disabled>
+                               <Languages className="h-4 w-4 text-muted-foreground"/>
+                             </Button>
+                          )}
                         </div>
                          {msg.sender === 'me' && <Avatar className="h-8 w-8"><AvatarImage src="https://picsum.photos/seed/teacher-avatar/100" /><AvatarFallback>T</AvatarFallback></Avatar>}
                     </div>
