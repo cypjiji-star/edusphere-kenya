@@ -140,9 +140,7 @@ export function PerformanceSnapshot() {
               cursor={false}
               content={<ChartTooltipContent indicator="dot" />}
             />
-            <Bar dataKey="avgScore" fill="var(--color-avgScore)" radius={8}>
-                 {(Bar as any).labelList && <(Bar as any).labelList position="top" offset={8} className="fill-foreground text-xs" />}
-            </Bar>
+            <Bar dataKey="avgScore" fill="var(--color-avgScore)" radius={8} />
           </BarChart>
         </ChartContainer>
          <div className="mt-4 flex justify-end">
