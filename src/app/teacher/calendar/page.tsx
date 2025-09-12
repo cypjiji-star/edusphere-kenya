@@ -1,3 +1,6 @@
+
+'use client';
+
 import {
   Card,
   CardContent,
@@ -5,7 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Calendar } from 'lucide-react';
+import { FullCalendar } from './full-calendar';
+
 
 export default function CalendarPage() {
   return (
@@ -18,13 +22,7 @@ export default function CalendarPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-            <div className="text-center">
-              <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-medium text-muted-foreground">Full Calendar Coming Soon</h3>
-              <p className="mt-1 text-sm text-muted-foreground">This section will display a full monthly or weekly calendar view.</p>
-            </div>
-          </div>
+            <FullCalendar />
         </CardContent>
       </Card>
     </div>
