@@ -192,7 +192,7 @@ export function ChatLayout() {
                     </div>
                 ))}
               </div>
-              <div className="flex-shrink-0 p-4 border-t">
+              <div className="flex-shrink-0 p-4 border-t space-y-2">
                 <div className="relative">
                   <Textarea
                     placeholder="Type your message..."
@@ -206,7 +206,7 @@ export function ChatLayout() {
                       }
                     }}
                   />
-                  <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-2">
+                  <div className="absolute top-3 right-3 flex items-center gap-2">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -231,6 +231,12 @@ export function ChatLayout() {
                     </Button>
                   </div>
                 </div>
+                 <div className="flex items-center justify-end">
+                    <Button variant="ghost" size="sm" disabled>
+                        <Languages className="mr-2 h-4 w-4 text-accent"/>
+                        Translate with AI
+                    </Button>
+                 </div>
               </div>
             </>
           ) : (

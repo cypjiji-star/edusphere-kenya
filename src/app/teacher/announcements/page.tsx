@@ -114,7 +114,7 @@ export default function AnnouncementsPage() {
                             <Label htmlFor="message">Message</Label>
                             <Button variant="outline" size="sm" onClick={() => {}} disabled>
                               <Languages className="mr-2 h-4 w-4" />
-                              Translate
+                              Translate with AI
                             </Button>
                           </div>
                           <Textarea id="message" placeholder="Type your announcement here..." className="min-h-[150px]" />
