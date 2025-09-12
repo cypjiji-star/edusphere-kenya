@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, User, Save, PlusCircle, Trash2 } from 'lucide-react';
@@ -25,6 +26,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type Permission = {
   id: string;
@@ -36,7 +38,7 @@ type PermissionCategory = {
   permissions: Permission[];
 };
 
-const permissionStructure: PermissionCategory[] = [
+const initialPermissionStructure: PermissionCategory[] = [
   {
     title: 'User Management',
     permissions: [
@@ -69,12 +71,18 @@ const permissionStructure: PermissionCategory[] = [
       { id: 'finance.expenses.manage', label: 'Manage school expenses' },
     ],
   },
+   {
+    title: 'System',
+    permissions: [
+      { id: 'admin.logs', label: 'View Audit Logs' },
+    ],
+  },
 ];
 
-const rolePermissions: Record<string, string[]> = {
-  Admin: permissionStructure.flatMap(cat => cat.permissions.map(p => p.id)),
+const initialRolePermissions: Record<string, string[]> = {
+  Admin: initialPermissionStructure.flatMap(cat => cat.permissions.map(p => p.id)),
   Teacher: [
-      'academics.grades.view', // Can view grades for their own classes
+      'academics.grades.view',
   ],
   Student: [],
   Parent: [],
@@ -83,6 +91,54 @@ const rolePermissions: Record<string, string[]> = {
 
 
 export default function PermissionsPage() {
+  const [permissionStructure, setPermissionStructure] = React.useState(initialPermissionStructure);
+  const [rolePermissions, setRolePermissions] = React.useState(initialRolePermissions);
+  const [newRoleName, setNewRoleName] = React.useState('');
+  const { toast } = useToast();
+
+  const handlePermissionChange = (role: string, permissionId: string, checked: boolean) => {
+    setRolePermissions(prev => {
+        const currentPermissions = prev[role] || [];
+        if (checked) {
+            return { ...prev, [role]: [...currentPermissions, permissionId] };
+        } else {
+            return { ...prev, [role]: currentPermissions.filter(id => id !== permissionId) };
+        }
+    });
+  };
+
+  const handleSave = (role: string) => {
+    toast({
+        title: 'Permissions Saved',
+        description: `Permissions for the ${role} role have been updated.`,
+    });
+  }
+  
+  const handleCreateRole = () => {
+    if (newRoleName.trim() && !rolePermissions[newRoleName.trim()]) {
+        setRolePermissions(prev => ({
+            ...prev,
+            [newRoleName.trim()]: [],
+        }));
+        setNewRoleName('');
+        toast({
+            title: 'Role Created',
+            description: `The "${newRoleName.trim()}" role has been added.`
+        });
+    }
+  };
+
+  const handleDeleteRole = (roleToDelete: string) => {
+      setRolePermissions(prev => {
+          const newRoles = { ...prev };
+          delete newRoles[roleToDelete];
+          return newRoles;
+      });
+       toast({
+            title: 'Role Deleted',
+            description: `The "${roleToDelete}" role has been removed.`
+        });
+  }
     
   const renderPermissions = (role: string) => {
     const isReadOnly = role === 'Admin';
@@ -96,6 +152,7 @@ export default function PermissionsPage() {
               <Checkbox
                 id={`${role}-${permission.id}`}
                 checked={rolePermissions[role]?.includes(permission.id)}
+                onCheckedChange={(checked) => handlePermissionChange(role, permission.id, !!checked)}
                 disabled={isReadOnly}
               />
               <Label htmlFor={`${role}-${permission.id}`} className="text-sm font-normal">
@@ -122,7 +179,7 @@ export default function PermissionsPage() {
         </div>
         <Dialog>
             <DialogTrigger asChild>
-                <Button disabled>
+                <Button>
                     <PlusCircle className="mr-2"/>
                     Create New Role
                 </Button>
@@ -135,18 +192,20 @@ export default function PermissionsPage() {
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="role-name">Role Name</Label>
-                        <Input id="role-name" placeholder="e.g., Librarian, Accountant" />
+                        <Input id="role-name" placeholder="e.g., Librarian, Accountant" value={newRoleName} onChange={(e) => setNewRoleName(e.target.value)} />
                     </div>
                 </div>
                  <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button>Create Role</Button>
+                    <DialogClose asChild>
+                      <Button onClick={handleCreateRole}>Create Role</Button>
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {Object.keys(rolePermissions).map(role => (
           <Card key={role}>
             <CardHeader>
@@ -155,9 +214,9 @@ export default function PermissionsPage() {
                     <User className="h-5 w-5 text-primary" />
                     {role}
                 </CardTitle>
-                {role !== 'Admin' && (
-                     <Button variant="ghost" size="icon" disabled>
-                        <Trash2 className="h-4 w-4" />
+                {role !== 'Admin' && role !== 'Teacher' && role !== 'Student' && role !== 'Parent' && (
+                     <Button variant="ghost" size="icon" onClick={() => handleDeleteRole(role)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                 )}
               </div>
@@ -167,7 +226,7 @@ export default function PermissionsPage() {
             </CardContent>
             {role !== 'Admin' && (
               <CardFooter>
-                  <Button disabled>
+                  <Button onClick={() => handleSave(role)}>
                       <Save className="mr-2 h-4 w-4"/>
                       Save Permissions
                   </Button>
