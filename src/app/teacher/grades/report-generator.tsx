@@ -26,12 +26,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList } from 'lucide-react';
+import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList, Send, History, Bell } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns' | 'participation-records' | 'performance-stats' | 'team-rosters';
+type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns' | 'participation-records' | 'performance-stats' | 'team-rosters' | 'message-delivery' | 'interaction-logs' | 'notification-history';
 
 export function ReportGenerator() {
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
@@ -71,7 +71,7 @@ export function ReportGenerator() {
 
   const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
   
-  const comingSoonReports: ReportType[] = ['summary', 'ranking', 'assignment-completion', 'daily-log', 'absentee-patterns', 'participation-records', 'performance-stats', 'team-rosters'];
+  const comingSoonReports: ReportType[] = ['summary', 'ranking', 'assignment-completion', 'daily-log', 'absentee-patterns', 'participation-records', 'performance-stats', 'team-rosters', 'message-delivery', 'interaction-logs', 'notification-history'];
   
   const reportTitles: Record<ReportType, string> = {
     'individual': 'Individual Student Report',
@@ -81,8 +81,11 @@ export function ReportGenerator() {
     'daily-log': 'Daily/Weekly Attendance Log',
     'absentee-patterns': 'Absentee Pattern Analysis',
     'participation-records': 'Participation Records',
-    'performance-stats': 'Performance Stats and Awards',
-    'team-rosters': 'Event Attendance and Team Rosters',
+    'performance-stats': 'Performance Stats & Awards',
+    'team-rosters': 'Event Attendance & Rosters',
+    'message-delivery': 'Message Delivery & Read Receipts',
+    'interaction-logs': 'Parent-Teacher Interaction Logs',
+    'notification-history': 'Notification History',
   };
 
   return (
@@ -120,6 +123,12 @@ export function ReportGenerator() {
                                 <SelectItem value="participation-records">Participation Records</SelectItem>
                                 <SelectItem value="performance-stats">Performance Stats &amp; Awards</SelectItem>
                                 <SelectItem value="team-rosters">Event Attendance &amp; Rosters</SelectItem>
+                            </SelectGroup>
+                            <SelectGroup>
+                                <SelectLabel>Communication Reports</SelectLabel>
+                                <SelectItem value="message-delivery">Message Delivery &amp; Read Receipts</SelectItem>
+                                <SelectItem value="interaction-logs">Parent-Teacher Interaction Logs</SelectItem>
+                                <SelectItem value="notification-history">Notification History</SelectItem>
                             </SelectGroup>
                         </SelectContent>
                     </Select>
@@ -269,6 +278,9 @@ export function ReportGenerator() {
                             {reportType === 'participation-records' && <Users className="h-12 w-12 text-primary/50" />}
                             {reportType === 'performance-stats' && <Trophy className="h-12 w-12 text-primary/50" />}
                             {reportType === 'team-rosters' && <ClipboardList className="h-12 w-12 text-primary/50" />}
+                            {reportType === 'message-delivery' && <Send className="h-12 w-12 text-primary/50" />}
+                            {reportType === 'interaction-logs' && <History className="h-12 w-12 text-primary/50" />}
+                            {reportType === 'notification-history' && <Bell className="h-12 w-12 text-primary/50" />}
                              <Alert variant="default" className="text-left">
                                 <AlertTitle>Feature Coming Soon</AlertTitle>
                                 <AlertDescription>
