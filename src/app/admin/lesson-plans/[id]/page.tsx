@@ -1,171 +1,194 @@
-
 'use client';
 
-import * as React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, BookOpen, Check, MessageSquareWarning, Send } from 'lucide-react';
+  GraduationCap,
+  LayoutDashboard,
+  Users,
+  LogOut,
+  ChevronDown,
+  Settings,
+  HelpCircle,
+  Palette,
+  Building,
+  ClipboardCheck,
+  FileText,
+  BookOpen,
+  Shapes,
+  ShieldCheck,
+  Megaphone,
+  MessageCircle,
+  Calendar,
+  CircleDollarSign,
+  Receipt,
+  FileClock,
+} from 'lucide-react';
+import {
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 
-// Mock Data - In a real app, you'd fetch this by ID
-const mockLessonPlan = {
-  id: 'lp-3',
-  topic: 'Acid-Base Titration',
-  subject: 'Chemistry',
-  grade: 'Form 4',
-  date: '2024-07-21',
-  status: 'In Progress',
-  teacher: {
-    name: 'Ms. Wanjiku',
-    avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100',
+
+const navGroups = [
+  {
+    title: 'Academics',
+    items: [
+      { href: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
+      { href: '/admin/grades', label: 'Grades & Exams', icon: FileText },
+      { href: '/admin/timetable', label: 'Timetable', icon: Calendar },
+      { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
+    ],
   },
-  content: {
-    objectives: [
-        'Define titration and understand its purpose.',
-        'Identify the key apparatus used in a titration.',
-        'Perform a simple acid-base titration and record results accurately.',
-        'Calculate the concentration of an unknown solution using titration data.'
+   {
+    title: 'Users',
+    items: [
+      { href: '/admin/users', label: 'User Management', icon: Users },
+      { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
-    materials: 'Burette, pipette, conical flask, white tile, phenolphthalein indicator, standard solution (e.g., 0.1M HCl), unknown solution (e.g., NaOH).',
-    activities: [
-      { title: 'Introduction (10 mins)', description: 'Recap acids, bases, and neutralization. Introduce the concept of titration and its real-world applications.' },
-      { title: 'Apparatus Demonstration (15 mins)', description: 'Show and explain the function of each piece of equipment. Demonstrate correct handling, reading scales, and avoiding parallax error.' },
-      { title: 'Practical Titration (40 mins)', description: 'In pairs, students perform a titration of HCl with NaOH. Teacher circulates to assist and check technique.' },
-      { title: 'Calculation & Conclusion (15 mins)', description: 'Guide students through the calculation steps on the blackboard. Students conclude the experiment in their lab books.' }
+  },
+  {
+    title: 'Communication',
+    items: [
+      { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+      { href: '/admin/messaging', label: 'Messaging', icon: MessageCircle },
+      { href: '/admin/calendar', label: 'Events Calendar', icon: Calendar },
     ],
-    assessment: 'Students will be assessed on their practical skills during the experiment, the accuracy of their recorded results, and the correctness of their final calculation. A follow-up homework assignment with titration problems will also be given.',
+  },
+  {
+    title: 'Finance',
+    items: [
+        { href: '/admin/fees', label: 'Fees & Payments', icon: CircleDollarSign },
+        { href: '/admin/expenses', label: 'Expenses', icon: Receipt },
+    ],
+  },
+  {
+    title: 'School Settings',
+    items: [
+        { href: '/admin/profile', label: 'School Profile', icon: Building },
+        { href: '/admin/branding', label: 'Branding', icon: Palette },
+        { href: '/admin/settings', label: 'System Settings', icon: Settings },
+    ]
+  },
+  {
+    title: 'System',
+    items: [
+        { href: '/admin/logs', label: 'Audit Logs', icon: FileClock },
+        { href: '/admin/support', label: 'Support & Feedback', icon: HelpCircle },
+    ]
   }
-};
+];
 
 
-export default function LessonPlanReviewPage({ params }: { params: { id: string } }) {
-  const { id } = params;
-  const plan = mockLessonPlan; // Using mock data
-  const [clientReady, setClientReady] = React.useState(false);
-
-  React.useEffect(() => {
-    setClientReady(true);
-  }, []);
+export function AdminSidebar() {
+  const pathname = usePathname();
+  const isActive = (href: string) => pathname.startsWith(href);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin/lesson-plans">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Submissions
-          </Link>
-        </Button>
-      </div>
+    <>
+      <SidebarHeader>
+        <Link href="/admin" className="flex items-center gap-2">
+          <GraduationCap className="size-6 text-primary" />
+          <span className="font-bold font-headline text-lg">Admin Portal</span>
+        </Link>
+      </SidebarHeader>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                        <div>
-                            <CardTitle className="font-headline text-2xl flex items-center gap-2">
-                                <BookOpen className="h-6 w-6 text-primary"/>
-                                {plan.topic}
-                            </CardTitle>
-                            <CardDescription>
-                                {plan.subject} - {plan.grade}
-                            </CardDescription>
-                        </div>
-                         {clientReady && (
-                            <div className="text-sm">
-                                <p><span className="font-semibold">Date:</span> {new Date(plan.date).toLocaleDateString()}</p>
-                                <p><span className="font-semibold">Status:</span> <Badge>{plan.status}</Badge></p>
-                            </div>
-                         )}
+      <SidebarContent className="p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === '/admin'} tooltip={{ children: 'Dashboard' }}>
+              <Link href="/admin">
+                <LayoutDashboard />
+                <span>Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+         {navGroups.map((group) => (
+          <Collapsible key={group.title} defaultOpen>
+              <SidebarMenuItem className="px-2 pt-2">
+                <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between">
+                         <span className="text-xs font-semibold text-muted-foreground">{group.title}</span>
+                         <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [&[data-state=open]]:rotate-180" />
                     </div>
-                     <Separator className="mt-4" />
-                     <div className="pt-4 flex items-center gap-3">
-                        <Avatar>
-                            <AvatarImage src={plan.teacher.avatarUrl} alt={plan.teacher.name} />
-                            <AvatarFallback>{plan.teacher.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <p className="font-semibold">{plan.teacher.name}</p>
-                            <p className="text-xs text-muted-foreground">Submitting Teacher</p>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    <section>
-                        <h3 className="font-semibold text-lg mb-2 border-b pb-2">Learning Objectives</h3>
-                        <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                            {plan.content.objectives.map((obj, i) => <li key={i}>{obj}</li>)}
-                        </ul>
-                    </section>
-                     <section>
-                        <h3 className="font-semibold text-lg mb-2 border-b pb-2">Materials & Resources</h3>
-                        <p className="text-muted-foreground">{plan.content.materials}</p>
-                    </section>
-                     <section>
-                        <h3 className="font-semibold text-lg mb-2 border-b pb-2">Lesson Activities &amp; Procedure</h3>
-                        <div className="space-y-4">
-                            {plan.content.activities.map((act, i) => (
-                                <div key={i} className="flex gap-4">
-                                    <div className="flex flex-col items-center">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">{i + 1}</div>
-                                        {i < plan.content.activities.length - 1 && <div className="w-px flex-1 bg-border my-1"></div>}
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold">{act.title}</p>
-                                        <p className="text-muted-foreground text-sm">{act.description}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                      <section>
-                        <h3 className="font-semibold text-lg mb-2 border-b pb-2">Assessment &amp; Evaluation</h3>
-                        <p className="text-muted-foreground">{plan.content.assessment}</p>
-                    </section>
-                </CardContent>
-            </Card>
-        </div>
-        <div className="lg:col-span-1">
-            <Card className="sticky top-20">
-                <CardHeader>
-                    <CardTitle>Administrative Actions</CardTitle>
-                    <CardDescription>Approve this lesson plan or request changes.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="feedback-comments">Feedback / Comments (Optional)</Label>
-                            <Textarea id="feedback-comments" placeholder="Provide feedback for the teacher..." className="min-h-[150px]" />
-                        </div>
-                    </div>
-                </CardContent>
-                 <CardFooter className="flex flex-col gap-2">
-                    <Button className="w-full" variant="outline" disabled>
-                        <MessageSquareWarning className="mr-2 h-4 w-4"/>
-                        Request Changes
-                    </Button>
-                    <Button className="w-full" disabled>
-                        <Check className="mr-2 h-4 w-4"/>
-                        Approve Lesson Plan
-                    </Button>
-                </CardFooter>
-            </Card>
-        </div>
-      </div>
-    </div>
+                </CollapsibleTrigger>
+              </SidebarMenuItem>
+            <CollapsibleContent>
+                <SidebarMenu>
+                    {group.items.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={isActive(item.href)}
+                            tooltip={{ children: item.label }}
+                        >
+                            <Link href={item.href}>
+                                <item.icon />
+                                <span>{item.label}</span>
+                            </Link>
+                        </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
+      </SidebarContent>
+
+      <SidebarFooter>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src="https://picsum.photos/seed/admin-avatar/100" alt="Admin" />
+                <AvatarFallback>A</AvatarFallback>
+              </Avatar>
+              <div className="text-left">
+                <p className="text-sm font-medium">Admin User</p>
+                <p className="text-xs text-muted-foreground">Administrator</p>
+              </div>
+              <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">Admin User</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  admin@school.ac.ke
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem><Settings className="mr-2" />Profile</DropdownMenuItem>
+            <DropdownMenuItem><HelpCircle className="mr-2" />Support</DropdownMenuItem>
+            <DropdownMenuSeparator />
+             <DropdownMenuItem asChild>
+                <Link href="/">
+                    <LogOut className="mr-2" />
+                    <span>Log out</span>
+                </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarFooter>
+    </>
   );
 }
-

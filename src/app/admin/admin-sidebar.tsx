@@ -53,7 +53,7 @@ const navGroups = [
     items: [
       { href: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
       { href: '/admin/grades', label: 'Grades & Exams', icon: FileText },
-      { href: '/admin/lesson-plans', label: 'Lesson Plans', icon: BookOpen },
+      { href: '/admin/timetable', label: 'Timetable', icon: Calendar },
       { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
     ],
   },
@@ -69,7 +69,7 @@ const navGroups = [
     items: [
       { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
       { href: '/admin/messaging', label: 'Messaging', icon: MessageCircle },
-      { href: '/admin/calendar', label: 'Calendar', icon: Calendar },
+      { href: '/admin/calendar', label: 'Events Calendar', icon: Calendar },
     ],
   },
   {
