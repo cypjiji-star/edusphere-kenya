@@ -1,4 +1,7 @@
 
+'use client';
+
+import * as React from 'react';
 import {
   Card,
   CardContent,
@@ -12,8 +15,17 @@ import { PlusCircle, BookMarked, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
-const assignments = [
+
+const allAssignments = [
   {
     id: '1',
     title: 'Form 4 Chemistry - Acid-Base Titration Lab Report',
@@ -38,10 +50,31 @@ const assignments = [
     submissions: 0,
     totalStudents: 35,
   },
+  {
+    id: '4',
+    title: 'Form 4 Chemistry - Organic Compounds Quiz',
+    className: 'Form 4 - Chemistry',
+    dueDate: '2024-07-28',
+    submissions: 0,
+    totalStudents: 31,
+  },
+];
+
+const teacherClasses = [
+    'All Classes',
+    'Form 4 - Chemistry',
+    'Form 3 - English',
+    'Form 2 - Physics',
 ];
 
 
 export default function AssignmentsPage() {
+  const [filteredClass, setFilteredClass] = React.useState('All Classes');
+
+  const assignments = allAssignments.filter(assignment => 
+    filteredClass === 'All Classes' || assignment.className === filteredClass
+  );
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="md:flex md:items-center md:justify-between mb-6">
@@ -55,6 +88,22 @@ export default function AssignmentsPage() {
               Create Assignment
             </Link>
           </Button>
+      </div>
+      
+      <div className="mb-6 flex items-center gap-4">
+        <Label htmlFor="class-filter" className="text-sm font-medium">Filter by Class</Label>
+        <Select value={filteredClass} onValueChange={setFilteredClass}>
+            <SelectTrigger id="class-filter" className="w-full md:w-[240px]">
+                <SelectValue placeholder="Select a class" />
+            </SelectTrigger>
+            <SelectContent>
+                {teacherClasses.map((cls) => (
+                    <SelectItem key={cls} value={cls}>
+                    {cls}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
       </div>
 
       {assignments.length > 0 ? (
@@ -96,8 +145,8 @@ export default function AssignmentsPage() {
             <CardContent className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
                 <div className="text-center">
                 <BookMarked className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-2 text-sm font-medium text-muted-foreground">No assignments yet</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Click "Create Assignment" to get started.</p>
+                <h3 className="mt-2 text-sm font-medium text-muted-foreground">No assignments found</h3>
+                <p className="mt-1 text-sm text-muted-foreground">No assignments match your current filter.</p>
                 </div>
             </CardContent>
          </Card>

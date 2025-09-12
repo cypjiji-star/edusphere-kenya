@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -24,8 +25,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { GradingDialog } from './grading-dialog';
-import type { Submission } from './types';
+import type { Submission, SubmissionStatus } from './types';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Mock Data
 const assignmentDetails = {
@@ -55,6 +63,7 @@ const getStatusBadge = (status: Submission['status']) => {
 
 export default function AssignmentSubmissionsPage({ params }: { params: { assignmentId: string } }) {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<SubmissionStatus | 'All'>('All');
   const [submissions, setSubmissions] = React.useState(initialSubmissions);
   const [gradingStudent, setGradingStudent] = React.useState<Submission | null>(null);
   const { toast } = useToast();
@@ -70,7 +79,8 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
   };
 
   const filteredSubmissions = submissions.filter(s => 
-    s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
+    s.studentName.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (statusFilter === 'All' || s.status === statusFilter)
   );
   
   return (
@@ -110,11 +120,19 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                 <Button variant="outline" disabled>
-                    <Filter className="mr-2" />
-                    Filter by Status
-                </Button>
+              <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                 <Select value={statusFilter} onValueChange={(value: SubmissionStatus | 'All') => setStatusFilter(value)}>
+                    <SelectTrigger className="w-full md:w-auto">
+                        <Filter className="mr-2 h-4 w-4" />
+                        <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Statuses</SelectItem>
+                        <SelectItem value="Submitted">Submitted</SelectItem>
+                        <SelectItem value="Not Submitted">Not Submitted</SelectItem>
+                        <SelectItem value="Late">Late</SelectItem>
+                    </SelectContent>
+                 </Select>
                 <Button variant="secondary" disabled>
                     <FileDown className="mr-2" />
                     Download All
@@ -169,7 +187,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                   ) : (
                     <TableRow>
                       <TableCell colSpan={5} className="h-24 text-center">
-                        No submissions found matching your search.
+                        No submissions found matching your filters.
                       </TableCell>
                     </TableRow>
                   )}
