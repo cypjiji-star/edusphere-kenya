@@ -46,6 +46,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Overdue';
 
@@ -201,38 +203,71 @@ export default function FeesPage() {
                     <CardTitle>Fee Structure Management</CardTitle>
                     <CardDescription>Define and manage fee categories for different classes and terms.</CardDescription>
                   </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <PlusCircle className="mr-2 h-4 w-4"/>
-                        Create Fee Category
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                          <DialogTitle>Create New Fee Category</DialogTitle>
-                          <DialogDescription>Add a new item to the school's fee structure.</DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                          <div className="space-y-2">
-                              <Label htmlFor="category-name">Category Name</Label>
-                              <Input id="category-name" placeholder="e.g., Swimming Club Fee" />
+                  <div className="flex items-center gap-2">
+                     <Select defaultValue="term2-2024">
+                          <SelectTrigger className="w-full md:w-[180px]">
+                              <SelectValue placeholder="Select term" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                              <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                              <SelectItem value="annual-2024">Annual 2024</SelectItem>
+                          </SelectContent>
+                      </Select>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button>
+                            <PlusCircle className="mr-2 h-4 w-4"/>
+                            Create Fee Category
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-lg">
+                          <DialogHeader>
+                              <DialogTitle>Create New Fee Category</DialogTitle>
+                              <DialogDescription>Add a new item to the school's fee structure for a specific term.</DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-6 py-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="category-term">Term</Label>
+                                    <Select defaultValue="term2-2024">
+                                        <SelectTrigger id="category-term">
+                                            <SelectValue placeholder="Select term" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                            <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                            <SelectItem value="annual-2024">Annual 2024</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="category-amount">Amount (KES)</Label>
+                                    <Input id="category-amount" type="number" placeholder="e.g., 3000" />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                  <Label htmlFor="category-name">Category Name</Label>
+                                  <Input id="category-name" placeholder="e.g., Swimming Club Fee" />
+                              </div>
+                              <div className="space-y-2">
+                                  <Label htmlFor="category-applies">Applies To</Label>
+                                  <Input id="category-applies" placeholder="e.g., All Students, Boarders, Form 1, Music Club" />
+                                   <p className="text-xs text-muted-foreground">You can specify classes, streams, or custom groups.</p>
+                              </div>
+                              <Separator />
+                              <div className="flex items-center space-x-2">
+                                <Switch id="optional-fee" />
+                                <Label htmlFor="optional-fee">Optional Fee (Can be enabled/disabled per student)</Label>
+                              </div>
                           </div>
-                          <div className="space-y-2">
-                              <Label htmlFor="category-amount">Amount (KES)</Label>
-                              <Input id="category-amount" type="number" placeholder="e.g., 3000" />
-                          </div>
-                          <div className="space-y-2">
-                              <Label htmlFor="category-applies">Applies To</Label>
-                              <Input id="category-applies" placeholder="e.g., All Students, Boarders, Form 1" />
-                          </div>
-                      </div>
-                      <DialogFooter>
-                          <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                          <Button disabled>Save Category</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                          <DialogFooter>
+                              <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                              <Button disabled>Save Category</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -383,4 +418,5 @@ export default function FeesPage() {
             </Card>
         </div>
     );
-}
+
+    
