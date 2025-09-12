@@ -33,6 +33,8 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Search, FileDown, Edit, FileText } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { GradeSummaryWidget } from './grade-summary-widget';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { GradeEntryForm } from './grade-entry-form';
 
 
 // --- Mock Data ---
@@ -124,151 +126,164 @@ export default function GradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <Card>
+      <Tabs defaultValue="gradebook">
         <CardHeader>
-          <CardTitle className="font-headline text-2xl">Gradebook</CardTitle>
-          <CardDescription>View, manage, and export student grades for your classes.</CardDescription>
-           <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center">
-                 <Select value={selectedClass} onValueChange={setSelectedClass}>
-                    <SelectTrigger className="w-full md:w-[240px]">
-                        <SelectValue placeholder="Select a class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {teacherClasses.map((cls) => (
-                            <SelectItem key={cls.id} value={cls.id}>
-                            {cls.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                 </Select>
-                 <div className="relative w-full md:max-w-xs">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                    type="search"
-                    placeholder="Search by student name..."
-                    className="w-full bg-background pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-              </div>
-              <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                <Button variant="outline" disabled>
-                    <FileDown className="mr-2" />
-                    Export Grades
-                </Button>
-                <Button asChild>
-                  <Link href="/teacher/grades/new">
-                    <PlusCircle className="mr-2" />
-                    Enter New Grades
-                  </Link>
-                </Button>
-              </div>
+          <div className="md:flex md:items-start md:justify-between">
+            <div>
+              <CardTitle className="font-headline text-2xl">Gradebook</CardTitle>
+              <CardDescription>View, manage, and export student grades for your classes.</CardDescription>
             </div>
+            <TabsList className="mt-4 md:mt-0">
+              <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+              <TabsTrigger value="entry">Enter Grades</TabsTrigger>
+            </TabsList>
+          </div>
         </CardHeader>
-        <CardContent>
-            {currentStudents.length > 0 ? (
-                <>
-                    <GradeSummaryWidget students={currentStudents} />
-                    {/* Desktop Table */}
-                    <div className="w-full overflow-auto rounded-lg border hidden md:block">
-                        <Table>
-                            <TableHeader>
-                            <TableRow>
-                                <TableHead className="sticky left-0 bg-background z-10">Student Name</TableHead>
-                                {currentAssessments.map(assessment => (
-                                    <TableHead key={assessment.id} className="text-center whitespace-nowrap">{assessment.title}</TableHead>
+        <TabsContent value="gradebook">
+          <Card>
+            <CardHeader>
+               <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center">
+                     <Select value={selectedClass} onValueChange={setSelectedClass}>
+                        <SelectTrigger className="w-full md:w-[240px]">
+                            <SelectValue placeholder="Select a class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {teacherClasses.map((cls) => (
+                                <SelectItem key={cls.id} value={cls.id}>
+                                {cls.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                     </Select>
+                     <div className="relative w-full md:max-w-xs">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                        type="search"
+                        placeholder="Search by student name..."
+                        className="w-full bg-background pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                  </div>
+                  <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+                    <Button variant="outline" disabled>
+                        <FileDown className="mr-2" />
+                        Export Grades
+                    </Button>
+                  </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {currentStudents.length > 0 ? (
+                    <>
+                        <GradeSummaryWidget students={currentStudents} />
+                        {/* Desktop Table */}
+                        <div className="w-full overflow-auto rounded-lg border hidden md:block">
+                            <Table>
+                                <TableHeader>
+                                <TableRow>
+                                    <TableHead className="sticky left-0 bg-background z-10">Student Name</TableHead>
+                                    {currentAssessments.map(assessment => (
+                                        <TableHead key={assessment.id} className="text-center whitespace-nowrap">{assessment.title}</TableHead>
+                                    ))}
+                                    <TableHead className="text-center font-bold">Overall</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                {filteredStudents.map(student => (
+                                    <TableRow key={student.studentId}>
+                                        <TableCell className="sticky left-0 bg-background z-10">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={student.studentAvatar} alt={student.studentName} />
+                                                    <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium">{student.studentName}</span>
+                                            </div>
+                                        </TableCell>
+                                        {currentAssessments.map(assessment => (
+                                            <TableCell key={assessment.id} className="text-center">
+                                                <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
+                                            </TableCell>
+                                        ))}
+                                         <TableCell className="text-center font-bold">
+                                            <Badge>{student.overall}%</Badge>
+                                         </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" disabled>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                                <TableHead className="text-center font-bold">Overall</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        {/* Mobile Cards */}
+                        <div className="grid gap-4 md:hidden">
                             {filteredStudents.map(student => (
-                                <TableRow key={student.studentId}>
-                                    <TableCell className="sticky left-0 bg-background z-10">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar className="h-8 w-8">
+                                <Card key={student.studentId} className="w-full">
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar>
                                                 <AvatarImage src={student.studentAvatar} alt={student.studentName} />
                                                 <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <span className="font-medium">{student.studentName}</span>
-                                        </div>
-                                    </TableCell>
-                                    {currentAssessments.map(assessment => (
-                                        <TableCell key={assessment.id} className="text-center">
-                                            <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
-                                        </TableCell>
-                                    ))}
-                                     <TableCell className="text-center font-bold">
-                                        <Badge>{student.overall}%</Badge>
-                                     </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="sm" disabled>
-                                            <Edit className="mr-2 h-4 w-4" /> Edit
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-
-                    {/* Mobile Cards */}
-                    <div className="grid gap-4 md:hidden">
-                        {filteredStudents.map(student => (
-                            <Card key={student.studentId} className="w-full">
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar>
-                                            <AvatarImage src={student.studentAvatar} alt={student.studentName} />
-                                            <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <span className="font-medium">{student.studentName}</span>
-                                                <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
+                                                </Avatar>
+                                                <div>
+                                                    <span className="font-medium">{student.studentName}</span>
+                                                    <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
+                                                </div>
                                             </div>
+                                            <Badge>{student.overall}%</Badge>
                                         </div>
-                                        <Badge>{student.overall}%</Badge>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-4 pt-2">
-                                     <Separator/>
-                                     {currentAssessments.map(assessment => (
-                                         <div key={assessment.id} className="flex justify-between items-center text-sm">
-                                            <span className="font-medium text-muted-foreground">{assessment.title}:</span>
-                                            <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
-                                         </div>
-                                     ))}
-                                </CardContent>
-                            </Card>
-                        ))}
+                                    </CardHeader>
+                                    <CardContent className="space-y-4 pt-2">
+                                         <Separator/>
+                                         {currentAssessments.map(assessment => (
+                                             <div key={assessment.id} className="flex justify-between items-center text-sm">
+                                                <span className="font-medium text-muted-foreground">{assessment.title}:</span>
+                                                <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
+                                             </div>
+                                         ))}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                        <div className="text-center">
+                            <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-xl font-semibold">No Grade Data</h3>
+                            <p className="mt-2 text-sm text-muted-foreground">There is no grade information for this class yet. Switch to the 'Enter Grades' tab to start.</p>
+                        </div>
                     </div>
-                </>
-            ) : (
-                <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                    <div className="text-center">
-                        <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="mt-4 text-xl font-semibold">No Grade Data</h3>
-                        <p className="mt-2 text-sm text-muted-foreground">There is no grade information for this class yet. Click below to start.</p>
-                        <Button className="mt-6" asChild>
-                            <Link href="/teacher/grades/new">
-                                <PlusCircle className="mr-2" />
-                                Enter Grades
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
-            )}
-        </CardContent>
-         <CardFooter>
-            <p className="text-xs text-muted-foreground">
-                This is a summary of student performance. For detailed reports, visit the student's profile.
-            </p>
-         </CardFooter>
-      </Card>
+                )}
+            </CardContent>
+             <CardFooter>
+                <p className="text-xs text-muted-foreground">
+                    This is a summary of student performance. For detailed reports, visit the student's profile.
+                </p>
+             </CardFooter>
+          </Card>
+        </TabsContent>
+        <TabsContent value="entry">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline text-2xl">Enter New Grades</CardTitle>
+              <CardDescription>Fill out the form to add a new assessment and enter grades for your class.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GradeEntryForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
