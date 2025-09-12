@@ -182,6 +182,9 @@ export function TimetableBuilder() {
                                                             </div>
                                                             <div className="text-right">
                                                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
+                                                                    <Edit className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </Button>
                                                             </div>
@@ -198,7 +201,7 @@ export function TimetableBuilder() {
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                    <Button variant="outline" disabled>Clear Timetable</Button>
+                    <Button variant="outline">Clear Timetable</Button>
                     <Button variant="secondary" disabled>
                         <Share className="mr-2 h-4 w-4" />
                         Publish
@@ -237,5 +240,3 @@ export function TimetableBuilder() {
     </div>
   );
 }
-
-    
