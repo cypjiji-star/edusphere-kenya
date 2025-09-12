@@ -41,6 +41,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 
 
 type SchoolClass = {
@@ -113,14 +115,16 @@ const mockTeachers = [
     { id: 't-6', name: 'Ms. Akinyi' },
 ];
 
+const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', 'Technical Subjects', 'Creative Arts'];
+
 const mockSubjects = [
-    { id: 'sub-math', name: 'Mathematics', code: 'MATH-101', teachers: ['Mr. Otieno', 'Mr. Kimani'], classes: ['Form 1', 'Form 2', 'Form 3', 'Form 4'] },
-    { id: 'sub-eng', name: 'English', code: 'ENG-101', teachers: ['Ms. Njeri'], classes: ['Form 1', 'Form 2', 'Form 3', 'Form 4'] },
-    { id: 'sub-chem', name: 'Chemistry', code: 'CHEM-301', teachers: ['Ms. Wanjiku'], classes: ['Form 3', 'Form 4'] },
-    { id: 'sub-phy', name: 'Physics', code: 'PHY-301', teachers: ['Mr. Kamau'], classes: ['Form 3', 'Form 4'] },
-    { id: 'sub-bio', name: 'Biology', code: 'BIO-101', teachers: ['Ms. Wanjiku', 'Ms. Akinyi'], classes: ['Form 1', 'Form 2'] },
-    { id: 'sub-hist', name: 'History', code: 'HIST-101', teachers: ['Mr. Kamau'], classes: ['Form 1', 'Form 2', 'Form 3'] },
-]
+    { id: 'sub-math', name: 'Mathematics', code: '121', department: 'Mathematics', teachers: ['Mr. Otieno', 'Mr. Kimani'], classes: ['Form 1', 'Form 2', 'Form 3', 'Form 4'] },
+    { id: 'sub-eng', name: 'English', code: '101', department: 'Languages', teachers: ['Ms. Njeri'], classes: ['Form 1', 'Form 2', 'Form 3', 'Form 4'] },
+    { id: 'sub-chem', name: 'Chemistry', code: '233', department: 'Sciences', teachers: ['Ms. Wanjiku'], classes: ['Form 3', 'Form 4'] },
+    { id: 'sub-phy', name: 'Physics', code: '232', department: 'Sciences', teachers: ['Mr. Kamau'], classes: ['Form 3', 'Form 4'] },
+    { id: 'sub-bio', name: 'Biology', code: '231', department: 'Sciences', teachers: ['Ms. Wanjiku', 'Ms. Akinyi'], classes: ['Form 1', 'Form 2'] },
+    { id: 'sub-hist', name: 'History & Government', code: '311', department: 'Humanities', teachers: ['Mr. Kamau'], classes: ['Form 1', 'Form 2', 'Form 3'] },
+];
 
 
 export default function ClassesAndSubjectsPage() {
@@ -314,28 +318,73 @@ export default function ClassesAndSubjectsPage() {
                             <CardDescription>Manage all subjects offered by the school and assign teachers.</CardDescription>
                         </div>
                         <div className="flex w-full flex-wrap gap-2 md:w-auto">
-                            <Select disabled>
-                                <SelectTrigger className="w-full md:w-[180px]">
-                                    <Filter className="mr-2 h-4 w-4" />
-                                    <SelectValue placeholder="Filter by class" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="f4">Form 4</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select disabled>
-                                <SelectTrigger className="w-full md:w-[180px]">
-                                     <Filter className="mr-2 h-4 w-4" />
-                                    <SelectValue placeholder="Filter by teacher" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                     <SelectItem value="t1">Ms. Wanjiku</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Button disabled className="w-full md:w-auto">
-                                <PlusCircle className="mr-2 h-4 w-4"/>
-                                Add New Subject
-                            </Button>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <PlusCircle className="mr-2 h-4 w-4"/>
+                                        Add New Subject
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[600px]">
+                                    <DialogHeader>
+                                        <DialogTitle>Add New Subject</DialogTitle>
+                                        <DialogDescription>Define a new subject and assign it to classes and teachers.</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-6 py-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="subject-name">Subject Name</Label>
+                                                <Input id="subject-name" placeholder="e.g., Computer Science" />
+                                            </div>
+                                             <div className="space-y-2">
+                                                <Label htmlFor="subject-code">Subject Code</Label>
+                                                <Input id="subject-code" placeholder="e.g., 451" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="subject-dept">Department</Label>
+                                            <Select>
+                                                <SelectTrigger id="subject-dept">
+                                                    <SelectValue placeholder="Select a department" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {mockDepartments.map(dept => (
+                                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Separator />
+                                         <div className="space-y-2">
+                                            <Label>Assign to Classes</Label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {mockClasses.map(cls => (
+                                                    <div key={cls.id} className="flex items-center space-x-2">
+                                                        <Checkbox id={`class-${cls.id}`} />
+                                                        <Label htmlFor={`class-${cls.id}`} className="font-normal">{cls.name} {cls.stream || ''}</Label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <Separator />
+                                         <div className="space-y-2">
+                                            <Label>Assign Teachers</Label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {mockTeachers.map(teacher => (
+                                                    <div key={teacher.id} className="flex items-center space-x-2">
+                                                        <Checkbox id={`teacher-${teacher.id}`} />
+                                                        <Label htmlFor={`teacher-${teacher.id}`} className="font-normal">{teacher.name}</Label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                     <DialogFooter>
+                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <Button disabled>Save Subject</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </div>
                 </CardHeader>
@@ -346,7 +395,7 @@ export default function ClassesAndSubjectsPage() {
                                 <TableRow>
                                     <TableHead>Subject Name</TableHead>
                                     <TableHead>Code</TableHead>
-                                    <TableHead>Assigned Classes</TableHead>
+                                    <TableHead>Department</TableHead>
                                     <TableHead>Teachers</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -356,17 +405,11 @@ export default function ClassesAndSubjectsPage() {
                                     <TableRow key={subject.id}>
                                         <TableCell className="font-semibold">{subject.name}</TableCell>
                                         <TableCell><Badge variant="outline">{subject.code}</Badge></TableCell>
-                                         <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {subject.classes.map(cls => (
-                                                    <Badge key={cls} variant="secondary" className="font-normal">{cls}</Badge>
-                                                ))}
-                                            </div>
-                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">{subject.department}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1">
                                                 {subject.teachers.map(teacher => (
-                                                    <Badge key={teacher} variant="outline">{teacher}</Badge>
+                                                    <Badge key={teacher} variant="secondary" className="font-normal">{teacher}</Badge>
                                                 ))}
                                             </div>
                                         </TableCell>
