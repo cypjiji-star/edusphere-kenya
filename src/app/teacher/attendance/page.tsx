@@ -247,11 +247,11 @@ export default function AttendancePage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem disabled>
                       <FileDown className="mr-2" />
                       Download as PDF
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem disabled>
                       <FileDown className="mr-2" />
                       Download as Excel/CSV
                     </DropdownMenuItem>

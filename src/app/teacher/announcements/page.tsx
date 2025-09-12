@@ -8,12 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Megaphone, Send, History, Bell } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const pastAnnouncements = [
     {
@@ -31,7 +28,6 @@ const pastAnnouncements = [
 ];
 
 export default function AnnouncementsPage() {
-  const [date, setDate] = React.useState<Date | undefined>();
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -74,6 +70,31 @@ export default function AnnouncementsPage() {
                                 <Label htmlFor="schedule-send">Schedule for later</Label>
                             </div>
                         </div>
+                     </div>
+                      <Separator />
+                     <div className="space-y-4">
+                        <Alert>
+                            <Bell className="h-4 w-4" />
+                            <AlertTitle>Notification Channels</AlertTitle>
+                            <AlertDescription>
+                                Choose how this announcement will be delivered.
+                            </AlertDescription>
+                        </Alert>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                            <div className="flex items-center space-x-2">
+                                <Switch id="notify-app" disabled checked />
+                                <Label htmlFor="notify-app">In-App Notification</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch id="notify-email" disabled />
+                                <Label htmlFor="notify-email">Send as Email</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch id="notify-sms" disabled />
+                                <Label htmlFor="notify-sms">Send as SMS</Label>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Delivery settings will be configurable soon.</p>
                      </div>
                 </CardContent>
                 <CardFooter>
