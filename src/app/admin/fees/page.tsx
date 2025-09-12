@@ -597,7 +597,7 @@ export default function FeesPage() {
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
                                 <CardTitle>Student Payment Records</CardTitle>
-                                <CardDescription>A detailed list of fee payments for all students.</CardDescription>
+                                <CardDescription>A detailed list of fee payments for all students. Student clearance status is updated automatically when fees are fully paid.</CardDescription>
                             </div>
                             <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                                 <Dialog>
@@ -764,5 +764,3 @@ export default function FeesPage() {
         </Dialog>
     );
 }
-
-    
