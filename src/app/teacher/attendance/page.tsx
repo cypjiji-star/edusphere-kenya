@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -252,7 +253,7 @@ export default function AttendancePage() {
                     </DropdownMenuItem>
                     <DropdownMenuItem disabled>
                       <FileDown className="mr-2" />
-                      Download as Excel
+                      Download as Excel/CSV
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem disabled>

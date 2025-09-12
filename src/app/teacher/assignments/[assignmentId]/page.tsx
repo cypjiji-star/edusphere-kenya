@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Search, CheckCircle, Clock, FileDown, Filter } from 'lucide-react';
+import { ArrowLeft, Search, CheckCircle, Clock, FileDown, Filter, ChevronDown, Printer } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -20,6 +20,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -134,10 +141,29 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                         <SelectItem value="Not Handed In">Not Handed In</SelectItem>
                     </SelectContent>
                  </Select>
-                <Button variant="secondary" disabled>
-                    <FileDown className="mr-2" />
-                    Download Grades
-                </Button>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" className="w-full md:w-auto">
+                            Export
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem disabled>
+                            <FileDown className="mr-2" />
+                            Download Grades (PDF)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled>
+                            <FileDown className="mr-2" />
+                            Download Grades (Excel)
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator/>
+                         <DropdownMenuItem disabled>
+                            <Printer className="mr-2" />
+                            Print View
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
         </CardHeader>

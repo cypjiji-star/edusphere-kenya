@@ -188,8 +188,8 @@ export default function GradesPage() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline">
-                          <ChevronDown className="mr-2" />
-                          Export & Reports
+                          Export
+                          <ChevronDown className="ml-2" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
@@ -199,7 +199,7 @@ export default function GradesPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem disabled>
                           <FileDown className="mr-2" />
-                          Download as Excel
+                          Download as Excel/CSV
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem disabled>
