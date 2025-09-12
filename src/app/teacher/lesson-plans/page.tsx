@@ -25,6 +25,9 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LessonPlanCalendar } from './lesson-plan-calendar';
+import { cn } from '@/lib/utils';
+
+export type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
 
 export type LessonPlan = {
   id: string;
@@ -32,7 +35,7 @@ export type LessonPlan = {
   subject: string;
   gradeLevel: string;
   lastUpdated: string;
-  status: 'Draft' | 'Published';
+  status: LessonPlanStatus;
 };
 
 export const allLessonPlans: LessonPlan[] = [
@@ -42,7 +45,7 @@ export const allLessonPlans: LessonPlan[] = [
     subject: 'Biology',
     gradeLevel: 'Form 2',
     lastUpdated: '2024-07-15',
-    status: 'Published',
+    status: 'Completed',
   },
   {
     id: 'lp-2',
@@ -50,7 +53,7 @@ export const allLessonPlans: LessonPlan[] = [
     subject: 'Chemistry',
     gradeLevel: 'Form 1',
     lastUpdated: '2024-07-18',
-    status: 'Draft',
+    status: 'In Progress',
   },
   {
     id: 'lp-3',
@@ -66,12 +69,29 @@ export const allLessonPlans: LessonPlan[] = [
     subject: 'History',
     gradeLevel: 'Grade 6',
     lastUpdated: '2024-07-10',
-    status: 'Published',
+    status: 'Draft',
   },
+  {
+    id: 'lp-5',
+    topic: 'Linear Equations',
+    subject: 'Mathematics',
+    gradeLevel: 'Form 3',
+    lastUpdated: '2024-07-20',
+    status: 'Skipped',
+  }
 ];
 
 const subjects = ['All Subjects', 'Biology', 'Chemistry', 'English', 'History', 'Mathematics', 'Physics'];
 const grades = ['All Grades', 'Grade 6', 'Form 1', 'Form 2', 'Form 3', 'Form 4'];
+
+const statusColors: Record<LessonPlanStatus, string> = {
+    'Published': 'bg-blue-500',
+    'Draft': 'bg-gray-500',
+    'Completed': 'bg-green-600',
+    'In Progress': 'bg-yellow-500',
+    'Skipped': 'bg-red-500',
+}
+
 
 export default function LessonPlansPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -165,7 +185,7 @@ export default function LessonPlansPage() {
                             <CardHeader>
                                 <div className="flex items-start justify-between">
                                     <CardTitle className="font-headline text-xl pt-2">{plan.topic}</CardTitle>
-                                    <Badge variant={plan.status === 'Published' ? 'default' : 'secondary'}>
+                                    <Badge className={cn("text-white", statusColors[plan.status])}>
                                         {plan.status}
                                     </Badge>
                                 </div>
@@ -173,7 +193,7 @@ export default function LessonPlansPage() {
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground">
-                                    Last Updated: {new Date(plan.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
+                                    Last Updated: {new Date(plan.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'UTC' })}
                                 </p>
                             </CardContent>
                             <CardFooter>
