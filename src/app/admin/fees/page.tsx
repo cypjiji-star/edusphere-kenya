@@ -36,7 +36,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CircleDollarSign, Search, Filter, ChevronDown, Percent, FileDown, Receipt, Send, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { CircleDollarSign, Search, Filter, ChevronDown, Percent, FileDown, Receipt, Send, PlusCircle, Edit, Trash2, Tag, HandHelping } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
   ChartContainer,
@@ -76,7 +76,13 @@ const mockFeeStructure = [
     { id: 'fs-3', category: 'Transport', appliesTo: 'Day Scholars (Bus)', amount: 10000 },
     { id: 'fs-4', category: 'Activities', appliesTo: 'All Students', amount: 5000 },
     { id: 'fs-5', category: 'Computer Lab Fee', appliesTo: 'Form 3 & 4', amount: 2000 },
-]
+];
+
+const mockDiscounts = [
+    { id: 'disc-1', name: 'Sibling Discount', type: 'Percentage', value: '10%', appliesTo: 'Per Sibling' },
+    { id: 'disc-2', name: 'Academic Scholarship', type: 'Fixed', value: 'KES 20,000', appliesTo: 'Top Performers' },
+    { id: 'disc-3', name: 'Staff Discount', type: 'Percentage', value: '50%', appliesTo: 'Children of Staff' },
+];
 
 const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const statuses: (PaymentStatus | 'All Statuses')[] = ['All Statuses', 'Paid', 'Partial', 'Unpaid', 'Overdue'];
@@ -196,112 +202,202 @@ export default function FeesPage() {
                 </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="flex-1">
-                    <CardTitle>Fee Structure Management</CardTitle>
-                    <CardDescription>Define and manage fee categories for different classes and terms.</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                     <Select defaultValue="term2-2024">
-                          <SelectTrigger className="w-full md:w-[180px]">
-                              <SelectValue placeholder="Select term" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                              <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
-                              <SelectItem value="annual-2024">Annual 2024</SelectItem>
-                          </SelectContent>
-                      </Select>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button>
-                            <PlusCircle className="mr-2 h-4 w-4"/>
-                            Create Fee Category
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-lg">
-                          <DialogHeader>
-                              <DialogTitle>Create New Fee Category</DialogTitle>
-                              <DialogDescription>Add a new item to the school's fee structure for a specific term.</DialogDescription>
-                          </DialogHeader>
-                          <div className="grid gap-6 py-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="category-term">Term</Label>
-                                    <Select defaultValue="term2-2024">
-                                        <SelectTrigger id="category-term">
-                                            <SelectValue placeholder="Select term" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                            <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
-                                            <SelectItem value="annual-2024">Annual 2024</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="category-amount">Amount (KES)</Label>
-                                    <Input id="category-amount" type="number" placeholder="e.g., 3000" />
-                                </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+                 <Card>
+                  <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div className="flex-1">
+                        <CardTitle>Fee Structure Management</CardTitle>
+                        <CardDescription>Define and manage fee categories for different classes and terms.</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <Select defaultValue="term2-2024">
+                              <SelectTrigger className="w-full md:w-[180px]">
+                                  <SelectValue placeholder="Select term" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                  <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                  <SelectItem value="annual-2024">Annual 2024</SelectItem>
+                              </SelectContent>
+                          </Select>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button>
+                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                Add Category
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-lg">
+                              <DialogHeader>
+                                  <DialogTitle>Create New Fee Category</DialogTitle>
+                                  <DialogDescription>Add a new item to the school's fee structure for a specific term.</DialogDescription>
+                              </DialogHeader>
+                              <div className="grid gap-6 py-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="category-term">Term</Label>
+                                        <Select defaultValue="term2-2024">
+                                            <SelectTrigger id="category-term">
+                                                <SelectValue placeholder="Select term" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                                <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                                <SelectItem value="annual-2024">Annual 2024</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="category-amount">Amount (KES)</Label>
+                                        <Input id="category-amount" type="number" placeholder="e.g., 3000" />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                      <Label htmlFor="category-name">Category Name</Label>
+                                      <Input id="category-name" placeholder="e.g., Swimming Club Fee" />
+                                  </div>
+                                  <div className="space-y-2">
+                                      <Label htmlFor="category-applies">Applies To</Label>
+                                      <Input id="category-applies" placeholder="e.g., All Students, Boarders, Form 1, Music Club" />
+                                       <p className="text-xs text-muted-foreground">You can specify classes, streams, or custom groups.</p>
+                                  </div>
+                                  <Separator />
+                                  <div className="flex items-center space-x-2">
+                                    <Switch id="optional-fee" />
+                                    <Label htmlFor="optional-fee">Optional Fee (Can be enabled/disabled per student)</Label>
+                                  </div>
                               </div>
-                              <div className="space-y-2">
-                                  <Label htmlFor="category-name">Category Name</Label>
-                                  <Input id="category-name" placeholder="e.g., Swimming Club Fee" />
-                              </div>
-                              <div className="space-y-2">
-                                  <Label htmlFor="category-applies">Applies To</Label>
-                                  <Input id="category-applies" placeholder="e.g., All Students, Boarders, Form 1, Music Club" />
-                                   <p className="text-xs text-muted-foreground">You can specify classes, streams, or custom groups.</p>
-                              </div>
-                              <Separator />
-                              <div className="flex items-center space-x-2">
-                                <Switch id="optional-fee" />
-                                <Label htmlFor="optional-fee">Optional Fee (Can be enabled/disabled per student)</Label>
-                              </div>
-                          </div>
-                          <DialogFooter>
-                              <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                              <Button disabled>Save Category</Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="w-full overflow-auto rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Category Name</TableHead>
-                        <TableHead>Applies To</TableHead>
-                        <TableHead className="text-right">Amount (KES)</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mockFeeStructure.map(item => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.category}</TableCell>
-                          <TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" disabled>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" disabled>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+                              <DialogFooter>
+                                  <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                  <Button disabled>Save Category</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="w-full overflow-auto rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Category Name</TableHead>
+                            <TableHead>Applies To</TableHead>
+                            <TableHead className="text-right">Amount (KES)</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {mockFeeStructure.map(item => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium">{item.category}</TableCell>
+                              <TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" disabled>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="text-destructive" disabled>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="flex-1">
+                                <CardTitle className="flex items-center gap-2"><HandHelping className="h-5 w-5 text-primary"/>Discounts &amp; Scholarships</CardTitle>
+                                <CardDescription>Manage financial aid, discounts, and scholarships.</CardDescription>
+                            </div>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <PlusCircle className="mr-2 h-4 w-4"/>
+                                        Add Discount
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Create New Discount/Scholarship</DialogTitle>
+                                        <DialogDescription>Define a new financial aid type to be applied to student fees.</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-6 py-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="discount-name">Name</Label>
+                                            <Input id="discount-name" placeholder="e.g., Sibling Discount" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="discount-type">Type</Label>
+                                                <Select>
+                                                    <SelectTrigger id="discount-type">
+                                                        <SelectValue placeholder="Select a type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="percentage">Percentage (%)</SelectItem>
+                                                        <SelectItem value="fixed">Fixed Amount (KES)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="discount-value">Value</Label>
+                                                <Input id="discount-value" type="number" placeholder="e.g., 10 or 5000" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="discount-applies">Applies To / Criteria</Label>
+                                            <Input id="discount-applies" placeholder="e.g., Has sibling in school, Top 5 in class" />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <Button disabled>Save Discount</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Discount Name</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Value</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {mockDiscounts.map(item => (
+                                        <TableRow key={item.id}>
+                                            <TableCell className="font-medium">{item.name}</TableCell>
+                                            <TableCell><Badge variant="outline">{item.type}</Badge></TableCell>
+                                            <TableCell>{item.value}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" disabled>
+                                                <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="text-destructive" disabled>
+                                                <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                         <p className="text-xs text-muted-foreground mt-4">For sponsor tracking, please use the upcoming "Sponsorships" module.</p>
+                    </CardContent>
+                 </Card>
+            </div>
 
             <Card>
                 <CardHeader>
@@ -418,5 +514,4 @@ export default function FeesPage() {
             </Card>
         </div>
     );
-
-    
+}
