@@ -3,6 +3,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Card,
   CardContent,
@@ -29,9 +30,10 @@ import {
   } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus } from 'lucide-react';
+import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 // Mock Data
@@ -94,6 +96,12 @@ const upcomingEvents = [
     }
 ]
 
+const mediaHighlights = [
+    { id: 'media-1', type: 'photo', url: 'https://picsum.photos/seed/match-highlight-1/800/600', caption: 'Goal against Nairobi School!', date: '2024-07-18' },
+    { id: 'media-2', type: 'photo', url: 'https://picsum.photos/seed/match-highlight-2/800/600', caption: 'Team celebration after winning the derby.', date: '2024-07-18' },
+    { id: 'media-3', type: 'video', url: 'https://picsum.photos/seed/match-highlight-3/800/600', caption: 'Match highlights video vs. Starehe.', date: '2024-07-12' },
+]
+
 export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
   const teamDetails = teams[params.teamId] || { name: 'Unknown Team', coach: 'N/A' };
   const initialMembers = studentMembers[params.teamId] || [];
@@ -126,22 +134,33 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
-          <div className="flex justify-between items-center">
-            <Button asChild variant="outline" size="sm">
-                <Link href="/teacher/sports">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to All Teams
-                </Link>
-            </Button>
-            <div>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex-1">
               <h1 className="font-headline text-2xl font-bold">{teamDetails.name}</h1>
               <p className="text-muted-foreground">Managed by {teamDetails.coach}</p>
             </div>
+            <div className="flex w-full md:w-auto items-center gap-2">
+                <Button asChild variant="outline" size="sm">
+                    <Link href="/teacher/sports">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to All Teams
+                    </Link>
+                </Button>
+                <Button disabled>
+                    <UserPlus className="mr-2" />
+                    Add Student
+                </Button>
+            </div>
           </div>
       </div>
-
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      
+      <Tabs defaultValue="roster">
+        <TabsList className="mb-4">
+            <TabsTrigger value="roster">Roster</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="media">Media &amp; Highlights</TabsTrigger>
+        </TabsList>
+        <TabsContent value="roster">
             <Card>
                 <CardHeader>
                 <CardTitle>Team Members ({members.length})</CardTitle>
@@ -157,13 +176,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                         onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-                        <Button disabled>
-                            <UserPlus className="mr-2" />
-                            Add Student
-                        </Button>
-                    </div>
-                    </div>
+                </div>
                 </CardHeader>
                 <CardContent>
                 <div className="w-full overflow-auto rounded-lg border">
@@ -234,11 +247,11 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                     </div>
                 </CardContent>
             </Card>
-        </div>
-        <div className="lg:col-span-1">
-             <Card>
+        </TabsContent>
+        <TabsContent value="schedule">
+            <Card>
                 <CardHeader>
-                    <CardTitle>Schedule & Events</CardTitle>
+                    <CardTitle>Schedule &amp; Events</CardTitle>
                     <CardDescription>View and manage upcoming team events.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -270,8 +283,49 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                     </Button>
                 </CardFooter>
              </Card>
-        </div>
-      </div>
+        </TabsContent>
+        <TabsContent value="media">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Media &amp; Highlights</CardTitle>
+                    <CardDescription>Celebrate wins and showcase student achievements.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {mediaHighlights.map(item => (
+                            <Card key={item.id} className="overflow-hidden group">
+                                <CardContent className="p-0">
+                                    <div className="relative aspect-video">
+                                        <Image src={item.url} alt={item.caption} fill className="object-cover transition-transform group-hover:scale-105"/>
+                                        {item.type === 'video' && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="p-4 flex-col items-start">
+                                    <p className="text-sm font-medium">{item.caption}</p>
+                                    <p className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                         <div className="flex items-center justify-center w-full">
+                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-full min-h-[200px] border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                    <p className="mb-2 text-sm text-muted-foreground">Upload Media</p>
+                                    <p className="text-xs text-muted-foreground">(Photos, Videos)</p>
+                                </div>
+                                <Input id="dropzone-file" type="file" className="hidden" disabled />
+                            </Label>
+                        </div>
+                    </div>
+                </CardContent>
+             </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
