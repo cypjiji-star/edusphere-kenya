@@ -62,6 +62,8 @@ import {
   UserCheck,
   UserX,
   TrendingUp,
+  AlertTriangle,
+  Send,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
@@ -110,9 +112,42 @@ const dailyTrendData = [
   { date: 'Jul 19', rate: 94 },
 ];
 
+const lowAttendanceAlerts = [
+    { class: 'Form 2', teacher: 'Ms. Njeri', rate: 68 },
+    { class: 'Form 1', teacher: 'Mr. Kamau', rate: 65 },
+]
+
 const chartConfig = {
     rate: { label: 'Attendance Rate', color: 'hsl(var(--primary))' },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
+
+function LowAttendanceAlerts() {
+    return (
+        <Card className="border-red-500/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600">
+                    <AlertTriangle className="h-6 w-6"/>
+                    Low Attendance Alerts
+                </CardTitle>
+                 <CardDescription>Classes with attendance below 70% in the selected period.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {lowAttendanceAlerts.map(alert => (
+                    <div key={alert.class} className="flex items-center justify-between p-3 rounded-lg bg-red-500/10">
+                        <div>
+                            <p className="font-bold">{alert.class} <span className="text-red-600">({alert.rate}%)</span></p>
+                            <p className="text-sm text-muted-foreground">{alert.teacher}</p>
+                        </div>
+                        <Button variant="secondary" size="sm" disabled>
+                            <Send className="mr-2 h-4 w-4"/>
+                            Send Reminder
+                        </Button>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function AdminAttendancePage() {
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -152,50 +187,54 @@ export default function AdminAttendancePage() {
         </h1>
         <p className="text-muted-foreground">View and export attendance data for the entire school.</p>
       </div>
+      
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+            <CardHeader>
+                <CardTitle>Attendance Summary</CardTitle>
+                <CardDescription>
+                    Summary for the selected period: {date?.from && format(date.from, 'LLL dd, y')}
+                    {date?.to && date.from?.getTime() !== date.to?.getTime() ? ` - ${format(date.to, 'LLL dd, y')}` : ''}
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-6 sm:grid-cols-3">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Overall Attendance Rate</CardTitle>
+                            <Percent className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{attendanceRate}%</div>
+                            <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
+                            <UserX className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{summaryStats.absent}</div>
+                            <p className="text-xs text-muted-foreground">students marked absent</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
+                            <UserCheck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{summaryStats.late}</div>
+                            <p className="text-xs text-muted-foreground">students marked late</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </CardContent>
+        </Card>
+        <LowAttendanceAlerts />
+      </div>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Attendance Summary</CardTitle>
-            <CardDescription>
-                Summary for the selected period: {date?.from && format(date.from, 'LLL dd, y')}
-                {date?.to && date.from?.getTime() !== date.to?.getTime() ? ` - ${format(date.to, 'LLL dd, y')}` : ''}
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Overall Attendance Rate</CardTitle>
-                        <Percent className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{attendanceRate}%</div>
-                        <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students marked present/late</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
-                        <UserX className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{summaryStats.absent}</div>
-                        <p className="text-xs text-muted-foreground">students marked absent</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
-                        <UserCheck className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{summaryStats.late}</div>
-                        <p className="text-xs text-muted-foreground">students marked late</p>
-                    </CardContent>
-                </Card>
-             </div>
-        </CardContent>
-      </Card>
 
        <Card>
             <CardHeader>
@@ -384,6 +423,5 @@ export default function AdminAttendancePage() {
       </Card>
     </div>
   );
-}
 
     
