@@ -114,7 +114,7 @@ export default function AssignmentsPage() {
                 <div className="flex items-start justify-between">
                     <BookMarked className="h-6 w-6 text-primary" />
                     <Badge variant={assignment.submissions === assignment.totalStudents ? 'default' : 'secondary'}>
-                        Due {new Date(assignment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        Due {new Date(assignment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
                     </Badge>
                 </div>
                 <CardTitle className="font-headline text-xl pt-2">{assignment.title}</CardTitle>
