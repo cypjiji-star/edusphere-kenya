@@ -55,6 +55,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { GradeAnalysisCharts } from './grade-analysis-charts';
+import { ReportGenerator } from './report-generator';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -144,10 +145,11 @@ export default function AdminGradesPage() {
             </div>
 
             <Tabs defaultValue="schedules">
-                <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex mb-6">
+                <TabsList className="grid w-full grid-cols-5 md:w-auto md:inline-flex mb-6">
                     <TabsTrigger value="schedules">Exam Schedules</TabsTrigger>
                     <TabsTrigger value="submissions">Submission Status</TabsTrigger>
                     <TabsTrigger value="analysis">Grade Analysis</TabsTrigger>
+                    <TabsTrigger value="reports">Reports</TabsTrigger>
                     <TabsTrigger value="settings">Settings &amp; Policies</TabsTrigger>
                 </TabsList>
 
@@ -329,6 +331,9 @@ export default function AdminGradesPage() {
                 <TabsContent value="analysis">
                      <GradeAnalysisCharts />
                 </TabsContent>
+                <TabsContent value="reports">
+                    <ReportGenerator />
+                </TabsContent>
                  <TabsContent value="settings">
                     <div className="grid gap-6 md:grid-cols-2">
                         <Card>
@@ -395,3 +400,5 @@ export default function AdminGradesPage() {
         </div>
     );
 }
+
+    
