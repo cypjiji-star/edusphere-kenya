@@ -6,8 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Users, UserCheck, UserPlus, ClipboardCheck, CircleDollarSign, Calendar, ArrowUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, UserCheck, UserPlus, ClipboardCheck, CircleDollarSign, Calendar, ArrowUp, PlusCircle, Megaphone, Shapes } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import Link from 'next/link';
 
 const overviewStats = [
     {
@@ -88,21 +90,37 @@ export default function AdminDashboard() {
 
             <Separator />
             
-            <div>
-                <h2 className="text-xl font-semibold mb-4">Quick Stats</h2>
-                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    {quickStats.map((stat) => (
-                        <Card key={stat.title}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                                {stat.icon}
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stat.stat}</div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                 </div>
+            <div className="grid gap-8 lg:grid-cols-2">
+                 <div>
+                    <h2 className="text-xl font-semibold mb-4">Quick Stats</h2>
+                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                        {quickStats.map((stat) => (
+                            <Card key={stat.title}>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                                    {stat.icon}
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{stat.stat}</div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                     </div>
+                </div>
+                <div>
+                     <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+                     <Card>
+                        <CardContent className="p-4">
+                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <Button disabled><PlusCircle /> Add Student</Button>
+                                <Button disabled><UserPlus /> Add Teacher</Button>
+                                <Button disabled><Megaphone /> Post Announcement</Button>
+                                <Button variant="secondary" asChild disabled><Link href="#"><Shapes/>Manage Classes</Link></Button>
+                                <Button variant="secondary" asChild disabled><Link href="#"><CircleDollarSign/>Manage Fees</Link></Button>
+                           </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
        </div>
 
