@@ -23,9 +23,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { AssignmentAnalytics } from './assignment-analytics';
+
+export type Assignment = {
+  id: string;
+  title: string;
+  className: string;
+  dueDate: string;
+  submissions: number;
+  totalStudents: number;
+};
 
 
-const allAssignments = [
+const allAssignments: Assignment[] = [
   {
     id: '1',
     title: 'Form 4 Chemistry - Acid-Base Titration Lab Report',
@@ -47,7 +57,7 @@ const allAssignments = [
     title: 'Form 2 Physics - Laws of Motion Problem Set',
     className: 'Form 2 - Physics',
     dueDate: '2024-07-25',
-    submissions: 0,
+    submissions: 5,
     totalStudents: 35,
   },
   {
@@ -55,7 +65,7 @@ const allAssignments = [
     title: 'Form 4 Chemistry - Organic Compounds Quiz',
     className: 'Form 4 - Chemistry',
     dueDate: '2024-07-28',
-    submissions: 0,
+    submissions: 25,
     totalStudents: 31,
   },
 ];
@@ -105,6 +115,8 @@ export default function AssignmentsPage() {
             </SelectContent>
         </Select>
       </div>
+
+      <AssignmentAnalytics assignments={assignments} />
 
       {assignments.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
