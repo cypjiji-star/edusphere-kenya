@@ -71,30 +71,48 @@ export type Student = {
 
 // Mock data for students
 const students: Record<string, Student[]> = {
-  'f4-chem': Array.from({ length: 31 }, (_, i) => ({
-    id: `f4-chem-${i + 1}`,
-    name: `Student ${i + 1}`,
-    rollNumber: `F4-00${i + 1}`,
-    avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100`,
-    overallGrade: `${Math.floor(seededRandom(i + 1) * (85 - 60 + 1)) + 60}%`,
-    attendance: 'present',
-  })),
-  'f3-math': Array.from({ length: 28 }, (_, i) => ({
-    id: `f3-math-${i + 1}`,
-    name: `Student ${i + 32}`,
-    rollNumber: `F3-00${i + 1}`,
-    avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100`,
-    overallGrade: `${Math.floor(seededRandom(i + 32) * (90 - 65 + 1)) + 65}%`,
-    attendance: 'present',
-  })),
-  'f2-phys': Array.from({ length: 35 }, (_, i) => ({
-    id: `f2-phys-${i + 1}`,
-    name: `Student ${i + 60}`,
-    rollNumber: `F2-00${i + 1}`,
-    avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100`,
-    overallGrade: `${Math.floor(seededRandom(i + 60) * (80 - 55 + 1)) + 55}%`,
-    attendance: 'present',
-  })),
+  'f4-chem': Array.from({ length: 31 }, (_, i) => {
+    const random = seededRandom(i+1);
+    let attendance: AttendanceStatus = 'present';
+    if(random < 0.1) attendance = 'absent';
+    else if (random < 0.2) attendance = 'late';
+    return {
+      id: `f4-chem-${i + 1}`,
+      name: `Student ${i + 1}`,
+      rollNumber: `F4-00${i + 1}`,
+      avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100`,
+      overallGrade: `${Math.floor(seededRandom(i + 1) * (85 - 60 + 1)) + 60}%`,
+      attendance,
+    };
+  }),
+  'f3-math': Array.from({ length: 28 }, (_, i) => {
+     const random = seededRandom(i+32);
+    let attendance: AttendanceStatus = 'present';
+    if(random < 0.05) attendance = 'absent';
+    else if (random < 0.1) attendance = 'late';
+    return {
+      id: `f3-math-${i + 1}`,
+      name: `Student ${i + 32}`,
+      rollNumber: `F3-00${i + 1}`,
+      avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100`,
+      overallGrade: `${Math.floor(seededRandom(i + 32) * (90 - 65 + 1)) + 65}%`,
+      attendance: 'present',
+    };
+  }),
+  'f2-phys': Array.from({ length: 35 }, (_, i) => {
+     const random = seededRandom(i+60);
+    let attendance: AttendanceStatus = 'present';
+    if(random < 0.15) attendance = 'absent';
+    else if (random < 0.25) attendance = 'late';
+    return {
+      id: `f2-phys-${i + 1}`,
+      name: `Student ${i + 60}`,
+      rollNumber: `F2-00${i + 1}`,
+      avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100`,
+      overallGrade: `${Math.floor(seededRandom(i + 60) * (80 - 55 + 1)) + 55}%`,
+      attendance: 'present',
+    };
+  }),
 };
 
 // Mock data for teacher's classes
@@ -114,8 +132,16 @@ export default function StudentsPage() {
   );
 
   React.useEffect(() => {
-    setClassStudents(teacherClasses.find(c => c.id === activeTab)?.students || []);
+    const newStudents = teacherClasses.find(c => c.id === activeTab)?.students || [];
+    setClassStudents(newStudents.map(s => {
+        const random = seededRandom(s.id.split('-').reduce((acc, val) => acc + (parseInt(val) || val.charCodeAt(0)), 0));
+        let attendance: AttendanceStatus = 'present';
+        if (random < 0.1) attendance = 'absent';
+        else if (random < 0.2) attendance = 'late';
+        return { ...s, attendance };
+    }));
   }, [activeTab]);
+
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setClassStudents(prevStudents =>
@@ -277,7 +303,7 @@ export default function StudentsPage() {
                             </TableCell>
                             <TableCell className="text-right">
                               <Button asChild variant="ghost" size="sm">
-                                <Link href={`/teacher/students/${student.name.toLowerCase().replace(/ /g, '-')}`}>
+                                <Link href={`/teacher/students/${student.id}`}>
                                   View Profile
                                   <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>

@@ -18,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 // Mock data fetching - in a real app, this would be an API call.
 const getStudentData = (studentId: string) => {
     // This is a simplified mock data fetch. A real implementation would be more robust.
-    const name = studentId.replace(/-(.)*$/, '').replace(/-/g, ' ');
+    const name = studentId.replace(/-\d+$/, '').replace(/-/g, ' ');
     const studentName = name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     
     return {

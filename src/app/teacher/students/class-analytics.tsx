@@ -17,9 +17,7 @@ import {
   ChartLegend,
   ChartLegendContent
 } from '@/components/ui/chart';
-import { Student } from './page';
-
-type AttendanceStatus = 'present' | 'absent' | 'late';
+import type { Student } from './page';
 
 const gradeRanges = [
     { range: '90-100', min: 90, max: 100, count: 0 },
@@ -55,7 +53,7 @@ const attendanceChartConfig = {
     label: 'Absent',
     color: ATTENDANCE_COLORS.absent,
   },
-};
+} satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
 export function ClassAnalytics({ students }: { students: Student[] }) {
     
@@ -72,15 +70,15 @@ export function ClassAnalytics({ students }: { students: Student[] }) {
     }, [students]);
 
     const attendanceData = React.useMemo(() => {
-        const counts = { present: 0, late: 0, absent: 0 };
+        const counts: Record<Student['attendance'], number> = { present: 0, late: 0, absent: 0 };
         students.forEach(student => {
             counts[student.attendance]++;
         });
-        return [
-            { name: 'present', value: counts.present, fill: attendanceChartConfig.present.color },
-            { name: 'late', value: counts.late, fill: attendanceChartConfig.late.color },
-            { name: 'absent', value: counts.absent, fill: attendanceChartConfig.absent.color },
-        ].filter(d => d.value > 0);
+        return Object.entries(counts).map(([name, value]) => ({
+            name: name as Student['attendance'],
+            value,
+            fill: attendanceChartConfig[name as Student['attendance']].color,
+        })).filter(d => d.value > 0);
     }, [students]);
 
     const totalStudents = students.length;
