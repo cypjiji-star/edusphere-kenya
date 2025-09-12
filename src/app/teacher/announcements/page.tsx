@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -91,6 +92,14 @@ export default function AnnouncementsPage() {
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
   const form = useForm();
+  const { toast } = useToast();
+
+  const handleTranslate = () => {
+    toast({
+        title: 'AI Translation',
+        description: 'This is a placeholder for AI translation. In a real app, this would translate the message content.',
+    });
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -112,14 +121,14 @@ export default function AnnouncementsPage() {
                       <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label htmlFor="message">Message</Label>
-                            <Button variant="outline" size="sm" onClick={() => {}} disabled>
+                            <Button variant="outline" size="sm" onClick={handleTranslate}>
                               <Languages className="mr-2 h-4 w-4" />
                               Translate with AI
                             </Button>
                           </div>
                           <Textarea id="message" placeholder="Type your announcement here..." className="min-h-[150px]" />
                            <FormDescription>
-                            The AI can translate your message into multiple languages. This feature is coming soon.
+                            The AI can translate your message into multiple languages.
                           </FormDescription>
                       </div>
                       <div className="space-y-2">
