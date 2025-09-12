@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { FinanceSnapshot, PerformanceSnapshot } from './admin-charts';
+import { CalendarWidget } from './calendar-widget';
 
 const overviewStats = [
     {
@@ -167,28 +168,31 @@ export default function AdminDashboard() {
        </div>
 
        <div className="mt-8 grid gap-8 lg:grid-cols-3">
-         <Card className="lg:col-span-1">
-            <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>A live feed of important events across the school.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-6">
-                    {recentActivities.map((activity, index) => (
-                        <div key={index} className="flex items-start gap-4">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                {activity.icon}
+         <div className="lg:col-span-1 space-y-8">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                    <CardDescription>A live feed of important events across the school.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-6">
+                        {recentActivities.map((activity, index) => (
+                            <div key={index} className="flex items-start gap-4">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                                    {activity.icon}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium">{activity.title}</p>
+                                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                </div>
+                                <Badge variant={activity.category === 'Urgent' ? 'destructive' : 'outline'}>{activity.category}</Badge>
                             </div>
-                            <div className="flex-1">
-                                <p className="text-sm font-medium">{activity.title}</p>
-                                <p className="text-xs text-muted-foreground">{activity.time}</p>
-                            </div>
-                             <Badge variant={activity.category === 'Urgent' ? 'destructive' : 'outline'}>{activity.category}</Badge>
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-         </Card>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+            <CalendarWidget />
+         </div>
           <div className="lg:col-span-2 space-y-8">
             <FinanceSnapshot />
             <PerformanceSnapshot />
