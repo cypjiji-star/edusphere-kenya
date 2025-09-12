@@ -36,6 +36,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent';
 type UserStatus = 'Active' | 'Pending' | 'Inactive';
@@ -59,8 +61,8 @@ const mockUsers: User[] = [
     { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Inactive', lastLogin: '2024-06-10T08:00:00Z' },
 ];
 
-const roles: (UserRole | 'All Roles')[] = ['All Roles', 'Admin', 'Teacher', 'Student', 'Parent'];
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Inactive'];
+const roles: UserRole[] = ['Admin', 'Teacher', 'Student', 'Parent'];
 
 const getStatusBadge = (status: UserStatus) => {
     switch (status) {
@@ -70,22 +72,80 @@ const getStatusBadge = (status: UserStatus) => {
     }
 }
 
-
 export default function UserManagementPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
-    const [roleFilter, setRoleFilter] = React.useState<UserRole | 'All Roles'>('All Roles');
     const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'All Statuses'>('All Statuses');
     const [clientReady, setClientReady] = React.useState(false);
-
+    
     React.useEffect(() => {
         setClientReady(true);
     }, []);
 
-    const filteredUsers = mockUsers.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (roleFilter === 'All Roles' || user.role === roleFilter) &&
-        (statusFilter === 'All Statuses' || user.status === statusFilter)
-    );
+    const renderUserTable = (roleFilter: UserRole | 'All') => {
+        const filteredUsers = mockUsers.filter(user => 
+            user.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+            (roleFilter === 'All' || user.role === roleFilter) &&
+            (statusFilter === 'All Statuses' || user.status === statusFilter)
+        );
+
+        return (
+            <>
+                <div className="w-full overflow-auto rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>User</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Last Login</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredUsers.length > 0 ? (
+                                filteredUsers.map((user) => (
+                                    <TableRow key={user.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-9 w-9">
+                                                    <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                                    <AvatarFallback>{user.name.slice(0,2)}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium">{user.name}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{user.email}</TableCell>
+                                        <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
+                                        <TableCell>{getStatusBadge(user.status)}</TableCell>
+                                        <TableCell>
+                                            {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" disabled>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center">
+                                        No users found for the selected filters.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <CardFooter className="px-0 pt-6">
+                    <div className="text-xs text-muted-foreground">
+                        Showing <strong>{filteredUsers.length}</strong> of <strong>{mockUsers.length}</strong> total users.
+                    </div>
+                </CardFooter>
+            </>
+        );
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -100,8 +160,8 @@ export default function UserManagementPage() {
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <CardTitle>All Users</CardTitle>
-                            <CardDescription>A list of all users in the system.</CardDescription>
+                            <CardTitle>User Directory</CardTitle>
+                            <CardDescription>A list of all users in the system, organized by role.</CardDescription>
                         </div>
                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                             <Button disabled>
@@ -135,14 +195,6 @@ export default function UserManagementPage() {
                             />
                         </div>
                          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-                             <Select value={roleFilter} onValueChange={(v: UserRole | 'All Roles') => setRoleFilter(v)}>
-                                <SelectTrigger className="w-full md:w-[180px]">
-                                    <SelectValue placeholder="Filter by role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                </SelectContent>
-                             </Select>
                              <Select value={statusFilter} onValueChange={(v: UserStatus | 'All Statuses') => setStatusFilter(v)}>
                                 <SelectTrigger className="w-full md:w-[180px]">
                                     <SelectValue placeholder="Filter by status" />
@@ -155,62 +207,32 @@ export default function UserManagementPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Last Login</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredUsers.length > 0 ? (
-                                    filteredUsers.map((user) => (
-                                        <TableRow key={user.id}>
-                                            <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar className="h-9 w-9">
-                                                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                                        <AvatarFallback>{user.name.slice(0,2)}</AvatarFallback>
-                                                    </Avatar>
-                                                    <span className="font-medium">{user.name}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{user.email}</TableCell>
-                                            <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
-                                            <TableCell>{getStatusBadge(user.status)}</TableCell>
-                                            <TableCell>
-                                                {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" disabled>
-                                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
-                                            No users found for the selected filters.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                   <Tabs defaultValue="all" className="w-full">
+                        <TabsList className="grid w-full grid-cols-5">
+                            <TabsTrigger value="all">All Users</TabsTrigger>
+                            <TabsTrigger value="Student">Students</TabsTrigger>
+                            <TabsTrigger value="Teacher">Teachers</TabsTrigger>
+                            <TabsTrigger value="Parent">Parents</TabsTrigger>
+                            <TabsTrigger value="Admin">Admins</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="all" className="mt-4">
+                            {renderUserTable('All')}
+                        </TabsContent>
+                        <TabsContent value="Student" className="mt-4">
+                            {renderUserTable('Student')}
+                        </TabsContent>
+                        <TabsContent value="Teacher" className="mt-4">
+                            {renderUserTable('Teacher')}
+                        </TabsContent>
+                        <TabsContent value="Parent" className="mt-4">
+                            {renderUserTable('Parent')}
+                        </TabsContent>
+                         <TabsContent value="Admin" className="mt-4">
+                            {renderUserTable('Admin')}
+                        </TabsContent>
+                   </Tabs>
                 </CardContent>
-                <CardFooter>
-                    <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredUsers.length}</strong> of <strong>{mockUsers.length}</strong> total users.
-                    </div>
-                </CardFooter>
              </Card>
         </div>
     );
 }
-
