@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -324,45 +324,62 @@ export default function HealthPage() {
                                         </FormItem>
                                         )}
                                     />
-                                     <div className="space-y-4 rounded-lg border p-4">
-                                        <h4 className="font-medium">Notification Settings</h4>
-                                        <FormField
-                                            control={form.control}
-                                            name="notifyAdmin"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center justify-between">
-                                                <div className="space-y-0.5">
-                                                    <FormLabel>Notify Administration</FormLabel>
-                                                    <FormDescription>
-                                                    A report will be sent to the school admin office.
-                                                    </FormDescription>
+                                     <div className="space-y-2">
+                                        <Label>File Attachments (e.g., doctor's note, photo)</Label>
+                                        <div className="flex items-center justify-center w-full">
+                                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                    <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                    <p className="mb-2 text-sm text-muted-foreground">Attach files</p>
+                                                    <p className="text-xs text-muted-foreground">(Feature coming soon)</p>
                                                 </div>
-                                                <FormControl>
-                                                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                                </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="notifyParents"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center justify-between">
-                                                <div className="space-y-0.5">
-                                                    <FormLabel>Notify Parents/Guardians</FormLabel>
-                                                    <FormDescription>
-                                                    An SMS/Email will be sent to the student's primary contact.
-                                                    </FormDescription>
-                                                </div>
-                                                <FormControl>
-                                                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                                </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
+                                                <Input id="dropzone-file" type="file" className="hidden" disabled />
+                                            </Label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+
+                            <Separator className="my-8" />
+
+                            <div className="space-y-4 rounded-lg border p-4">
+                                <h4 className="font-medium">Notification Settings</h4>
+                                <FormField
+                                    control={form.control}
+                                    name="notifyAdmin"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Notify Administration</FormLabel>
+                                            <FormDescription>
+                                            A report will be sent to the school admin office.
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="notifyParents"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Notify Parents/Guardians</FormLabel>
+                                            <FormDescription>
+                                            An SMS/Email will be sent to the student's primary contact.
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            
                             <div className="flex justify-end pt-8">
                                 <Button type="submit">
                                     <Send className="mr-2 h-4 w-4" />
