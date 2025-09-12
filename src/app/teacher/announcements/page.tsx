@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,6 +20,12 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Form, FormDescription } from '@/components/ui/form';
 import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const pastAnnouncements = [
     {
@@ -56,17 +62,17 @@ export default function AnnouncementsPage() {
 
        <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
+            <Form {...form}>
             <Card>
                 <CardHeader>
-                    <CardTitle>Compose New Announcement</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Send className="h-6 w-6 text-primary"/>Compose New Announcement</CardTitle>
                     <CardDescription>Draft and send a new broadcast message.</CardDescription>
                 </CardHeader>
-                <Form {...form}>
                   <CardContent className="space-y-6">
                       <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label htmlFor="message">Message</Label>
-                            <Button variant="outline" size="sm" disabled>
+                            <Button variant="outline" size="sm" onClick={() => {}} disabled>
                               <Languages className="mr-2 h-4 w-4" />
                               Translate
                             </Button>
@@ -85,7 +91,7 @@ export default function AnnouncementsPage() {
                                       <p className="mb-2 text-sm text-muted-foreground">Attach files, images, or videos</p>
                                       <p className="text-xs text-muted-foreground">(PDF, JPG, MP4, etc.)</p>
                                   </div>
-                                  <Input id="dropzone-file" type="file" className="hidden" disabled />
+                                  <Input id="dropzone-file" type="file" className="hidden" />
                               </Label>
                           </div>
                           <FormDescription>
@@ -95,7 +101,7 @@ export default function AnnouncementsPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-2">
                               <Label htmlFor="audience">Audience</Label>
-                              <Select disabled>
+                              <Select>
                                   <SelectTrigger id="audience">
                                       <SelectValue placeholder="Select target groups" />
                                   </SelectTrigger>
@@ -174,7 +180,6 @@ export default function AnnouncementsPage() {
                           </div>
                       </div>
                   </CardContent>
-                </Form>
                 <CardFooter>
                     <Button>
                         <Send className="mr-2 h-4 w-4" />
@@ -182,14 +187,30 @@ export default function AnnouncementsPage() {
                     </Button>
                 </CardFooter>
             </Card>
+            </Form>
         </div>
         <div className="lg:col-span-1">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <History className="h-5 w-5 text-primary" />
-                        Sent History
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <History className="h-5 w-5 text-primary" />
+                            Sent History
+                        </CardTitle>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                    Export
+                                    <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                <DropdownMenuItem disabled><Archive className="mr-2 h-4 w-4" />Archive All</DropdownMenuItem>
+                            </DropdownMenuContent>
+                         </DropdownMenu>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {pastAnnouncements.map((ann, index) => (
