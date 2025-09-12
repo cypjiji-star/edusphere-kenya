@@ -50,6 +50,7 @@ import { Separator } from '@/components/ui/separator';
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GradeEntryForm } from './grade-entry-form';
+import { ReportGenerator } from './report-generator';
 
 
 // --- Mock Data ---
@@ -59,7 +60,7 @@ type Grade = {
   score: number | string; // Can be percentage or letter grade
 };
 
-type StudentGrades = {
+export type StudentGrades = {
   studentId: string;
   studentName: string;
   studentAvatar: string;
@@ -68,14 +69,14 @@ type StudentGrades = {
   overall: number;
 };
 
-type Assessment = {
+export type Assessment = {
   id: string;
   title: string;
   type: 'Exam' | 'Assignment' | 'Quiz';
   date: string;
 };
 
-const assessmentsByClass: Record<string, Assessment[]> = {
+export const assessmentsByClass: Record<string, Assessment[]> = {
   'f4-chem': [
     { id: 'assess-1', title: 'Mid-Term Exam', type: 'Exam', date: '2024-06-15' },
     { id: 'assess-2', title: 'Titration Lab Report', type: 'Assignment', date: '2024-07-22' },
@@ -90,7 +91,7 @@ const assessmentsByClass: Record<string, Assessment[]> = {
   ],
 };
 
-const gradesByClass: Record<string, StudentGrades[]> = {
+export const gradesByClass: Record<string, StudentGrades[]> = {
   'f4-chem': Array.from({ length: 31 }, (_, i) => ({
     studentId: `f4-chem-${i + 1}`,
     studentName: `Student ${i + 1}`,
@@ -117,7 +118,7 @@ const gradesByClass: Record<string, StudentGrades[]> = {
   'f2-phys': [],
 };
 
-const teacherClasses = [
+export const teacherClasses = [
     { id: 'f4-chem', name: 'Form 4 - Chemistry' },
     { id: 'f3-math', name: 'Form 3 - Mathematics' },
     { id: 'f2-phys', name: 'Form 2 - Physics' },
@@ -148,9 +149,10 @@ export default function GradesPage() {
               <CardTitle className="font-headline text-2xl">Gradebook</CardTitle>
               <CardDescription>View, manage, and export student grades for your classes.</CardDescription>
             </div>
-            <TabsList className="mt-4 md:mt-0">
+            <TabsList className="grid w-full grid-cols-3 md:w-auto mt-4 md:mt-0">
               <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
               <TabsTrigger value="entry">Enter Grades</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
             </TabsList>
           </div>
         </CardHeader>
@@ -316,6 +318,9 @@ export default function GradesPage() {
               <GradeEntryForm />
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="reports">
+            <ReportGenerator />
         </TabsContent>
       </Tabs>
     </div>
