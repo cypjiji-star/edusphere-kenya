@@ -11,14 +11,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive, Tag } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Form, FormDescription } from '@/components/ui/form';
+import { Form, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -26,6 +26,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+
+type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
+
+const announcementCategories: Record<AnnouncementCategory, { label: string; color: string;}> = {
+    Urgent: { label: 'Urgent Alert', color: 'bg-red-500 border-red-500 text-white' },
+    Academic: { label: 'Academic', color: 'bg-blue-500 border-blue-500 text-white' },
+    Event: { label: 'Event', color: 'bg-purple-500 border-purple-500 text-white' },
+    General: { label: 'General Info', color: 'bg-gray-500 border-gray-500 text-white' },
+};
+
 
 const pastAnnouncements = [
     {
@@ -36,6 +47,7 @@ const pastAnnouncements = [
         views: 28,
         totalRecipients: 30,
         acknowledgements: 15,
+        category: 'Urgent' as AnnouncementCategory,
     },
     {
         id: 'ann-2',
@@ -45,6 +57,7 @@ const pastAnnouncements = [
         views: 850,
         totalRecipients: 900,
         acknowledgements: 0, // Not required for this type
+        category: 'General' as AnnouncementCategory,
     }
 ];
 
@@ -63,6 +76,7 @@ export default function AnnouncementsPage() {
        <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
             <Form {...form}>
+            <form onSubmit={form.handleSubmit(() => {})}>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Send className="h-6 w-6 text-primary"/>Compose New Announcement</CardTitle>
@@ -91,7 +105,7 @@ export default function AnnouncementsPage() {
                                       <p className="mb-2 text-sm text-muted-foreground">Attach files, images, or videos</p>
                                       <p className="text-xs text-muted-foreground">(PDF, JPG, MP4, etc.)</p>
                                   </div>
-                                  <Input id="dropzone-file" type="file" className="hidden" />
+                                  <Input id="dropzone-file" type="file" className="hidden" disabled />
                               </Label>
                           </div>
                           <FormDescription>
@@ -99,7 +113,7 @@ export default function AnnouncementsPage() {
                           </FormDescription>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
+                            <div className="space-y-2">
                               <Label htmlFor="audience">Audience</Label>
                               <Select>
                                   <SelectTrigger id="audience">
@@ -114,7 +128,21 @@ export default function AnnouncementsPage() {
                               </Select>
                               <p className="text-xs text-muted-foreground">Multi-group selection coming soon.</p>
                           </div>
-                          <div className="space-y-2">
+                           <div className="space-y-2">
+                              <Label htmlFor="category">Category</Label>
+                              <Select>
+                                  <SelectTrigger id="category">
+                                      <SelectValue placeholder="Select a category" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Object.entries(announcementCategories).map(([key, {label}]) => (
+                                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                      </div>
+                       <div className="space-y-2">
                               <div className="flex items-center space-x-2 mb-2">
                                   <Switch id="schedule-send" checked={isScheduling} onCheckedChange={setIsScheduling} />
                                   <Label htmlFor="schedule-send">Schedule for later</Label>
@@ -154,7 +182,6 @@ export default function AnnouncementsPage() {
                                   </Popover>
                               )}
                           </div>
-                      </div>
                         <Separator />
                       <div className="space-y-4">
                           <Alert>
@@ -187,6 +214,7 @@ export default function AnnouncementsPage() {
                     </Button>
                 </CardFooter>
             </Card>
+            </form>
             </Form>
         </div>
         <div className="lg:col-span-1">
@@ -216,6 +244,11 @@ export default function AnnouncementsPage() {
                     {pastAnnouncements.map((ann, index) => (
                         <div key={ann.id}>
                             <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Badge className={cn(announcementCategories[ann.category].color)}>
+                                        {announcementCategories[ann.category].label}
+                                    </Badge>
+                                </div>
                                 <p className="text-sm leading-relaxed">{ann.content}</p>
                                 <div className="text-xs text-muted-foreground flex items-center justify-between">
                                     <span>To: <span className="font-medium">{ann.audience}</span></span>
