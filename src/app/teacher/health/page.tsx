@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -107,6 +107,11 @@ const incidentLog = [
     { id: 'inc-2', studentName: 'Student 32', studentAvatar: 'https://picsum.photos/seed/f3-student1/100', type: 'Accident', description: 'Slipped and fell during break time. Minor scrape on the knee.', date: '2024-07-12', status: 'Resolved' },
 ];
 
+const medicationLog = [
+    { id: 'med-1', studentName: 'Student 1', medication: 'Asthma Inhaler', dosage: '2 puffs', time: '2024-07-15 10:30 AM', givenBy: 'Ms. Wanjiku' },
+    { id: 'med-2', studentName: 'Student 32', medication: 'Paracetamol', dosage: '1 tablet', time: '2024-07-14 09:00 AM', givenBy: 'Nurse Joy' },
+]
+
 const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
     switch (urgency) {
         case 'Critical': return 'bg-red-700 text-white';
@@ -154,10 +159,11 @@ export default function HealthPage() {
       </div>
       
       <Tabs defaultValue="report">
-        <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex">
+        <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex">
             <TabsTrigger value="report">New Incident</TabsTrigger>
             <TabsTrigger value="log">Incident Log</TabsTrigger>
             <TabsTrigger value="records">Health Records</TabsTrigger>
+            <TabsTrigger value="medication">Medication Log</TabsTrigger>
         </TabsList>
 
         <TabsContent value="report">
@@ -565,6 +571,78 @@ export default function HealthPage() {
                     )}
                 </CardContent>
             </Card>
+        </TabsContent>
+         <TabsContent value="medication">
+             <Card className="mt-4">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Pill className="h-5 w-5 text-primary"/>Medication Log</CardTitle>
+                    <CardDescription>Record and track medication administered to students at school.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid gap-8 md:grid-cols-2">
+                        <div className="space-y-6">
+                            <h3 className="font-semibold text-lg">Log New Administration</h3>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Student</Label>
+                                    <Select>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a student" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {students.map((s) => (
+                                                <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="med-name">Medication Name</Label>
+                                    <Input id="med-name" placeholder="e.g., Paracetamol" />
+                                </div>
+                                 <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="med-dosage">Dosage</Label>
+                                        <Input id="med-dosage" placeholder="e.g., 1 tablet, 5ml" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="med-time">Time Given</Label>
+                                        <Input id="med-time" type="time" defaultValue={format(new Date(), 'HH:mm')} />
+                                    </div>
+                                 </div>
+                                  <div className="flex items-center space-x-2 pt-4">
+                                    <Switch id="med-reminder" disabled />
+                                    <Label htmlFor="med-reminder">Set reminder for next dose</Label>
+                                </div>
+                                <Button disabled>Save Log</Button>
+                            </div>
+                        </div>
+                        <div className="space-y-6">
+                            <h3 className="font-semibold text-lg">Recent Log</h3>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Student</TableHead>
+                                            <TableHead>Medication</TableHead>
+                                            <TableHead>Time</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {medicationLog.map(log => (
+                                            <TableRow key={log.id}>
+                                                <TableCell className="font-medium">{log.studentName}</TableCell>
+                                                <TableCell>{log.medication}</TableCell>
+                                                <TableCell>{log.time}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+             </Card>
         </TabsContent>
       </Tabs>
     </div>
