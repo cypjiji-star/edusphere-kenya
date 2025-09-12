@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -70,6 +70,7 @@ const incidentSchema = z.object({
   urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
   notifyParents: z.boolean().default(false),
   notifyAdmin: z.boolean().default(true),
+  notifyNurse: z.boolean().default(false),
 });
 
 type IncidentFormValues = z.infer<typeof incidentSchema>;
@@ -127,6 +128,7 @@ export default function HealthPage() {
       urgency: 'Low',
       notifyParents: false,
       notifyAdmin: true,
+      notifyNurse: false,
     },
   });
 
@@ -342,8 +344,15 @@ export default function HealthPage() {
 
                             <Separator className="my-8" />
 
-                            <div className="space-y-4 rounded-lg border p-4">
-                                <h4 className="font-medium">Notification Settings</h4>
+                            <Alert>
+                                <Siren className="h-4 w-4" />
+                                <AlertTitle>Immediate Notifications</AlertTitle>
+                                <AlertDescription>
+                                    Enable these options to send immediate alerts upon submission. Use for urgent matters only.
+                                </AlertDescription>
+                            </Alert>
+
+                            <div className="space-y-4 rounded-lg border p-4 mt-4">
                                 <FormField
                                     control={form.control}
                                     name="notifyAdmin"
@@ -356,11 +365,12 @@ export default function HealthPage() {
                                             </FormDescription>
                                         </div>
                                         <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled/>
                                         </FormControl>
                                         </FormItem>
                                     )}
                                 />
+                                <Separator />
                                 <FormField
                                     control={form.control}
                                     name="notifyParents"
@@ -373,7 +383,25 @@ export default function HealthPage() {
                                             </FormDescription>
                                         </div>
                                         <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled/>
+                                        </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <Separator />
+                                <FormField
+                                    control={form.control}
+                                    name="notifyNurse"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Alert School Nurse / First Aid Team</FormLabel>
+                                            <FormDescription>
+                                            Sends an immediate notification to health staff.
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled/>
                                         </FormControl>
                                         </FormItem>
                                     )}
