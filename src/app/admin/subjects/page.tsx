@@ -25,16 +25,29 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Shapes, PlusCircle, User, Search, ArrowRight } from 'lucide-react';
+import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+
 
 type SchoolClass = {
   id: string;
   name: string;
   stream?: string;
   studentCount: number;
+  capacity: number;
   classTeacher: {
     name: string;
     avatarUrl: string;
@@ -47,6 +60,7 @@ const mockClasses: SchoolClass[] = [
     name: 'Form 4',
     stream: 'A',
     studentCount: 42,
+    capacity: 45,
     classTeacher: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' },
   },
     {
@@ -54,6 +68,7 @@ const mockClasses: SchoolClass[] = [
     name: 'Form 4',
     stream: 'B',
     studentCount: 43,
+    capacity: 45,
     classTeacher: { name: 'Mr. Kamau', avatarUrl: 'https://picsum.photos/seed/teacher-kamau/100' },
   },
   {
@@ -61,6 +76,7 @@ const mockClasses: SchoolClass[] = [
     name: 'Form 3',
     stream: 'North',
     studentCount: 45,
+    capacity: 50,
     classTeacher: { name: 'Mr. Otieno', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100' },
   },
     {
@@ -68,21 +84,33 @@ const mockClasses: SchoolClass[] = [
     name: 'Form 3',
     stream: 'South',
     studentCount: 47,
+    capacity: 50,
     classTeacher: { name: 'Ms. Njeri', avatarUrl: 'https://picsum.photos/seed/teacher-njeri/100' },
   },
   {
     id: 'form-2',
     name: 'Form 2',
     studentCount: 95,
+    capacity: 100,
      classTeacher: { name: 'Mr. Kimani', avatarUrl: 'https://picsum.photos/seed/teacher-kimani/100' },
   },
    {
     id: 'form-1',
     name: 'Form 1',
     studentCount: 101,
+    capacity: 110,
      classTeacher: { name: 'Ms. Akinyi', avatarUrl: 'https://picsum.photos/seed/teacher-akinyi/100' },
   },
 ];
+
+const mockTeachers = [
+    { id: 't-1', name: 'Ms. Wanjiku' },
+    { id: 't-2', name: 'Mr. Kamau' },
+    { id: 't-3', name: 'Mr. Otieno' },
+    { id: 't-4', name: 'Ms. Njeri' },
+    { id: 't-5', name: 'Mr. Kimani' },
+    { id: 't-6', name: 'Ms. Akinyi' },
+]
 
 
 export default function ClassesAndSubjectsPage() {
@@ -96,10 +124,63 @@ export default function ClassesAndSubjectsPage() {
           </h1>
           <p className="text-muted-foreground">View classes, assign subjects, and manage class teachers.</p>
         </div>
-        <Button disabled>
-          <PlusCircle className="mr-2" />
-          Add New Class
-        </Button>
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button>
+                  <PlusCircle className="mr-2" />
+                  Add New Class
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add a New Class</DialogTitle>
+                    <DialogDescription>
+                        Fill in the details below. A unique class code will be generated automatically.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="class-name" className="text-right">Class Name</Label>
+                        <Input id="class-name" placeholder="e.g., Form 1" className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="class-stream" className="text-right">Stream</Label>
+                        <Input id="class-stream" placeholder="e.g., A, North (Optional)" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="class-teacher" className="text-right">Class Teacher</Label>
+                        <Select>
+                            <SelectTrigger id="class-teacher" className="col-span-3">
+                                <SelectValue placeholder="Select a teacher" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {mockTeachers.map(teacher => (
+                                    <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="class-capacity" className="text-right">Capacity</Label>
+                        <Input id="class-capacity" type="number" placeholder="e.g., 45" className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-start gap-4">
+                        <Label className="text-right pt-2">Co-Teachers</Label>
+                        <div className="col-span-3">
+                            <Button variant="outline" size="sm" disabled>
+                                <UserPlus className="mr-2 h-4 w-4"/>
+                                Assign Co-Teacher
+                            </Button>
+                             <p className="text-xs text-muted-foreground mt-2">Multiple teacher assignment is coming soon.</p>
+                        </div>
+                    </div>
+                </div>
+                 <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button disabled>Save Class</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
@@ -137,7 +218,7 @@ export default function ClassesAndSubjectsPage() {
                             <TableHead>Class</TableHead>
                             <TableHead>Stream</TableHead>
                             <TableHead>Class Teacher</TableHead>
-                            <TableHead className="text-center">Students</TableHead>
+                            <TableHead className="text-center">Enrollment</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -161,8 +242,54 @@ export default function ClassesAndSubjectsPage() {
                                         <span className="font-medium">{schoolClass.classTeacher.name}</span>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-center">{schoolClass.studentCount}</TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-center">{schoolClass.studentCount} / {schoolClass.capacity}</TableCell>
+                                <TableCell className="text-right space-x-2">
+                                     <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="ghost" size="sm">
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                             <DialogHeader>
+                                                <DialogTitle>Edit Class: {schoolClass.name} {schoolClass.stream || ''}</DialogTitle>
+                                                <DialogDescription>
+                                                    Update the details for this class.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                             <div className="grid gap-4 py-4">
+                                                <div className="grid grid-cols-4 items-center gap-4">
+                                                    <Label htmlFor="class-name-edit" className="text-right">Class Name</Label>
+                                                    <Input id="class-name-edit" defaultValue={schoolClass.name} className="col-span-3" />
+                                                </div>
+                                                <div className="grid grid-cols-4 items-center gap-4">
+                                                    <Label htmlFor="class-stream-edit" className="text-right">Stream</Label>
+                                                    <Input id="class-stream-edit" defaultValue={schoolClass.stream} className="col-span-3" />
+                                                </div>
+                                                <div className="grid grid-cols-4 items-center gap-4">
+                                                    <Label htmlFor="class-teacher-edit" className="text-right">Class Teacher</Label>
+                                                    <Select defaultValue={mockTeachers.find(t => t.name === schoolClass.classTeacher.name)?.id}>
+                                                        <SelectTrigger id="class-teacher-edit" className="col-span-3">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {mockTeachers.map(teacher => (
+                                                                <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                 <div className="grid grid-cols-4 items-center gap-4">
+                                                    <Label htmlFor="class-capacity-edit" className="text-right">Capacity</Label>
+                                                    <Input id="class-capacity-edit" type="number" defaultValue={schoolClass.capacity} className="col-span-3" />
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                <Button disabled>Save Changes</Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                     <Button variant="ghost" size="sm" disabled>
                                         Manage Subjects
                                         <ArrowRight className="ml-2 h-4 w-4" />
