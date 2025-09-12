@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -79,6 +79,13 @@ const students = [
   { id: 'f4-chem-1', name: 'Student 1', class: 'Form 4' },
   { id: 'f4-chem-2', name: 'Student 2', class: 'Form 4' },
   { id: 'f3-math-1', name: 'Student 32', class: 'Form 3' },
+];
+
+const teacherClasses = [
+    { id: 'all', name: 'All Classes' },
+    { id: 'f4-chem', name: 'Form 4 - Chemistry' },
+    { id: 'f3-math', name: 'Form 3 - Mathematics' },
+    { id: 'f2-phys', name: 'Form 2 - Physics' },
 ];
 
 const studentHealthRecords = {
@@ -158,13 +165,120 @@ export default function HealthPage() {
         <p className="text-muted-foreground">Report and track student health issues and other incidents.</p>
       </div>
       
-      <Tabs defaultValue="report">
-        <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex">
+      <Tabs defaultValue="dashboard">
+        <TabsList className="grid w-full grid-cols-5 md:w-auto md:inline-flex">
+            <TabsTrigger value="dashboard"><LayoutDashboard className="w-4 h-4 mr-2" />Dashboard</TabsTrigger>
             <TabsTrigger value="report">New Incident</TabsTrigger>
             <TabsTrigger value="log">Incident Log</TabsTrigger>
             <TabsTrigger value="records">Health Records</TabsTrigger>
             <TabsTrigger value="medication">Medication Log</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="dashboard">
+            <Card className="mt-4">
+                <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle>Health Dashboard</CardTitle>
+                            <CardDescription>A quick overview of health-related information for your classes.</CardDescription>
+                        </div>
+                         <div className="w-full md:w-auto">
+                            <Label htmlFor="class-filter-dashboard">Filter by Class</Label>
+                            <Select defaultValue="all">
+                                <SelectTrigger id="class-filter-dashboard" className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select a class" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {teacherClasses.map((cls) => (
+                                        <SelectItem key={cls.id} value={cls.id}>
+                                        {cls.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Incidents Today</CardTitle>
+                                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">1</div>
+                                <p className="text-xs text-muted-foreground">1 new report filed</p>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Students with Allergies</CardTitle>
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">2</div>
+                                 <p className="text-xs text-muted-foreground">in Form 4 - Chemistry</p>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Ongoing Conditions</CardTitle>
+                                <Stethoscope className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">1</div>
+                                <p className="text-xs text-muted-foreground">Asthma case in Form 4</p>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Medications Due</CardTitle>
+                                <Pill className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">0</div>
+                                <p className="text-xs text-muted-foreground">No medications scheduled</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    <Separator/>
+                     <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-4">Students with Recent Incidents</h3>
+                         <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead>Incident Type</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {incidentLog.map(incident => (
+                                        <TableRow key={incident.id}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={incident.studentAvatar} alt={incident.studentName} />
+                                                        <AvatarFallback>{incident.studentName.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="font-medium">{incident.studentName}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell><Badge variant="secondary">{incident.type}</Badge></TableCell>
+                                            <TableCell>{incident.date}</TableCell>
+                                            <TableCell><Badge variant="outline">{incident.status}</Badge></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                     </div>
+                </CardContent>
+            </Card>
+        </TabsContent>
 
         <TabsContent value="report">
             <Card className="mt-4">
