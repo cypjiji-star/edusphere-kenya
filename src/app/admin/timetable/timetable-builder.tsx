@@ -23,6 +23,7 @@ import { Edit, GripVertical, Plus, Save, Settings, Share, Trash2, AlertTriangle 
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const teachers = ['Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri', 'Mr. Kamau'];
@@ -53,23 +54,25 @@ const subjects = [
     { name: 'Geography', teacher: 'Mr. Otieno', color: 'bg-teal-500' },
 ];
 
-const mockTimetable: Record<string, Record<number, { subject: typeof subjects[number], clash?: boolean }>> = {
+const mockTimetable: Record<string, Record<number, { subject: typeof subjects[number], room: string, clash?: { type: 'teacher' | 'room', message: string } }>> = {
     Monday: {
-        1: { subject: subjects[0] }, // Math - Mr. Otieno
-        2: { subject: subjects[2] }, // Chemistry - Ms. Wanjiku
+        1: { subject: subjects[0], room: 'Room 12A' }, // Math - Mr. Otieno
+        2: { subject: subjects[2], room: 'Science Lab' }, // Chemistry - Ms. Wanjiku
     },
     Tuesday: {
-        3: { subject: subjects[1] }, // English - Ms. Njeri
+        3: { subject: subjects[1], room: 'Room 10B' }, // English - Ms. Njeri
     },
     Wednesday: {
-        5: { subject: subjects[3] }, // Physics - Mr. Kamau
-        6: { subject: subjects[4] }, // Biology - Ms. Wanjiku
+        5: { subject: subjects[3], room: 'Room 12A' }, // Physics - Mr. Kamau
+        6: { subject: subjects[4], room: 'Science Lab' }, // Biology - Ms. Wanjiku
     },
     Thursday: {
-        2: { subject: subjects[2], clash: true }, // Chemistry - Ms. Wanjiku (CLASH)
+        2: { subject: subjects[2], room: 'Room 10B', clash: { type: 'teacher', message: 'Clash: Ms. Wanjiku is double-booked.' } }, // Chemistry - Ms. Wanjiku (TEACHER CLASH)
+        3: { subject: subjects[4], room: 'Science Lab' },
     },
     Friday: {
-        8: { subject: subjects[0] }, // Math - Mr. Otieno
+        8: { subject: subjects[0], room: 'Room 12A' }, // Math - Mr. Otieno
+        9: { subject: subjects[6], room: 'Room 12A', clash: { type: 'room', message: 'Clash: Room 12A is double-booked.' } },
     }
 }
 
@@ -163,35 +166,53 @@ export function TimetableBuilder() {
                                         <td className="p-2 font-semibold text-primary text-sm border-r text-center">{period.time}</td>
                                         {days.map(day => {
                                             const cellData = mockTimetable[day]?.[period.id];
-                                            return (
-                                            <td key={day} className={cn("h-24 p-1 align-top border-r", cellData?.clash && 'relative ring-2 ring-destructive ring-inset')}>
-                                                {cellData?.clash && (
-                                                    <div className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 z-10">
-                                                         <AlertTriangle className="h-3 w-3" />
-                                                    </div>
-                                                )}
-                                                {period.isBreak ? (
-                                                    period.id === 4 ? <div className="h-full flex items-center justify-center bg-gray-100 rounded-md"><p className="text-xs font-semibold text-gray-500 transform -rotate-90">{period.title}</p></div> :
-                                                    <div className="h-full flex items-center justify-center bg-gray-200 rounded-md"><p className="font-semibold text-gray-600">{period.title}</p></div>
-                                                ) : (
-                                                    cellData && (
-                                                        <div className={cn('p-2 rounded-md text-white h-full flex flex-col justify-between cursor-pointer', cellData.subject.color)}>
-                                                            <div>
-                                                                <p className="font-bold text-sm">{cellData.subject.name}</p>
-                                                                <p className="text-xs opacity-80">{cellData.subject.teacher}</p>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
-                                                                    <Edit className="h-4 w-4" />
-                                                                </Button>
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
+                                            const cellContent = (
+                                                <div className={cn("h-full w-full", cellData?.clash && "relative ring-2 ring-destructive ring-inset rounded-md")}>
+                                                    {cellData?.clash && (
+                                                        <div className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 z-10">
+                                                            <AlertTriangle className="h-3 w-3" />
                                                         </div>
-                                                    )
-                                                )}
-                                            </td>
+                                                    )}
+                                                    {period.isBreak ? (
+                                                        period.id === 4 ? <div className="h-full flex items-center justify-center bg-gray-100 rounded-md"><p className="text-xs font-semibold text-gray-500 transform -rotate-90">{period.title}</p></div> :
+                                                        <div className="h-full flex items-center justify-center bg-gray-200 rounded-md"><p className="font-semibold text-gray-600">{period.title}</p></div>
+                                                    ) : (
+                                                        cellData && (
+                                                            <div className={cn('p-2 rounded-md text-white h-full flex flex-col justify-between cursor-pointer', cellData.subject.color)}>
+                                                                <div>
+                                                                    <p className="font-bold text-sm">{cellData.subject.name}</p>
+                                                                    <p className="text-xs opacity-80">{cellData.subject.teacher}</p>
+                                                                    <p className="text-xs opacity-80 mt-1">@{cellData.room}</p>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </Button>
+                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            );
+                                            
+                                            return (
+                                                <td key={day} className="h-28 p-1 align-top border-r">
+                                                    {cellData?.clash ? (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>{cellContent}</TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p className="text-destructive">{cellData.clash.message}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    ) : (
+                                                        cellContent
+                                                    )}
+                                                </td>
                                             )
                                         })}
                                     </tr>
@@ -201,7 +222,7 @@ export function TimetableBuilder() {
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                    <Button variant="outline">Clear Timetable</Button>
+                    <Button variant="outline" onClick={() => {}}>Clear Timetable</Button>
                     <Button variant="secondary" disabled>
                         <Share className="mr-2 h-4 w-4" />
                         Publish
@@ -240,3 +261,5 @@ export function TimetableBuilder() {
     </div>
   );
 }
+
+    
