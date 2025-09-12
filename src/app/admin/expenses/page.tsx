@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { useForm } from 'react-hook-form';
 import {
   Card,
   CardContent,
@@ -45,7 +46,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { FormDescription } from '@/components/ui/form';
+import { Form, FormDescription } from '@/components/ui/form';
 
 type ExpenseStatus = 'Paid' | 'Pending Approval' | 'Reimbursed' | 'Declined';
 
@@ -94,6 +95,7 @@ export default function ExpensesPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [date, setDate] = React.useState<Date | undefined>(new Date());
     const [clientReady, setClientReady] = React.useState(false);
+    const form = useForm();
 
     React.useEffect(() => {
         setClientReady(true);
@@ -159,6 +161,7 @@ export default function ExpensesPage() {
                             <CardTitle>Expense Records</CardTitle>
                             <CardDescription>A detailed log of all expenses recorded in the system.</CardDescription>
                         </div>
+                        <Form {...form}>
                          <Dialog>
                             <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                                 <DialogTrigger asChild>
@@ -257,7 +260,7 @@ export default function ExpensesPage() {
                                                     <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
                                                     <p className="text-xs text-muted-foreground">(PDF, JPG, PNG)</p>
                                                 </div>
-                                                <Input id="dropzone-file" type="file" className="hidden" />
+                                                <Input id="dropzone-file" type="file" />
                                             </Label>
                                         </div>
                                         <p className="text-xs text-muted-foreground">You can attach supporting documents like receipts or invoices.</p>
@@ -265,7 +268,7 @@ export default function ExpensesPage() {
                                     <Separator/>
                                      <div className="space-y-2">
                                         <div className="flex items-center space-x-2">
-                                            <Switch id="recurring-expense" disabled />
+                                            <Switch id="recurring-expense" />
                                             <Label htmlFor="recurring-expense" className="flex items-center gap-2">
                                                 <Repeat className="h-4 w-4" />
                                                 This is a recurring expense
@@ -336,6 +339,7 @@ export default function ExpensesPage() {
                                 </DialogFooter>
                             </DialogContent>
                          </Dialog>
+                        </Form>
                     </div>
                     <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center">
                         <div className="relative w-full md:max-w-sm">
