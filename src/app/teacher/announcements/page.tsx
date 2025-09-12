@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -64,8 +64,17 @@ export default function AnnouncementsPage() {
                 <Form {...form}>
                   <CardContent className="space-y-6">
                       <div className="space-y-2">
-                          <Label htmlFor="message">Message</Label>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="message">Message</Label>
+                            <Button variant="outline" size="sm" disabled>
+                              <Languages className="mr-2 h-4 w-4" />
+                              Translate
+                            </Button>
+                          </div>
                           <Textarea id="message" placeholder="Type your announcement here..." className="min-h-[150px]" />
+                           <FormDescription>
+                            The AI can translate your message into multiple languages. This feature is coming soon.
+                          </FormDescription>
                       </div>
                       <div className="space-y-2">
                           <Label>File Attachments</Label>
