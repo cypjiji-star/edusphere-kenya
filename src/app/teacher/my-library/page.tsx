@@ -11,8 +11,9 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { User, Book, Clock, History, RotateCw } from 'lucide-react';
+import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 
 type BorrowedItem = {
     id: string;
@@ -30,6 +31,11 @@ const historyItems: any[] = [
      { id: 'hist-1', title: 'Physics for Secondary Schools F1', borrowedDate: '2024-06-10', returnedDate: '2024-06-24' },
 ];
 
+const requestItems = [
+    { id: 'req-1', title: 'A Brief History of Time by Stephen Hawking', status: 'Approved' },
+    { id: 'req-2', title: 'Updated KCSE Revision Guides (2024)', status: 'Pending' },
+]
+
 export default function MyLibraryPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -42,10 +48,11 @@ export default function MyLibraryPage() {
         </div>
 
         <Tabs defaultValue="borrowed" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex">
+            <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex">
                 <TabsTrigger value="borrowed">Currently Borrowed</TabsTrigger>
                 <TabsTrigger value="reserved">My Reservations</TabsTrigger>
                 <TabsTrigger value="history">Borrowing History</TabsTrigger>
+                <TabsTrigger value="requests">My Requests</TabsTrigger>
             </TabsList>
 
             <TabsContent value="borrowed">
@@ -139,6 +146,46 @@ export default function MyLibraryPage() {
                     </CardContent>
                 </Card>
              </TabsContent>
+             
+            <TabsContent value="requests">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>My Resource Requests</CardTitle>
+                            <CardDescription>Request new books or materials for the library.</CardDescription>
+                        </div>
+                        <Button disabled>
+                            <PlusCircle className="mr-2 h-4 w-4"/>
+                            Make New Request
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                         {requestItems.length > 0 ? (
+                            <div className="space-y-4">
+                                {requestItems.map(item => (
+                                     <Card key={item.id}>
+                                        <CardContent className="p-4 flex items-center justify-between">
+                                            <p className="font-semibold">{item.title}</p>
+                                            <Badge variant={item.status === 'Approved' ? 'default' : 'secondary'}>
+                                                {item.status === 'Approved' ? <CheckCircle className="mr-2 h-4 w-4"/> : <HelpCircle className="mr-2 h-4 w-4"/>}
+                                                {item.status}
+                                            </Badge>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                                <div className="text-center">
+                                    <HelpCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+                                    <h3 className="mt-4 text-lg font-semibold">No Active Requests</h3>
+                                    <p className="mt-1 text-sm text-muted-foreground">You have not made any resource requests.</p>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
 
         </Tabs>
     </div>
