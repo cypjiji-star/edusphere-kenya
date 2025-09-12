@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock, Mic } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -417,7 +417,13 @@ export default function HealthPage() {
                                         name="description"
                                         render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Detailed Description</FormLabel>
+                                            <div className="flex items-center justify-between">
+                                                <FormLabel>Detailed Description</FormLabel>
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled>
+                                                    <Mic className="h-4 w-4" />
+                                                    <span className="sr-only">Use Voice-to-Text</span>
+                                                </Button>
+                                            </div>
                                             <FormControl>
                                             <Textarea
                                                 placeholder="Describe the incident, including what happened, who was involved, and any symptoms observed..."
@@ -434,7 +440,13 @@ export default function HealthPage() {
                                         name="actionsTaken"
                                         render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Actions Taken</FormLabel>
+                                             <div className="flex items-center justify-between">
+                                                <FormLabel>Actions Taken</FormLabel>
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled>
+                                                    <Mic className="h-4 w-4" />
+                                                    <span className="sr-only">Use Voice-to-Text</span>
+                                                </Button>
+                                            </div>
                                             <FormControl>
                                             <Textarea
                                                 placeholder="Describe the immediate actions you took, e.g., 'Student was sent to the school nurse', 'First aid was administered'..."
@@ -772,3 +784,5 @@ export default function HealthPage() {
     </div>
   );
 }
+
+    
