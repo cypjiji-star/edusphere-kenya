@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -447,7 +447,7 @@ export default function HealthPage() {
                                         )}
                                     />
                                      <div className="space-y-2">
-                                        <Label>File Attachments (e.g., doctor's note, photo)</Label>
+                                        <Label>File Attachments (e.g., doctor's note, photo of injury)</Label>
                                         <div className="flex items-center justify-center w-full">
                                             <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
                                                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
@@ -468,7 +468,7 @@ export default function HealthPage() {
                                 <Siren className="h-4 w-4" />
                                 <AlertTitle>Immediate Notifications</AlertTitle>
                                 <AlertDescription>
-                                    Enable these options to send immediate alerts upon submission. Use for urgent matters only.
+                                    Enable these options to send immediate alerts upon submission. Use for urgent matters only. (This is a mock UI, functionality is coming soon)
                                 </AlertDescription>
                             </Alert>
 
@@ -613,7 +613,7 @@ export default function HealthPage() {
             <Card className="mt-4">
                 <CardHeader>
                     <CardTitle>Student Health Records</CardTitle>
-                    <CardDescription>Look up important health information for a student.</CardDescription>
+                    <CardDescription>Look up important health information for a student. Records are confidential and access is logged.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="max-w-md mb-6">
@@ -670,6 +670,16 @@ export default function HealthPage() {
                                         <AlertTitle>No Detailed History</AlertTitle>
                                         <AlertDescription>
                                             A comprehensive medical or vaccination history has not been provided for this student. For detailed records, please contact the school administration or the student's guardian.
+                                        </AlertDescription>
+                                    </Alert>
+                                </div>
+                                 <Separator />
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Lock className="h-4 w-4" /> Access Permissions</h4>
+                                      <Alert variant="default">
+                                        <AlertTitle>Admin-Controlled</AlertTitle>
+                                        <AlertDescription>
+                                           Access to detailed health records is managed by the school administration. This is a mock UI to demonstrate where permissions would be handled.
                                         </AlertDescription>
                                     </Alert>
                                 </div>

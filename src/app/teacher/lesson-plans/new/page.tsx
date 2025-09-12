@@ -125,30 +125,29 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
                  <TabsContent value="permissions">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Permissions & Access</CardTitle>
-                            <CardDescription>Control who can view and edit this lesson plan. (Coming Soon)</CardDescription>
+                            <CardTitle>Permissions & Access Control</CardTitle>
+                            <CardDescription>Control who can view and edit this lesson plan. (This is a mock UI, functionality is coming soon).</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
-                                <Label className="text-base font-semibold">Editing Permissions</Label>
-                                <div className="flex items-center space-x-2 p-2 rounded-md border border-transparent">
+                                <Label className="text-base font-semibold">Editing Permissions (Collaboration)</Label>
+                                 <p className="text-sm text-muted-foreground">Grant editing rights to other teachers to collaborate on this plan.</p>
+                                <div className="flex items-center space-x-2 p-3 rounded-md border">
                                     <Users className="h-5 w-5 text-primary"/>
                                     <div className="flex-1">
-                                        <p className="font-medium">Specific Teachers</p>
-                                        <p className="text-xs text-muted-foreground">Only you and teachers you select can edit.</p>
+                                        <p className="font-medium">Allow co-teachers to edit</p>
                                     </div>
-                                    <Switch id="edit-perms" disabled checked />
+                                    <Switch id="edit-perms" disabled />
                                 </div>
                             </div>
                             <Separator />
                              <div className="space-y-2">
-                                <Label className="text-base font-semibold">Viewing Permissions</Label>
-                                <p className="text-sm text-muted-foreground">Shared lesson plans will appear as "read-only" for other teachers unless they are granted editing rights.</p>
-                                <div className="flex items-center space-x-2 p-2 rounded-md border border-transparent">
+                                <Label className="text-base font-semibold">Viewing Permissions (Sharing)</Label>
+                                <p className="text-sm text-muted-foreground">Shared lesson plans will appear as "read-only" for other teachers unless they are granted editing rights above.</p>
+                                <div className="flex items-center space-x-2 p-3 rounded-md border">
                                      <Eye className="h-5 w-5 text-primary"/>
                                      <div className="flex-1">
-                                        <p className="font-medium">All Teachers in Department</p>
-                                        <p className="text-xs text-muted-foreground">Allow all science teachers to view this plan.</p>
+                                        <p className="font-medium">Share with all Science Department teachers</p>
                                     </div>
                                     <Switch id="view-perms" disabled />
                                 </div>
