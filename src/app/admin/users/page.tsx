@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -210,7 +210,7 @@ export default function UserManagementPage() {
                                                                     <KeyRound className="mr-2 h-4 w-4" />
                                                                     Send Password Reset
                                                                 </Button>
-                                                                <Button variant="destructive" disabled>
+                                                                <Button variant="destructive">
                                                                     <Trash2 className="mr-2 h-4 w-4" />
                                                                     Delete User
                                                                 </Button>
@@ -301,10 +301,10 @@ export default function UserManagementPage() {
                                         <Separator />
                                         <div className="space-y-2">
                                             <div className="flex items-center space-x-2">
-                                                <Switch id="send-invite" defaultChecked disabled />
+                                                <Switch id="send-invite" defaultChecked />
                                                 <Label htmlFor="send-invite">Send invitation link with auto-generated password</Label>
                                             </div>
-                                            <p className="text-xs text-muted-foreground">The user will be prompted to set a new password on their first login. This feature is coming soon.</p>
+                                            <p className="text-xs text-muted-foreground">The user will be prompted to set a new password on their first login.</p>
                                         </div>
                                     </div>
                                     <DialogFooter>
@@ -313,19 +313,107 @@ export default function UserManagementPage() {
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline">
-                                        <FileDown className="mr-2 h-4 w-4"/>
-                                        Export
-                                        <ChevronDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem disabled>Export as PDF</DropdownMenuItem>
-                                    <DropdownMenuItem disabled>Export as CSV</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Dialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline">
+                                            Bulk Actions
+                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DialogTrigger asChild>
+                                            <DropdownMenuItem>
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Import Users from CSV...
+                                            </DropdownMenuItem>
+                                        </DialogTrigger>
+                                        <DropdownMenuItem disabled>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export All Users (CSV)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <DialogContent className="sm:max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Import Users from CSV/Excel</DialogTitle>
+                                        <DialogDescription>
+                                            Upload a file to bulk register new students or teachers.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-6 py-4">
+                                        <div className="space-y-2">
+                                            <Label>Step 1: Upload File</Label>
+                                            <div className="flex items-center justify-center w-full">
+                                                <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                        <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                        <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                                        <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
+                                                    </div>
+                                                    <Input id="dropzone-file" type="file" className="hidden" />
+                                                </Label>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                                <Columns className="h-5 w-5 text-primary" />
+                                                <h4 className="font-medium">Step 2: Map Columns</h4>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                    <Label>Full Name</Label>
+                                                    <Select defaultValue="col1">
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="col1">Column A</SelectItem>
+                                                            <SelectItem value="col2">Column B</SelectItem>
+                                                            <SelectItem value="col3">Column C</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                    <Label>Email Address</Label>
+                                                     <Select defaultValue="col2">
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="col1">Column A</SelectItem>
+                                                            <SelectItem value="col2">Column B</SelectItem>
+                                                            <SelectItem value="col3">Column C</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                    <Label>Class</Label>
+                                                     <Select defaultValue="col3">
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="col1">Column A</SelectItem>
+                                                            <SelectItem value="col2">Column B</SelectItem>
+                                                            <SelectItem value="col3">Column C</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                 <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                    <Label>Role</Label>
+                                                     <Select>
+                                                        <SelectTrigger><SelectValue placeholder="Assign a role..."/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Student">Student</SelectItem>
+                                                            <SelectItem value="Teacher">Teacher</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <Button disabled>Process File</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </div>
                      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -381,3 +469,5 @@ export default function UserManagementPage() {
         </div>
     );
 }
+
+    
