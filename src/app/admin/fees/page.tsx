@@ -91,9 +91,9 @@ const mockDiscounts = [
 ];
 
 const mockStudentLedger = [
-    { id: 't-1', date: '2024-05-15', description: 'Term 2 Invoice', type: 'Charge', amount: 95000, balance: 95000 },
-    { id: 't-2', date: '2024-06-01', description: 'Payment Received via M-PESA', type: 'Payment', amount: -40000, balance: 55000 },
-    { id: 't-3', date: '2024-07-15', description: 'Late Fee Charge', type: 'Charge', amount: 2000, balance: 57000 },
+    { id: 't-1', date: '2024-05-15', description: 'Term 2 Invoice', type: 'Charge', amount: 95000, balance: 95000, recordedBy: 'System' },
+    { id: 't-2', date: '2024-06-01', description: 'Payment Received via M-PESA', type: 'Payment', amount: -40000, balance: 55000, recordedBy: 'Admin User' },
+    { id: 't-3', date: '2024-07-15', description: 'Late Fee Charge', type: 'Charge', amount: 2000, balance: 57000, recordedBy: 'System' },
 ];
 
 
@@ -254,6 +254,7 @@ function StudentLedgerDialog({ student }: { student: StudentFee | null }) {
                                 <TableHead>Date</TableHead>
                                 <TableHead>Description</TableHead>
                                 <TableHead>Type</TableHead>
+                                <TableHead>Recorded By</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 <TableHead className="text-right">Balance</TableHead>
                             </TableRow>
@@ -268,6 +269,7 @@ function StudentLedgerDialog({ student }: { student: StudentFee | null }) {
                                             {item.type}
                                         </Badge>
                                     </TableCell>
+                                    <TableCell>{item.recordedBy}</TableCell>
                                     <TableCell className={`text-right ${item.type === 'Payment' ? 'text-green-600' : 'text-destructive'}`}>
                                         {formatCurrency(item.amount)}
                                     </TableCell>
