@@ -19,7 +19,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Edit, GripVertical, Plus, Save, Settings, Trash2, AlertTriangle } from 'lucide-react';
+import { Edit, GripVertical, Plus, Save, Settings, Share, Trash2, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -199,6 +199,10 @@ export function TimetableBuilder() {
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
                     <Button variant="outline" disabled>Clear Timetable</Button>
+                    <Button variant="secondary" disabled>
+                        <Share className="mr-2 h-4 w-4" />
+                        Publish
+                    </Button>
                     <Button disabled>
                         <Save className="mr-2 h-4 w-4" />
                         Save Timetable
@@ -233,3 +237,5 @@ export function TimetableBuilder() {
     </div>
   );
 }
+
+    
