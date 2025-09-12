@@ -25,7 +25,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle } from 'lucide-react';
+import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
 type SchoolClass = {
@@ -137,11 +139,29 @@ const mockClassAssignments = {
         { subject: 'Mathematics', teacher: 'Mr. Kimani' },
         { subject: 'English', teacher: 'Ms. Njeri' },
         { subject: 'History & Government', teacher: 'Mr. Kamau' },
+        { subject: 'Chemistry', teacher: 'Ms. Wanjiku' },
     ],
+    'form-4-b': [
+        { subject: 'Mathematics', teacher: 'Mr. Otieno' },
+        { subject: 'English', teacher: 'Ms. Njeri' },
+        { subject: 'Physics', teacher: 'Mr. Kamau' },
+    ]
 };
 
 
 export default function ClassesAndSubjectsPage() {
+    const teacherWorkload: Record<string, number> = React.useMemo(() => {
+        const load: Record<string, number> = {};
+        Object.values(mockClassAssignments).flat().forEach(assignment => {
+            if (assignment.teacher) {
+                load[assignment.teacher] = (load[assignment.teacher] || 0) + 1;
+            }
+        });
+        return load;
+    }, []);
+
+    const OVER_ASSIGNED_THRESHOLD = 3;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
@@ -483,38 +503,70 @@ export default function ClassesAndSubjectsPage() {
                     <CardDescription>View which teacher is teaching which subject in each class and identify any unassigned subjects.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {mockClasses.filter(c => mockClassAssignments[c.id]).map(schoolClass => {
-                        const assignments = mockClassAssignments[schoolClass.id as keyof typeof mockClassAssignments] || [];
+                    <TooltipProvider>
+                    {Object.entries(mockClassAssignments).map(([classId, assignments]) => {
+                        const schoolClass = mockClasses.find(c => c.id === classId);
+                        if (!schoolClass) return null;
                         
                         return (
-                            <Card key={schoolClass.id}>
+                            <Card key={classId}>
                                 <CardHeader>
                                     <CardTitle className="text-lg">{schoolClass.name} {schoolClass.stream || ''}</CardTitle>
                                     <CardDescription>Class Teacher: {schoolClass.classTeacher.name}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-2">
-                                        {assignments.map(assignment => (
-                                            <div key={assignment.subject} className="flex items-center justify-between border-b py-2">
+                                        {assignments.map(assignment => {
+                                            const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
+                                            const subjectDetails = mockSubjects.find(s => s.name === assignment.subject);
+                                            const availableTeachers = subjectDetails ? subjectDetails.teachers.filter(t => (teacherWorkload[t] || 0) <= OVER_ASSIGNED_THRESHOLD) : [];
+
+                                            return (
+                                            <div key={assignment.subject} className="flex items-center justify-between border-b py-3">
                                                 <span className="font-medium">{assignment.subject}</span>
                                                 {assignment.teacher ? (
                                                     <div className="flex items-center gap-2">
+                                                         {isOverAssigned && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger>
+                                                                    <AlertCircle className="h-4 w-4 text-destructive"/>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>{assignment.teacher} may be over-assigned.</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        )}
                                                         <User className="h-4 w-4 text-muted-foreground"/>
                                                         <span className="text-sm text-muted-foreground">{assignment.teacher}</span>
                                                     </div>
                                                 ) : (
-                                                    <Badge variant="destructive">
-                                                        <AlertCircle className="mr-2 h-4 w-4"/>
-                                                        Unassigned
-                                                    </Badge>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Badge variant="destructive" className="cursor-pointer">
+                                                                <AlertCircle className="mr-2 h-4 w-4"/>
+                                                                Unassigned
+                                                            </Badge>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto">
+                                                            <div className="space-y-2">
+                                                                <p className="font-semibold text-sm">Suggested Teachers</p>
+                                                                {availableTeachers.length > 0 ? availableTeachers.map(t => (
+                                                                    <Button key={t} variant="ghost" size="sm" className="w-full justify-start">
+                                                                        <UserCheck className="mr-2 h-4 w-4" /> {t}
+                                                                    </Button>
+                                                                )) : <p className="text-xs text-muted-foreground">No available teachers found.</p>}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
                                                 )}
                                             </div>
-                                        ))}
+                                        )})}
                                     </div>
                                 </CardContent>
                             </Card>
                         )
                     })}
+                    </TooltipProvider>
                 </CardContent>
             </Card>
         </TabsContent>
