@@ -73,10 +73,12 @@ const subjects = ['All Subjects', 'Biology', 'Chemistry', 'English', 'History', 
 const grades = ['All Grades', 'Grade 6', 'Form 1', 'Form 2', 'Form 3', 'Form 4'];
 
 export default function LessonPlansPage() {
+  const [searchTerm, setSearchTerm] = React.useState('');
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [filteredGrade, setFilteredGrade] = React.useState('All Grades');
 
   const lessonPlans = allLessonPlans.filter(plan => 
+    (plan.topic.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (filteredSubject === 'All Subjects' || plan.subject === filteredSubject) &&
     (filteredGrade === 'All Grades' || plan.gradeLevel === filteredGrade)
   );
@@ -108,6 +110,8 @@ export default function LessonPlansPage() {
                         type="search"
                         placeholder="Search lesson plans..."
                         className="w-full bg-background pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
                 <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
