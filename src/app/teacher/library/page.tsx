@@ -22,40 +22,30 @@ import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Ey
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { ResourceDetailsDialog } from './resource-details-dialog';
+import type { Resource } from './types';
 
-type ResourceType = 'Textbook' | 'Past Paper' | 'Curriculum Guide' | 'Journal';
-type ResourceStatus = 'Available' | 'Out' | 'Digital';
-
-type Resource = {
-  id: string;
-  title: string;
-  type: ResourceType;
-  subject: string;
-  grade: string;
-  status: ResourceStatus;
-  dueDate?: string;
-};
 
 const mockResources: Resource[] = [
-  { id: 'res-1', title: 'Form 4 Chemistry Textbook', type: 'Textbook', subject: 'Chemistry', grade: 'Form 4', status: 'Available' },
-  { id: 'res-2', title: '2023 KCSE Mathematics Paper 1', type: 'Past Paper', subject: 'Mathematics', grade: 'Form 4', status: 'Digital' },
-  { id: 'res-3', title: 'History & Government Curriculum', type: 'Curriculum Guide', subject: 'History', grade: 'All Grades', status: 'Digital' },
-  { id: 'res-4', title: 'Journal of African History Vol. 65', type: 'Journal', subject: 'History', grade: 'Senior School', status: 'Out', dueDate: '2024-08-05' },
-  { id: 'res-5', title: 'Physics for Secondary Schools F2', type: 'Textbook', subject: 'Physics', grade: 'Form 2', status: 'Available' },
-  { id: 'res-6', title: 'The River and The Source Novel', type: 'Textbook', subject: 'English', grade: 'Form 3', status: 'Out', dueDate: '2024-07-30'},
+  { id: 'res-1', title: 'Form 4 Chemistry Textbook', type: 'Textbook', subject: 'Chemistry', grade: 'Form 4', status: 'Available', author: 'Kenya Literature Bureau', description: 'The official KCSE curriculum chemistry textbook for form 4 students, covering all topics for the final year.' },
+  { id: 'res-2', title: '2023 KCSE Mathematics Paper 1', type: 'Past Paper', subject: 'Mathematics', grade: 'Form 4', status: 'Digital', author: 'KNEC', description: 'The official 2023 Kenya Certificate of Secondary Education (KCSE) Mathematics Paper 1 for revision.' },
+  { id: 'res-3', title: 'History & Government Curriculum', type: 'Curriculum Guide', subject: 'History', grade: 'All Grades', status: 'Digital', author: 'KICD', description: 'The complete curriculum guide for History & Government for all secondary school levels.' },
+  { id: 'res-4', title: 'Journal of African History Vol. 65', type: 'Journal', subject: 'History', grade: 'Senior School', status: 'Out', dueDate: '2024-08-05', author: 'Cambridge University Press', description: 'A scholarly journal focusing on the history of the African continent.' },
+  { id: 'res-5', title: 'Physics for Secondary Schools F2', type: 'Textbook', subject: 'Physics', grade: 'Form 2', status: 'Available', author: 'Longhorn Publishers', description: 'A comprehensive textbook for Form 2 Physics, aligned with the current syllabus.' },
+  { id: 'res-6', title: 'The River and The Source Novel', type: 'Textbook', subject: 'English', grade: 'Form 3', status: 'Out', dueDate: '2024-07-30', author: 'Margaret Ogola', description: 'The award-winning novel, a set book for Form 3 English literature.'},
 ];
 
 const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 const subjects = ['All Subjects', 'Chemistry', 'Mathematics', 'History', 'Physics', 'English'];
 
-const typeIcons: Record<ResourceType, React.ElementType> = {
+const typeIcons: Record<Resource['type'], React.ElementType> = {
   Textbook: Book,
   'Past Paper': FileText,
   'Curriculum Guide': Newspaper,
   Journal: Newspaper,
 };
 
-const statusConfig: Record<ResourceStatus, { label: string; className: string }> = {
+const statusConfig: Record<Resource['status'], { label: string; className: string }> = {
     Available: { label: 'Available', className: 'bg-green-100 text-green-800 border-green-200' },
     Out: { label: 'Out', className: 'bg-red-100 text-red-800 border-red-200' },
     Digital: { label: 'Digital', className: 'bg-blue-100 text-blue-800 border-blue-200' },
@@ -65,6 +55,7 @@ export default function LibraryPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filteredType, setFilteredType] = React.useState('All Types');
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
+  const [selectedResource, setSelectedResource] = React.useState<Resource | null>(null);
 
   const filteredResources = mockResources.filter(res => 
     res.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -79,12 +70,21 @@ export default function LibraryPage() {
         case 'Out':
             return <Button variant="outline" size="sm" disabled><Clock className="mr-2 h-4 w-4" />Reserve</Button>;
         case 'Digital':
-             return <Button variant="outline" size="sm" disabled><Eye className="mr-2 h-4 w-4" />View Digital</Button>;
+             return <Button variant="outline" size="sm" onClick={() => setSelectedResource(resource)}><Eye className="mr-2 h-4 w-4" />View</Button>;
     }
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+       <ResourceDetailsDialog
+        resource={selectedResource}
+        open={!!selectedResource}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedResource(null);
+          }
+        }}
+      />
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-6">
         <div className="text-left">
           <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -149,11 +149,11 @@ export default function LibraryPage() {
                             {filteredResources.map((res) => {
                                 const Icon = typeIcons[res.type];
                                 return (
-                                <tr key={res.id} className="border-b transition-colors hover:bg-muted/50">
+                                <tr key={res.id} className="border-b transition-colors hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedResource(res)}>
                                     <td className="p-4 align-middle font-medium">
                                         <div className="flex items-center gap-3">
                                             <Icon className="h-5 w-5 text-primary/80 hidden sm:block" />
-                                            <span>{res.title}</span>
+                                            <span className="hover:underline">{res.title}</span>
                                         </div>
                                     </td>
                                     <td className="p-4 align-middle text-muted-foreground hidden sm:table-cell">{res.type}</td>
@@ -166,7 +166,7 @@ export default function LibraryPage() {
                                             <p className="text-xs text-muted-foreground mt-1">Due: {res.dueDate ? new Date(res.dueDate).toLocaleDateString() : 'N/A'}</p>
                                         )}
                                     </td>
-                                    <td className="p-4 align-middle text-right">
+                                    <td className="p-4 align-middle text-right" onClick={(e) => e.stopPropagation()}>
                                        {renderActionButton(res)}
                                     </td>
                                 </tr>
