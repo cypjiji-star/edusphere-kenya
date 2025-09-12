@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye, Printer, FileDown, ChevronDown, Star } from 'lucide-react';
+import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye, Printer, FileDown, ChevronDown, Star, ScanLine } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
 
 
 const mockResources: Resource[] = [
@@ -108,15 +110,21 @@ export default function LibraryPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-sm">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                    type="search"
-                    placeholder="Search resources by title..."
-                    className="w-full bg-background pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <div className="flex w-full items-center gap-2 md:max-w-sm">
+                <div className="relative w-full">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Search resources..."
+                        className="w-full bg-background pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                 <Button variant="outline" size="icon" disabled className="shrink-0">
+                    <ScanLine className="h-5 w-5" />
+                    <span className="sr-only">Scan ISBN</span>
+                </Button>
             </div>
             <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
                 <Select value={filteredType} onValueChange={setFilteredType}>
@@ -162,7 +170,9 @@ export default function LibraryPage() {
         </CardHeader>
         <CardContent>
             {filteredResources.length > 0 ? (
-                <div className="w-full overflow-auto rounded-lg border">
+                <>
+                {/* Desktop Table */}
+                <div className="w-full overflow-auto rounded-lg border hidden md:block">
                     <table className="w-full">
                         <thead className="bg-muted/50">
                             <tr className="border-b">
@@ -210,6 +220,43 @@ export default function LibraryPage() {
                         </tbody>
                     </table>
                  </div>
+
+                 {/* Mobile Cards */}
+                <div className="grid gap-4 md:hidden">
+                {filteredResources.map((res) => {
+                    const Icon = typeIcons[res.type];
+                    return (
+                        <Card key={res.id} onClick={() => setSelectedResource(res)}>
+                            <CardHeader>
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Icon className="h-5 w-5 text-primary/80" />
+                                        <CardTitle className="text-base font-semibold leading-tight">{res.title}</CardTitle>
+                                    </div>
+                                    <Badge className={cn('whitespace-nowrap', statusConfig[res.status].className)}>
+                                        {statusConfig[res.status].label}
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                               <p className="text-sm text-muted-foreground">{res.subject} - {res.type}</p>
+                               {res.recommended && (
+                                    <Badge className="w-fit bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100">
+                                        <Star className="mr-1 h-3 w-3" /> Recommended
+                                    </Badge>
+                                )}
+                               {res.status === 'Out' && (
+                                    <p className="text-xs text-muted-foreground">Due: {res.dueDate ? new Date(res.dueDate).toLocaleDateString('en-US', { timeZone: 'UTC' }) : 'N/A'}</p>
+                                )}
+                            </CardContent>
+                             <CardFooter onClick={(e) => e.stopPropagation()}>
+                               {renderActionButton(res)}
+                            </CardFooter>
+                        </Card>
+                    );
+                })}
+                </div>
+                </>
             ) : (
                 <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
                     <div className="text-center">
