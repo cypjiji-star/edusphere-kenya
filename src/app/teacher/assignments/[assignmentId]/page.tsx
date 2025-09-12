@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -61,6 +62,7 @@ const getStatusBadge = (status: Submission['status']) => {
 
 
 export default function AssignmentSubmissionsPage({ params }: { params: { assignmentId: string } }) {
+  const { assignmentId } = React.use(params);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<SubmissionStatus | 'All'>('All');
   const [submissions, setSubmissions] = React.useState(initialSubmissions);
@@ -86,7 +88,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
     <div className="p-4 sm:p-6 lg:p-8">
       <GradingDialog
         student={gradingStudent}
-        assignmentId={params.assignmentId}
+        assignmentId={assignmentId}
         open={!!gradingStudent}
         onOpenChange={(isOpen) => {
           if (!isOpen) {

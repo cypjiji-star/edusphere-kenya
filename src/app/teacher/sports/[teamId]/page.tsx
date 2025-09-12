@@ -104,7 +104,7 @@ const mediaHighlights = [
 ]
 
 export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
-  const { teamId } = params;
+  const { teamId } = React.use(params);
   const teamDetails = teams[teamId] || { name: 'Unknown Team', coach: 'N/A' };
   const initialMembers = studentMembers[teamId] || [];
   
@@ -412,5 +412,3 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
     </div>
   );
 }
-
-    
