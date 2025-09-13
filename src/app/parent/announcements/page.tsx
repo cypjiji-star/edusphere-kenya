@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Check, CheckCircle, Filter, Search } from 'lucide-react';
+import { Megaphone, Check, CheckCircle, Filter, Search, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -70,6 +70,9 @@ const mockAnnouncements = [
         sentAt: '2024-07-25 04:00 PM',
         category: 'Academic' as AnnouncementCategory,
         read: true,
+        attachments: [
+            { name: 'Career_Day_Schedule.pdf', size: '256 KB' },
+        ],
     }
 ];
 
@@ -99,7 +102,7 @@ export default function ParentAnnouncementsPage() {
         <p className="text-muted-foreground">View school-wide and class-specific announcements.</p>
        </div>
        
-       <Card>
+       <Card className="mb-6">
            <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="relative w-full md:max-w-sm">
@@ -127,60 +130,69 @@ export default function ParentAnnouncementsPage() {
                     </div>
                </div>
            </CardHeader>
-            <CardContent className="space-y-6">
-                {filteredAnnouncements.length > 0 ? filteredAnnouncements.map((ann, index) => (
-                    <div key={ann.id}>
-                        <div className="flex items-start gap-4">
-                           <div className="mt-1 flex-shrink-0">
-                                {ann.read ? (
-                                    <CheckCircle className="h-5 w-5 text-green-500" />
-                                ) : (
-                                    <div className="h-5 w-5 flex items-center justify-center">
-                                        <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse"></div>
-                                    </div>
-                                )}
-                           </div>
-                           <div className="flex-1 space-y-4">
-                               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
-                                    <div>
-                                        <h2 className="font-semibold text-lg">{ann.title}</h2>
-                                        <p className="text-xs text-muted-foreground">Posted: {ann.sentAt}</p>
-                                    </div>
-                                    <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category].color)}>
-                                        {announcementCategories[ann.category].label}
-                                    </Badge>
-                                </div>
-                                <p className="text-sm leading-relaxed">{ann.content}</p>
-                                <Separator />
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
-                                        <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <p className="text-xs font-semibold">Sent by {ann.sender.name}</p>
-                                    </div>
-                                </div>
-                           </div>
+        </Card>
+
+        <div className="space-y-6">
+            {filteredAnnouncements.length > 0 ? filteredAnnouncements.map((ann) => (
+                <Card key={ann.id} className={cn(!ann.read && 'border-primary/50')}>
+                    <CardHeader className="flex flex-row items-start justify-between gap-4">
+                        <div className="flex-1">
+                            <CardTitle className="font-headline text-xl flex items-center gap-2">
+                                {!ann.read ? <div className="h-2.5 w-2.5 rounded-full bg-primary" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
+                                {ann.title}
+                            </CardTitle>
+                            <CardDescription>Posted: {ann.sentAt}</CardDescription>
                         </div>
-                        <div className="flex justify-end mt-4">
-                            {!ann.read && (
-                                <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id)}>
-                                    <Check className="mr-2 h-4 w-4"/>
-                                    Mark as Read
-                                </Button>
-                            )}
+                        <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category].color)}>
+                            {announcementCategories[ann.category].label}
+                        </Badge>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <p className="text-sm leading-relaxed">{ann.content}</p>
+
+                        {ann.attachments && ann.attachments.length > 0 && (
+                            <div>
+                                <h4 className="font-semibold text-sm mb-2">Attachments</h4>
+                                <div className="space-y-2">
+                                    {ann.attachments.map((file, index) => (
+                                        <Button key={index} variant="outline" size="sm" className="w-full justify-start" disabled>
+                                            <Paperclip className="mr-2 h-4 w-4"/>
+                                            {file.name} ({file.size})
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <Separator />
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                                <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
+                                <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="text-xs font-semibold">Sent by {ann.sender.name}</p>
+                            </div>
                         </div>
-                        {index < filteredAnnouncements.length - 1 && <Separator className="mt-6" />}
-                    </div>
-                )) : (
-                     <div className="text-center text-muted-foreground py-16">
-                        <p className="font-semibold">No Announcements Found</p>
-                        <p>Your search or filter returned no results.</p>
-                    </div>
-                )}
-            </CardContent>
-       </Card>
+                    </CardContent>
+                    {!ann.read && (
+                        <CardFooter>
+                            <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id)}>
+                                <Check className="mr-2 h-4 w-4"/>
+                                Mark as Read
+                            </Button>
+                        </CardFooter>
+                    )}
+                </Card>
+            )) : (
+                    <Card>
+                        <CardContent className="text-center text-muted-foreground py-16">
+                            <p className="font-semibold">No Announcements Found</p>
+                            <p>Your search or filter returned no results.</p>
+                        </CardContent>
+                    </Card>
+            )}
+        </div>
     </div>
   );
 }
