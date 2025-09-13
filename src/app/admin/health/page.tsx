@@ -197,6 +197,13 @@ export default function AdminHealthPage() {
         setSelectedIncident(null);
     };
 
+    const handleExport = () => {
+        toast({
+            title: 'Exporting Log',
+            description: 'Your incident log is being exported.',
+        });
+    };
+
     const filteredIncidents = mockIncidents.filter(incident => {
         const matchesSearch = incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               incident.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -523,7 +530,7 @@ export default function AdminHealthPage() {
                                         <CardTitle>School-Wide Incident Log</CardTitle>
                                         <CardDescription>A log of all reported incidents from teachers and staff.</CardDescription>
                                     </div>
-                                    <Button variant="outline" disabled>
+                                    <Button variant="outline" onClick={handleExport}>
                                         <FileDown className="mr-2" />
                                         Export Log
                                     </Button>
@@ -755,4 +762,3 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
-
