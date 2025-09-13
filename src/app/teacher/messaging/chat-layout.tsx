@@ -13,6 +13,8 @@ import {
   Paperclip,
   CheckCircle2,
   Languages,
+  Users,
+  User,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -37,6 +39,7 @@ export const conversations = [
     id: 'msg-1',
     name: 'Mr. Omondi (Parent)',
     avatar: 'https://picsum.photos/seed/parent1/100',
+    icon: 'User',
     lastMessage: "Good morning, I wanted to check on John's progress...",
     timestamp: '9:15 AM',
     unread: true,
@@ -45,6 +48,7 @@ export const conversations = [
     id: 'msg-2',
     name: 'Jane Achieng (Student)',
     avatar: 'https://picsum.photos/seed/student3/100',
+    icon: 'User',
     lastMessage: 'Hello Ms. Wanjiku, I have a question about the assignment.',
     timestamp: 'Yesterday',
     unread: true,
@@ -53,6 +57,7 @@ export const conversations = [
     id: 'msg-5',
     name: 'Form 4 Chemistry Announcements',
     avatar: 'https://picsum.photos/seed/group2/100',
+    icon: 'Users',
     lastMessage: 'Reminder: The lab report is due this Friday.',
     timestamp: 'Yesterday',
     unread: false,
@@ -61,6 +66,7 @@ export const conversations = [
     id: 'msg-3',
     name: 'Admin Office',
     avatar: 'https://picsum.photos/seed/admin/100',
+    icon: 'Users',
     lastMessage: 'Reminder: Staff meeting today at 3:00 PM.',
     timestamp: 'Yesterday',
     unread: false,
@@ -69,6 +75,7 @@ export const conversations = [
     id: 'msg-4',
     name: 'Form 4 Parents Group',
     avatar: 'https://picsum.photos/seed/group1/100',
+    icon: 'Users',
     lastMessage: 'Mr. Kamau: Is the trip confirmed for next week?',
     timestamp: '2 days ago',
     unread: false,
@@ -94,6 +101,12 @@ const messages = {
     ]
 }
 
+const getIconComponent = (iconName: string) => {
+    if (iconName === 'User') return User;
+    if (iconName === 'Users') return Users;
+    return MessageCircle;
+}
+
 
 export function ChatLayout() {
   const [selectedConvo, setSelectedConvo] = React.useState(conversations[0]);
@@ -117,7 +130,9 @@ export function ChatLayout() {
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="p-2 space-y-1">
-            {conversations.map((convo) => (
+            {conversations.map((convo) => {
+                const IconComponent = getIconComponent(convo.icon);
+                return (
                 <button
                 key={convo.id}
                 className={cn(
@@ -128,7 +143,7 @@ export function ChatLayout() {
               >
                 <Avatar className="h-10 w-10">
                     <AvatarImage src={convo.avatar} alt={convo.name} />
-                    <AvatarFallback>{convo.name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback><IconComponent /></AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
@@ -139,7 +154,7 @@ export function ChatLayout() {
                 </div>
                  {convo.unread && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1 self-center"></div>}
               </button>
-            ))}
+            )})}
             </div>
           </div>
         </div>
@@ -151,7 +166,7 @@ export function ChatLayout() {
                 <div className="flex items-center gap-3">
                      <Avatar className="h-10 w-10">
                         <AvatarImage src={selectedConvo.avatar} alt={selectedConvo.name} />
-                        <AvatarFallback>{selectedConvo.name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback>{React.createElement(getIconComponent(selectedConvo.icon))}</AvatarFallback>
                     </Avatar>
                     <p className="font-semibold">{selectedConvo.name}</p>
                 </div>
@@ -165,12 +180,14 @@ export function ChatLayout() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {(messages[selectedConvo.id as keyof typeof messages] || []).map((msg, index) => (
+                {(messages[selectedConvo.id as keyof typeof messages] || []).map((msg, index) => {
+                    const IconComponent = getIconComponent(selectedConvo.icon);
+                    return (
                     <div key={index} className={cn(
                         "flex items-end gap-2",
                         msg.sender === 'me' ? 'justify-end' : 'justify-start'
                     )}>
-                        {msg.sender === 'other' && <Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback>{selectedConvo.name.charAt(0)}</AvatarFallback></Avatar>}
+                        {msg.sender === 'other' && <Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback><IconComponent /></AvatarFallback></Avatar>}
                         <div className="group relative">
                           <div className={cn(
                               "max-w-xs lg:max-w-md rounded-2xl p-3 text-sm shadow-sm",
@@ -190,7 +207,7 @@ export function ChatLayout() {
                         </div>
                          {msg.sender === 'me' && <Avatar className="h-8 w-8"><AvatarImage src="https://picsum.photos/seed/teacher-avatar/100" /><AvatarFallback>T</AvatarFallback></Avatar>}
                     </div>
-                ))}
+                )})}
               </div>
               <div className="flex-shrink-0 p-4 border-t space-y-2">
                 <div className="relative">

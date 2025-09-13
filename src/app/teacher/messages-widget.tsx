@@ -5,10 +5,17 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MessageCircle, ArrowRight } from 'lucide-react';
+import { MessageCircle, ArrowRight, User, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { conversations } from './messaging/chat-layout';
+import * as React from 'react';
+
+const getIconComponent = (iconName: string) => {
+    if (iconName === 'User') return User;
+    if (iconName === 'Users') return Users;
+    return MessageCircle;
+}
 
 export function MessagesWidget() {
   const unreadCount = conversations.filter(m => m.unread).length;
@@ -26,27 +33,30 @@ export function MessagesWidget() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {conversations.slice(0, 3).map((message, index) => (
-            <div key={index} className="space-y-3">
-              <Link href="/teacher/messaging" className="block hover:bg-muted/50 p-2 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={message.avatar} alt={message.name} />
-                    <AvatarFallback>{message.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-center">
-                        <p className="font-semibold text-sm">{message.name}</p>
-                        <p className="text-xs text-muted-foreground">{message.timestamp}</p>
+          {conversations.slice(0, 3).map((message, index) => {
+            const IconComponent = getIconComponent(message.icon);
+            return (
+              <div key={index} className="space-y-3">
+                <Link href="/teacher/messaging" className="block hover:bg-muted/50 p-2 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={message.avatar} alt={message.name} />
+                      <AvatarFallback><IconComponent /></AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center">
+                          <p className="font-semibold text-sm">{message.name}</p>
+                          <p className="text-xs text-muted-foreground">{message.timestamp}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">{message.lastMessage}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">{message.lastMessage}</p>
+                    {message.unread && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1"></div>}
                   </div>
-                   {message.unread && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1"></div>}
-                </div>
-              </Link>
-              {index < conversations.slice(0, 3).length - 1 && <Separator />}
-            </div>
-          ))}
+                </Link>
+                {index < conversations.slice(0, 3).length - 1 && <Separator />}
+              </div>
+            );
+          })}
           {conversations.length === 0 && (
             <div className="text-center text-muted-foreground py-4">
               <p className="font-semibold">No new messages</p>
