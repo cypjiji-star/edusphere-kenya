@@ -201,69 +201,6 @@ export default function ParentGradesPage() {
             </CardContent>
         </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Detailed Term Grades</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full overflow-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Subject</TableHead>
-                  <TableHead className="text-center">CAT 1</TableHead>
-                  <TableHead className="text-center">Mid-Term</TableHead>
-                  <TableHead className="text-center">CAT 2</TableHead>
-                  <TableHead className="text-center">Final Exam</TableHead>
-                  <TableHead className="text-center">Average</TableHead>
-                  <TableHead className="text-center">Grade</TableHead>
-                  <TableHead>Teacher's Comment</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.subjects.map((subject) => (
-                  <TableRow key={subject.name}>
-                    <TableCell className="font-semibold">{subject.name}</TableCell>
-                    <TableCell className="text-center">{subject.cat1}</TableCell>
-                    <TableCell className="text-center">{subject.midTerm}</TableCell>
-                    <TableCell className="text-center">{subject.cat2}</TableCell>
-                    <TableCell className="text-center">{subject.final}</TableCell>
-                    <TableCell className="text-center font-bold">{subject.average}</TableCell>
-                    <TableCell className="text-center">
-                        <Badge variant="outline">{subject.grade}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs italic">
-                        <div className="flex items-center gap-2">
-                           <MessageCircle className="h-4 w-4 shrink-0" />
-                           <span>{subject.comment}</span>
-                        </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-            <CardTitle>Official Documents</CardTitle>
-            <CardDescription>Download official school documents like report cards and fee statements.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
-                <Button variant="outline" className="w-full sm:w-auto" disabled>
-                    <FileDown className="mr-2" />
-                    Download Term 2 Report Card (PDF)
-                </Button>
-                 <Button variant="outline" className="w-full sm:w-auto" disabled>
-                    <FileDown className="mr-2" />
-                    Download Fee Statement (PDF)
-                </Button>
-            </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
