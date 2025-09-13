@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from 'zod';
 import { z } from 'zod';
 import {
   Card,
@@ -150,6 +150,10 @@ export default function AdminHealthPage() {
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const [updatedStatus, setUpdatedStatus] = React.useState<IncidentStatus | undefined>();
     const [mockIncidents, setMockIncidents] = React.useState(MOCK_INCIDENTS_DATA);
+    const [searchTerm, setSearchTerm] = React.useState('');
+    const [typeFilter, setTypeFilter] = React.useState<IncidentType | 'All Types'>('All Types');
+    const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
+
     const currentHealthRecord = selectedHealthStudent ? studentHealthRecords[selectedHealthStudent] : null;
     const { toast } = useToast();
     const form = useForm<IncidentFormValues>({
@@ -192,6 +196,15 @@ export default function AdminHealthPage() {
 
         setSelectedIncident(null);
     };
+
+    const filteredIncidents = mockIncidents.filter(incident => {
+        const matchesSearch = incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              incident.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              incident.reportedBy.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = typeFilter === 'All Types' || incident.type === typeFilter;
+        const matchesStatus = statusFilter === 'All Statuses' || incident.status === statusFilter;
+        return matchesSearch && matchesType && matchesStatus;
+    });
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
@@ -522,28 +535,30 @@ export default function AdminHealthPage() {
                                         type="search"
                                         placeholder="Search by student, class, or keyword..."
                                         className="w-full bg-background pl-8"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
                                     <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                                        <Select>
+                                        <Select value={typeFilter} onValueChange={(v: IncidentType | 'All Types') => setTypeFilter(v)}>
                                             <SelectTrigger className="w-full md:w-[180px]">
                                                 <Filter className="mr-2 h-4 w-4" />
                                                 <SelectValue placeholder="Filter by type" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">All Types</SelectItem>
+                                                <SelectItem value="All Types">All Types</SelectItem>
                                                 <SelectItem value="Health">Health</SelectItem>
                                                 <SelectItem value="Discipline">Discipline</SelectItem>
                                                 <SelectItem value="Accident">Accident</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                         <Select>
+                                         <Select value={statusFilter} onValueChange={(v: IncidentStatus | 'All Statuses') => setStatusFilter(v)}>
                                             <SelectTrigger className="w-full md:w-[180px]">
                                                 <Filter className="mr-2 h-4 w-4" />
                                                 <SelectValue placeholder="Filter by status" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">All Statuses</SelectItem>
+                                                <SelectItem value="All Statuses">All Statuses</SelectItem>
                                                 <SelectItem value="Reported">Reported</SelectItem>
                                                 <SelectItem value="Under Review">Under Review</SelectItem>
                                                 <SelectItem value="Resolved">Resolved</SelectItem>
@@ -568,7 +583,7 @@ export default function AdminHealthPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {mockIncidents.map(incident => (
+                                            {filteredIncidents.map(incident => (
                                                 <DialogTrigger asChild key={incident.id}>
                                                     <TableRow className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
                                                         <TableCell>
@@ -740,4 +755,3 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
-
