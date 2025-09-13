@@ -73,7 +73,7 @@ export default function LessonPlansPage() {
             </Button>
         </div>
 
-      <Tabs defaultValue="list-view">
+      <Tabs defaultValue="calendar-view">
         <div className="flex items-center justify-between">
             <TabsList>
                 <TabsTrigger value="list-view">List View</TabsTrigger>
