@@ -363,6 +363,78 @@ function StudentLedgerDialog({ student, open, onOpenChange }: { student: Student
     )
 }
 
+function EditCategoryDialog({ category, open, onOpenChange, onSave }: { category: FeeStructureItem | null, open: boolean, onOpenChange: (open: boolean) => void, onSave: (data: Partial<FeeStructureItem>) => void }) {
+    const [amount, setAmount] = React.useState(0);
+
+    React.useEffect(() => {
+        if (category) {
+            setAmount(category.amount);
+        }
+    }, [category]);
+
+    if (!category) return null;
+
+    const handleSave = () => {
+        onSave({ amount });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Fee Category: {category.category}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="amount">Amount (KES)</Label>
+                        <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <DialogClose asChild><Button onClick={handleSave}>Save Changes</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function EditDiscountDialog({ discount, open, onOpenChange, onSave }: { discount: DiscountItem | null, open: boolean, onOpenChange: (open: boolean) => void, onSave: (data: Partial<DiscountItem>) => void }) {
+    const [value, setValue] = React.useState('');
+
+    React.useEffect(() => {
+        if (discount) {
+            setValue(discount.value);
+        }
+    }, [discount]);
+
+    if (!discount) return null;
+
+    const handleSave = () => {
+        onSave({ value });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Discount: {discount.name}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="value">Value ({discount.type === 'Percentage' ? '%' : 'KES'})</Label>
+                        <Input id="value" value={value} onChange={(e) => setValue(e.target.value)} />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <DialogClose asChild><Button onClick={handleSave}>Save Changes</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 
 export default function FeesPage() {
     const [students, setStudents] = React.useState<StudentFee[]>([]);
@@ -375,6 +447,8 @@ export default function FeesPage() {
     const { toast } = useToast();
     const [invoiceTerm, setInvoiceTerm] = React.useState('term2-2024');
     const [invoiceClass, setInvoiceClass] = React.useState('all');
+    const [editingCategory, setEditingCategory] = React.useState<FeeStructureItem | null>(null);
+    const [editingDiscount, setEditingDiscount] = React.useState<DiscountItem | null>(null);
 
 
     React.useEffect(() => {
@@ -488,11 +562,30 @@ export default function FeesPage() {
         }
     };
 
-    const handleEditItem = (itemType: 'category' | 'discount', name: string) => {
-        toast({
-            title: `Editing ${name}`,
-            description: `In a real app, this would open a form to edit this ${itemType}.`,
-        });
+    const handleUpdateCategory = async (data: Partial<FeeStructureItem>) => {
+        if (!editingCategory) return;
+        try {
+            const categoryRef = doc(firestore, 'feeStructure', editingCategory.id);
+            await updateDoc(categoryRef, data);
+            toast({ title: "Category Updated", description: "The fee category has been successfully updated." });
+            setEditingCategory(null);
+        } catch (error) {
+            console.error("Error updating category:", error);
+            toast({ title: "Error", description: "Failed to update fee category.", variant: "destructive" });
+        }
+    };
+    
+    const handleUpdateDiscount = async (data: Partial<DiscountItem>) => {
+        if (!editingDiscount) return;
+        try {
+            const discountRef = doc(firestore, 'discounts', editingDiscount.id);
+            await updateDoc(discountRef, data);
+            toast({ title: "Discount Updated", description: "The discount has been successfully updated." });
+            setEditingDiscount(null);
+        } catch (error) {
+            console.error("Error updating discount:", error);
+            toast({ title: "Error", description: "Failed to update discount.", variant: "destructive" });
+        }
     };
 
     const handleDeleteItem = async (collectionName: string, id: string, name: string) => {
@@ -659,7 +752,7 @@ export default function FeesPage() {
                                             <TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell>
                                             <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEditItem('category', item.category)}>
+                                                <Button variant="ghost" size="icon" onClick={() => setEditingCategory(item)}>
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem('feeStructure', item.id, item.category)}>
@@ -723,7 +816,7 @@ export default function FeesPage() {
                                                         <TableCell><Badge variant="outline">{item.type}</Badge></TableCell>
                                                         <TableCell>{item.value}</TableCell>
                                                         <TableCell className="text-right">
-                                                            <Button variant="ghost" size="icon" onClick={() => handleEditItem('discount', item.name)}>
+                                                            <Button variant="ghost" size="icon" onClick={() => setEditingDiscount(item)}>
                                                                 <Edit className="h-4 w-4" />
                                                             </Button>
                                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem('discounts', item.id, item.name)}>
@@ -912,6 +1005,8 @@ export default function FeesPage() {
                 </Tabs>
             </div>
             <StudentLedgerDialog student={selectedStudent} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} />
+            <EditCategoryDialog category={editingCategory} open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)} onSave={handleUpdateCategory} />
+            <EditDiscountDialog discount={editingDiscount} open={!!editingDiscount} onOpenChange={(open) => !open && setEditingDiscount(null)} onSave={handleUpdateDiscount} />
         </Dialog>
     );
 }
