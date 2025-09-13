@@ -18,7 +18,7 @@ import {
   isToday,
   parse,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, PlusCircle, Bell, Clock, Users, Printer, FileDown, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Bell, Clock, Users, Printer, FileDown, ChevronDown, MapPin, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 
 type CalendarView = 'month' | 'week' | 'day';
@@ -45,6 +55,8 @@ type CalendarEvent = {
   date: Date;
   title: string;
   type: 'event' | 'holiday' | 'exam' | 'meeting';
+  description: string;
+  location?: string;
   startTime?: string;
   endTime?: string;
 };
@@ -57,11 +69,11 @@ const eventColors: Record<CalendarEvent['type'], string> = {
 };
 
 const MOCK_EVENTS: CalendarEvent[] = [
-  { id: '1', date: new Date(), title: "Form 4 Exams Begin", type: 'exam', startTime: '08:00', endTime: '16:00' },
-  { id: '2', date: add(new Date(), { days: 1 }), title: "PTA Meeting", type: 'meeting', startTime: '14:00', endTime: '15:00' },
-  { id: '3', date: sub(new Date(), { days: 5 }), title: "Staff Briefing", type: 'meeting' },
-  { id: '4', date: add(new Date(), { days: 12 }), title: "Annual Sports Day", type: 'event' },
-  { id: '5', date: add(new Date(), { days: 20 }), title: "Moi Day", type: 'holiday' },
+  { id: '1', date: new Date(), title: "Form 4 Exams Begin", type: 'exam', startTime: '08:00', endTime: '16:00', description: 'The official start of the Form 4 final examinations for Term 2.', location: 'Main Hall' },
+  { id: '2', date: add(new Date(), { days: 1 }), title: "PTA Meeting", type: 'meeting', startTime: '14:00', endTime: '15:00', description: 'A general meeting for all parents and teachers to discuss the term\'s progress.', location: 'Auditorium' },
+  { id: '3', date: sub(new Date(), { days: 5 }), title: "Staff Briefing", type: 'meeting', description: 'Weekly staff briefing session.' },
+  { id: '4', date: add(new Date(), { days: 12 }), title: "Annual Sports Day", type: 'event', description: 'Annual school-wide sports day event. All are welcome.', location: 'School Sports Field' },
+  { id: '5', date: add(new Date(), { days: 20 }), title: "Moi Day", type: 'holiday', description: 'School closed for the public holiday.' },
 ];
 
 
@@ -69,6 +81,7 @@ export function FullCalendar() {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [events, setEvents] = React.useState<CalendarEvent[]>(MOCK_EVENTS);
+  const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
 
   const [newEventTitle, setNewEventTitle] = React.useState('');
   const [newEventStartTime, setNewEventStartTime] = React.useState('10:00');
@@ -104,6 +117,7 @@ export function FullCalendar() {
       id: (events.length + 1).toString(),
       date: currentDate, // For simplicity, adds to the current date being viewed
       title: newEventTitle,
+      description: 'A newly added event.', // Placeholder description
       type: newEventType,
       startTime: newEventStartTime,
       endTime: newEventEndTime,
@@ -263,9 +277,15 @@ export function FullCalendar() {
                   <span className={cn('font-medium text-xs md:text-sm', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
                    <div className="mt-1 space-y-1 overflow-y-auto">
                         {eventsForDay.map(event => (
-                            <Badge key={event.id} className={cn('w-full truncate text-white text-[10px] md:text-xs', eventColors[event.type])}>
-                                {event.title}
-                            </Badge>
+                            <DialogTrigger key={event.id} asChild>
+                                <Badge 
+                                    onClick={() => setSelectedEvent(event)}
+                                    className={cn('w-full truncate text-white text-[10px] md:text-xs cursor-pointer', eventColors[event.type])}
+                                    title={event.title}
+                                >
+                                    {event.title}
+                                </Badge>
+                            </DialogTrigger>
                         ))}
                    </div>
                 </div>
@@ -313,14 +333,16 @@ export function FullCalendar() {
                                     const top = (startHour - 8) * 4; // 4rem per hour (h-16)
                                     const height = (endHour - startHour) * 4;
                                      return (
-                                        <div
-                                            key={event.id}
-                                            className={cn("absolute w-[calc(100%-4px)] ml-[2px] p-2 rounded-lg text-white text-xs", eventColors[event.type])}
-                                            style={{ top: `${top}rem`, height: `${height}rem`}}
-                                        >
-                                            <p className="font-bold">{event.title}</p>
-                                            <p>{event.startTime} - {event.endTime}</p>
-                                        </div>
+                                        <DialogTrigger key={event.id} asChild>
+                                            <div
+                                                onClick={() => setSelectedEvent(event)}
+                                                className={cn("absolute w-[calc(100%-4px)] ml-[2px] p-2 rounded-lg text-white text-xs cursor-pointer", eventColors[event.type])}
+                                                style={{ top: `${top}rem`, height: `${height}rem`}}
+                                            >
+                                                <p className="font-bold">{event.title}</p>
+                                                <p>{event.startTime} - {event.endTime}</p>
+                                            </div>
+                                        </DialogTrigger>
                                      )
                                 })}
                             </div>
@@ -338,16 +360,18 @@ export function FullCalendar() {
              <div className="border rounded-lg p-4">
                  <div className="space-y-4">
                     {eventsForDay.length > 0 ? eventsForDay.map(event => (
-                        <div key={event.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
-                            <div className="w-24 text-sm font-semibold text-primary">
-                                {event.startTime && event.endTime ? `${event.startTime} - ${event.endTime}` : 'All Day'}
+                        <DialogTrigger key={event.id} asChild>
+                            <div onClick={() => setSelectedEvent(event)} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted">
+                                <div className="w-24 text-sm font-semibold text-primary">
+                                    {event.startTime && event.endTime ? `${event.startTime} - ${event.endTime}` : 'All Day'}
+                                </div>
+                                <div className={cn("w-1.5 h-full rounded-full self-stretch", eventColors[event.type])} />
+                                <div className="flex-1">
+                                    <p className="font-bold">{event.title}</p>
+                                    <Badge variant="secondary" className="capitalize">{event.type}</Badge>
+                                </div>
                             </div>
-                            <div className={cn("w-1.5 h-full rounded-full self-stretch", eventColors[event.type])} />
-                             <div className="flex-1">
-                                <p className="font-bold">{event.title}</p>
-                                <Badge variant="secondary" className="capitalize">{event.type}</Badge>
-                            </div>
-                        </div>
+                        </DialogTrigger>
                     )) : (
                          <div className="text-center text-muted-foreground py-16">
                             <p>No events scheduled for this day.</p>
@@ -360,11 +384,48 @@ export function FullCalendar() {
   
 
   return (
-    <div>
+    <Dialog onOpenChange={(open) => !open && setSelectedEvent(null)}>
       {renderHeader()}
       {view === 'month' && renderMonthView()}
       {view === 'week' && renderWeekView()}
       {view === 'day' && renderDayView()}
-    </div>
+
+       {selectedEvent && (
+        <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+                <DialogTitle className="font-headline text-2xl">{selectedEvent.title}</DialogTitle>
+                <DialogDescription>
+                    <Badge className={cn("text-white", eventColors[selectedEvent.type])}>{selectedEvent.type}</Badge>
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                 <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span>{selectedEvent.startTime ? `${selectedEvent.startTime} - ${selectedEvent.endTime}` : 'All Day'}</span>
+                    </div>
+                    {selectedEvent.location && (
+                        <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span>{selectedEvent.location}</span>
+                        </div>
+                    )}
+                </div>
+                <Separator/>
+                <p className="text-sm text-muted-foreground">{selectedEvent.description}</p>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" disabled>
+                    <Edit className="mr-2 h-4 w-4"/>
+                    Edit Event
+                </Button>
+                <Button variant="destructive" disabled>
+                    <Trash2 className="mr-2 h-4 w-4"/>
+                    Delete Event
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
   );
 }
