@@ -59,8 +59,7 @@ const versionHistory = [
 export default function BrandingPage() {
     const [primaryColor, setPrimaryColor] = React.useState('#008080');
     const [accentColor, setAccentColor] = React.useState('#B8860B');
-    const [backgroundColor, setBackgroundColor] = React.useState('#F5F5DC');
-    const [isDarkMode, setIsDarkMode] = React.useState(false);
+    const [backgroundColor, setBackgroundColor] = React.useState('#1e293b');
     const [headlineFont, setHeadlineFont] = React.useState(googleFonts[1].family);
     const [bodyFont, setBodyFont] = React.useState(googleFonts[4].family);
 
@@ -69,11 +68,11 @@ export default function BrandingPage() {
     const previewStyle = {
         '--preview-primary': primaryColor,
         '--preview-accent': accentColor,
-        '--preview-background': isDarkMode ? '#1e293b' : backgroundColor,
-        '--preview-foreground': isDarkMode ? '#f8fafc' : '#0f172a',
-        '--preview-card': isDarkMode ? '#293548' : '#ffffff',
-        '--preview-muted': isDarkMode ? '#334155' : '#f1f5f9',
-        '--preview-muted-foreground': isDarkMode ? '#94a3b8' : '#64748b',
+        '--preview-background': backgroundColor,
+        '--preview-foreground': '#f8fafc',
+        '--preview-card': '#293548',
+        '--preview-muted': '#334155',
+        '--preview-muted-foreground': '#94a3b8',
         '--preview-font-headline': headlineFont,
         '--preview-font-body': bodyFont,
     } as React.CSSProperties;
@@ -160,15 +159,7 @@ export default function BrandingPage() {
                     <CardContent className="space-y-6">
                         <ColorPicker label="Primary Color" color={primaryColor} setColor={setPrimaryColor} />
                         <ColorPicker label="Accent Color" color={accentColor} setColor={setAccentColor} />
-                        <ColorPicker label="Background Color (Light Mode)" color={backgroundColor} setColor={setBackgroundColor} />
-                        <Separator />
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="dark-mode" className="flex items-center gap-2">
-                                {isDarkMode ? <Moon/> : <Sun />}
-                                {isDarkMode ? 'Dark Mode' : 'Light Mode'}
-                            </Label>
-                            <Switch id="dark-mode" checked={isDarkMode} onCheckedChange={setIsDarkMode} />
-                        </div>
+                        <ColorPicker label="Background Color" color={backgroundColor} setColor={setBackgroundColor} />
                     </CardContent>
                 </Card>
                 <Card>
