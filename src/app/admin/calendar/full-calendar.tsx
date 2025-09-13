@@ -35,6 +35,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+
 
 type CalendarView = 'month' | 'week' | 'day';
 
@@ -66,6 +68,14 @@ const MOCK_EVENTS: CalendarEvent[] = [
 export function FullCalendar() {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
+  const [events, setEvents] = React.useState<CalendarEvent[]>(MOCK_EVENTS);
+
+  const [newEventTitle, setNewEventTitle] = React.useState('');
+  const [newEventStartTime, setNewEventStartTime] = React.useState('10:00');
+  const [newEventEndTime, setNewEventEndTime] = React.useState('11:00');
+  const [newEventType, setNewEventType] = React.useState<CalendarEvent['type']>('event');
+  const [isAddEventPopoverOpen, setIsAddEventPopoverOpen] = React.useState(false);
+  const { toast } = useToast();
 
   const handlePrev = () => {
     const newDate = sub(currentDate, { [view === 'month' ? 'months' : view === 'week' ? 'weeks' : 'days']: 1 });
@@ -80,6 +90,36 @@ export function FullCalendar() {
   const handleToday = () => {
     setCurrentDate(new Date());
   }
+
+  const handleAddEvent = () => {
+    if (!newEventTitle) {
+      toast({
+        title: 'Error',
+        description: 'Event title is required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const newEvent: CalendarEvent = {
+      id: (events.length + 1).toString(),
+      date: currentDate, // For simplicity, adds to the current date being viewed
+      title: newEventTitle,
+      type: newEventType,
+      startTime: newEventStartTime,
+      endTime: newEventEndTime,
+    };
+    setEvents([...events, newEvent]);
+    toast({
+      title: 'Event Added',
+      description: `"${newEventTitle}" has been added to the calendar.`,
+    });
+    // Reset form
+    setNewEventTitle('');
+    setNewEventStartTime('10:00');
+    setNewEventEndTime('11:00');
+    setNewEventType('event');
+    setIsAddEventPopoverOpen(false);
+  };
 
   const renderHeader = () => (
     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
@@ -119,7 +159,7 @@ export function FullCalendar() {
                 <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" /> Export as iCal (.ics)</DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
-        <Popover>
+        <Popover open={isAddEventPopoverOpen} onOpenChange={setIsAddEventPopoverOpen}>
             <PopoverTrigger asChild>
                 <Button><PlusCircle className="mr-2"/> Add Event</Button>
             </PopoverTrigger>
@@ -134,21 +174,21 @@ export function FullCalendar() {
                     <div className="grid gap-4">
                       <div className="grid gap-2">
                         <Label htmlFor="event-title">Title</Label>
-                        <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" />
+                        <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="start-time">Start Time</Label>
-                            <Input id="start-time" type="time" defaultValue="10:00" />
+                            <Input id="start-time" type="time" value={newEventStartTime} onChange={(e) => setNewEventStartTime(e.target.value)} />
                         </div>
                          <div className="grid gap-2">
                             <Label htmlFor="end-time">End Time</Label>
-                            <Input id="end-time" type="time" defaultValue="11:00" />
+                            <Input id="end-time" type="time" value={newEventEndTime} onChange={(e) => setNewEventEndTime(e.target.value)} />
                         </div>
                       </div>
                        <div className="grid gap-2">
                           <Label htmlFor="event-type">Event Type</Label>
-                          <Select>
+                          <Select value={newEventType} onValueChange={(value: CalendarEvent['type']) => setNewEventType(value)}>
                             <SelectTrigger id="event-type">
                                 <SelectValue placeholder="Select a type" />
                             </SelectTrigger>
@@ -182,7 +222,7 @@ export function FullCalendar() {
                           </div>
                       </div>
 
-                      <Button disabled className="w-full">
+                      <Button onClick={handleAddEvent} className="w-full">
                         <PlusCircle className="mr-2 h-4 w-4"/>
                         Add to Calendar
                       </Button>
@@ -209,7 +249,7 @@ export function FullCalendar() {
         <div className="grid grid-cols-7">
           {weeks.map((weekStart) =>
             eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day) => {
-              const eventsForDay = MOCK_EVENTS.filter(e => isSameDay(e.date, day));
+              const eventsForDay = events.filter(e => isSameDay(e.date, day));
               return (
                 <div
                   key={day.toString()}
@@ -267,7 +307,7 @@ export function FullCalendar() {
                                 {hours.map(hour => (
                                      <div key={hour} className="h-16 border-t" />
                                 ))}
-                                {MOCK_EVENTS.filter(e => isSameDay(e.date, day) && e.startTime).map(event => {
+                                {events.filter(e => isSameDay(e.date, day) && e.startTime).map(event => {
                                     const startHour = parseInt(event.startTime!.split(':')[0], 10);
                                     const endHour = parseInt(event.endTime!.split(':')[0], 10);
                                     const top = (startHour - 8) * 4; // 4rem per hour (h-16)
@@ -292,7 +332,7 @@ export function FullCalendar() {
     };
 
     const renderDayView = () => {
-         const eventsForDay = MOCK_EVENTS.filter(e => isSameDay(e.date, currentDate));
+         const eventsForDay = events.filter(e => isSameDay(e.date, currentDate));
 
         return (
              <div className="border rounded-lg p-4">
