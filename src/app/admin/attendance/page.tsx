@@ -208,6 +208,13 @@ export default function AdminAttendancePage() {
     });
   }
 
+  const handleExport = (type: 'PDF' | 'CSV') => {
+    toast({
+      title: 'Exporting Records',
+      description: `Your attendance records are being exported as a ${type} file.`,
+    });
+  };
+
   const filteredRecords = MOCK_RECORDS.filter(record => {
       const recordDate = new Date(record.date);
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
@@ -424,8 +431,8 @@ export default function AdminAttendancePage() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
-                            <DropdownMenuItem><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
