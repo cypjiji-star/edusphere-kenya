@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
+import { assignmentSchema, createAssignmentAction, AssignmentFormValues } from './actions';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -43,15 +44,6 @@ const teacherClasses = [
   { id: 'f2-phys', name: 'Form 2 - Physics' },
 ];
 
-const assignmentSchema = z.object({
-  title: z.string().min(5, 'Title must be at least 5 characters.'),
-  classId: z.string({ required_error: 'Please select a class.' }),
-  dueDate: z.date({ required_error: 'A due date is required.' }),
-  instructions: z.string().min(20, 'Instructions must be at least 20 characters.'),
-});
-
-type AssignmentFormValues = z.infer<typeof assignmentSchema>;
-
 export function AssignmentForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -67,19 +59,23 @@ export function AssignmentForm() {
   async function onSubmit(values: AssignmentFormValues) {
     setIsLoading(true);
 
-    // Simulate network request
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    const result = await createAssignmentAction(values);
     
     setIsLoading(false);
     
-    toast({
-      title: 'Assignment Created!',
-      description: `"${values.title}" has been posted for ${teacherClasses.find(c => c.id === values.classId)?.name}.`,
-    });
-    
-    // In a real app, you would redirect the user or clear the form.
-    // For now, we'll just log the data.
-    console.log(values);
+    if (result.success) {
+        toast({
+            title: 'Assignment Created!',
+            description: `"${values.title}" has been posted for ${teacherClasses.find(c => c.id === values.classId)?.name}.`,
+        });
+        form.reset();
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Failed to Create Assignment',
+            description: result.message,
+        });
+    }
   }
 
   return (
