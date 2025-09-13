@@ -1,6 +1,7 @@
 
 'use client';
 
+import * as React from 'react';
 import {
   Card,
   CardContent,
@@ -25,6 +26,7 @@ import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 const recentChanges = [
     { user: 'Admin User', change: 'Enabled self-registration for parents.', date: '2024-07-28 10:05 AM' },
@@ -33,6 +35,20 @@ const recentChanges = [
 ];
 
 export default function SettingsPage() {
+    const { toast } = useToast();
+    const [feeAlertsEnabled, setFeeAlertsEnabled] = React.useState(true);
+    const [reminderSchedule, setReminderSchedule] = React.useState('weekly');
+    const [reminderDay, setReminderDay] = React.useState('monday');
+    const [reminderThreshold, setReminderThreshold] = React.useState(7);
+    const [reminderMessage, setReminderMessage] = React.useState("Dear Parent, this is a friendly reminder that a fee balance of {balance} for {studentName} is overdue. Please make a payment at your earliest convenience.");
+
+    const handleSaveSettings = () => {
+        toast({
+            title: 'Settings Saved',
+            description: 'Your system settings have been successfully updated.',
+        });
+    };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
@@ -134,7 +150,7 @@ export default function SettingsPage() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button disabled>
+                    <Button onClick={handleSaveSettings}>
                         <Save className="mr-2 h-4 w-4"/>
                         Save Settings
                     </Button>
@@ -203,44 +219,46 @@ export default function SettingsPage() {
                                 <Label htmlFor="fee-alerts" className="font-semibold">Automated Fee Reminders</Label>
                                 <p className="text-xs text-muted-foreground">Automatically notify parents about outstanding fee balances.</p>
                             </div>
-                            <Switch id="fee-alerts" />
+                            <Switch id="fee-alerts" checked={feeAlertsEnabled} onCheckedChange={setFeeAlertsEnabled} />
                         </div>
-                        <Separator/>
-                        <div className="space-y-4 pl-2">
-                             <div className="grid w-full max-w-sm items-center gap-1.5">
-                                <Label htmlFor="reminder-schedule">Sending Schedule</Label>
-                                <div className="flex gap-2">
-                                     <Select defaultValue="weekly">
-                                        <SelectTrigger className="w-[120px]">
-                                            <SelectValue/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="daily">Daily</SelectItem>
-                                            <SelectItem value="weekly">Weekly</SelectItem>
-                                        </SelectContent>
-                                     </Select>
-                                     <Select defaultValue="monday">
-                                        <SelectTrigger className="w-[120px]">
-                                            <SelectValue/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="monday">on Mondays</SelectItem>
-                                            <SelectItem value="friday">on Fridays</SelectItem>
-                                        </SelectContent>
-                                     </Select>
+                        <div className={!feeAlertsEnabled ? 'opacity-50' : ''}>
+                            <Separator/>
+                            <div className="space-y-4 pl-2 pt-4">
+                                <div className="grid w-full max-w-sm items-center gap-1.5">
+                                    <Label htmlFor="reminder-schedule">Sending Schedule</Label>
+                                    <div className="flex gap-2">
+                                        <Select value={reminderSchedule} onValueChange={(v: 'daily' | 'weekly') => setReminderSchedule(v)} disabled={!feeAlertsEnabled}>
+                                            <SelectTrigger className="w-[120px]">
+                                                <SelectValue/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="daily">Daily</SelectItem>
+                                                <SelectItem value="weekly">Weekly</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Select value={reminderDay} onValueChange={setReminderDay} disabled={!feeAlertsEnabled || reminderSchedule !== 'weekly'}>
+                                            <SelectTrigger className="w-[120px]">
+                                                <SelectValue/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="monday">on Mondays</SelectItem>
+                                                <SelectItem value="friday">on Fridays</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                            </div>
-                             <div className="grid w-full max-w-xs items-center gap-1.5">
-                                <Label htmlFor="reminder-threshold">Send for balances overdue by</Label>
-                                <div className="flex items-center gap-2">
-                                <Input type="number" id="reminder-threshold" defaultValue={7} className="w-20" />
-                                <span>days or more.</span>
+                                <div className="grid w-full max-w-xs items-center gap-1.5">
+                                    <Label htmlFor="reminder-threshold">Send for balances overdue by</Label>
+                                    <div className="flex items-center gap-2">
+                                    <Input type="number" id="reminder-threshold" value={reminderThreshold} onChange={(e) => setReminderThreshold(Number(e.target.value))} className="w-20" disabled={!feeAlertsEnabled} />
+                                    <span>days or more.</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid w-full items-center gap-1.5">
-                                <Label htmlFor="reminder-message">Reminder Message Template</Label>
-                                <Textarea id="reminder-message" placeholder="Customize the message sent to parents." defaultValue="Dear Parent, this is a friendly reminder that a fee balance of {balance} for {studentName} is overdue. Please make a payment at your earliest convenience."/>
-                                <p className="text-xs text-muted-foreground">Use placeholders like `'{'{studentName}'}'`, `'{'{balance}'}'`, and `'{'{dueDate}'}'`.</p>
+                                <div className="grid w-full items-center gap-1.5">
+                                    <Label htmlFor="reminder-message">Reminder Message Template</Label>
+                                    <Textarea id="reminder-message" placeholder="Customize the message sent to parents." value={reminderMessage} onChange={(e) => setReminderMessage(e.target.value)} disabled={!feeAlertsEnabled}/>
+                                    <p className="text-xs text-muted-foreground">Use placeholders like `'{'{studentName}'}'`, `'{'{balance}'}'`, and `'{'{dueDate}'}'`.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
