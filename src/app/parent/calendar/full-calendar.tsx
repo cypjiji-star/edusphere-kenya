@@ -21,15 +21,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MOCK_EVENTS, CalendarEvent } from './mock-events';
 
 type CalendarView = 'month' | 'week' | 'day';
-
-type CalendarEvent = {
-  id: string;
-  date: Date;
-  title: string;
-  type: 'event' | 'holiday' | 'exam' | 'meeting' | 'sports' | 'trip';
-};
 
 const eventColors: Record<CalendarEvent['type'], string> = {
   event: 'bg-blue-500 hover:bg-blue-600',
@@ -40,13 +34,6 @@ const eventColors: Record<CalendarEvent['type'], string> = {
   trip: 'bg-pink-500 hover:bg-pink-600',
 };
 
-const MOCK_EVENTS: CalendarEvent[] = [
-  { id: '1', date: new Date(), title: "Form 4 Exams Begin", type: 'exam' },
-  { id: '2', date: add(new Date(), { days: 1 }), title: "PTA Meeting", type: 'meeting' },
-  { id: '3', date: sub(new Date(), { days: 5 }), title: "Staff Briefing", type: 'meeting' },
-  { id: '4', date: add(new Date(), { days: 12 }), title: "Annual Sports Day", type: 'sports' },
-  { id: '5', date: add(new Date(), { days: 20 }), title: "Moi Day", type: 'holiday' },
-];
 
 const childrenData = [
   { id: 'child-1', name: 'John Doe', class: 'Form 4' },
