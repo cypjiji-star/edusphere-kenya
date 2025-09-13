@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MOCK_EVENTS, CalendarEvent } from './mock-events';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 type CalendarView = 'month' | 'week' | 'day';
 
@@ -46,14 +47,16 @@ const eventTypes: CalendarEvent['type'][] = ['exam', 'meeting', 'trip', 'sports'
 
 
 export function FullCalendar() {
-  const [currentDate, setCurrentDate] = React.useState(MOCK_EVENTS[0].date);
+  const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [clientReady, setClientReady] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
+  const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
+  const [eventTypeFilter, setEventTypeFilter] = React.useState('all');
+  const { toast } = useToast();
 
   React.useEffect(() => {
     setClientReady(true);
-    setCurrentDate(new Date());
   }, []);
 
   const handlePrev = () => {
@@ -69,6 +72,20 @@ export function FullCalendar() {
   const handleToday = () => {
     setCurrentDate(new Date());
   }
+  
+  const handleToastAction = (title: string, description: string) => {
+    toast({ title, description });
+  }
+
+  const filteredEvents = React.useMemo(() => {
+    return MOCK_EVENTS.filter(event => {
+        const matchesType = eventTypeFilter === 'all' || event.type === eventTypeFilter;
+        // In a real app, you would add logic to filter by child's class, etc.
+        const matchesChild = selectedChild ? true : false;
+        return matchesType && matchesChild;
+    });
+  }, [eventTypeFilter, selectedChild]);
+
 
   const renderHeader = () => (
     <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between mb-4">
@@ -87,7 +104,7 @@ export function FullCalendar() {
         <div className="flex flex-col gap-2 md:flex-row md:items-center">
             <div className="flex items-center gap-2">
                 <User className="h-5 w-5 text-primary"/>
-                <Select defaultValue={childrenData[0].id}>
+                <Select value={selectedChild} onValueChange={setSelectedChild}>
                     <SelectTrigger className="w-full md:w-[180px]">
                         <SelectValue placeholder="Select a child" />
                     </SelectTrigger>
@@ -100,28 +117,15 @@ export function FullCalendar() {
             </div>
              <div className="flex items-center gap-2">
                 <Filter className="h-5 w-5 text-primary"/>
-                <Select>
+                <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
                     <SelectTrigger className="w-full md:w-[150px]">
                         <SelectValue placeholder="Filter by Type" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Events</SelectItem>
                         {eventTypes.map(type => (
-                             <SelectItem key={type} value={type} className="capitalize">{type}</SelectItem>
+                             <SelectItem key={type} value={type} className="capitalize">{type.charAt(0).toUpperCase() + type.slice(1)}</SelectItem>
                         ))}
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5 text-primary"/>
-                <Select defaultValue="month">
-                    <SelectTrigger className="w-full md:w-[150px]">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="week">This Week</SelectItem>
-                        <SelectItem value="month">This Month</SelectItem>
-                        <SelectItem value="custom">Custom Range</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -144,7 +148,7 @@ export function FullCalendar() {
         <div className="grid grid-cols-7">
           {weeks.map((weekStart) =>
             eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day) => {
-              const eventsForDay = MOCK_EVENTS.filter(e => isSameDay(e.date, day));
+              const eventsForDay = filteredEvents.filter(e => isSameDay(e.date, day));
               const isTodayFlag = clientReady && isToday(day);
               return (
                 <div
@@ -162,7 +166,9 @@ export function FullCalendar() {
                           <DialogTrigger key={event.id} asChild>
                             <Badge 
                                 onClick={() => setSelectedEvent(event)}
-                                className={cn('w-full truncate text-white text-[10px] md:text-xs cursor-pointer', eventColors[event.type])}>
+                                className={cn('w-full truncate text-white text-[10px] md:text-xs cursor-pointer', eventColors[event.type])}
+                                title={event.title}
+                            >
                                 {event.title}
                             </Badge>
                            </DialogTrigger>
@@ -238,7 +244,7 @@ export function FullCalendar() {
                             <h4 className="font-semibold text-primary mb-2">Attachments</h4>
                             <div className="space-y-2">
                                 {selectedEvent.attachments.map((file, index) => (
-                                    <Button key={index} variant="outline" size="sm" className="w-full justify-start" disabled>
+                                    <Button key={index} variant="outline" size="sm" className="w-full justify-start" onClick={() => handleToastAction('Downloading Attachment', `Your download for "${file.name}" will start shortly.`)}>
                                         <Paperclip className="mr-2 h-4 w-4"/>
                                         {file.name} ({file.size})
                                     </Button>
@@ -249,11 +255,11 @@ export function FullCalendar() {
                  )}
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="secondary" disabled>
+                <Button variant="secondary" onClick={() => handleToastAction('RSVP Sent', 'Your response has been noted.')}>
                     <Check className="mr-2 h-4 w-4" />
                     RSVP
                 </Button>
-                 <Button variant="outline" disabled>
+                 <Button variant="outline" onClick={() => handleToastAction('Event Added', 'This event has been added to your personal calendar.')}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     Add to my Calendar
                 </Button>
