@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip, Loader2, X, Edit } from 'lucide-react';
+import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip, Loader2, X, Edit, Bell } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -374,6 +374,10 @@ export default function ExpensesPage() {
             toast({
                 title: 'Status Updated',
                 description: `The expense has been marked as ${status}.`
+            });
+            toast({
+                title: 'Submitter Notified',
+                description: `A notification has been sent to the submitter about the status change.`
             });
         } catch (error) {
             console.error("Error updating status:", error);
@@ -854,3 +858,4 @@ export default function ExpensesPage() {
       
 
     
+
