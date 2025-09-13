@@ -15,7 +15,7 @@ import { ArrowLeft, User, Phone, Users, History, FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 // Mock data fetching - in a real app, this would be an API call.
 const getStudentData = (studentId: string) => {
@@ -41,7 +41,8 @@ const getStudentData = (studentId: string) => {
 }
 
 
-export default function StudentProfilePage({ params: { studentId } }: { params: { studentId: string } }) {
+export default function StudentProfilePage({ params }: { params: { studentId: string } }) {
+  const { studentId } = React.use(params);
   const student = getStudentData(studentId);
   const [formattedDob, setFormattedDob] = useState('');
   const [clientReady, setClientReady] = useState(false);
