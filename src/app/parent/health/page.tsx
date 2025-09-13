@@ -230,7 +230,9 @@ export default function ParentHealthPage() {
                             </CardHeader>
                             <CardContent className="space-y-2">
                                 <div className="space-x-2">
-                                    <Badge variant="secondary">{data.conditions.join(', ') || 'None'}</Badge>
+                                    {data.conditions.map(condition => (
+                                        <Badge key={condition} variant="secondary">{condition}</Badge>
+                                    ))}
                                 </div>
                                 <p className="text-xs text-muted-foreground flex items-center gap-1"><Lock className="h-3 w-3"/> Medical records are confidential.</p>
                             </CardContent>
