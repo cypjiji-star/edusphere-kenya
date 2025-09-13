@@ -7,21 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserX, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { teacherClasses } from '@/app/teacher/students/page';
+import * as React from 'react';
 
-const absentStudents = [
-  {
-    name: 'Peter Kariuki',
-    class: 'Form 4',
-    avatarUrl: 'https://picsum.photos/seed/student1/100',
-    reason: 'Sick',
-  },
-  {
-    name: 'Asha Mohammed',
-    class: 'Form 4',
-    avatarUrl: 'https://picsum.photos/seed/student2/100',
-    reason: 'Family Emergency',
-  },
-];
+const absentStudents = teacherClasses
+    .flatMap(c => c.students.map(s => ({ ...s, className: c.name })))
+    .filter(s => s.attendance === 'absent' || s.attendance === 'late');
 
 export function AbsentStudentsWidget() {
   return (
@@ -42,15 +33,17 @@ export function AbsentStudentsWidget() {
               </Avatar>
               <div className="flex-1">
                 <p className="font-semibold text-sm">{student.name}</p>
-                <p className="text-xs text-muted-foreground">{student.class}</p>
+                <p className="text-xs text-muted-foreground">{student.className}</p>
               </div>
-              <Badge variant="outline" className="text-yellow-600 border-yellow-500">{student.reason}</Badge>
+              <Badge variant={student.attendance === 'absent' ? 'destructive' : 'secondary'} className="capitalize">
+                {student.attendance}
+              </Badge>
             </div>
           ))}
           {absentStudents.length === 0 && (
             <div className="text-center text-muted-foreground py-4">
               <p className="font-semibold">Full Attendance!</p>
-              <p className="text-sm">All students are present today.</p>
+              <p className="text-sm">All students are marked as present today.</p>
             </div>
           )}
         </div>
