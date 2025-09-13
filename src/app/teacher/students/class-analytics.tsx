@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, LabelList, Pie, PieChart, Cell } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, LabelList, Pie, PieChart, Cell, YAxis } from 'recharts';
 import {
   Card,
   CardContent,
@@ -20,11 +20,11 @@ import {
 import type { Student } from './page';
 
 const gradeRanges = [
-    { range: '90-100', min: 90, max: 100, count: 0 },
-    { range: '80-89', min: 80, max: 89, count: 0 },
-    { range: '70-79', min: 70, max: 79, count: 0 },
-    { range: '60-69', min: 60, max: 69, count: 0 },
-    { range: 'Below 60', min: 0, max: 59, count: 0 },
+    { range: 'A (80-100)', min: 80, max: 100, count: 0 },
+    { range: 'B (65-79)', min: 65, max: 79, count: 0 },
+    { range: 'C (50-64)', min: 50, max: 64, count: 0 },
+    { range: 'D (35-49)', min: 35, max: 49, count: 0 },
+    { range: 'E (0-34)', min: 0, max: 34, count: 0 },
 ];
 
 const ATTENDANCE_COLORS = {
@@ -100,16 +100,16 @@ export function ClassAnalytics({ students }: { students: Student[] }) {
             >
               <CartesianGrid horizontal={false} />
               <XAxis type="number" hide />
-              <XAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} reversed={true} />
+              <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} reversed={true} width={80} />
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent hideLabel />}
               />
-              <Bar dataKey="students" fill="var(--color-students)" radius={5}>
+              <Bar dataKey="students" fill="var(--color-students)" radius={5} barSize={20}>
                 <LabelList
                   position="right"
                   offset={10}
-                  className="fill-foreground"
+                  className="fill-foreground font-bold"
                   fontSize={12}
                 />
               </Bar>
@@ -145,6 +145,9 @@ export function ClassAnalytics({ students }: { students: Student[] }) {
                     stroke="none"
                     fontSize={16}
                  />
+                 {attendanceData.map((entry) => (
+                    <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+                 ))}
               </Pie>
               <ChartLegend
                 content={<ChartLegendContent nameKey="name" />}
