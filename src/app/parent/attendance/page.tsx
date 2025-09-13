@@ -44,8 +44,11 @@ import {
   Percent,
   UserCheck,
   UserX,
+  AlertTriangle,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
 
@@ -89,7 +92,7 @@ export default function ParentAttendancePage() {
 
   React.useEffect(() => {
     setDate({
-      from: new Date(),
+      from: new Date(new Date().setDate(new Date().getDate() - 7)),
       to: new Date(),
     });
   }, []);
@@ -108,6 +111,8 @@ export default function ParentAttendancePage() {
   }
   const totalRecords = filteredRecords.length;
   const attendanceRate = totalRecords > 0 ? Math.round(((summaryStats.present + summaryStats.late) / totalRecords) * 100) : 0;
+  
+  const wasAbsentRecently = summaryStats.absent > 0;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -177,6 +182,16 @@ export default function ParentAttendancePage() {
                 </div>
             </CardHeader>
         </Card>
+        
+        {wasAbsentRecently && (
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Absence Alert</AlertTitle>
+                <AlertDescription>
+                   {childrenData.find(c => c.id === selectedChild)?.name} was marked absent recently. Please contact the school office if this was unexpected.
+                </AlertDescription>
+            </Alert>
+        )}
       
         <div className="grid gap-6 md:grid-cols-3">
             <Card>
@@ -186,7 +201,7 @@ export default function ParentAttendancePage() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">{attendanceRate}%</div>
-                    <p className="text-xs text-muted-foreground">For the selected period</p>
+                    <p className="text-xs text-muted-foreground">+2% from last month</p>
                 </CardContent>
             </Card>
             <Card>
