@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { firestore, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import Image from 'next/image';
 
 
 const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
@@ -72,7 +73,9 @@ export default function BrandingPage() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = React.useState(false);
     const [isUploadingLogo, setIsUploadingLogo] = React.useState(false);
+    const [isUploadingCover, setIsUploadingCover] = React.useState(false);
     const [logoUrl, setLogoUrl] = React.useState("https://picsum.photos/seed/school-logo/200");
+    const [coverImageUrl, setCoverImageUrl] = React.useState("https://picsum.photos/seed/login-bg/1200/1800");
     const [primaryColor, setPrimaryColor] = React.useState(defaultTheme.primaryColor);
     const [accentColor, setAccentColor] = React.useState(defaultTheme.accentColor);
     const [backgroundColor, setBackgroundColor] = React.useState(defaultTheme.backgroundColor);
@@ -87,9 +90,8 @@ export default function BrandingPage() {
             const profileSnap = await getDoc(profileRef);
             if (profileSnap.exists()) {
                 const data = profileSnap.data();
-                if (data.logoUrl) {
-                    setLogoUrl(data.logoUrl);
-                }
+                if (data.logoUrl) setLogoUrl(data.logoUrl);
+                if (data.coverImageUrl) setCoverImageUrl(data.coverImageUrl);
             }
         };
         fetchProfile();
@@ -153,6 +155,31 @@ export default function BrandingPage() {
             toast({ title: 'Upload Failed', description: 'Could not upload the logo. Please try again.', variant: 'destructive' });
         } finally {
             setIsUploadingLogo(false);
+        }
+    };
+    
+    const handleCoverImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingCover(true);
+        toast({ title: 'Uploading Cover Image...', description: 'This may take a moment.' });
+
+        try {
+            const storagePath = `school_assets/cover_${Date.now()}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            setCoverImageUrl(downloadURL);
+            await setDoc(doc(firestore, 'schoolProfile', 'main'), { coverImageUrl: downloadURL }, { merge: true });
+
+            toast({ title: 'Cover Image Updated!', description: 'The new login page cover has been saved.' });
+        } catch (error) {
+            console.error('Error uploading cover image:', error);
+            toast({ title: 'Upload Failed', description: 'Could not upload the cover image. Please try again.', variant: 'destructive' });
+        } finally {
+            setIsUploadingCover(false);
         }
     };
 
@@ -223,17 +250,26 @@ export default function BrandingPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>Login Page Cover Image</Label>
-                            <div className="flex items-center justify-center w-full">
-                                <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                        <ImageIcon className="w-8 h-8 mb-2 text-muted-foreground" />
-                                        <p className="mb-2 text-sm text-muted-foreground">Upload Cover Image</p>
-                                        <p className="text-xs text-muted-foreground">(1920x1080 recommended)</p>
+                            <Card className="overflow-hidden max-w-sm">
+                                <CardContent className="p-0">
+                                    <div className="relative aspect-video w-full">
+                                        <Image src={coverImageUrl} alt="Cover Image Preview" fill className="object-cover" />
                                     </div>
-                                    <Input id="dropzone-file" type="file" className="hidden" disabled />
-                                </Label>
-                            </div>
-                            <FormDescription>This image is shown on the dashboard login page.</FormDescription>
+                                </CardContent>
+                                <CardFooter className="p-2 bg-muted/50">
+                                    <Button asChild variant="secondary" size="sm" className="w-full">
+                                        <Label htmlFor="cover-image-upload" className="cursor-pointer">
+                                            {isUploadingCover ? (
+                                                <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Uploading...</>
+                                            ) : (
+                                                <><Upload className="mr-2 h-4 w-4" />Upload New Cover Image</>
+                                            )}
+                                        </Label>
+                                    </Button>
+                                    <Input id="cover-image-upload" type="file" className="hidden" accept="image/*" onChange={handleCoverImageChange} disabled={isUploadingCover} />
+                                </CardFooter>
+                            </Card>
+                            <FormDescription>This image is shown on the dashboard login page (1920x1080px recommended).</FormDescription>
                         </div>
                         <div className="space-y-2">
                             <Label>School Favicon</Label>
@@ -386,7 +422,3 @@ export default function BrandingPage() {
     </div>
   );
 }
-
-    
-
-    
