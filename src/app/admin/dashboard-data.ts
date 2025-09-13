@@ -88,13 +88,13 @@ export const recentActivities = [
 
 // From src/app/admin/admin-charts.tsx
 export const feeData = [
-    { status: 'Collected', value: 82, fill: 'hsl(var(--chart-1))' },
-    { status: 'Outstanding', value: 18, fill: 'hsl(var(--chart-2))' },
+    { status: 'Collected', value: 82, fill: 'hsl(142.1 76.2% 42.2%)' },
+    { status: 'Outstanding', value: 18, fill: 'hsl(47.9 95.8% 53.1%)' },
 ];
 
 export const feeChartConfig = {
-    Collected: { label: 'Collected', color: 'hsl(var(--chart-1))' },
-    Outstanding: { label: 'Outstanding', color: 'hsl(var(--chart-2))' },
+    Collected: { label: 'Collected', color: 'hsl(142.1 76.2% 42.2%)' },
+    Outstanding: { label: 'Outstanding', color: 'hsl(47.9 95.8% 53.1%)' },
 };
 
 export const performanceData = [

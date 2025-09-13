@@ -28,9 +28,9 @@ const gradeRanges = [
 ];
 
 const ATTENDANCE_COLORS = {
-  present: 'hsl(142.1 76.2% 42.2%)', // A vibrant green
-  late: 'hsl(47.9 95.8% 53.1%)',   // A bright yellow
-  absent: 'hsl(0 84.2% 60.2%)',    // A clear red
+  present: 'hsl(142.1 76.2% 42.2%)',
+  late: 'hsl(47.9 95.8% 53.1%)',
+  absent: 'hsl(0 84.2% 60.2%)',
 };
 
 const performanceChartConfig = {
@@ -66,7 +66,7 @@ export function ClassAnalytics({ students }: { students: Student[] }) {
                 range.count++;
             }
         });
-        return data.map(d => ({ name: d.range, students: d.count }));
+        return data.map(d => ({ name: d.range.split(' ')[0], students: d.count }));
     }, [students]);
 
     const attendanceData = React.useMemo(() => {
@@ -95,20 +95,20 @@ export function ClassAnalytics({ students }: { students: Student[] }) {
             <BarChart
               accessibilityLayer
               data={performanceData}
-              layout="vertical"
-              margin={{ left: 10, right: 40 }}
+              layout="horizontal"
+              margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
             >
-              <CartesianGrid horizontal={false} />
-              <XAxis type="number" hide />
-              <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} reversed={true} width={80} />
+              <CartesianGrid vertical={false} />
+              <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={20} />
+              <XAxis dataKey="students" type="number" hide />
               <ChartTooltip
                 cursor={false}
                 content={<ChartTooltipContent hideLabel />}
               />
               <Bar dataKey="students" fill="var(--color-students)" radius={5} barSize={20}>
-                <LabelList
+                 <LabelList
                   position="right"
-                  offset={10}
+                  offset={8}
                   className="fill-foreground font-bold"
                   fontSize={12}
                 />
