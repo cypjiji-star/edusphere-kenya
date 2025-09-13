@@ -32,7 +32,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 
-const conversations = [
+export const conversations = [
   {
     id: 'msg-1',
     name: 'Mr. Omondi (Parent)',
