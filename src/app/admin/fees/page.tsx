@@ -59,6 +59,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Overdue';
@@ -169,19 +171,16 @@ function NewTransactionDialog({ students }: { students: StudentFee[] }) {
             let newAmountPaid = studentDoc.amountPaid;
             const transactionAmount = Number(amount);
 
-            if (isCredit) {
+            if (transactionType === 'waiver' || transactionType === 'payment') {
                 newBalance -= transactionAmount;
-                if(transactionType === 'payment') {
+                 if(transactionType === 'payment') {
                     newAmountPaid += transactionAmount;
                 }
                 transactionData.amount = -transactionAmount;
             }
-            if (isDebit) {
+            if (transactionType === 'charge' || transactionType === 'refund') {
                 newBalance += transactionAmount;
-                 transactionData.amount = transactionAmount;
-            }
-             if (transactionType === 'waiver') {
-                newAmountPaid = studentDoc.amountPaid; // Waivers don't count as 'paid'
+                transactionData.amount = transactionAmount;
             }
 
             await addDoc(collection(firestore, `students/${studentId}/transactions`), transactionData);
@@ -688,10 +687,21 @@ export default function FeesPage() {
                 document.body.removeChild(link);
             }
         } else {
-             toast({
-                title: 'Exporting Report',
-                description: `PDF export is not yet available.`,
-            });
+             const doc = new jsPDF();
+             doc.text("Student Fees Report", 14, 16);
+             (doc as any).autoTable({
+                startY: 22,
+                head: [['Student Name', 'Class', 'Status', 'Total Fee', 'Paid', 'Balance']],
+                body: filteredStudents.map(s => [
+                    s.name,
+                    s.class,
+                    s.feeStatus,
+                    formatCurrency(s.totalFee),
+                    formatCurrency(s.amountPaid),
+                    formatCurrency(s.balance)
+                ]),
+             });
+             doc.save('student-fees-report.pdf');
         }
     };
 
