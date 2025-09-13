@@ -335,7 +335,7 @@ export default function StudentEnrolmentPage() {
                             </div>
                             <Separator />
                              <FormField control={form.control} name="generateInvoice" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Generate Pro-forma Invoice</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
-                             <FormField control={form.control} name="sendInvite" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Send Portal Invitation</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
+                             <FormField control={form.control} name="sendInvite" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Send Portal Invitation</FormLabel><FormDescription>Sends a welcome email to the parent/guardian with a secure link to set up their portal account.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
                         </CardContent>
                     </Card>
 
