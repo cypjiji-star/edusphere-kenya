@@ -25,7 +25,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Calendar, User, Printer, FileDown, ChevronDown, BookOpen, MapPin } from 'lucide-react';
+import { Calendar, User, Printer, FileDown, ChevronDown, BookOpen, MapPin, Bell } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +35,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 
 const childrenData = [
@@ -108,6 +109,14 @@ export default function ParentTimetablePage() {
                 </h1>
                 <p className="text-muted-foreground">View your child's weekly class schedule.</p>
             </div>
+
+            <Alert className="mb-6">
+                <Bell className="h-4 w-4" />
+                <AlertTitle>Schedule Update!</AlertTitle>
+                <AlertDescription>
+                    Please note that this week is the Mid-Term exam period. The regular timetable may be adjusted.
+                </AlertDescription>
+            </Alert>
 
             <Card>
                 <CardHeader>
