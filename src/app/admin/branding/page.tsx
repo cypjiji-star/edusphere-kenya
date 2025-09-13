@@ -1,13 +1,54 @@
+
+'use client';
+
+import * as React from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
-import { Palette } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Palette, Upload, Eye, Save, Moon, Sun } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+
+const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
+    <div className="space-y-2">
+        <Label>{label}</Label>
+        <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-md border" style={{ backgroundColor: color }} />
+            <Input value={color} onChange={e => setColor(e.target.value)} className="w-full" />
+        </div>
+    </div>
+);
+
 
 export default function BrandingPage() {
+    const [primaryColor, setPrimaryColor] = React.useState('#1d4ed8');
+    const [accentColor, setAccentColor] = React.useState('#f59e0b');
+    const [backgroundColor, setBackgroundColor] = React.useState('#f1f5f9');
+    const [isDarkMode, setIsDarkMode] = React.useState(false);
+
+    const previewStyle = {
+        '--preview-primary': primaryColor,
+        '--preview-accent': accentColor,
+        '--preview-background': isDarkMode ? '#1e293b' : backgroundColor,
+        '--preview-foreground': isDarkMode ? '#f8fafc' : '#0f172a',
+        '--preview-card': isDarkMode ? '#293548' : '#ffffff',
+        '--preview-muted': isDarkMode ? '#334155' : '#f1f5f9',
+        '--preview-muted-foreground': isDarkMode ? '#94a3b8' : '#64748b',
+    } as React.CSSProperties;
+
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
@@ -18,17 +59,114 @@ export default function BrandingPage() {
         <p className="text-muted-foreground">Tailor the school portal to match your brand identity.</p>
       </div>
 
-       <Card>
-            <CardHeader>
-                <CardTitle>Portal Appearance</CardTitle>
-                <CardDescription>This is a placeholder for where branding controls will go.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex h-[400px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                    <p className="text-muted-foreground">Theme and color customization options coming soon.</p>
-                </div>
-            </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 space-y-6">
+             <Card>
+                <CardHeader>
+                    <CardTitle>School Identity</CardTitle>
+                    <CardDescription>Upload your school's logo and cover image.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label>School Logo</Label>
+                        <div className="flex items-center gap-4">
+                            <Avatar className="h-16 w-16">
+                                <AvatarImage src="https://picsum.photos/seed/school-logo/200" />
+                                <AvatarFallback>SL</AvatarFallback>
+                            </Avatar>
+                            <Button variant="outline" className="w-full" disabled>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload New Logo
+                            </Button>
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Login Page Cover Image</Label>
+                        <div className="flex items-center justify-center w-full">
+                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                    <p className="mb-2 text-sm text-muted-foreground">Upload Cover Image</p>
+                                    <p className="text-xs text-muted-foreground">(1920x1080 recommended)</p>
+                                </div>
+                                <Input id="dropzone-file" type="file" className="hidden" disabled />
+                            </Label>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Color Scheme</CardTitle>
+                    <CardDescription>Customize the look and feel of the portal.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <ColorPicker label="Primary Color" color={primaryColor} setColor={setPrimaryColor} />
+                    <ColorPicker label="Accent Color" color={accentColor} setColor={setAccentColor} />
+                    <ColorPicker label="Background Color (Light Mode)" color={backgroundColor} setColor={setBackgroundColor} />
+                     <Separator />
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="dark-mode" className="flex items-center gap-2">
+                            {isDarkMode ? <Moon/> : <Sun />}
+                            {isDarkMode ? 'Dark Mode' : 'Light Mode'}
+                        </Label>
+                        <Switch id="dark-mode" checked={isDarkMode} onCheckedChange={setIsDarkMode} />
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button className="w-full" disabled>
+                        <Save className="mr-2 h-4 w-4" />
+                        Apply & Save Theme
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
+        <div className="lg:col-span-2">
+             <Card className="sticky top-4">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Eye className="h-5 w-5 text-primary"/>Live Preview</CardTitle>
+                    <CardDescription>See how your branding changes will look in real-time.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div
+                        className="rounded-lg border p-6 transition-colors"
+                        style={previewStyle}
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full" style={{ backgroundColor: 'var(--preview-primary)' }}></div>
+                                <h3 className="font-bold text-lg" style={{ color: 'var(--preview-foreground)' }}>School Portal</h3>
+                            </div>
+                            <Avatar>
+                                <AvatarImage src="https://picsum.photos/seed/admin-avatar/100" />
+                                <AvatarFallback>A</AvatarFallback>
+                            </Avatar>
+                        </div>
+
+                        <Card style={{ backgroundColor: 'var(--preview-card)' }}>
+                            <CardHeader>
+                                <CardTitle style={{ color: 'var(--preview-foreground)' }}>Example Card</CardTitle>
+                                <CardDescription style={{ color: 'var(--preview-muted-foreground)' }}>This is a preview of a card component.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <Button style={{ backgroundColor: 'var(--preview-primary)', color: 'white' }}>Primary Button</Button>
+                                    <Button variant="secondary" style={{ backgroundColor: 'var(--preview-accent)', color: 'white' }}>Accent Button</Button>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <Badge style={{ backgroundColor: 'var(--preview-primary)', color: 'white' }}>Primary Badge</Badge>
+                                    <Badge style={{ backgroundColor: 'var(--preview-accent)', color: 'white' }}>Accent Badge</Badge>
+                                </div>
+                                <div className="p-4 rounded-md" style={{ backgroundColor: 'var(--preview-muted)' }}>
+                                    <p className="text-sm" style={{ color: 'var(--preview-muted-foreground)' }}>This is a muted background area.</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </CardContent>
+             </Card>
+        </div>
+      </div>
     </div>
   );
 }
