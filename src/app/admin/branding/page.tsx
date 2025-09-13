@@ -112,7 +112,7 @@ export default function BrandingPage() {
         });
     }
 
-    const handleSaveTheme = () => {
+    const handleSaveTheme = async () => {
         setIsLoading(true);
         // This is a mock save. In a real application, you would make an API call
         // to a backend service that would modify the globals.css file or update
