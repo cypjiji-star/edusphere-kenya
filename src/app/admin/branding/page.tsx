@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { useForm } from 'react-hook-form';
 import {
   Card,
   CardContent,
@@ -19,7 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { FormDescription } from '@/components/ui/form';
+import { Form, FormDescription } from '@/components/ui/form';
 
 
 const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
@@ -38,6 +39,7 @@ export default function BrandingPage() {
     const [accentColor, setAccentColor] = React.useState('#B8860B');
     const [backgroundColor, setBackgroundColor] = React.useState('#F5F5DC');
     const [isDarkMode, setIsDarkMode] = React.useState(false);
+    const form = useForm();
 
     const previewStyle = {
         '--preview-primary': primaryColor,
@@ -68,6 +70,7 @@ export default function BrandingPage() {
                     <CardDescription>Upload your school's logo, cover image, and favicon.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    <Form {...form}>
                     <div className="space-y-2">
                         <Label>School Logo</Label>
                         <div className="flex items-center gap-4">
@@ -112,6 +115,7 @@ export default function BrandingPage() {
                         </div>
                         <FormDescription>An icon for the browser tab. Recommended format: .ico or .png (32x32px).</FormDescription>
                     </div>
+                    </Form>
                 </CardContent>
             </Card>
              <Card>
