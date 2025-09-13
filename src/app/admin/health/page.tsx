@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
-import { zodResolver } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Card,
@@ -755,3 +755,4 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
+
