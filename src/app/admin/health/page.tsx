@@ -53,6 +53,7 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -114,7 +115,7 @@ const getStatusBadge = (status: IncidentStatus) => {
 
 const incidentSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
-  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue', 'Other']),
+  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue' | 'Other',]),
   incidentDate: z.date({ required_error: 'An incident date is required.' }),
   incidentTime: z.string().min(1, 'Time is required'),
   location: z.string().optional(),
@@ -629,4 +630,5 @@ export default function AdminHealthPage() {
     );
 }
 
+    
     

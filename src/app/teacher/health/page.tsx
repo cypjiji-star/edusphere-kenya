@@ -62,7 +62,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const incidentSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
-  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue' | 'Other']),
+  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue', 'Other']),
   incidentDate: z.date({ required_error: 'An incident date is required.' }),
   incidentTime: z.string().min(1, 'Time is required'),
   location: z.string().optional(),
@@ -520,7 +520,7 @@ export default function HealthPage() {
                                 <Siren className="h-4 w-4" />
                                 <AlertTitle>Immediate Notifications</AlertTitle>
                                 <AlertDescription>
-                                    Enable these options to send immediate alerts upon submission. Use for urgent matters only. (This is a mock UI, functionality is coming soon)
+                                    Enable these options to send immediate alerts upon submission. Use for urgent matters only.
                                 </AlertDescription>
                             </Alert>
 
@@ -537,7 +537,7 @@ export default function HealthPage() {
                                             </FormDescription>
                                         </div>
                                         <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled/>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
                                         </FormControl>
                                         </FormItem>
                                     )}
@@ -555,7 +555,7 @@ export default function HealthPage() {
                                             </FormDescription>
                                         </div>
                                         <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled/>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
                                         </FormControl>
                                         </FormItem>
                                     )}
@@ -573,7 +573,7 @@ export default function HealthPage() {
                                             </FormDescription>
                                         </div>
                                         <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} disabled/>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
                                         </FormControl>
                                         </FormItem>
                                     )}
@@ -825,4 +825,5 @@ export default function HealthPage() {
   );
 }
 
+    
     
