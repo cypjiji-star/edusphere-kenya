@@ -75,15 +75,16 @@ export function GradeAnalysisCharts() {
                         <CardDescription>Overall grade distribution for Term 1 Final Exams.</CardDescription>
                     </div>
                      <div className="flex w-full md:w-auto items-center gap-2">
-                         <Select defaultValue="term1-2024" disabled>
+                         <Select defaultValue="term1-2024">
                             <SelectTrigger className="w-full md:w-auto">
                                 <SelectValue placeholder="Select term" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
                             </SelectContent>
                          </Select>
-                         <Button variant="outline" disabled>Compare</Button>
+                         <Button variant="outline">Compare</Button>
                     </div>
                 </div>
             </CardHeader>
