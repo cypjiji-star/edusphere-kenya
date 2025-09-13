@@ -139,6 +139,8 @@ export default function StudentsPage() {
   const { toast } = useToast();
   
   const [allClassStudents, setAllClassStudents] = React.useState(initialStudents);
+  const [newStudentName, setNewStudentName] = React.useState('');
+  const [isAddStudentOpen, setIsAddStudentOpen] = React.useState(false);
 
   const studentsForCurrentTab = allClassStudents[activeTab] || [];
 
@@ -161,6 +163,38 @@ export default function StudentsPage() {
       title: 'Attendance Saved!',
       description: `Attendance for ${teacherClasses.find(c => c.id === activeTab)?.name} has been successfully updated.`,
     });
+  };
+  
+  const handleAddNewStudent = () => {
+    if (!newStudentName.trim()) {
+        toast({
+            variant: 'destructive',
+            title: 'Student name is required.',
+        });
+        return;
+    }
+
+    const newStudent: Student = {
+        id: `new-${Date.now()}`,
+        name: newStudentName,
+        rollNumber: `TEMP-${Math.floor(Math.random() * 1000)}`,
+        avatarUrl: `https://picsum.photos/seed/${newStudentName}/100`,
+        overallGrade: 'N/A',
+        attendance: 'present',
+    };
+
+    setAllClassStudents(prev => ({
+        ...prev,
+        [activeTab]: [newStudent, ...(prev[activeTab] || [])],
+    }));
+
+    toast({
+        title: 'Enrollment Request Sent',
+        description: `${newStudentName} has been temporarily added to the roster pending admin approval.`,
+    });
+
+    setNewStudentName('');
+    setIsAddStudentOpen(false);
   };
 
   const getAttendanceBadge = (status: AttendanceStatus, isTrigger: boolean = false) => {
@@ -202,7 +236,7 @@ export default function StudentsPage() {
                 <div className="md:flex-row md:items-start md:justify-between">
                   <CardTitle className="font-headline text-2xl">{cls.name} Roster</CardTitle>
                   <CardDescription>
-                    A total of {cls.students.length} students are enrolled in this class.
+                    A total of {studentsForCurrentTab.length} students are enrolled in this class.
                   </CardDescription>
                 </div>
                 <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
@@ -217,7 +251,7 @@ export default function StudentsPage() {
                     />
                   </div>
                   <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                    <Dialog>
+                    <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
                         <DialogTrigger asChild>
                             <Button className="w-full md:w-auto" variant="outline">
                                 <PlusCircle className="mr-2" />
@@ -234,14 +268,14 @@ export default function StudentsPage() {
                             <div className="grid gap-4 py-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="student-name">Student Name</Label>
-                                    <Input id="student-name" placeholder="e.g., Mary Akinyi" />
+                                    <Input id="student-name" placeholder="e.g., Mary Akinyi" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} />
                                 </div>
                             </div>
                             <DialogFooter>
                                 <DialogClose asChild>
                                     <Button variant="outline">Cancel</Button>
                                 </DialogClose>
-                                <Button disabled>Submit Request</Button>
+                                <Button onClick={handleAddNewStudent} disabled={!newStudentName.trim()}>Submit Request</Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
@@ -362,5 +396,3 @@ export default function StudentsPage() {
     </div>
   );
 }
-
-    
