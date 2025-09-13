@@ -18,7 +18,7 @@ import {
   isToday,
   parse,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, PlusCircle, Bell, Clock, Users, Printer, FileDown, ChevronDown, MapPin, Edit, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Bell, Clock, Users, Printer, FileDown, ChevronDown, MapPin, Edit, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
