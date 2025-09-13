@@ -8,25 +8,23 @@ import { usePathname } from "next/navigation";
 export function PageLoader() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
+    // On the initial load, we don't want to show the loader.
+    // The loader should only appear for subsequent page navigations.
     const handleStart = (url: string) => {
+      // Only show loader if the path is different
       if (url !== window.location.pathname) {
         setLoading(true);
       }
     };
-    const handleComplete = () => {
-      setLoading(false);
-    };
-
+    
+    // We can't perfectly detect when a page *starts* loading with App Router hooks alone.
+    // So, we'll listen to link clicks as a trigger.
     const handleLinkClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const link = target.closest('a');
+
       // Check if it's a link, has an href, isn't a new tab, and is an internal navigation
       if (link && link.href && link.target !== '_blank' && new URL(link.href).origin === window.location.origin) {
         if (new URL(link.href).pathname !== window.location.pathname) {
@@ -35,21 +33,19 @@ export function PageLoader() {
       }
     };
 
-    // Listen for link clicks to start loading
     document.addEventListener("click", handleLinkClick);
-
-    // This effect runs on route change, which means the new page is ready
-    handleComplete();
     
     return () => {
       document.removeEventListener("click", handleLinkClick);
     };
 
+  }, []);
+  
+  useEffect(() => {
+    // When the pathname changes, it means the new page has rendered.
+    // So, we hide the loader.
+    setLoading(false);
   }, [pathname]);
-
-  if (!isMounted) {
-    return null;
-  }
 
   return (
     <AnimatePresence mode="wait">
