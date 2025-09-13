@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive, Tag, Loader2 } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive, Tag, Loader2, X, BarChart2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,6 +27,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +52,18 @@ const announcementCategories: Record<AnnouncementCategory, { label: string; colo
     General: { label: 'General Info', color: 'bg-gray-500 border-gray-500 text-white' },
 };
 
-const initialAnnouncements = [
+type Announcement = {
+    id: string;
+    sender: { name: string; avatarUrl: string };
+    content: string;
+    audience: string;
+    sentAt: string;
+    views: number;
+    totalRecipients: number;
+    category: AnnouncementCategory;
+};
+
+const initialAnnouncements: Announcement[] = [
     {
         id: 'ann-1',
         sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
@@ -83,11 +104,58 @@ const announcementSchema = z.object({
 
 type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 
+function StatsDialog({ announcement, open, onOpenChange }: { announcement: Announcement | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!announcement) return null;
+    const viewRate = announcement.totalRecipients > 0 ? Math.round((announcement.views / announcement.totalRecipients) * 100) : 0;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5 text-primary"/>Delivery Statistics</DialogTitle>
+                    <DialogDescription>
+                        Stats for the announcement sent on {announcement.sentAt}.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p className="text-2xl font-bold">{announcement.totalRecipients}</p>
+                            <p className="text-sm text-muted-foreground">Total Recipients</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold">{announcement.views}</p>
+                            <p className="text-sm text-muted-foreground">Views</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-primary">{viewRate}%</p>
+                            <p className="text-sm text-muted-foreground">View Rate</p>
+                        </div>
+                    </div>
+                    <Separator/>
+                    <div className="text-sm">
+                        <p><span className="font-semibold">Audience:</span> {announcement.audience}</p>
+                        <p><span className="font-semibold">Category:</span> {announcementCategories[announcement.category].label}</p>
+                        <p><span className="font-semibold">Content:</span> <span className="text-muted-foreground italic">"{announcement.content}"</span></p>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Close</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function AdminAnnouncementsPage() {
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
   const [pastAnnouncements, setPastAnnouncements] = React.useState(initialAnnouncements);
   const [isTranslating, setIsTranslating] = React.useState(false);
+  const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
+  const [selectedAnnouncementForStats, setSelectedAnnouncementForStats] = React.useState<Announcement | null>(null);
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -109,26 +177,46 @@ export default function AdminAnnouncementsPage() {
     }
     
     setIsTranslating(true);
-    const result = await translateText({ text: message, targetLanguage: 'Swahili' });
-    setIsTranslating(false);
-    
-    if (result.success && result.data) {
-      form.setValue('message', result.data.translatedText);
-      toast({
-        title: 'Translation Complete',
-        description: 'The message has been translated to Swahili.',
-      });
-    } else {
+    try {
+      const result = await translateText({ text: message, targetLanguage: 'Swahili' });
+      if (result && result.translatedText) {
+        form.setValue('message', result.translatedText);
+        toast({
+          title: 'Translation Complete',
+          description: 'The message has been translated to Swahili.',
+        });
+      } else {
+         throw new Error('AI did not return translated text.');
+      }
+    } catch(e) {
+      console.error(e);
       toast({
         variant: 'destructive',
         title: 'Translation Failed',
-        description: result.error || 'The AI could not translate the message.',
+        description: 'The AI could not translate the message.',
       });
+    } finally {
+        setIsTranslating(false);
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setAttachedFile(event.target.files[0]);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setAttachedFile(null);
+  };
+  
+  const handleViewStats = (announcement: Announcement) => {
+    setSelectedAnnouncementForStats(announcement);
+  };
+
+
   function onSubmit(values: AnnouncementFormValues) {
-    const newAnnouncement = {
+    const newAnnouncement: Announcement = {
         id: `ann-${Date.now()}`,
         sender: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' },
         content: values.message,
@@ -140,6 +228,7 @@ export default function AdminAnnouncementsPage() {
     };
     setPastAnnouncements(prev => [newAnnouncement, ...prev]);
     form.reset();
+    setAttachedFile(null);
     toast({
         title: 'Announcement Sent!',
         description: 'Your message has been broadcast to the selected audience.',
@@ -147,6 +236,12 @@ export default function AdminAnnouncementsPage() {
   }
 
   return (
+    <>
+    <StatsDialog 
+        announcement={selectedAnnouncementForStats} 
+        open={!!selectedAnnouncementForStats} 
+        onOpenChange={(open) => !open && setSelectedAnnouncementForStats(null)} 
+    />
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Megaphone className="h-8 w-8 text-primary"/>School-Wide Announcements</h1>
@@ -187,19 +282,26 @@ export default function AdminAnnouncementsPage() {
                        />
                       <div className="space-y-2">
                           <Label>File Attachments</Label>
-                          <div className="flex items-center justify-center w-full">
-                              <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                  <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                      <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                                      <p className="mb-2 text-sm text-muted-foreground">Attach files, images, or newsletters</p>
-                                      <p className="text-xs text-muted-foreground">(PDF, JPG, etc.)</p>
+                           {attachedFile ? (
+                                <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                  <div className="flex items-center gap-2 text-sm font-medium">
+                                      <Paperclip className="h-5 w-5 text-primary" />
+                                      <span className="truncate">{attachedFile.name}</span>
                                   </div>
-                                  <Input id="dropzone-file" type="file" className="hidden" disabled />
-                              </Label>
-                          </div>
-                          <FormDescription>
-                            Attachment feature is coming soon.
-                          </FormDescription>
+                                  <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
+                                      <X className="h-4 w-4 text-destructive" />
+                                  </Button>
+                              </div>
+                          ) : (
+                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                    <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                    <p className="mb-2 text-sm text-muted-foreground">Attach files, images, or newsletters</p>
+                                    <p className="text-xs text-muted-foreground">(PDF, JPG, etc.)</p>
+                                </div>
+                                <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} />
+                            </Label>
+                          )}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <FormField
@@ -372,11 +474,9 @@ export default function AdminAnnouncementsPage() {
                                         <Eye className="h-4 w-4" />
                                         <span className="font-medium">{ann.totalRecipients > 0 ? Math.round((ann.views / ann.totalRecipients) * 100) : 0}% view rate</span>
                                     </div>
-                                    <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs" disabled>
-                                        <Link href="#">
-                                            View Stats
-                                            <ArrowRight className="ml-1 h-3 w-3" />
-                                        </Link>
+                                     <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => handleViewStats(ann)}>
+                                        View Stats
+                                        <ArrowRight className="ml-1 h-3 w-3" />
                                     </Button>
                                 </div>
                             </div>
@@ -387,5 +487,6 @@ export default function AdminAnnouncementsPage() {
         </div>
        </div>
     </div>
+    </>
   );
 }
