@@ -46,6 +46,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { classes, teachers, rooms, periods, subjects, mockTimetableData, views, days } from './timetable-data';
 import type { Subject } from './timetable-data';
+import { useToast } from '@/hooks/use-toast';
 
 
 function DraggableSubject({ subject }: { subject: Subject }) {
@@ -95,6 +96,7 @@ export function TimetableBuilder() {
   const [selectedItem, setSelectedItem] = React.useState(classes[0]);
   const [timetable, setTimetable] = React.useState(mockTimetableData);
   const [clientReady, setClientReady] = React.useState(false);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     setClientReady(true);
@@ -156,6 +158,20 @@ export function TimetableBuilder() {
         }
         return newTimetable;
     });
+  }
+
+  const handleSave = () => {
+    toast({
+        title: 'Timetable Saved',
+        description: `The timetable for ${selectedItem} has been saved as a draft.`,
+    })
+  }
+  
+  const handlePublish = () => {
+     toast({
+        title: 'Timetable Published',
+        description: `The timetable for ${selectedItem} is now live and visible to relevant users.`,
+    })
   }
 
   if (!clientReady) {
@@ -361,11 +377,11 @@ export function TimetableBuilder() {
                     </CardContent>
                     <CardFooter className="flex justify-end gap-2">
                         <Button variant="outline" onClick={() => setTimetable({})}>Clear Timetable</Button>
-                        <Button variant="secondary">
+                        <Button variant="secondary" onClick={handlePublish}>
                             <Share className="mr-2 h-4 w-4" />
                             Publish
                         </Button>
-                        <Button>
+                        <Button onClick={handleSave}>
                             <Save className="mr-2 h-4 w-4" />
                             Save Timetable
                         </Button>
