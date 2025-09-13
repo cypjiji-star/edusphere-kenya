@@ -28,10 +28,11 @@ const gradeRanges = [
 ];
 
 const ATTENDANCE_COLORS = {
-  present: 'hsl(142.1 76.2% 42.2%)',
-  late: 'hsl(47.9 95.8% 53.1%)',
-  absent: 'hsl(0 84.2% 60.2%)',
+    present: 'hsl(142.1 76.2% 42.2%)',
+    late: 'hsl(38 92% 50%)',
+    absent: 'hsl(0 84.2% 60.2%)',
 };
+
 
 const performanceChartConfig = {
   students: {
