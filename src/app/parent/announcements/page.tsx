@@ -65,7 +65,7 @@ export default function ParentAnnouncementsPage() {
       const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
       setAnnouncements(fetchedAnnouncements);
       setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-      setHasMore(!snapshot.empty);
+      setHasMore(snapshot.docs.length > 0);
       setIsLoading(false);
     }, (error) => {
       console.error("Error fetching announcements:", error);
