@@ -79,7 +79,7 @@ export function ParentSidebar() {
                     asChild
                     isActive={isActive(item.href)}
                     tooltip={{ children: item.label }}
-                    disabled={item.href !== '/parent/calendar'}
+                    disabled={item.href !== '/parent/calendar' && item.href !== '/parent/announcements'}
                 >
                     <Link href={item.href}>
                         <item.icon />
