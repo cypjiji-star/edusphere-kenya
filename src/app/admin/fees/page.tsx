@@ -78,7 +78,7 @@ const mockStudents: StudentFee[] = [
     { id: 'std-5', name: 'Student 60', avatarUrl: 'https://picsum.photos/seed/f2-student1/100', class: 'Form 2', feeStatus: 'Paid', totalFee: 90000, amountPaid: 90000, balance: 0 },
 ];
 
-const mockFeeStructure = [
+const initialFeeStructure = [
     { id: 'fs-1', category: 'Tuition', appliesTo: 'All Students', amount: 50000 },
     { id: 'fs-2', category: 'Boarding', appliesTo: 'Boarders', amount: 35000 },
     { id: 'fs-3', category: 'Transport', appliesTo: 'Day Scholars (Bus)', amount: 10000 },
@@ -86,7 +86,7 @@ const mockFeeStructure = [
     { id: 'fs-5', category: 'Computer Lab Fee', appliesTo: 'Form 3 & 4', amount: 2000 },
 ];
 
-const mockDiscounts = [
+const initialDiscounts = [
     { id: 'disc-1', name: 'Sibling Discount', type: 'Percentage', value: '10%', appliesTo: 'Per Sibling' },
     { id: 'disc-2', name: 'Academic Scholarship', type: 'Fixed', value: 'KES 20,000', appliesTo: 'Top Performers' },
     { id: 'disc-3', name: 'Staff Discount', type: 'Percentage', value: '50%', appliesTo: 'Children of Staff' },
@@ -323,6 +323,8 @@ export default function FeesPage() {
     const [statusFilter, setStatusFilter] = React.useState<PaymentStatus | 'All Statuses'>('All Statuses');
     const [selectedStudent, setSelectedStudent] = React.useState<StudentFee | null>(null);
     const { toast } = useToast();
+    const [feeStructure, setFeeStructure] = React.useState(initialFeeStructure);
+    const [discounts, setDiscounts] = React.useState(initialDiscounts);
 
     const filteredStudents = mockStudents.filter(student => {
         const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -356,6 +358,31 @@ export default function FeesPage() {
         toast({
             title: 'Discount Saved',
             description: 'The new discount has been added and can be applied to student accounts.',
+        });
+    };
+
+    const handleEditItem = (itemType: 'category' | 'discount', name: string) => {
+        toast({
+            title: `Editing ${name}`,
+            description: `In a real app, this would open a form to edit this ${itemType}.`,
+        });
+    };
+
+    const handleDeleteCategory = (id: string, name: string) => {
+        setFeeStructure(prev => prev.filter(item => item.id !== id));
+        toast({
+            title: 'Category Deleted',
+            description: `The fee category "${name}" has been removed.`,
+            variant: 'destructive',
+        });
+    };
+
+    const handleDeleteDiscount = (id: string, name: string) => {
+        setDiscounts(prev => prev.filter(item => item.id !== id));
+        toast({
+            title: 'Discount Deleted',
+            description: `The discount "${name}" has been removed.`,
+            variant: 'destructive',
         });
     };
 
@@ -528,17 +555,17 @@ export default function FeesPage() {
                                         </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                        {mockFeeStructure.map(item => (
+                                        {feeStructure.map(item => (
                                             <TableRow key={item.id}>
                                             <TableCell className="font-medium">{item.category}</TableCell>
                                             <TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell>
                                             <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" disabled>
-                                                <Edit className="h-4 w-4" />
+                                                <Button variant="ghost" size="icon" onClick={() => handleEditItem('category', item.category)}>
+                                                    <Edit className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="text-destructive" disabled>
-                                                <Trash2 className="h-4 w-4" />
+                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteCategory(item.id, item.category)}>
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </TableCell>
                                             </TableRow>
@@ -617,17 +644,17 @@ export default function FeesPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {mockDiscounts.map(item => (
+                                                {discounts.map(item => (
                                                     <TableRow key={item.id}>
                                                         <TableCell className="font-medium">{item.name}</TableCell>
                                                         <TableCell><Badge variant="outline">{item.type}</Badge></TableCell>
                                                         <TableCell>{item.value}</TableCell>
                                                         <TableCell className="text-right">
-                                                            <Button variant="ghost" size="icon" disabled>
-                                                            <Edit className="h-4 w-4" />
+                                                            <Button variant="ghost" size="icon" onClick={() => handleEditItem('discount', item.name)}>
+                                                                <Edit className="h-4 w-4" />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="text-destructive" disabled>
-                                                            <Trash2 className="h-4 w-4" />
+                                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteDiscount(item.id, item.name)}>
+                                                                <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </TableCell>
                                                     </TableRow>
@@ -815,7 +842,3 @@ export default function FeesPage() {
         </Dialog>
     );
 }
-
-    
-
-    
