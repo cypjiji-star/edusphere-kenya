@@ -148,17 +148,38 @@ export default function PermissionsPage() {
   
   const handleCreateRole = () => {
     const trimmedRoleName = newRoleName.trim();
-    if (trimmedRoleName && !rolePermissions[trimmedRoleName]) {
-        setRolePermissions(prev => ({
-            ...prev,
-            [trimmedRoleName]: { permissions: [], userCount: 0, isCore: false },
-        }));
-        setNewRoleName('');
+    
+    if (!trimmedRoleName) {
         toast({
-            title: 'Role Created',
-            description: `The "${trimmedRoleName}" role has been added.`
+            title: 'Error',
+            description: 'Role name cannot be empty.',
+            variant: 'destructive',
         });
+        return;
     }
+
+    const roleExists = Object.keys(rolePermissions).some(
+        (existingRole) => existingRole.toLowerCase() === trimmedRoleName.toLowerCase()
+    );
+
+    if (roleExists) {
+        toast({
+            title: 'Duplicate Role',
+            description: `A role named "${trimmedRoleName}" already exists.`,
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    setRolePermissions(prev => ({
+        ...prev,
+        [trimmedRoleName]: { permissions: [], userCount: 0, isCore: false },
+    }));
+    setNewRoleName('');
+    toast({
+        title: 'Role Created',
+        description: `The "${trimmedRoleName}" role has been added.`
+    });
   };
 
   const handleDeleteRole = (roleToDelete: string) => {
@@ -246,7 +267,7 @@ export default function PermissionsPage() {
                     <DialogFooter>
                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                         <DialogClose asChild>
-                        <Button onClick={handleCreateRole}>Create Role</Button>
+                           <Button onClick={handleCreateRole}>Create Role</Button>
                         </DialogClose>
                     </DialogFooter>
                 </DialogContent>
