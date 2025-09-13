@@ -361,7 +361,7 @@ export default function AdminGradesPage() {
                                     <PlusCircle className="mr-2 h-4 w-4"/>
                                     Add Row
                                 </Button>
-                                <Button disabled>
+                                <Button>
                                     <Save className="mr-2 h-4 w-4"/>
                                     Save Scale
                                 </Button>
