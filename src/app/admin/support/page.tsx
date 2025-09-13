@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon } from 'lucide-react';
+import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -36,11 +36,12 @@ const faqs = [
 
 type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
 type TicketPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
+type TicketCategory = 'Technical Issue' | 'Billing' | 'Feature Request' | 'Other';
 
 const mockTickets = [
-    { id: 'TKT-001', subject: 'Unable to export student list to PDF', category: 'Technical Issue', priority: 'High' as TicketPriority, status: 'In Progress' as TicketStatus, lastUpdate: '2024-07-28' },
-    { id: 'TKT-002', subject: 'Feature Request: Add SMS notifications for library books', category: 'Feature Request', priority: 'Medium' as TicketPriority, status: 'Open' as TicketStatus, lastUpdate: '2024-07-27' },
-    { id: 'TKT-003', subject: 'Question about billing for Term 2', category: 'Billing', priority: 'Low' as TicketPriority, status: 'Resolved' as TicketStatus, lastUpdate: '2024-07-26' },
+    { id: 'TKT-001', subject: 'Unable to export student list to PDF', category: 'Technical Issue' as TicketCategory, priority: 'High' as TicketPriority, status: 'In Progress' as TicketStatus, lastUpdate: '2024-07-28' },
+    { id: 'TKT-002', subject: 'Feature Request: Add SMS notifications for library books', category: 'Feature Request' as TicketCategory, priority: 'Medium' as TicketPriority, status: 'Open' as TicketStatus, lastUpdate: '2024-07-27' },
+    { id: 'TKT-003', subject: 'Question about billing for Term 2', category: 'Billing' as TicketCategory, priority: 'Low' as TicketPriority, status: 'Resolved' as TicketStatus, lastUpdate: '2024-07-26' },
 ];
 
 const getStatusBadge = (status: TicketStatus) => {
@@ -140,8 +141,56 @@ export default function SupportPage() {
                  
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>My Tickets</CardTitle>
-                        <CardDescription>Track the status of your submitted support tickets.</CardDescription>
+                        <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Ticket Dashboard</CardTitle>
+                        <CardDescription>Track the status of all submitted support tickets.</CardDescription>
+                        <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <div className="relative w-full md:max-w-sm">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search by keyword or ID..."
+                                    className="w-full bg-background pl-8"
+                                />
+                            </div>
+                            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+                                <Select>
+                                    <SelectTrigger className="w-full md:w-[150px]">
+                                        <SelectValue placeholder="Filter by status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Statuses</SelectItem>
+                                        <SelectItem value="Open">Open</SelectItem>
+                                        <SelectItem value="In Progress">In Progress</SelectItem>
+                                        <SelectItem value="Resolved">Resolved</SelectItem>
+                                        <SelectItem value="Closed">Closed</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select>
+                                    <SelectTrigger className="w-full md:w-[150px]">
+                                        <SelectValue placeholder="Filter by priority" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Priorities</SelectItem>
+                                        <SelectItem value="Urgent">Urgent</SelectItem>
+                                        <SelectItem value="High">High</SelectItem>
+                                        <SelectItem value="Medium">Medium</SelectItem>
+                                        <SelectItem value="Low">Low</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                 <Select>
+                                    <SelectTrigger className="w-full md:w-[150px]">
+                                        <SelectValue placeholder="Filter by category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Categories</SelectItem>
+                                        <SelectItem value="Technical Issue">Technical Issue</SelectItem>
+                                        <SelectItem value="Billing">Billing</SelectItem>
+                                        <SelectItem value="Feature Request">Feature Request</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="w-full overflow-auto rounded-lg border">
@@ -150,6 +199,7 @@ export default function SupportPage() {
                                     <TableRow>
                                         <TableHead>Ticket ID</TableHead>
                                         <TableHead>Subject</TableHead>
+                                        <TableHead>Category</TableHead>
                                         <TableHead>Priority</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Last Updated</TableHead>
@@ -160,6 +210,7 @@ export default function SupportPage() {
                                         <TableRow key={ticket.id}>
                                             <TableCell className="font-medium">{ticket.id}</TableCell>
                                             <TableCell>{ticket.subject}</TableCell>
+                                            <TableCell><Badge variant="outline">{ticket.category}</Badge></TableCell>
                                             <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
                                             <TableCell>{getStatusBadge(ticket.status)}</TableCell>
                                             <TableCell>{ticket.lastUpdate}</TableCell>
