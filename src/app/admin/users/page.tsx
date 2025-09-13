@@ -79,7 +79,7 @@ type User = {
     parents?: ParentLink[];
 };
 
-const mockUsers: User[] = [
+const mockUsersData: User[] = [
     { id: 'usr-1', name: 'Admin User', email: 'admin@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100', role: 'Admin', status: 'Active', lastLogin: '2024-07-18T10:00:00Z', createdAt: '2024-01-15T09:00:00Z' },
     { id: 'usr-2', name: 'Ms. Wanjiku', email: 'wanjiku@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-18T09:30:00Z', createdAt: '2024-01-20T11:00:00Z' },
     { id: 'usr-3', name: 'Mr. Otieno', email: 'otieno@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-17T14:00:00Z', createdAt: '2024-01-20T11:05:00Z' },
@@ -107,6 +107,7 @@ const getStatusBadge = (status: UserStatus) => {
 }
 
 export default function UserManagementPage() {
+    const [mockUsers, setMockUsers] = React.useState(mockUsersData);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'All Statuses'>('All Statuses');
     const [classFilter, setClassFilter] = React.useState('All Classes');
@@ -173,7 +174,8 @@ export default function UserManagementPage() {
         });
     };
     
-    const handleSaveChanges = () => {
+    const handleSaveChanges = (userId: string, updatedData: Partial<User>) => {
+        setMockUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, ...updatedData } : u));
         toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
     };
 
@@ -181,7 +183,8 @@ export default function UserManagementPage() {
         toast({ title: 'Password Reset Sent', description: 'A password reset link has been sent to the user\'s email.' });
     };
 
-    const handleDeleteUser = () => {
+    const handleDeleteUser = (userId: string) => {
+        setMockUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
         toast({ title: 'User Deleted', description: 'The user account has been deleted.', variant: 'destructive' });
     };
 
@@ -375,7 +378,7 @@ export default function UserManagementPage() {
                                                                     Send Password Reset
                                                                 </Button>
                                                                 <DialogClose asChild>
-                                                                    <Button variant="destructive" onClick={handleDeleteUser}>
+                                                                    <Button variant="destructive" onClick={() => handleDeleteUser(user.id)}>
                                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                                         Delete User
                                                                     </Button>
@@ -386,7 +389,7 @@ export default function UserManagementPage() {
                                                     <DialogFooter>
                                                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                                                         <DialogClose asChild>
-                                                            <Button onClick={handleSaveChanges}>Save Changes</Button>
+                                                            <Button onClick={() => handleSaveChanges(user.id, {})}>Save Changes</Button>
                                                         </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>
