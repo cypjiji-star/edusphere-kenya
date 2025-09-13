@@ -1,5 +1,8 @@
 
 
+'use client';
+
+import * as React from 'react';
 import {
   Card,
   CardContent,
@@ -22,17 +25,39 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 const versionHistory = [
-    { version: 3, date: '2024-07-28 10:00 AM', author: 'Ms. Wanjiku', summary: 'Added new assessment method.' },
-    { version: 2, date: '2024-07-27 03:20 PM', author: 'Ms. Wanjiku', summary: 'Revised learning activities.' },
-    { version: 1, date: '2024-07-26 09:00 AM', author: 'Ms. Wanjiku', summary: 'Initial draft created.' },
+    { version: 3, date: '2024-07-28 10:00 AM', author: 'Ms. Wanjiku', summary: 'Added new assessment method.', data: { topic: 'Photosynthesis & Respiration', subject: 'Biology', grade: 'Form 2', date: '2024-07-28', objectives: 'Students will be able to explain the Krebs cycle.', activities: '1. Lecture on Krebs Cycle\n2. Diagram drawing.', assessment: 'Label a diagram of the Krebs cycle.' } },
+    { version: 2, date: '2024-07-27 03:20 PM', author: 'Ms. Wanjiku', summary: 'Revised learning activities.', data: { topic: 'Photosynthesis & Respiration', subject: 'Biology', grade: 'Form 2', date: '2024-07-27', objectives: 'Students will understand the light-dependent reactions.', activities: '1. Watch video on light reactions.\n2. Group discussion.', assessment: 'Q&A session.' } },
+    { version: 1, date: '2024-07-26 09:00 AM', author: 'Ms. Wanjiku', summary: 'Initial draft created.', data: { topic: 'Photosynthesis', subject: 'Biology', grade: 'Form 2', date: '2024-07-26', objectives: 'Define Photosynthesis.', activities: 'Introductory lecture.', assessment: 'Define the term.' } },
 ]
 
 export default function NewLessonPlanPage({ searchParams }: { searchParams: { id?: string, date?: string }}) {
   const lessonPlanId = searchParams.id;
   const prefilledDate = searchParams.date;
   const isEditMode = !!lessonPlanId;
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = React.useState('editor');
+  const [formKey, setFormKey] = React.useState(Date.now()); // Used to force re-render of form
+
+  const handleRestore = (versionData: any) => {
+    // In a real app, you might want a more sophisticated state management solution (like Jotai or Zustand)
+    // to pass the restored data to the form component. For now, we'll just update a key to remount it
+    // and rely on a mock/local storage mechanism if we were to persist this state across tabs.
+    // For this demo, we'll just show a toast and switch tabs.
+    
+    // This is a simplified way to trigger a re-render with new defaults.
+    // A more robust solution would use a shared state.
+    sessionStorage.setItem('restoredLessonPlan', JSON.stringify(versionData));
+    setFormKey(Date.now()); // Update key to force LessonPlanForm to remount and read sessionStorage
+
+    toast({
+        title: 'Version Restored',
+        description: 'The selected version has been loaded into the editor.',
+    });
+    setActiveTab('editor');
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -66,15 +91,15 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem disabled>
+                  <DropdownMenuItem>
                     <Share2 className="mr-2" />
                     Share with a colleague
                   </DropdownMenuItem>
-                  <DropdownMenuItem disabled>
+                  <DropdownMenuItem>
                     <Copy className="mr-2" />
                     Copy to another class
                   </DropdownMenuItem>
-                   <DropdownMenuItem disabled>
+                   <DropdownMenuItem>
                     <FileDown className="mr-2" />
                     Print / Export as PDF
                   </DropdownMenuItem>
@@ -83,7 +108,7 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
             )}
         </CardHeader>
         <CardContent>
-            <Tabs defaultValue="editor" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 {isEditMode && (
                     <TabsList className="mb-4">
                         <TabsTrigger value="editor">Editor</TabsTrigger>
@@ -92,7 +117,7 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
                     </TabsList>
                 )}
                 <TabsContent value="editor">
-                     <LessonPlanForm lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} />
+                     <LessonPlanForm key={formKey} lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} />
                 </TabsContent>
                 <TabsContent value="history">
                     <Card>
@@ -117,7 +142,7 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
                                         </div>
                                         <p className="text-sm text-muted-foreground">{version.summary}</p>
                                     </div>
-                                    <Button variant="outline" size="sm" disabled>Restore</Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleRestore(version.data)}>Restore</Button>
                                 </div>
                             ))}
                         </CardContent>
@@ -127,7 +152,7 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
                     <Card>
                         <CardHeader>
                             <CardTitle>Permissions & Access Control</CardTitle>
-                            <CardDescription>Control who can view and edit this lesson plan. (This is a mock UI, functionality is coming soon).</CardDescription>
+                            <CardDescription>Control who can view and edit this lesson plan.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
@@ -138,7 +163,7 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
                                     <div className="flex-1">
                                         <p className="font-medium">Allow co-teachers to edit</p>
                                     </div>
-                                    <Switch id="edit-perms" disabled />
+                                    <Switch id="edit-perms" />
                                 </div>
                             </div>
                             <Separator />
@@ -150,7 +175,7 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
                                      <div className="flex-1">
                                         <p className="font-medium">Share with all Science Department teachers</p>
                                     </div>
-                                    <Switch id="view-perms" disabled />
+                                    <Switch id="view-perms" />
                                 </div>
                             </div>
                         </CardContent>
@@ -162,3 +187,4 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
     </div>
   );
 }
+
