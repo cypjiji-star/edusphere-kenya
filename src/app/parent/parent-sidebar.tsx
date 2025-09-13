@@ -46,7 +46,7 @@ const navItems = [
     { href: '/parent/timetable', label: 'Timetable', icon: Calendar, unread: 0, badge: null },
     { href: '/parent/fees', label: 'Fees & Payments', icon: CircleDollarSign, unread: 0, badge: null },
     { href: '/parent/health', label: 'Health & Incidents', icon: HeartPulse, unread: 0, badge: null },
-    { href: '/parent/messaging', label: 'Messages', icon: MessageCircle, unread: 0, badge: null },
+    { href: '/parent/messaging', label: 'Messages', icon: MessageCircle, unread: 1, badge: null },
     { href: '/parent/calendar', label: 'Events Calendar', icon: Calendar, unread: 0, badge: null },
 ];
 
@@ -118,7 +118,7 @@ export function ParentSidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled><Settings className="mr-2" />Profile</DropdownMenuItem>
+            <DropdownMenuItem disabled><Settings className="mr-2" />Profile & Settings</DropdownMenuItem>
             <DropdownMenuItem disabled><HelpCircle className="mr-2" />Support</DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
