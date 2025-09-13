@@ -14,6 +14,7 @@ import {
   Languages,
   Users,
   User,
+  Loader2,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -50,6 +51,7 @@ import {
   } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { translateText } from '@/ai/flows/translate-text';
 
 
 const initialConversations = [
@@ -135,6 +137,7 @@ export function AdminChatLayout() {
   const [message, setMessage] = React.useState("");
   const [messages, setMessages] = React.useState(initialMessages);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [isTranslating, setIsTranslating] = React.useState(false);
   const { toast } = useToast();
 
   const handleSendMessage = () => {
@@ -166,7 +169,6 @@ export function AdminChatLayout() {
     const contact = newContactOptions.find(c => c.id === contactId);
     if (!contact) return;
     
-    // Check if conversation already exists
     const existingConvo = conversations.find(c => c.name === contact.name);
     if (existingConvo) {
         setSelectedConvo(existingConvo);
@@ -191,6 +193,40 @@ export function AdminChatLayout() {
         description: `You can now chat with ${contact.name}.`
     });
   }
+
+  const handleTranslate = async () => {
+    if (!message) {
+      toast({
+        variant: 'destructive',
+        title: 'No Message to Translate',
+        description: 'Please type a message before using AI translation.',
+      });
+      return;
+    }
+    
+    setIsTranslating(true);
+    try {
+      const result = await translateText({ text: message, targetLanguage: 'Swahili' });
+      if (result && result.translatedText) {
+        setMessage(result.translatedText);
+        toast({
+          title: 'Translation Complete',
+          description: 'The message has been translated to Swahili.',
+        });
+      } else {
+         throw new Error('AI did not return translated text.');
+      }
+    } catch(e) {
+      console.error(e);
+      toast({
+        variant: 'destructive',
+        title: 'Translation Failed',
+        description: 'The AI could not translate the message.',
+      });
+    } finally {
+        setIsTranslating(false);
+    }
+  };
 
   const filteredConversations = conversations.filter(convo => 
     convo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -330,7 +366,7 @@ export function AdminChatLayout() {
                 <div className="relative">
                   <Textarea
                     placeholder="Type a message..."
-                    className="pr-32"
+                    className="pr-40"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                      onKeyDown={(e) => {
@@ -340,23 +376,11 @@ export function AdminChatLayout() {
                       }
                     }}
                   />
-                  <div className="absolute top-3 right-3 flex items-center gap-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                              size="icon"
-                              variant="ghost"
-                              disabled
-                          >
-                              <Paperclip className="h-5 w-5 text-muted-foreground" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Attach file (coming soon)</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                  <div className="absolute top-3 right-3 flex items-center gap-1">
+                     <Button type="button" variant="outline" size="sm" onClick={handleTranslate} disabled={isTranslating}>
+                        {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
+                        Translate
+                    </Button>
                     <Button
                         size="icon"
                         disabled={!message.trim()}
@@ -380,5 +404,3 @@ export function AdminChatLayout() {
     </div>
   );
 }
-
-    
