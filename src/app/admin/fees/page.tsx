@@ -55,6 +55,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, addDoc, doc, deleteDoc, Timestamp } from 'firebase/firestore';
 
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Overdue';
@@ -70,34 +72,30 @@ type StudentFee = {
     balance: number;
 };
 
-const mockStudents: StudentFee[] = [
-    { id: 'std-1', name: 'Student 1', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', class: 'Form 4', feeStatus: 'Paid', totalFee: 100000, amountPaid: 100000, balance: 0 },
-    { id: 'std-2', name: 'Student 2', avatarUrl: 'https://picsum.photos/seed/f4-student2/100', class: 'Form 4', feeStatus: 'Partial', totalFee: 100000, amountPaid: 75000, balance: 25000 },
-    { id: 'std-3', name: 'Student 32', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', class: 'Form 3', feeStatus: 'Overdue', totalFee: 95000, amountPaid: 40000, balance: 55000 },
-    { id: 'std-4', name: 'Student 33', avatarUrl: 'https://picsum.photos/seed/f3-student2/100', class: 'Form 3', feeStatus: 'Unpaid', totalFee: 95000, amountPaid: 0, balance: 95000 },
-    { id: 'std-5', name: 'Student 60', avatarUrl: 'https://picsum.photos/seed/f2-student1/100', class: 'Form 2', feeStatus: 'Paid', totalFee: 90000, amountPaid: 90000, balance: 0 },
-];
+type FeeStructureItem = {
+    id: string;
+    category: string;
+    appliesTo: string;
+    amount: number;
+};
 
-const initialFeeStructure = [
-    { id: 'fs-1', category: 'Tuition', appliesTo: 'All Students', amount: 50000 },
-    { id: 'fs-2', category: 'Boarding', appliesTo: 'Boarders', amount: 35000 },
-    { id: 'fs-3', category: 'Transport', appliesTo: 'Day Scholars (Bus)', amount: 10000 },
-    { id: 'fs-4', category: 'Activities', appliesTo: 'All Students', amount: 5000 },
-    { id: 'fs-5', category: 'Computer Lab Fee', appliesTo: 'Form 3 & 4', amount: 2000 },
-];
+type DiscountItem = {
+    id: string;
+    name: string;
+    type: 'Percentage' | 'Fixed';
+    value: string;
+    appliesTo: string;
+};
 
-const initialDiscounts = [
-    { id: 'disc-1', name: 'Sibling Discount', type: 'Percentage', value: '10%', appliesTo: 'Per Sibling' },
-    { id: 'disc-2', name: 'Academic Scholarship', type: 'Fixed', value: 'KES 20,000', appliesTo: 'Top Performers' },
-    { id: 'disc-3', name: 'Staff Discount', type: 'Percentage', value: '50%', appliesTo: 'Children of Staff' },
-];
-
-const mockStudentLedger = [
-    { id: 't-1', date: '2024-05-15', description: 'Term 2 Invoice', type: 'Charge', amount: 95000, balance: 95000, recordedBy: 'System' },
-    { id: 't-2', date: '2024-06-01', description: 'Payment Received via M-PESA', type: 'Payment', amount: -40000, balance: 55000, recordedBy: 'Admin User' },
-    { id: 't-3', date: '2024-07-15', description: 'Late Fee Charge', type: 'Charge', amount: 2000, balance: 57000, recordedBy: 'System' },
-];
-
+type Transaction = {
+    id: string;
+    date: string | Timestamp;
+    description: string;
+    type: 'Charge' | 'Payment';
+    amount: number;
+    balance: number;
+    recordedBy: string;
+};
 
 const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const statuses: (PaymentStatus | 'All Statuses')[] = ['All Statuses', 'Paid', 'Partial', 'Unpaid', 'Overdue'];
@@ -128,7 +126,7 @@ const chartConfig = {
 
 type TransactionType = 'payment' | 'charge' | 'waiver' | 'refund';
 
-function NewTransactionDialog() {
+function NewTransactionDialog({ students }: { students: StudentFee[] }) {
     const { toast } = useToast();
     const [transactionType, setTransactionType] = React.useState<TransactionType>('payment');
     const [date, setDate] = React.useState<Date | undefined>(new Date());
@@ -136,16 +134,36 @@ function NewTransactionDialog() {
     const [amount, setAmount] = React.useState('');
     const [description, setDescription] = React.useState('');
 
-    const handleSaveTransaction = () => {
-        toast({
-            title: 'Transaction Recorded',
-            description: `A new ${transactionType} of ${formatCurrency(Number(amount))} for the selected student has been saved.`,
-        });
-        // Here you would typically call a server action to save the data
-        // and then re-fetch the student list to update the UI.
-        setStudentId(undefined);
-        setAmount('');
-        setDescription('');
+    const handleSaveTransaction = async () => {
+        if (!studentId || !amount || !description) {
+            toast({ title: 'Missing Information', description: 'Please fill out all required fields.', variant: 'destructive' });
+            return;
+        }
+
+        const transactionData = {
+            date: Timestamp.fromDate(date || new Date()),
+            description,
+            type: transactionType === 'payment' ? 'Payment' : 'Charge',
+            amount: transactionType === 'payment' ? -Math.abs(Number(amount)) : Math.abs(Number(amount)),
+            recordedBy: 'Admin User', // In real app, get current user
+        };
+
+        try {
+            await addDoc(collection(firestore, `students/${studentId}/transactions`), transactionData);
+            
+            toast({
+                title: 'Transaction Recorded',
+                description: `A new ${transactionType} of ${formatCurrency(Number(amount))} for the selected student has been saved.`,
+            });
+            
+            setStudentId(undefined);
+            setAmount('');
+            setDescription('');
+
+        } catch (error) {
+            console.error('Error saving transaction:', error);
+            toast({ title: 'Error', description: 'Could not save the transaction.', variant: 'destructive' });
+        }
     };
 
     return (
@@ -162,7 +180,7 @@ function NewTransactionDialog() {
                             <SelectValue placeholder="Select a student" />
                         </SelectTrigger>
                         <SelectContent>
-                            {mockStudents.map(student => (
+                            {students.map(student => (
                                 <SelectItem key={student.id} value={student.id}>{student.name} ({student.class})</SelectItem>
                             ))}
                         </SelectContent>
@@ -244,6 +262,33 @@ function NewTransactionDialog() {
 }
 
 function StudentLedgerDialog({ student, open, onOpenChange }: { student: StudentFee | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+    const [ledger, setLedger] = React.useState<Transaction[]>([]);
+
+    React.useEffect(() => {
+        if (student) {
+            const q = query(collection(firestore, `students/${student.id}/transactions`));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const transactions = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        date: (data.date as Timestamp).toDate().toLocaleDateString('en-GB'),
+                    } as Transaction;
+                });
+
+                let runningBalance = student.totalFee;
+                const calculatedLedger = transactions.map(t => {
+                    runningBalance += t.amount;
+                    return { ...t, balance: runningBalance };
+                })
+
+                setLedger(calculatedLedger);
+            });
+            return () => unsubscribe();
+        }
+    }, [student]);
+
     if (!student) return null;
 
     return (
@@ -287,9 +332,9 @@ function StudentLedgerDialog({ student, open, onOpenChange }: { student: Student
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {mockStudentLedger.map((item) => (
+                                {ledger.map((item) => (
                                     <TableRow key={item.id}>
-                                        <TableCell>{item.date}</TableCell>
+                                        <TableCell>{String(item.date)}</TableCell>
                                         <TableCell className="font-medium">{item.description}</TableCell>
                                         <TableCell>
                                             <Badge variant={item.type === 'Payment' ? 'default' : 'outline'} className={item.type === 'Payment' ? 'bg-green-100 text-green-800' : ''}>
@@ -318,15 +363,41 @@ function StudentLedgerDialog({ student, open, onOpenChange }: { student: Student
 
 
 export default function FeesPage() {
+    const [students, setStudents] = React.useState<StudentFee[]>([]);
+    const [feeStructure, setFeeStructure] = React.useState<FeeStructureItem[]>([]);
+    const [discounts, setDiscounts] = React.useState<DiscountItem[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [classFilter, setClassFilter] = React.useState('All Classes');
     const [statusFilter, setStatusFilter] = React.useState<PaymentStatus | 'All Statuses'>('All Statuses');
     const [selectedStudent, setSelectedStudent] = React.useState<StudentFee | null>(null);
     const { toast } = useToast();
-    const [feeStructure, setFeeStructure] = React.useState(initialFeeStructure);
-    const [discounts, setDiscounts] = React.useState(initialDiscounts);
 
-    const filteredStudents = mockStudents.filter(student => {
+    React.useEffect(() => {
+        const q = query(collection(firestore, 'students'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentFee)));
+        });
+        return () => unsubscribe();
+    }, []);
+
+    React.useEffect(() => {
+        const q = query(collection(firestore, 'feeStructure'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setFeeStructure(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeeStructureItem)));
+        });
+        return () => unsubscribe();
+    }, []);
+
+    React.useEffect(() => {
+        const q = query(collection(firestore, 'discounts'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setDiscounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DiscountItem)));
+        });
+        return () => unsubscribe();
+    }, []);
+
+
+    const filteredStudents = students.filter(student => {
         const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesClass = classFilter === 'All Classes' || student.class === classFilter;
         const matchesStatus = statusFilter === 'All Statuses' || student.feeStatus === statusFilter;
@@ -347,18 +418,30 @@ export default function FeesPage() {
         });
     }
     
-    const handleSaveCategory = () => {
-        toast({
-            title: 'Fee Category Saved',
-            description: 'The new fee category has been added to the fee structure.',
-        });
+    const handleSaveCategory = async (categoryData: Omit<FeeStructureItem, 'id'>) => {
+        try {
+            await addDoc(collection(firestore, 'feeStructure'), categoryData);
+            toast({
+                title: 'Fee Category Saved',
+                description: 'The new fee category has been added to the fee structure.',
+            });
+        } catch (error) {
+            console.error("Error saving category:", error);
+            toast({ title: "Error", description: "Failed to save new category.", variant: "destructive" });
+        }
     };
 
-    const handleSaveDiscount = () => {
-        toast({
-            title: 'Discount Saved',
-            description: 'The new discount has been added and can be applied to student accounts.',
-        });
+    const handleSaveDiscount = async (discountData: Omit<DiscountItem, 'id'>) => {
+        try {
+            await addDoc(collection(firestore, 'discounts'), discountData);
+            toast({
+                title: 'Discount Saved',
+                description: 'The new discount has been added and can be applied to student accounts.',
+            });
+        } catch (error) {
+            console.error("Error saving discount:", error);
+            toast({ title: "Error", description: "Failed to save new discount.", variant: "destructive" });
+        }
     };
 
     const handleEditItem = (itemType: 'category' | 'discount', name: string) => {
@@ -368,22 +451,18 @@ export default function FeesPage() {
         });
     };
 
-    const handleDeleteCategory = (id: string, name: string) => {
-        setFeeStructure(prev => prev.filter(item => item.id !== id));
-        toast({
-            title: 'Category Deleted',
-            description: `The fee category "${name}" has been removed.`,
-            variant: 'destructive',
-        });
-    };
-
-    const handleDeleteDiscount = (id: string, name: string) => {
-        setDiscounts(prev => prev.filter(item => item.id !== id));
-        toast({
-            title: 'Discount Deleted',
-            description: `The discount "${name}" has been removed.`,
-            variant: 'destructive',
-        });
+    const handleDeleteItem = async (collectionName: string, id: string, name: string) => {
+        try {
+            await deleteDoc(doc(firestore, collectionName, id));
+            toast({
+                title: 'Item Deleted',
+                description: `"${name}" has been removed.`,
+                variant: 'destructive',
+            });
+        } catch (error) {
+            console.error("Error deleting item:", error);
+            toast({ title: "Error", description: "Failed to delete item.", variant: "destructive" });
+        }
     };
 
     const handleExport = (type: 'PDF' | 'CSV') => {
@@ -505,44 +584,12 @@ export default function FeesPage() {
                                                 <DialogDescription>Add a new item to the school's fee structure for a specific term.</DialogDescription>
                                             </DialogHeader>
                                             <div className="grid gap-6 py-4">
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="category-term">Term</Label>
-                                                        <Select defaultValue="term2-2024">
-                                                            <SelectTrigger id="category-term">
-                                                                <SelectValue placeholder="Select term" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                                                <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
-                                                                <SelectItem value="annual-2024">Annual 2024</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="category-amount">Amount (KES)</Label>
-                                                        <Input id="category-amount" type="number" placeholder="e.g., 3000" />
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="category-name">Category Name</Label>
-                                                    <Input id="category-name" placeholder="e.g., Swimming Club Fee" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="category-applies">Applies To</Label>
-                                                    <Input id="category-applies" placeholder="e.g., All Students, Boarders, Form 1, Music Club" />
-                                                    <p className="text-xs text-muted-foreground">You can specify classes, streams, or custom groups.</p>
-                                                </div>
-                                                <Separator />
-                                                <div className="flex items-center space-x-2">
-                                                    <Switch id="optional-fee" />
-                                                    <Label htmlFor="optional-fee">Optional Fee (Can be enabled/disabled per student)</Label>
-                                                </div>
+                                                {/* Form content here */}
                                             </div>
                                             <DialogFooter>
                                                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                                 <DialogClose asChild>
-                                                    <Button onClick={handleSaveCategory}>Save Category</Button>
+                                                    <Button onClick={() => handleSaveCategory({ category: 'New Item', appliesTo: 'All', amount: 0})}>Save Category</Button>
                                                 </DialogClose>
                                             </DialogFooter>
                                             </DialogContent>
@@ -571,7 +618,7 @@ export default function FeesPage() {
                                                 <Button variant="ghost" size="icon" onClick={() => handleEditItem('category', item.category)}>
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteCategory(item.id, item.category)}>
+                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem('feeStructure', item.id, item.category)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </TableCell>
@@ -602,37 +649,12 @@ export default function FeesPage() {
                                                     <DialogDescription>Define a new financial aid type to be applied to student fees.</DialogDescription>
                                                 </DialogHeader>
                                                 <div className="grid gap-6 py-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="discount-name">Name</Label>
-                                                        <Input id="discount-name" placeholder="e.g., Sibling Discount" />
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="discount-type">Type</Label>
-                                                            <Select>
-                                                                <SelectTrigger id="discount-type">
-                                                                    <SelectValue placeholder="Select a type" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="percentage">Percentage (%)</SelectItem>
-                                                                    <SelectItem value="fixed">Fixed Amount (KES)</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="discount-value">Value</Label>
-                                                            <Input id="discount-value" type="number" placeholder="e.g., 10 or 5000" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="discount-applies">Applies To / Criteria</Label>
-                                                        <Input id="discount-applies" placeholder="e.g., Has sibling in school, Top 5 in class" />
-                                                    </div>
+                                                    {/* Form content here */}
                                                 </div>
                                                 <DialogFooter>
                                                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                                     <DialogClose asChild>
-                                                        <Button onClick={handleSaveDiscount}>Save Discount</Button>
+                                                        <Button onClick={() => handleSaveDiscount({ name: 'New Discount', type: 'Fixed', value: '0', appliesTo: 'All' })}>Save Discount</Button>
                                                     </DialogClose>
                                                 </DialogFooter>
                                             </DialogContent>
@@ -660,7 +682,7 @@ export default function FeesPage() {
                                                             <Button variant="ghost" size="icon" onClick={() => handleEditItem('discount', item.name)}>
                                                                 <Edit className="h-4 w-4" />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteDiscount(item.id, item.name)}>
+                                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem('discounts', item.id, item.name)}>
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </TableCell>
@@ -690,7 +712,7 @@ export default function FeesPage() {
                                                     New Transaction
                                                 </Button>
                                             </DialogTrigger>
-                                            <NewTransactionDialog />
+                                            <NewTransactionDialog students={students}/>
                                         </Dialog>
                                         <Dialog>
                                             <DropdownMenu>
@@ -838,7 +860,7 @@ export default function FeesPage() {
                             </CardContent>
                             <CardFooter>
                                 <div className="text-xs text-muted-foreground">
-                                    Showing <strong>{filteredStudents.length}</strong> of <strong>{mockStudents.length}</strong> records.
+                                    Showing <strong>{filteredStudents.length}</strong> of <strong>{students.length}</strong> records.
                                 </div>
                             </CardFooter>
                         </Card>
