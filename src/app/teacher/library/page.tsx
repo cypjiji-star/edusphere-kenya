@@ -32,6 +32,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 export const mockResources: Resource[] = [
@@ -65,6 +68,7 @@ export default function LibraryPage() {
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [selectedResource, setSelectedResource] = React.useState<Resource | null>(null);
   const [clientReady, setClientReady] = React.useState(false);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     setClientReady(true);
@@ -75,17 +79,66 @@ export default function LibraryPage() {
     (filteredType === 'All Types' || res.type === filteredType) &&
     (filteredSubject === 'All Subjects' || res.subject === filteredSubject)
   );
+  
+  const handleActionClick = (e: React.MouseEvent, action: 'borrow' | 'reserve', title: string) => {
+    e.stopPropagation();
+    toast({
+        title: `${action === 'borrow' ? 'Item Borrowed' : 'Item Reserved'} (Simulation)`,
+        description: `${title} has been marked as ${action === 'borrow' ? 'borrowed' : 'reserved'} in your name.`
+    })
+  }
 
   const renderActionButton = (resource: Resource) => {
     switch (resource.status) {
         case 'Available':
-            return <Button variant="outline" size="sm" disabled><Bookmark className="mr-2 h-4 w-4" />Borrow</Button>;
+            return <Button variant="outline" size="sm" onClick={(e) => handleActionClick(e, 'borrow', resource.title)}><Bookmark className="mr-2 h-4 w-4" />Borrow</Button>;
         case 'Out':
-            return <Button variant="outline" size="sm" disabled><Clock className="mr-2 h-4 w-4" />Reserve</Button>;
+            return <Button variant="outline" size="sm" onClick={(e) => handleActionClick(e, 'reserve', resource.title)}><Clock className="mr-2 h-4 w-4" />Reserve</Button>;
         case 'Digital':
              return <Button variant="outline" size="sm" onClick={() => setSelectedResource(resource)}><Eye className="mr-2 h-4 w-4" />View</Button>;
     }
   }
+  
+  const handleExport = (type: 'PDF' | 'CSV') => {
+    if (type === 'CSV') {
+        const headers = ['Title', 'Type', 'Subject', 'Status'];
+        const rows = filteredResources.map(res => 
+            [
+                `"${res.title}"`,
+                res.type,
+                res.subject,
+                res.status
+            ].join(',')
+        );
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "library-resources.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    } else {
+         const doc = new jsPDF();
+         doc.text("Library Resources", 14, 16);
+         (doc as any).autoTable({
+            startY: 22,
+            head: [['Title', 'Type', 'Subject', 'Status']],
+            body: filteredResources.map(res => [res.title, res.type, res.subject, res.status]),
+         });
+         doc.save('library-resources.pdf');
+    }
+
+     toast({
+        title: 'Exporting Resources',
+        description: `The resource list is being exported as a ${type} file.`
+    });
+  };
+
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -106,7 +159,7 @@ export default function LibraryPage() {
           </h1>
           <p className="text-muted-foreground">Access digital textbooks, past papers, and other learning materials.</p>
         </div>
-         <Button disabled>
+         <Button onClick={() => toast({ title: 'Feature Coming Soon', description: 'Resource uploading will be available in a future update.' })}>
             <Upload className="mr-2" />
             Upload Resource
         </Button>
@@ -156,15 +209,15 @@ export default function LibraryPage() {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        <DropdownMenuItem disabled>
+                        <DropdownMenuItem onClick={() => handleExport('PDF')}>
                             <FileDown className="mr-2" />
                             Export as PDF
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
+                        <DropdownMenuItem onClick={() => handleExport('CSV')}>
                             <FileDown className="mr-2" />
                             Export as CSV
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
+                        <DropdownMenuItem onClick={() => window.print()}>
                             <Printer className="mr-2" />
                             Print List
                         </DropdownMenuItem>
