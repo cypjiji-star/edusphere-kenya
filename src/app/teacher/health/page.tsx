@@ -140,6 +140,9 @@ const incidentSchema = z.object({
   description: z.string().min(20, 'Please provide a detailed description (at least 20 characters).'),
   actionsTaken: z.string().min(10, 'Please describe the actions taken.'),
   urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
+  notifyAdmin: z.boolean().default(false),
+  notifyParents: z.boolean().default(false),
+  notifyNurse: z.boolean().default(false),
 });
 
 type IncidentFormValues = z.infer<typeof incidentSchema>;
@@ -1017,5 +1020,3 @@ export default function HealthPage() {
         </Dialog>
     );
 }
-
-    
