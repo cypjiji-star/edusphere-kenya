@@ -59,54 +59,48 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
+import type { DocumentData, Timestamp } from 'firebase/firestore';
 
-const childrenData = [
-  { id: 'child-1', name: 'John Doe', class: 'Form 4' },
-  { id: 'child-2', name: 'Jane Doe', class: 'Form 1' },
-];
 
-const gradeData = {
-  'child-1': {
-    summary: {
-      overall: '82%',
-      rank: '5th',
-      classSize: 42,
-      trend: 'up' as const,
-      trendValue: '3%',
-      highest: 'Chemistry (91%)',
-      lowest: 'History (72%)',
-    },
-    subjects: [
-      { name: 'Mathematics', cat1: 80, midTerm: 85, cat2: 78, final: 84, average: 82, grade: 'A-', comment: 'Good progress, but needs to work on algebraic expressions.', teacher: 'Mr. Otieno' },
-      { name: 'English', cat1: 88, midTerm: 90, cat2: 85, final: 87, average: 88, grade: 'A', comment: 'Excellent work in literature analysis.', teacher: 'Ms. Njeri' },
-      { name: 'Kiswahili', cat1: 75, midTerm: 78, cat2: 80, final: 82, average: 79, grade: 'A-', comment: 'Improvement in vocabulary is needed.', teacher: 'Ms. Akinyi' },
-      { name: 'Chemistry', cat1: 90, midTerm: 92, cat2: 88, final: 94, average: 91, grade: 'A', comment: 'Outstanding performance in practicals.', teacher: 'Ms. Wanjiku' },
-      { name: 'Physics', cat1: 78, midTerm: 80, cat2: 75, final: 79, average: 78, grade: 'A-', comment: 'Good understanding of core concepts.', teacher: 'Mr. Kamau' },
-      { name: 'History', cat1: 70, midTerm: 72, cat2: 74, final: 72, average: 'B', comment: 'More attention to detail in essays is required.', teacher: 'Mr. Kamau' },
-    ]
-  },
-  'child-2': {
-    summary: {
-      overall: '88%',
-      rank: '3rd',
-      classSize: 35,
-      trend: 'up' as const,
-      trendValue: '5%',
-      highest: 'English (94%)',
-      lowest: 'Mathematics (80%)',
-    },
-    subjects: [
-        { name: 'Mathematics', cat1: 78, midTerm: 82, cat2: 79, final: 81, average: 80, grade: 'A-', comment: 'Excellent effort.', teacher: 'Mr. Otieno' },
-        { name: 'English', cat1: 92, midTerm: 95, cat2: 93, final: 96, average: 94, grade: 'A', comment: 'Top of the class. Keep it up.', teacher: 'Ms. Njeri' },
-    ]
-  }
+type Child = {
+    id: string;
+    name: string;
+    class: string;
 };
+
+type GradeData = {
+    summary: {
+      overall: string;
+      rank: string;
+      classSize: number;
+      trend: 'up' | 'down';
+      trendValue: string;
+      highest: string;
+      lowest: string;
+    };
+    subjects: SubjectData[];
+};
+
+type SubjectData = { 
+    id: string;
+    name: string; 
+    cat1: number; 
+    midTerm: number; 
+    cat2: number; 
+    final: number; 
+    average: number; 
+    grade: string; 
+    comment: string; 
+    teacher: string; 
+};
+
 
 const chartConfig = {
   average: { label: 'Average Score', color: 'hsl(var(--primary))' },
 };
 
-type SubjectData = (typeof gradeData)['child-1']['subjects'][0];
 
 function CommentDialog({ studentName, subject, open, onOpenChange }: { studentName: string, subject: SubjectData | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     const { toast } = useToast();
@@ -155,11 +149,59 @@ function CommentDialog({ studentName, subject, open, onOpenChange }: { studentNa
 }
 
 export default function ParentGradesPage() {
-  const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
+  const [childrenData, setChildrenData] = React.useState<Child[]>([]);
+  const [gradeData, setGradeData] = React.useState<GradeData | null>(null);
+  const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
   const { toast } = useToast();
-  const data = gradeData[selectedChild as keyof typeof gradeData];
-  const chartData = data.subjects.map(s => ({ name: s.name.substring(0, 3).toUpperCase(), average: s.average }));
   const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
+
+  React.useEffect(() => {
+    // Fetch children associated with the parent
+    const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
+        setChildrenData(fetchedChildren);
+        if (!selectedChild && fetchedChildren.length > 0) {
+            setSelectedChild(fetchedChildren[0].id);
+        }
+    });
+    return () => unsubscribe();
+  }, [selectedChild]);
+
+  React.useEffect(() => {
+    if (!selectedChild) return;
+
+    const fetchGradeData = async () => {
+        const studentDocRef = doc(firestore, 'students', selectedChild);
+        const studentSnap = await getDoc(studentDocRef);
+
+        if (studentSnap.exists()) {
+            const studentData = studentSnap.data() as DocumentData;
+            // This is a placeholder for fetching real grade data.
+            // In a real app, you would fetch grades from a subcollection.
+            const mockGradeData: GradeData = {
+                summary: {
+                    overall: `${studentData.overallGrade || 82}%`,
+                    rank: '5th',
+                    classSize: 42,
+                    trend: 'up',
+                    trendValue: '3%',
+                    highest: 'Chemistry (91%)',
+                    lowest: 'History (72%)',
+                },
+                subjects: [
+                    { id: '1', name: 'Mathematics', cat1: 80, midTerm: 85, cat2: 78, final: 84, average: 82, grade: 'A-', comment: 'Good progress, but needs to work on algebraic expressions.', teacher: 'Mr. Otieno' },
+                    { id: '2', name: 'English', cat1: 88, midTerm: 90, cat2: 85, final: 87, average: 88, grade: 'A', comment: 'Excellent work in literature analysis.', teacher: 'Ms. Njeri' },
+                    { id: '3', name: 'Kiswahili', cat1: 75, midTerm: 78, cat2: 80, final: 82, average: 79, grade: 'A-', comment: 'Improvement in vocabulary is needed.', teacher: 'Ms. Akinyi' },
+                    { id: '4', name: 'Chemistry', cat1: 90, midTerm: 92, cat2: 88, final: 94, average: 91, grade: 'A', comment: 'Outstanding performance in practicals.', teacher: 'Ms. Wanjiku' },
+                ]
+            };
+            setGradeData(mockGradeData);
+        }
+    };
+
+    fetchGradeData();
+  }, [selectedChild]);
 
   const handleDownload = () => {
     toast({
@@ -167,6 +209,12 @@ export default function ParentGradesPage() {
       description: 'Your official report card is being prepared for download.',
     });
   };
+
+  if (!gradeData) {
+    return <div className="p-8">Loading grades...</div>
+  }
+
+  const chartData = gradeData.subjects.map(s => ({ name: s.name.substring(0, 3).toUpperCase(), average: s.average }));
 
   return (
     <>
@@ -230,34 +278,34 @@ export default function ParentGradesPage() {
         <Card>
             <CardHeader className="pb-2">
                 <CardDescription>Overall Average</CardDescription>
-                <CardTitle className="text-4xl">{data.summary.overall}</CardTitle>
+                <CardTitle className="text-4xl">{gradeData.summary.overall}</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="text-xs text-muted-foreground flex items-center">
-                    {data.summary.trend === 'up' ? <ArrowUp className="h-4 w-4 text-green-500"/> : <ArrowDown className="h-4 w-4 text-red-500"/>}
-                    {data.summary.trendValue} vs last term
+                    {gradeData.summary.trend === 'up' ? <ArrowUp className="h-4 w-4 text-green-500"/> : <ArrowDown className="h-4 w-4 text-red-500"/>}
+                    {gradeData.summary.trendValue} vs last term
                 </div>
             </CardContent>
         </Card>
         <Card>
             <CardHeader className="pb-2">
                 <CardDescription>Class Rank</CardDescription>
-                <CardTitle className="text-4xl">{data.summary.rank}</CardTitle>
+                <CardTitle className="text-4xl">{gradeData.summary.rank}</CardTitle>
             </CardHeader>
             <CardContent>
-                 <div className="text-xs text-muted-foreground">out of {data.summary.classSize} students</div>
+                 <div className="text-xs text-muted-foreground">out of {gradeData.summary.classSize} students</div>
             </CardContent>
         </Card>
         <Card>
             <CardHeader className="pb-2">
                 <CardDescription>Highest Score</CardDescription>
-                <CardTitle className="text-2xl">{data.summary.highest}</CardTitle>
+                <CardTitle className="text-2xl">{gradeData.summary.highest}</CardTitle>
             </CardHeader>
         </Card>
         <Card>
             <CardHeader className="pb-2">
                 <CardDescription>Lowest Score</CardDescription>
-                <CardTitle className="text-2xl">{data.summary.lowest}</CardTitle>
+                <CardTitle className="text-2xl">{gradeData.summary.lowest}</CardTitle>
             </CardHeader>
         </Card>
       </div>
@@ -300,8 +348,8 @@ export default function ParentGradesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {data.subjects.map(subject => (
-                                <TableRow key={subject.name}>
+                            {gradeData.subjects.map(subject => (
+                                <TableRow key={subject.id}>
                                     <TableCell className="font-medium">{subject.name}</TableCell>
                                     <TableCell className="text-center">{subject.cat1}</TableCell>
                                     <TableCell className="text-center">{subject.midTerm}</TableCell>
