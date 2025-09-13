@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User } from 'lucide-react';
+import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User, Star } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 
 const faqs = [
   {
@@ -114,10 +116,27 @@ const getPriorityBadge = (priority: TicketPriority) => {
     }
 }
 
+function StarRating({ rating, setRating }: { rating: number; setRating: (rating: number) => void }) {
+    return (
+        <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                    key={star}
+                    className={cn(
+                        'h-6 w-6 cursor-pointer',
+                        star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
+                    )}
+                    onClick={() => setRating(star)}
+                />
+            ))}
+        </div>
+    );
+}
 
 export default function SupportPage() {
     const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
     const [faqSearchTerm, setFaqSearchTerm] = React.useState('');
+    const [feedbackRating, setFeedbackRating] = React.useState(0);
 
     const filteredFaqs = React.useMemo(() => {
         if (!faqSearchTerm) return faqs;
@@ -314,6 +333,29 @@ export default function SupportPage() {
                                 </div>
                             </div>
                         </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Lightbulb className="h-5 w-5 text-primary"/>Share Your Feedback</CardTitle>
+                            <CardDescription>Have an idea or suggestion? Let us know!</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                             <div className="space-y-2">
+                                <Label>How would you rate your experience?</Label>
+                                <StarRating rating={feedbackRating} setRating={setFeedbackRating} />
+                             </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="feedback-suggestion">Suggestion / Feedback</Label>
+                                <Textarea id="feedback-suggestion" placeholder="What can we improve?" />
+                             </div>
+                             <div className="flex items-center space-x-2">
+                                <Switch id="anonymous-feedback" />
+                                <Label htmlFor="anonymous-feedback">Submit Anonymously</Label>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <Button className="w-full" disabled>Submit Feedback</Button>
+                        </CardFooter>
                     </Card>
                     <Card>
                         <CardHeader>
