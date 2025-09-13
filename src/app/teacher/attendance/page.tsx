@@ -229,7 +229,7 @@ export default function AttendancePage() {
                                 {format(date.to, 'LLL dd, y')}
                               </>
                             ) : (
-                              format(date.from, 'LLL dd, y')
+                              format(date.from, 'PPP')
                             )
                           ) : (
                             <span>Pick a date</span>
@@ -414,25 +414,35 @@ export default function AttendancePage() {
                         </div>
                         </TableCell>
                         <TableCell>
-                        <RadioGroup
-                            value={student.status}
-                            onValueChange={(value: AttendanceStatus) => handleStatusChange(student.id, value)}
-                            className="flex flex-row justify-around md:justify-center md:space-x-8 py-2"
-                            disabled={!isEditable}
-                            >
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="present" id={`${student.id}-present`} disabled={!isEditable}/>
-                                <Label htmlFor={`${student.id}-present`}>Present</Label>
+                            <div className="flex flex-row justify-around md:justify-center items-center gap-2 py-2">
+                                <Button
+                                    variant={student.status === 'present' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => handleStatusChange(student.id, 'present')}
+                                    disabled={!isEditable}
+                                    className="flex-1 md:flex-none"
+                                >
+                                    Present
+                                </Button>
+                                <Button
+                                    variant={student.status === 'absent' ? 'destructive' : 'outline'}
+                                    size="sm"
+                                    onClick={() => handleStatusChange(student.id, 'absent')}
+                                    disabled={!isEditable}
+                                    className="flex-1 md:flex-none"
+                                >
+                                    Absent
+                                </Button>
+                                <Button
+                                    variant={student.status === 'late' ? 'secondary' : 'outline'}
+                                    size="sm"
+                                    onClick={() => handleStatusChange(student.id, 'late')}
+                                    disabled={!isEditable}
+                                    className="flex-1 md:flex-none"
+                                >
+                                    Late
+                                </Button>
                             </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="absent" id={`${student.id}-absent`} disabled={!isEditable}/>
-                                <Label htmlFor={`${student.id}-absent`}>Absent</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="late" id={`${student.id}-late`} disabled={!isEditable}/>
-                                <Label htmlFor={`${student.id}-late`}>Late</Label>
-                            </div>
-                            </RadioGroup>
                         </TableCell>
                         <TableCell className="w-full md:w-[250px]">
                             {(student.status === 'absent' || student.status === 'late') && (
@@ -485,7 +495,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    
-
-    
