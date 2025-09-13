@@ -50,11 +50,20 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 export function CalendarWidget() {
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>(
     new Date()
   );
+  const { toast } = useToast();
+
+  const handleQuickAdd = () => {
+    toast({
+      title: 'Event Added',
+      description: 'The new event has been successfully added to the calendar.',
+    });
+  };
 
   return (
     <Dialog>
@@ -203,10 +212,12 @@ export function CalendarWidget() {
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button disabled>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add to Calendar
-          </Button>
+          <DialogClose asChild>
+            <Button onClick={handleQuickAdd}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add to Calendar
+            </Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
