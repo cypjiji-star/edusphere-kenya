@@ -44,13 +44,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
-import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw } from 'lucide-react';
+import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw, HeartPulse } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
-type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security';
+type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health';
 
 type AuditLog = {
   id: string;
@@ -67,10 +67,11 @@ type AuditLog = {
 };
 
 const mockLogs: AuditLog[] = [
-    { id: 'log-4', actionType: 'Security', description: 'User login failed (3 attempts)', user: { name: 'System', avatarUrl: 'https://picsum.photos/seed/system/100' }, timestamp: '2024-07-27T12:00:00Z', details: 'User: unknown@example.com', ipAddress: '203.0.113.1', userAgent: 'Firefox on Windows' },
     { id: 'log-1', actionType: 'Settings', description: 'Updated school phone number', user: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' }, timestamp: '2024-07-28T11:00:00Z', details: { oldValue: '+254 722 000 000', newValue: '+254 722 123 456'}, ipAddress: '192.168.1.1', userAgent: 'Chrome on macOS' },
     { id: 'log-2', actionType: 'User Management', description: 'Created new user account', user: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' }, timestamp: '2024-07-28T10:15:00Z', details: { oldValue: null, newValue: 'User: new.teacher@school.ac.ke, Role: Teacher' }, ipAddress: '192.168.1.1', userAgent: 'Chrome on macOS' },
+    { id: 'log-4', actionType: 'Security', description: 'User login failed (3 attempts)', user: { name: 'System', avatarUrl: 'https://picsum.photos/seed/system/100' }, timestamp: '2024-07-27T12:00:00Z', details: 'User: unknown@example.com', ipAddress: '203.0.113.1', userAgent: 'Firefox on Windows' },
     { id: 'log-3', actionType: 'Finance', description: 'Generated Term 2 invoices', user: { name: 'Finance Officer', avatarUrl: 'https://picsum.photos/seed/finance-officer/100' }, timestamp: '2024-07-27T14:30:00Z', details: 'Applied to all students', ipAddress: '203.0.113.50', userAgent: 'Safari on iPhone' },
+    { id: 'log-6', actionType: 'Health', description: 'Viewed health record for Student 1', user: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' }, timestamp: '2024-07-26T16:05:00Z', details: 'Reason: Student complained of headache', ipAddress: '10.0.0.5', userAgent: 'Chrome on Windows' },
     { id: 'log-5', actionType: 'Academics', description: 'Published grades for Form 4 Chemistry', user: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' }, timestamp: '2024-07-26T16:00:00Z', details: 'Exam: Mid-Term Exam', ipAddress: '10.0.0.5', userAgent: 'Chrome on Windows' },
 ];
 
@@ -80,10 +81,11 @@ const actionTypeConfig: Record<ActionType, { icon: React.ElementType, color: str
     'Academics': { icon: FileText, color: 'text-purple-500' },
     'Settings': { icon: Settings, color: 'text-orange-500' },
     'Security': { icon: ShieldCheck, color: 'text-red-500' },
+    'Health': { icon: HeartPulse, color: 'text-pink-500' },
 }
 
 const users = ['All Users', 'Admin User', 'Finance Officer', 'Ms. Wanjiku', 'System'];
-const actionTypes: (ActionType | 'All Types')[] = ['All Types', 'User Management', 'Finance', 'Academics', 'Settings', 'Security'];
+const actionTypes: (ActionType | 'All Types')[] = ['All Types', 'User Management', 'Finance', 'Academics', 'Settings', 'Security', 'Health'];
 
 export default function AuditLogsPage() {
   const [date, setDate] = React.useState<DateRange | undefined>();
@@ -386,3 +388,4 @@ export default function AuditLogsPage() {
          )}
     </Dialog>
   );
+}
