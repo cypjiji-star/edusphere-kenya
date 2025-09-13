@@ -420,7 +420,7 @@ export function ReportGenerator() {
                                     <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
                                     <YAxis />
                                     <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                    <Bar dataKey="students" fill="var(--color-students)" radius={8}>
+                                    <Bar key="students" dataKey="students" fill="var(--color-students)" radius={8}>
                                         <LabelList position="top" offset={8} className="fill-foreground" fontSize={12} />
                                     </Bar>
                                 </BarChart>
