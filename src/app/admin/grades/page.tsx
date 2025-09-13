@@ -111,6 +111,8 @@ const mockSubmissions: Submission[] = [
     { id: 'sub-3', examId: 'ex-1', subject: 'Chemistry', teacher: 'Ms. Wanjiku', class: 'Form 4', status: 'Pending', lastUpdated: 'N/A' },
     { id: 'sub-4', examId: 'ex-1', subject: 'Physics', teacher: 'Mr. Kamau', class: 'Form 4', status: 'Pending', lastUpdated: 'N/A' },
     { id: 'sub-5', examId: 'ex-2', subject: 'Chemistry Practical', teacher: 'Ms. Wanjiku', class: 'Form 4', status: 'Approved', lastUpdated: '2024-07-25' },
+    { id: 'sub-6', examId: 'ex-3', subject: 'Mathematics', teacher: 'Mr. Otieno', class: 'Form 3', status: 'Approved', lastUpdated: '2024-04-20' },
+    { id: 'sub-7', examId: 'ex-3', subject: 'English', teacher: 'Ms. Njeri', class: 'Form 3', status: 'Approved', lastUpdated: '2024-04-21' },
 ]
 
 const statusColors: Record<ExamStatus, string> = {
@@ -148,10 +150,16 @@ export default function AdminGradesPage() {
     const [clientReady, setClientReady] = React.useState(false);
     const [date, setDate] = React.useState<DateRange | undefined>();
     const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
+    const [submissionExamFilter, setSubmissionExamFilter] = React.useState('ex-1');
+    const [submissionClassFilter, setSubmissionClassFilter] = React.useState('Form 4');
 
     React.useEffect(() => {
         setClientReady(true);
     }, []);
+
+    const filteredSubmissions = mockSubmissions.filter(s =>
+        s.examId === submissionExamFilter && s.class === submissionClassFilter
+    );
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedExam(null)}>
@@ -365,7 +373,7 @@ export default function AdminGradesPage() {
                             <div className="mt-4 flex flex-col md:flex-row md:items-center gap-4">
                                 <div className="grid w-full md:w-auto gap-1.5">
                                     <Label htmlFor="exam-filter">Exam</Label>
-                                    <Select defaultValue="ex-1">
+                                    <Select value={submissionExamFilter} onValueChange={setSubmissionExamFilter}>
                                         <SelectTrigger id="exam-filter" className="w-full md:w-auto">
                                             <SelectValue placeholder="Filter by exam" />
                                         </SelectTrigger>
@@ -376,13 +384,13 @@ export default function AdminGradesPage() {
                                 </div>
                                  <div className="grid w-full md:w-auto gap-1.5">
                                     <Label htmlFor="class-filter">Class</Label>
-                                    <Select defaultValue="f4">
+                                    <Select value={submissionClassFilter} onValueChange={setSubmissionClassFilter}>
                                         <SelectTrigger id="class-filter" className="w-full md:w-auto">
                                             <SelectValue placeholder="Filter by class" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="f4">Form 4</SelectItem>
-                                            <SelectItem value="f3">Form 3</SelectItem>
+                                            <SelectItem value="Form 4">Form 4</SelectItem>
+                                            <SelectItem value="Form 3">Form 3</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -401,7 +409,7 @@ export default function AdminGradesPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {mockSubmissions.filter(s => s.examId === 'ex-1' && s.class === 'Form 4').map(submission => (
+                                        {filteredSubmissions.map(submission => (
                                             <TableRow key={submission.id}>
                                                 <TableCell className="font-medium">{submission.subject}</TableCell>
                                                 <TableCell>{submission.teacher}</TableCell>
