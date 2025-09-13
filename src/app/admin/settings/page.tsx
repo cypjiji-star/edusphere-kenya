@@ -53,6 +53,7 @@ export default function SettingsPage() {
     const [idleTimeout, setIdleTimeout] = React.useState('30');
     const [selfRegistration, setSelfRegistration] = React.useState(false);
     const [twoFactorAuth, setTwoFactorAuth] = React.useState(false);
+    const [maintenanceMode, setMaintenanceMode] = React.useState(false);
 
 
     const handleSaveSettings = () => {
@@ -505,7 +506,14 @@ export default function SettingsPage() {
                             <Label htmlFor="maintenance-mode" className="font-medium">Maintenance Mode</Label>
                             <p className="text-xs text-muted-foreground">Temporarily disable access for non-administrators.</p>
                         </div>
-                        <Switch id="maintenance-mode" disabled />
+                        <Switch 
+                            id="maintenance-mode" 
+                            checked={maintenanceMode}
+                            onCheckedChange={(checked) => {
+                                setMaintenanceMode(checked);
+                                toast({ title: `Maintenance mode ${checked ? 'enabled' : 'disabled'}.` });
+                            }}
+                        />
                     </div>
                 </CardContent>
             </Card>
