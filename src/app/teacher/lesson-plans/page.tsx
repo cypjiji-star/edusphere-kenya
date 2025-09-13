@@ -26,60 +26,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LessonPlanCalendar } from './lesson-plan-calendar';
 import { cn } from '@/lib/utils';
+import { useAtom } from 'jotai';
+import { lessonPlansAtom } from './data';
+import type { LessonPlan, LessonPlanStatus } from './data';
 
-export type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
-
-export type LessonPlan = {
-  id: string;
-  topic: string;
-  subject: string;
-  gradeLevel: string;
-  lastUpdated: string;
-  status: LessonPlanStatus;
-};
-
-export const allLessonPlans: LessonPlan[] = [
-  {
-    id: 'lp-1',
-    topic: 'Photosynthesis & Respiration',
-    subject: 'Biology',
-    gradeLevel: 'Form 2',
-    lastUpdated: '2024-07-15',
-    status: 'Completed',
-  },
-  {
-    id: 'lp-2',
-    topic: 'Introduction to Chemical Equations',
-    subject: 'Chemistry',
-    gradeLevel: 'Form 1',
-    lastUpdated: '2024-07-18',
-    status: 'In Progress',
-  },
-  {
-    id: 'lp-3',
-    topic: 'Shakespeare\'s Macbeth: Act 1 Analysis',
-    subject: 'English',
-    gradeLevel: 'Form 3',
-    lastUpdated: '2024-06-28',
-    status: 'Published',
-  },
-    {
-    id: 'lp-4',
-    topic: 'The Maasai Culture',
-    subject: 'History',
-    gradeLevel: 'Grade 6',
-    lastUpdated: '2024-07-10',
-    status: 'Draft',
-  },
-  {
-    id: 'lp-5',
-    topic: 'Linear Equations',
-    subject: 'Mathematics',
-    gradeLevel: 'Form 3',
-    lastUpdated: '2024-07-20',
-    status: 'Skipped',
-  }
-];
 
 const subjects = ['All Subjects', 'Biology', 'Chemistry', 'English', 'History', 'Mathematics', 'Physics'];
 const grades = ['All Grades', 'Grade 6', 'Form 1', 'Form 2', 'Form 3', 'Form 4'];
@@ -94,6 +44,7 @@ const statusColors: Record<LessonPlanStatus, string> = {
 
 
 export default function LessonPlansPage() {
+  const [allLessonPlans] = useAtom(lessonPlansAtom);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [filteredGrade, setFilteredGrade] = React.useState('All Grades');

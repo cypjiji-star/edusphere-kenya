@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, parse } from 'date-fns';
+import { format, parse, isValid } from 'date-fns';
 import { lessonPlanSchema, generateContentAction, LessonPlanFormValues } from './actions';
 
 import { Button } from '@/components/ui/button';
@@ -34,8 +34,9 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
-import { allLessonPlans } from '../page';
-import type { LessonPlan } from '../page';
+import { useAtom } from 'jotai';
+import { lessonPlansAtom } from '../data';
+import type { LessonPlan } from '../data';
 
 
 const teacherClasses = [
@@ -57,7 +58,8 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
   const [isLoading, setIsLoading] = useState(false);
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(!!lessonPlanId);
+  const [allLessonPlans, setAllLessonPlans] = useAtom(lessonPlansAtom);
 
   const form = useForm<LessonPlanFormValues>({
     resolver: zodResolver(lessonPlanSchema),
@@ -69,7 +71,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
       materials: '',
       activities: '',
       assessment: '',
-      date: prefilledDate ? parse(prefilledDate, 'yyyy-MM-dd', new Date()) : undefined,
+      date: prefilledDate && isValid(parse(prefilledDate, 'yyyy-MM-dd', new Date())) ? parse(prefilledDate, 'yyyy-MM-dd', new Date()) : undefined,
     },
   });
 
@@ -78,34 +80,72 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
       const lessonPlanToEdit = allLessonPlans.find(lp => lp.id === lessonPlanId);
       if (lessonPlanToEdit) {
         setIsEditMode(true);
-        // This is a mock implementation. A real app would fetch full details.
         form.reset({
             topic: lessonPlanToEdit.topic,
             subject: lessonPlanToEdit.subject,
             grade: lessonPlanToEdit.gradeLevel,
             date: new Date(lessonPlanToEdit.lastUpdated),
-            // Mocking content for the form
-            objectives: `Define ${lessonPlanToEdit.topic} and explain its importance.`,
-            activities: `1. Introduction to ${lessonPlanToEdit.topic}.\n2. Group discussion.`,
-            assessment: `Short quiz on the key concepts of ${lessonPlanToEdit.topic}.`,
-            materials: 'Textbook, whiteboard, markers.'
+            objectives: lessonPlanToEdit.objectives || `Define ${lessonPlanToEdit.topic} and explain its importance.`,
+            activities: lessonPlanToEdit.activities || `1. Introduction to ${lessonPlanToEdit.topic}.\n2. Group discussion.`,
+            assessment: lessonPlanToEdit.assessment || `Short quiz on the key concepts of ${lessonPlanToEdit.topic}.`,
+            materials: lessonPlanToEdit.materials || 'Textbook, whiteboard, markers.'
         });
       }
     }
-  }, [lessonPlanId, form]);
+  }, [lessonPlanId, form, allLessonPlans]);
   
   const formState = useWatch({ control: form.control });
 
   async function onSubmit(values: LessonPlanFormValues) {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsLoading(false);
+
+    if (isEditMode && lessonPlanId) {
+        // Update existing lesson plan
+        setAllLessonPlans(prevPlans => prevPlans.map(p => p.id === lessonPlanId ? {
+            ...p,
+            topic: values.topic,
+            subject: values.subject,
+            gradeLevel: values.grade,
+            lastUpdated: format(values.date, 'yyyy-MM-dd'),
+            objectives: values.objectives,
+            activities: values.activities,
+            assessment: values.assessment,
+            materials: values.materials,
+        } : p));
+        toast({
+            title: `Lesson Plan Updated!`,
+            description: `"${values.topic}" has been successfully updated.`,
+        });
+    } else {
+        // Create new lesson plan
+        const newPlan: LessonPlan = {
+            id: `lp-${Date.now()}`,
+            topic: values.topic,
+            subject: values.subject,
+            gradeLevel: values.grade,
+            lastUpdated: format(values.date, 'yyyy-MM-dd'),
+            status: 'Draft',
+            objectives: values.objectives,
+            activities: values.activities,
+            assessment: values.assessment,
+            materials: values.materials,
+        };
+        setAllLessonPlans(prevPlans => [newPlan, ...prevPlans]);
+        toast({
+            title: `Lesson Plan Saved!`,
+            description: `"${values.topic}" has been successfully saved.`,
+        });
+        form.reset({
+            ...form.getValues(),
+            topic: '',
+            objectives: '',
+            activities: '',
+            assessment: '',
+            materials: ''
+        });
+    }
     
-    toast({
-      title: `Lesson Plan ${isEditMode ? 'Updated' : 'Saved'}!`,
-      description: `"${values.topic}" has been successfully ${isEditMode ? 'updated' : 'saved'}.`,
-    });
-    console.log(values);
+    setIsLoading(false);
   }
   
   const handleGenerateContent = async (field: AiField) => {

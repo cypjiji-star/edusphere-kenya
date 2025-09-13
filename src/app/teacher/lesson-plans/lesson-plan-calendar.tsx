@@ -21,7 +21,7 @@ import { ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import type { LessonPlan } from './page';
+import type { LessonPlan } from './data';
 
 interface LessonPlanCalendarProps {
     lessonPlans: LessonPlan[];
