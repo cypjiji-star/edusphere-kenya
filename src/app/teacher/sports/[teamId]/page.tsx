@@ -30,13 +30,23 @@ import {
   } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload, Save, Trophy } from 'lucide-react';
+import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload, Save, Trophy, Edit as EditIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ClassAnalytics } from '../../students/class-analytics';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 
 // Mock Data
@@ -71,7 +81,15 @@ const studentMembers: Record<string, StudentMember[]> = {
         avatarUrl: `https://picsum.photos/seed/gv-player${i + 1}/100`,
         role: i === 0 ? 'Captain' : 'Member',
     })),
+    'athletics-club': [],
+    'basketball-team': [],
+    'chess-club': [],
 };
+
+const allStudents = [
+    { id: 'f4-s1', name: 'New Student A', class: 'Form 4' },
+    { id: 'f3-s2', name: 'New Student B', class: 'Form 3' },
+]
 
 const ROLES: StudentMember['role'][] = ['Member', 'Captain', 'Vice-Captain', 'Treasurer'];
 
@@ -108,12 +126,14 @@ const mediaHighlights = [
 export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
   const { teamId } = React.use(params);
   const { toast } = useToast();
-  const teamDetails = teams[teamId] || { name: 'Unknown Team', coach: 'N/A' };
+  const [teamDetails, setTeamDetails] = React.useState(teams[teamId] || { name: 'Unknown Team', coach: 'N/A' });
   const initialMembers = studentMembers[teamId] || [];
   
   const [members, setMembers] = React.useState(initialMembers);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [clientReady, setClientReady] = React.useState(false);
+  const [newStudentId, setNewStudentId] = React.useState<string | undefined>();
+
 
   React.useEffect(() => {
     setClientReady(true);
@@ -139,6 +159,33 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
         variant: 'destructive',
     })
   }
+
+  const handleAddStudent = () => {
+    if (!newStudentId) return;
+    const student = allStudents.find(s => s.id === newStudentId);
+    if (!student) return;
+
+    if (members.some(m => m.id === student.id)) {
+        toast({
+            title: 'Student Already in Team',
+            variant: 'destructive',
+        });
+        return;
+    }
+
+    const newMember: StudentMember = {
+        ...student,
+        avatarUrl: `https://picsum.photos/seed/${student.id}/100`,
+        role: 'Member',
+    };
+
+    setMembers(prev => [...prev, newMember]);
+    setNewStudentId(undefined);
+    toast({
+        title: 'Student Added',
+        description: `${student.name} has been added to the roster.`,
+    });
+  };
 
   const filteredMembers = members.filter(m => 
     m.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -168,10 +215,30 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                         Back to All Teams
                     </Link>
                 </Button>
-                <Button>
-                    <UserPlus className="mr-2" />
-                    Add Student
-                </Button>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button><EditIcon className="mr-2"/>Edit Team</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Edit Team Details</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="team-name-edit">Team Name</Label>
+                                <Input id="team-name-edit" value={teamDetails.name} onChange={(e) => setTeamDetails(prev => ({...prev, name: e.target.value}))}/>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="team-coach-edit">Coach/Patron</Label>
+                                <Input id="team-coach-edit" value={teamDetails.coach} onChange={(e) => setTeamDetails(prev => ({...prev, coach: e.target.value}))}/>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                            <DialogClose asChild><Button>Save Changes</Button></DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
           </div>
       </div>
@@ -188,8 +255,44 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
         <TabsContent value="roster">
             <Card>
                 <CardHeader>
-                <CardTitle>Team Members ({members.length})</CardTitle>
-                <CardDescription>Manage student roles and participation.</CardDescription>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle>Team Members ({members.length})</CardTitle>
+                            <CardDescription>Manage student roles and participation.</CardDescription>
+                        </div>
+                         <Dialog>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <UserPlus className="mr-2" />
+                                    Add Student
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Add Student to Roster</DialogTitle>
+                                    <DialogDescription>Select a student to add to the team.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4">
+                                     <Select value={newStudentId} onValueChange={setNewStudentId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a student..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {allStudents.map(student => (
+                                                <SelectItem key={student.id} value={student.id}>{student.name} ({student.class})</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <DialogClose asChild>
+                                        <Button onClick={handleAddStudent} disabled={!newStudentId}>Add to Team</Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                  <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="relative w-full md:max-w-sm">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
