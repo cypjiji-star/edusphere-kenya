@@ -94,7 +94,13 @@ const newContactOptions = [
     { id: 'contact-2', name: 'Ms. Njeri (Teacher)', avatar: 'https://picsum.photos/seed/teacher-njeri/100', icon: User },
 ];
 
-export function AdminChatLayout() {
+const getIconComponent = (iconName: string) => {
+    if (iconName === 'User') return User;
+    if (iconName === 'Users') return Users;
+    return MessageCircle;
+}
+
+export function ChatLayout() {
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [messages, setMessages] = React.useState<Record<string, Message[]>>({});
   const [selectedConvo, setSelectedConvo] = React.useState<Conversation | null>(null);
@@ -167,6 +173,7 @@ export function AdminChatLayout() {
       text: messageText,
       timestamp: serverTimestamp(),
       read: false,
+      senderName: 'Mr. Omondi'
     };
     
     await addDoc(collection(firestore, 'conversations', selectedConvo.id, 'messages'), newMessage);
@@ -303,12 +310,6 @@ export function AdminChatLayout() {
     });
   }
   
-  const getIconComponent = (iconName: string) => {
-    if (iconName === 'User') return User;
-    if (iconName === 'Users') return Users;
-    return MessageCircle;
-  }
-
   const filteredConversations = conversations.filter(convo => 
     convo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())

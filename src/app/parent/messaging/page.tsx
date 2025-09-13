@@ -1,10 +1,10 @@
 
-import { AdminChatLayout } from './chat-layout';
+import { ChatLayout } from './chat-layout';
 
-export default function AdminMessagingPage() {
+export default function MessagingPage() {
   return (
     <div className="h-full w-full">
-      <AdminChatLayout />
+      <ChatLayout />
     </div>
   );
 }
