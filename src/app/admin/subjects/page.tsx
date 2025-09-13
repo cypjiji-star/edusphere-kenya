@@ -176,6 +176,13 @@ export default function ClassesAndSubjectsPage() {
             description: message,
         });
     };
+    
+    const handleExport = (type: string) => {
+        toast({
+            title: 'Exporting...',
+            description: `Your data is being exported as a ${type} file.`,
+        });
+    }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -270,8 +277,8 @@ export default function ClassesAndSubjectsPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
-                                    <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -502,8 +509,8 @@ export default function ClassesAndSubjectsPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
-                                    <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -564,8 +571,8 @@ export default function ClassesAndSubjectsPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export Full Report (PDF)</DropdownMenuItem>
-                                <DropdownMenuItem disabled><Printer className="mr-2 h-4 w-4" />Print Teacher Allocations</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" />Export Full Report (PDF)</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('Print')}><Printer className="mr-2 h-4 w-4" />Print Teacher Allocations</DropdownMenuItem>
                             </DropdownMenuContent>
                          </DropdownMenu>
                     </div>
