@@ -223,16 +223,16 @@ export function TimetableBuilder() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem disabled>
+                                    <DropdownMenuItem>
                                         <FileDown className="mr-2 h-4 w-4"/>
                                         Export as PDF
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem disabled>
+                                    <DropdownMenuItem>
                                         <FileDown className="mr-2 h-4 w-4"/>
                                         Export as Excel
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                     <DropdownMenuItem disabled>
+                                     <DropdownMenuItem>
                                         <Printer className="mr-2 h-4 w-4"/>
                                         Print View
                                     </DropdownMenuItem>
