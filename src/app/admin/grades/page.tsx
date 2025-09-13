@@ -222,8 +222,32 @@ export default function AdminGradesPage() {
         });
     };
 
+    const handleApproveGrades = () => {
+        if (!viewingSubmission) return;
+
+        setMockSubmissions(prev =>
+            prev.map(s =>
+                s.id === viewingSubmission.id
+                ? { ...s, status: 'Approved' }
+                : s
+            )
+        );
+        
+        toast({
+            title: 'Grades Approved',
+            description: `Grades for ${viewingSubmission.subject} have been approved.`
+        });
+        
+        setViewingSubmission(null);
+    };
+
     return (
-        <Dialog>
+        <Dialog onOpenChange={(open) => {
+            if (!open) {
+                setSelectedExam(null);
+                setViewingSubmission(null);
+            }
+        }}>
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="mb-6">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -321,7 +345,9 @@ export default function AdminGradesPage() {
                                             </div>
                                             <DialogFooter>
                                                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                <Button>Save Exam</Button>
+                                                <DialogClose asChild>
+                                                    <Button>Save Exam</Button>
+                                                </DialogClose>
                                             </DialogFooter>
                                         </DialogContent>
                                     </Dialog>
@@ -563,8 +589,8 @@ export default function AdminGradesPage() {
         </div>
         
         {/* Exam Details Dialog */}
-        <DialogContent className="sm:max-w-xl" onOpenChange={(open) => !open && setSelectedExam(null)}>
-            {selectedExam && (
+        {selectedExam && (
+            <DialogContent className="sm:max-w-xl">
                 <>
                 <DialogHeader>
                     <DialogTitle>{selectedExam.title}</DialogTitle>
@@ -596,12 +622,12 @@ export default function AdminGradesPage() {
                     </DialogClose>
                 </DialogFooter>
                 </>
-            )}
-        </DialogContent>
+            </DialogContent>
+        )}
         
         {/* View Grades Dialog */}
-        <DialogContent className="sm:max-w-2xl" onOpenChange={(open) => !open && setViewingSubmission(null)}>
-            {viewingSubmission && (
+        {viewingSubmission && (
+            <DialogContent className="sm:max-w-2xl">
                 <>
                 <DialogHeader>
                     <DialogTitle>Grades for {viewingSubmission.subject}</DialogTitle>
@@ -638,15 +664,15 @@ export default function AdminGradesPage() {
                     </div>
                  </div>
                 <DialogFooter>
-                    <Button variant="secondary" disabled>Request Changes</Button>
+                    <Button variant="secondary">Request Changes</Button>
                     <DialogClose asChild>
                         <Button variant="outline">Close</Button>
                     </DialogClose>
-                    <Button disabled={viewingSubmission.status !== 'Submitted'}>Approve Grades</Button>
+                    <Button onClick={handleApproveGrades} disabled={viewingSubmission.status !== 'Submitted'}>Approve Grades</Button>
                 </DialogFooter>
                 </>
-            )}
-        </DialogContent>
+            </DialogContent>
+        )}
 
         </Dialog>
     );
