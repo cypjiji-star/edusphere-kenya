@@ -54,6 +54,7 @@ export default function SettingsPage() {
     const [selfRegistration, setSelfRegistration] = React.useState(false);
     const [twoFactorAuth, setTwoFactorAuth] = React.useState(false);
     const [maintenanceMode, setMaintenanceMode] = React.useState(false);
+    const [aiChatbot, setAiChatbot] = React.useState(false);
 
 
     const handleSaveSettings = () => {
@@ -378,7 +379,7 @@ export default function SettingsPage() {
                             <Label htmlFor="ai-chatbot" className="font-semibold">Enable AI Support Chatbot</Label>
                             <p className="text-xs text-muted-foreground">Provide instant assistance to users via an AI-powered chatbot.</p>
                         </div>
-                        <Switch id="ai-chatbot" disabled />
+                        <Switch id="ai-chatbot" checked={aiChatbot} onCheckedChange={(checked) => { setAiChatbot(checked); toast({ title: `AI Chatbot ${checked ? 'enabled' : 'disabled'}.` })}} />
                     </div>
                 </CardContent>
             </Card>
