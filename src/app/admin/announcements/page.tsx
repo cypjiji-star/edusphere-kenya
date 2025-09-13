@@ -221,7 +221,7 @@ export default function AdminAnnouncementsPage() {
         sender: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' },
         content: values.message,
         audience: values.audience,
-        sentAt: format(new Date(), 'yyyy-MM-dd h:mm a'),
+        sentAt: format(scheduledDate || new Date(), 'yyyy-MM-dd h:mm a'),
         views: 0,
         totalRecipients: 1800, // Mock total
         category: values.category as AnnouncementCategory,
@@ -229,10 +229,20 @@ export default function AdminAnnouncementsPage() {
     setPastAnnouncements(prev => [newAnnouncement, ...prev]);
     form.reset();
     setAttachedFile(null);
-    toast({
-        title: 'Announcement Sent!',
-        description: 'Your message has been broadcast to the selected audience.',
-    });
+    
+    if (isScheduling && scheduledDate) {
+        toast({
+            title: 'Announcement Scheduled!',
+            description: `Your message will be sent on ${format(scheduledDate, 'PPP')} at ${format(scheduledDate, 'h:mm a')}.`,
+        });
+    } else {
+        toast({
+            title: 'Announcement Sent!',
+            description: 'Your message has been broadcast to the selected audience.',
+        });
+    }
+    setIsScheduling(false);
+    setScheduledDate(undefined);
   }
 
   return (
