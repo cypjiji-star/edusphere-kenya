@@ -85,10 +85,14 @@ const getStatusBadge = (status: AttendanceStatus) => {
 
 export default function ParentAttendancePage() {
   const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(),
-  });
+  const [date, setDate] = React.useState<DateRange | undefined>();
+
+  React.useEffect(() => {
+    setDate({
+      from: new Date(),
+      to: new Date(),
+    });
+  }, []);
 
   const filteredRecords = MOCK_RECORDS.filter(record => {
       if (record.studentId !== selectedChild) return false;
