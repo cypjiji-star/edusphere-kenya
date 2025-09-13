@@ -12,7 +12,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save, FileDown, Printer } from 'lucide-react';
+import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save, FileDown, Printer, CheckCircle, Clock, XCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,12 +21,23 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -152,16 +163,14 @@ export default function StudentsPage() {
     });
   };
 
-  const getAttendanceBadgeVariant = (status: AttendanceStatus) => {
+  const getAttendanceBadge = (status: AttendanceStatus, isTrigger: boolean = false) => {
     switch (status) {
         case 'present':
-            return 'default';
+            return <Badge variant="default" className="bg-green-600 hover:bg-green-700 w-full"><CheckCircle className="mr-2 h-4 w-4"/>Present</Badge>;
         case 'absent':
-            return 'destructive';
+            return <Badge variant="destructive" className="w-full"><XCircle className="mr-2 h-4 w-4"/>Absent</Badge>;
         case 'late':
-            return 'secondary';
-        default:
-            return 'outline';
+            return <Badge variant="secondary" className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"><Clock className="mr-2 h-4 w-4"/>Late</Badge>;
     }
   }
 
@@ -208,10 +217,34 @@ export default function StudentsPage() {
                     />
                   </div>
                   <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                    <Button className="w-full md:w-auto" variant="outline">
-                      <PlusCircle className="mr-2" />
-                      Add New Student
-                    </Button>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button className="w-full md:w-auto" variant="outline">
+                                <PlusCircle className="mr-2" />
+                                Add New Student
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                             <DialogHeader>
+                                <DialogTitle>Add New Student</DialogTitle>
+                                <DialogDescription>
+                                    This will send an enrolment request to the admin.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="student-name">Student Name</Label>
+                                    <Input id="student-name" placeholder="e.g., Mary Akinyi" />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button variant="outline">Cancel</Button>
+                                </DialogClose>
+                                <Button disabled>Submit Request</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button className="w-full md:w-auto" variant="secondary">
@@ -233,15 +266,15 @@ export default function StudentsPage() {
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                             <DropdownMenuItem disabled>
+                             <DropdownMenuItem>
                                 <FileDown className="mr-2" />
                                 Download as PDF
                             </DropdownMenuItem>
-                             <DropdownMenuItem disabled>
+                             <DropdownMenuItem>
                                 <FileDown className="mr-2" />
                                 Download as Excel
                             </DropdownMenuItem>
-                             <DropdownMenuItem disabled>
+                             <DropdownMenuItem>
                                 <Printer className="mr-2" />
                                 Print List
                             </DropdownMenuItem>
@@ -284,12 +317,14 @@ export default function StudentsPage() {
                                     onValueChange={(value: AttendanceStatus) => handleAttendanceChange(student.id, value)}
                                 >
                                     <SelectTrigger className="w-32">
-                                        <SelectValue placeholder="Mark status" />
+                                        <SelectValue asChild>
+                                            <div>{getAttendanceBadge(student.attendance, true)}</div>
+                                        </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="present">Present</SelectItem>
-                                        <SelectItem value="absent">Absent</SelectItem>
-                                        <SelectItem value="late">Late</SelectItem>
+                                        <SelectItem value="present">{getAttendanceBadge('present')}</SelectItem>
+                                        <SelectItem value="absent">{getAttendanceBadge('absent')}</SelectItem>
+                                        <SelectItem value="late">{getAttendanceBadge('late')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </TableCell>
@@ -327,3 +362,5 @@ export default function StudentsPage() {
     </div>
   );
 }
+
+    
