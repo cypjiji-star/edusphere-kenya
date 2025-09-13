@@ -181,6 +181,13 @@ export function TimetableBuilder() {
     });
   };
 
+  const handleExport = (type: string) => {
+    toast({
+      title: 'Exporting Timetable',
+      description: `Your timetable is being exported as a ${type} file.`,
+    });
+  };
+
   if (!clientReady) {
     return (
         <Card>
@@ -295,16 +302,16 @@ export function TimetableBuilder() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExport('PDF')}>
                                             <FileDown className="mr-2 h-4 w-4"/>
                                             Export as PDF
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExport('Excel')}>
                                             <FileDown className="mr-2 h-4 w-4"/>
                                             Export as Excel
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExport('Print')}>
                                             <Printer className="mr-2 h-4 w-4"/>
                                             Print View
                                         </DropdownMenuItem>
