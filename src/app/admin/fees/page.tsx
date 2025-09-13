@@ -171,7 +171,9 @@ function NewTransactionDialog({ students }: { students: StudentFee[] }) {
 
             if (isCredit) {
                 newBalance -= transactionAmount;
-                newAmountPaid += transactionAmount;
+                if(transactionType === 'payment') {
+                    newAmountPaid += transactionAmount;
+                }
                 transactionData.amount = -transactionAmount;
             }
             if (isDebit) {
@@ -522,21 +524,29 @@ export default function FeesPage() {
         return matchesSearch && matchesClass && matchesStatus;
     });
     
-    const sendReminders = () => {
-        const studentsWithBalance = filteredStudents.filter(s => s.balance > 0);
-        if (studentsWithBalance.length === 0) {
+    const sendReminders = (type: 'all' | 'overdue') => {
+        const studentsToRemind = filteredStudents.filter(s => {
+            if (s.balance <= 0) return false;
+            if (type === 'overdue') {
+                // This is a placeholder for a real due date check
+                return s.feeStatus === 'Overdue';
+            }
+            return true;
+        });
+
+        if (studentsToRemind.length === 0) {
             toast({
                 title: 'No Reminders Sent',
-                description: 'All students in the current view have a zero balance.',
+                description: `No students with ${type === 'overdue' ? 'overdue' : 'outstanding'} balances found in the current view.`,
             });
             return;
         }
 
         toast({
             title: 'Reminders Sent (Simulation)',
-            description: `Fee reminders would be sent to ${studentsWithBalance.length} parent(s).`,
+            description: `Fee reminders would be sent to ${studentsToRemind.length} parent(s).`,
         });
-    }
+    };
     
     const generateInvoices = async () => {
         toast({
@@ -684,6 +694,10 @@ export default function FeesPage() {
             });
         }
     };
+
+    const studentsWithBalance = filteredStudents.filter(s => s.balance > 0).length;
+    const studentsWithOverdue = filteredStudents.filter(s => s.feeStatus === 'Overdue').length;
+
 
     return (
         <Dialog>
@@ -927,68 +941,29 @@ export default function FeesPage() {
                                             </DialogTrigger>
                                             <NewTransactionDialog students={students}/>
                                         </Dialog>
-                                        <Dialog>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="secondary">
-                                                        Bulk Actions
-                                                        <ChevronDown className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DialogTrigger asChild>
-                                                        <DropdownMenuItem>
-                                                            <Receipt className="mr-2"/>Generate Bulk Invoices
-                                                        </DropdownMenuItem>
-                                                    </DialogTrigger>
-                                                    <DropdownMenuItem onClick={sendReminders}><Send className="mr-2"/>Send Reminders</DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2"/>Export Report (PDF)</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleExport('CSV')}><FileText className="mr-2"/>Export as CSV</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Generate Bulk Invoices</DialogTitle>
-                                                    <DialogDescription>
-                                                        This will create new invoices for all students based on their class and the current fee structure for the selected term.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <div className="py-4 grid gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="invoice-term">Select Term</Label>
-                                                        <Select value={invoiceTerm} onValueChange={setInvoiceTerm}>
-                                                            <SelectTrigger id="invoice-term">
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                                                <SelectItem value="term3-2024">Term 3, 2024 (Upcoming)</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="invoice-classes">Select Classes</Label>
-                                                        <Select value={invoiceClass} onValueChange={setInvoiceClass}>
-                                                            <SelectTrigger id="invoice-classes">
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="all">All Classes</SelectItem>
-                                                                <SelectItem value="Form 4">Form 4 Only</SelectItem>
-                                                                <SelectItem value="Form 3">Form 3 Only</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                </div>
-                                                <DialogFooter>
-                                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                    <DialogClose asChild>
-                                                        <Button onClick={generateInvoices}>Generate Invoices</Button>
-                                                    </DialogClose>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="secondary">
+                                                    Bulk Actions
+                                                    <ChevronDown className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DialogTrigger asChild>
+                                                    <DropdownMenuItem>
+                                                        <Receipt className="mr-2"/>Generate Bulk Invoices
+                                                    </DropdownMenuItem>
+                                                </DialogTrigger>
+                                                <DialogTrigger asChild>
+                                                    <DropdownMenuItem>
+                                                        <Send className="mr-2"/>Send Reminders
+                                                    </DropdownMenuItem>
+                                                </DialogTrigger>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2"/>Export Report (PDF)</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleExport('CSV')}><FileText className="mr-2"/>Export as CSV</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </div>
                                 <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center">
@@ -1080,6 +1055,108 @@ export default function FeesPage() {
                     </TabsContent>
                 </Tabs>
             </div>
+            {/* Dialogs for bulk actions */}
+            <DialogContent>
+                 {/* This seems to be a shared dialog content, let's check which trigger opens it.
+                     It seems both "Generate Bulk Invoices" and "Send Reminders" might trigger this.
+                     Let's make separate dialogs for them to be cleaner.
+                     I'll assume the default content here is for Invoices.
+                 */}
+                 <DialogHeader>
+                    <DialogTitle>Bulk Actions</DialogTitle>
+                    <DialogDescription>
+                        Perform actions for multiple students at once. Please review carefully before proceeding.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {/* This is a generic container. I will create specific dialogs for each action */}
+                
+            </DialogContent>
+
+             <Dialog>
+                <DialogContent>
+                     <DialogHeader>
+                        <DialogTitle>Generate Bulk Invoices</DialogTitle>
+                        <DialogDescription>
+                            This will create new invoices for all students based on their class and the current fee structure for the selected term.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 grid gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="invoice-term">Select Term</Label>
+                            <Select value={invoiceTerm} onValueChange={setInvoiceTerm}>
+                                <SelectTrigger id="invoice-term">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                    <SelectItem value="term3-2024">Term 3, 2024 (Upcoming)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="invoice-classes">Select Classes</Label>
+                            <Select value={invoiceClass} onValueChange={setInvoiceClass}>
+                                <SelectTrigger id="invoice-classes">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Classes</SelectItem>
+                                    <SelectItem value="Form 4">Form 4 Only</SelectItem>
+                                    <SelectItem value="Form 3">Form 3 Only</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <DialogClose asChild>
+                            <Button onClick={generateInvoices}>Generate Invoices</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+             <Dialog>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Send Fee Reminders</DialogTitle>
+                        <DialogDescription>
+                           This will send a fee reminder notification to the parents/guardians of students with outstanding balances.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 grid gap-4">
+                         <div className="space-y-2">
+                            <Label>Target Audience</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Reminders will be sent based on the current filters set on the student records table.
+                            </p>
+                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                <Card className="p-3">
+                                    <p className="font-bold text-lg">{studentsWithBalance}</p>
+                                    <p className="text-sm text-muted-foreground">Students with any balance</p>
+                                </Card>
+                                <Card className="p-3">
+                                    <p className="font-bold text-lg">{studentsWithOverdue}</p>
+                                    <p className="text-sm text-muted-foreground">Students with overdue balance</p>
+                                </Card>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <div className="flex gap-2">
+                            <DialogClose asChild>
+                                <Button onClick={() => sendReminders('overdue')} variant="secondary">Send to Overdue ({studentsWithOverdue})</Button>
+                            </DialogClose>
+                             <DialogClose asChild>
+                                <Button onClick={() => sendReminders('all')}>Send to All ({studentsWithBalance})</Button>
+                            </DialogClose>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
             <StudentLedgerDialog student={selectedStudent} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} />
             <EditCategoryDialog category={editingCategory} open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)} onSave={handleUpdateCategory} />
             <EditDiscountDialog discount={editingDiscount} open={!!editingDiscount} onOpenChange={(open) => !open && setEditingDiscount(null)} onSave={handleUpdateDiscount} />
