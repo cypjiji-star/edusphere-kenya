@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -56,7 +57,8 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, addDoc, doc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Overdue';
@@ -371,6 +373,9 @@ export default function FeesPage() {
     const [statusFilter, setStatusFilter] = React.useState<PaymentStatus | 'All Statuses'>('All Statuses');
     const [selectedStudent, setSelectedStudent] = React.useState<StudentFee | null>(null);
     const { toast } = useToast();
+    const [invoiceTerm, setInvoiceTerm] = React.useState('term2-2024');
+    const [invoiceClass, setInvoiceClass] = React.useState('all');
+
 
     React.useEffect(() => {
         const q = query(collection(firestore, 'students'));
@@ -411,12 +416,51 @@ export default function FeesPage() {
         });
     }
     
-    const generateInvoices = () => {
+    const generateInvoices = async () => {
         toast({
-            title: 'Invoices Generated (Simulation)',
-            description: 'New invoices have been created for the selected students.',
+            title: 'Generating Invoices...',
+            description: 'This may take a moment. Please do not close this window.',
         });
-    }
+
+        const studentsToInvoice = students.filter(s => invoiceClass === 'all' || s.class === invoiceClass);
+        const standardFee = feeStructure.reduce((total, item) => total + item.amount, 0);
+
+        try {
+            const batch = writeBatch(firestore);
+            
+            for (const student of studentsToInvoice) {
+                const transactionData = {
+                    date: Timestamp.fromDate(new Date()),
+                    description: `Invoice for ${invoiceTerm.replace('-', ', ')}`,
+                    type: 'Charge' as const,
+                    amount: standardFee,
+                    recordedBy: 'Admin (Bulk)',
+                };
+
+                const transactionRef = doc(collection(firestore, `students/${student.id}/transactions`));
+                batch.set(transactionRef, transactionData);
+
+                const studentRef = doc(firestore, 'students', student.id);
+                const newTotalFee = (student.totalFee || 0) + standardFee;
+                const newBalance = (student.balance || 0) + standardFee;
+                batch.update(studentRef, { totalFee: newTotalFee, balance: newBalance });
+            }
+
+            await batch.commit();
+
+            toast({
+                title: 'Invoices Generated Successfully!',
+                description: `New invoices have been created for ${studentsToInvoice.length} students.`,
+            });
+        } catch (error) {
+            console.error('Error generating invoices:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Invoice Generation Failed',
+                description: 'An error occurred while creating invoices.',
+            });
+        }
+    };
     
     const handleSaveCategory = async (categoryData: Omit<FeeStructureItem, 'id'>) => {
         try {
@@ -744,7 +788,7 @@ export default function FeesPage() {
                                                 <div className="py-4 grid gap-4">
                                                     <div className="space-y-2">
                                                         <Label htmlFor="invoice-term">Select Term</Label>
-                                                        <Select defaultValue="term2-2024">
+                                                        <Select value={invoiceTerm} onValueChange={setInvoiceTerm}>
                                                             <SelectTrigger id="invoice-term">
                                                                 <SelectValue />
                                                             </SelectTrigger>
@@ -756,14 +800,14 @@ export default function FeesPage() {
                                                     </div>
                                                     <div className="space-y-2">
                                                         <Label htmlFor="invoice-classes">Select Classes</Label>
-                                                        <Select defaultValue="all">
+                                                        <Select value={invoiceClass} onValueChange={setInvoiceClass}>
                                                             <SelectTrigger id="invoice-classes">
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="all">All Classes</SelectItem>
-                                                                <SelectItem value="f4">Form 4 Only</SelectItem>
-                                                                <SelectItem value="f3">Form 3 Only</SelectItem>
+                                                                <SelectItem value="Form 4">Form 4 Only</SelectItem>
+                                                                <SelectItem value="Form 3">Form 3 Only</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
