@@ -25,13 +25,16 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Calendar, User, Printer, FileDown, ChevronDown } from 'lucide-react';
+import { Calendar, User, Printer, FileDown, ChevronDown, BookOpen, MapPin } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 const childrenData = [
     { id: 'child-1', name: 'John Doe', class: 'Form 4' },
@@ -52,25 +55,34 @@ const periods = [
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-const mockTimetable: Record<string, Record<string, { subject: string, teacher: string }>> = {
+const subjectDetails = {
+    'Mathematics': { color: 'bg-blue-100 text-blue-800 border-blue-200' },
+    'English': { color: 'bg-green-100 text-green-800 border-green-200' },
+    'Chemistry': { color: 'bg-purple-100 text-purple-800 border-purple-200' },
+    'History': { color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    'Physics': { color: 'bg-orange-100 text-orange-800 border-orange-200' },
+    'Geography': { color: 'bg-teal-100 text-teal-800 border-teal-200' },
+    'Biology': { color: 'bg-pink-100 text-pink-800 border-pink-200' },
+}
+
+const mockTimetable: Record<string, Record<string, { subject: string, teacher: { name: string, avatar: string }, room: string }>> = {
     'Monday': {
-        '08:00 - 09:00': { subject: 'Mathematics', teacher: 'Mr. Otieno' },
-        '09:00 - 10:00': { subject: 'English', teacher: 'Ms. Njeri' },
-        '10:00 - 11:00': { subject: 'Chemistry', teacher: 'Ms. Wanjiku' },
-        '11:30 - 12:30': { subject: 'History', teacher: 'Mr. Kamau' },
-        '12:30 - 13:30': { subject: 'Physics', teacher: 'Mr. Kamau' },
-        '14:30 - 15:30': { subject: 'Geography', teacher: 'Mr. Otieno' },
-        '15:30 - 16:30': { subject: 'Biology', teacher: 'Ms. Wanjiku' },
+        '08:00 - 09:00': { subject: 'Mathematics', teacher: { name: 'Mr. Otieno', avatar: 'https://picsum.photos/seed/teacher-otieno/100' }, room: 'Room 12A' },
+        '09:00 - 10:00': { subject: 'English', teacher: { name: 'Ms. Njeri', avatar: 'https://picsum.photos/seed/teacher-njeri/100' }, room: 'Room 10B' },
+        '10:00 - 11:00': { subject: 'Chemistry', teacher: { name: 'Ms. Wanjiku', avatar: 'https://picsum.photos/seed/teacher-wanjiku/100' }, room: 'Science Lab' },
+        '11:30 - 12:30': { subject: 'History', teacher: { name: 'Mr. Kamau', avatar: 'https://picsum.photos/seed/teacher-kamau/100' }, room: 'Room 11A' },
+        '12:30 - 13:30': { subject: 'Physics', teacher: { name: 'Mr. Kamau', avatar: 'https://picsum.photos/seed/teacher-kamau/100' }, room: 'Physics Lab' },
+        '14:30 - 15:30': { subject: 'Geography', teacher: { name: 'Mr. Otieno', avatar: 'https://picsum.photos/seed/teacher-otieno/100' }, room: 'Room 12A' },
+        '15:30 - 16:30': { subject: 'Biology', teacher: { name: 'Ms. Wanjiku', avatar: 'https://picsum.photos/seed/teacher-wanjiku/100' }, room: 'Science Lab' },
     },
     'Tuesday': {
-        '08:00 - 09:00': { subject: 'English', teacher: 'Ms. Njeri' },
-        '09:00 - 10:00': { subject: 'Mathematics', teacher: 'Mr. Otieno' },
-        '10:00 - 11:00': { subject: 'Physics', teacher: 'Mr. Kamau' },
+        '08:00 - 09:00': { subject: 'English', teacher: { name: 'Ms. Njeri', avatar: 'https://picsum.photos/seed/teacher-njeri/100' }, room: 'Room 10B' },
+        '09:00 - 10:00': { subject: 'Mathematics', teacher: { name: 'Mr. Otieno', avatar: 'https://picsum.photos/seed/teacher-otieno/100' }, room: 'Room 12A' },
+        '10:00 - 11:00': { subject: 'Physics', teacher: { name: 'Mr. Kamau', avatar: 'https://picsum.photos/seed/teacher-kamau/100' }, room: 'Physics Lab' },
     },
      'Wednesday': {
-        '08:00 - 09:00': { subject: 'Chemistry', teacher: 'Ms. Wanjiku' },
+        '08:00 - 09:00': { subject: 'Chemistry', teacher: { name: 'Ms. Wanjiku', avatar: 'https://picsum.photos/seed/teacher-wanjiku/100' }, room: 'Science Lab' },
     },
-    // Add more data for other days as needed
 };
 
 export default function ParentTimetablePage() {
@@ -140,10 +152,35 @@ export default function ParentTimetablePage() {
                                                             <p className="font-semibold text-muted-foreground text-xs">{period.title}</p>
                                                         </div>
                                                     ) : entry ? (
-                                                        <div className="bg-primary/10 rounded-md p-2">
-                                                            <p className="font-bold text-sm text-primary">{entry.subject}</p>
-                                                            <p className="text-xs text-muted-foreground">{entry.teacher}</p>
-                                                        </div>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <div className={`p-2 rounded-md cursor-pointer transition-transform hover:scale-105 ${subjectDetails[entry.subject as keyof typeof subjectDetails]?.color || 'bg-gray-100 text-gray-800'}`}>
+                                                                    <p className="font-bold text-sm">{entry.subject}</p>
+                                                                </div>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-80">
+                                                                <div className="space-y-4">
+                                                                    <h4 className="font-medium leading-none flex items-center gap-2">
+                                                                        <BookOpen className="h-5 w-5 text-primary" />
+                                                                        {entry.subject}
+                                                                    </h4>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Avatar className="h-9 w-9">
+                                                                            <AvatarImage src={entry.teacher.avatar} alt={entry.teacher.name} />
+                                                                            <AvatarFallback>{entry.teacher.name.charAt(0)}</AvatarFallback>
+                                                                        </Avatar>
+                                                                        <div>
+                                                                            <p className="text-sm font-semibold">{entry.teacher.name}</p>
+                                                                            <p className="text-xs text-muted-foreground">Teacher</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3 text-sm">
+                                                                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                                                                        <p>{entry.room}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </PopoverContent>
+                                                        </Popover>
                                                     ) : null}
                                                 </TableCell>
                                             )
