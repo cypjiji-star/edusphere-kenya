@@ -116,7 +116,7 @@ const students: Record<string, Student[]> = {
 };
 
 // Mock data for teacher's classes
-const teacherClasses = [
+export const teacherClasses = [
   { id: 'f4-chem', name: 'Form 4 - Chemistry', students: students['f4-chem'] },
   { id: 'f3-math', name: 'Form 3 - Mathematics', students: students['f3-math'] },
   { id: 'f2-phys', name: 'Form 2 - Physics', students: students['f2-phys'] },
