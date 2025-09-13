@@ -243,74 +243,76 @@ function NewTransactionDialog() {
     )
 }
 
-function StudentLedgerDialog({ student }: { student: StudentFee | null }) {
+function StudentLedgerDialog({ student, open, onOpenChange }: { student: StudentFee | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     if (!student) return null;
 
     return (
-        <DialogContent className="sm:max-w-3xl">
-            <DialogHeader>
-                <DialogTitle>Student Ledger: {student.name}</DialogTitle>
-                <DialogDescription>A detailed transaction history for {student.name} ({student.class}).</DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-                 <Card className="mb-6 bg-muted/50">
-                    <CardHeader>
-                        <CardTitle className="text-base">Financial Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total Billed</p>
-                            <p className="font-bold text-lg">{formatCurrency(student.totalFee)}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total Paid</p>
-                            <p className="font-bold text-lg text-green-600">{formatCurrency(student.amountPaid)}</p>
-                        </div>
-                         <div>
-                            <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-                            <p className="font-bold text-lg text-destructive">{formatCurrency(student.balance)}</p>
-                        </div>
-                    </CardContent>
-                </Card>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Student Ledger: {student.name}</DialogTitle>
+                    <DialogDescription>A detailed transaction history for {student.name} ({student.class}).</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Card className="mb-6 bg-muted/50">
+                        <CardHeader>
+                            <CardTitle className="text-base">Financial Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Total Billed</p>
+                                <p className="font-bold text-lg">{formatCurrency(student.totalFee)}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Total Paid</p>
+                                <p className="font-bold text-lg text-green-600">{formatCurrency(student.amountPaid)}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Outstanding Balance</p>
+                                <p className="font-bold text-lg text-destructive">{formatCurrency(student.balance)}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                 <div className="w-full overflow-auto rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Description</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Recorded By</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
-                                <TableHead className="text-right">Balance</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {mockStudentLedger.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell>{item.date}</TableCell>
-                                    <TableCell className="font-medium">{item.description}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={item.type === 'Payment' ? 'default' : 'outline'} className={item.type === 'Payment' ? 'bg-green-100 text-green-800' : ''}>
-                                            {item.type}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{item.recordedBy}</TableCell>
-                                    <TableCell className={`text-right ${item.type === 'Payment' ? 'text-green-600' : 'text-destructive'}`}>
-                                        {formatCurrency(item.amount)}
-                                    </TableCell>
-                                    <TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell>
+                    <div className="w-full overflow-auto rounded-lg border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Recorded By</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Balance</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {mockStudentLedger.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell>{item.date}</TableCell>
+                                        <TableCell className="font-medium">{item.description}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={item.type === 'Payment' ? 'default' : 'outline'} className={item.type === 'Payment' ? 'bg-green-100 text-green-800' : ''}>
+                                                {item.type}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>{item.recordedBy}</TableCell>
+                                        <TableCell className={`text-right ${item.type === 'Payment' ? 'text-green-600' : 'text-destructive'}`}>
+                                            {formatCurrency(item.amount)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline"><FileDown className="mr-2 h-4 w-4" />Export Statement (PDF)</Button>
-                <DialogClose asChild><Button>Close</Button></DialogClose>
-            </DialogFooter>
-        </DialogContent>
+                <DialogFooter>
+                    <Button variant="outline"><FileDown className="mr-2 h-4 w-4" />Export Statement (PDF)</Button>
+                    <DialogClose asChild><Button>Close</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -344,7 +346,7 @@ export default function FeesPage() {
     }
 
     return (
-        <Dialog onOpenChange={(open) => !open && setSelectedStudent(null)}>
+        <Dialog>
             <div className="p-4 sm:p-6 lg:p-8">
                 <div className="mb-6">
                     <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -791,8 +793,9 @@ export default function FeesPage() {
                     </TabsContent>
                 </Tabs>
             </div>
-            <StudentLedgerDialog student={selectedStudent} />
+            <StudentLedgerDialog student={selectedStudent} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} />
         </Dialog>
     );
 }
 
+    
