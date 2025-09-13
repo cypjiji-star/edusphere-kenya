@@ -46,12 +46,36 @@ export default function SettingsPage() {
     const [language, setLanguage] = React.useState('en-KE');
     const [academicYear, setAcademicYear] = React.useState('2024');
     const [currentTerm, setCurrentTerm] = React.useState('term-2');
+    const [dataRetention, setDataRetention] = React.useState('5');
+    const [autoBackup, setAutoBackup] = React.useState('daily');
 
 
     const handleSaveSettings = () => {
         toast({
             title: 'Settings Saved',
             description: 'Your system settings have been successfully updated.',
+        });
+    };
+
+    const handleCreateBackup = () => {
+        toast({
+            title: 'Backup Started',
+            description: 'A manual backup of your data is being created. You will be notified upon completion.',
+        });
+    };
+
+    const handleRestoreBackup = () => {
+        toast({
+            title: 'Action Required',
+            description: 'Restoring from a backup is a critical action. Please contact support to proceed.',
+            variant: 'destructive',
+        });
+    };
+
+    const handleArchive = () => {
+        toast({
+            title: 'Archiving Started',
+            description: 'Older records are being archived based on your retention policy.',
         });
     };
 
@@ -339,7 +363,7 @@ export default function SettingsPage() {
                     <Separator/>
                      <div className="space-y-2">
                         <Label htmlFor="retention-policy" className="font-semibold">Data Retention Policy</Label>
-                        <Select defaultValue="5" disabled>
+                        <Select value={dataRetention} onValueChange={setDataRetention}>
                             <SelectTrigger id="retention-policy">
                                 <SelectValue />
                             </SelectTrigger>
@@ -356,7 +380,7 @@ export default function SettingsPage() {
                     <div className="space-y-4">
                         <Label className="font-semibold">Backup &amp; Restore</Label>
                         <div className="space-y-2">
-                             <Button variant="outline" className="w-full justify-start" disabled>
+                             <Button variant="outline" className="w-full justify-start" onClick={handleCreateBackup}>
                                 <Download className="mr-2"/>
                                 Create Manual Backup
                             </Button>
@@ -366,7 +390,7 @@ export default function SettingsPage() {
                                 <Label htmlFor="auto-backup" className="font-medium">Automatic Backups</Label>
                                 <p className="text-xs text-muted-foreground">Schedule daily or weekly backups.</p>
                             </div>
-                             <Select defaultValue="daily" disabled>
+                             <Select value={autoBackup} onValueChange={setAutoBackup}>
                                 <SelectTrigger className="w-28">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -377,7 +401,7 @@ export default function SettingsPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                         <Button variant="destructive" className="w-full justify-start" disabled>
+                         <Button variant="destructive" className="w-full justify-start" onClick={handleRestoreBackup}>
                             <RefreshCcw className="mr-2"/>
                             Restore from Backup
                         </Button>
@@ -385,7 +409,7 @@ export default function SettingsPage() {
                     <Separator/>
                      <div className="space-y-3">
                         <Label className="font-semibold">Archiving</Label>
-                        <Button variant="outline" className="w-full justify-start" disabled>
+                        <Button variant="outline" className="w-full justify-start" onClick={handleArchive}>
                             <Archive className="mr-2"/>
                             Archive Old Records
                         </Button>
