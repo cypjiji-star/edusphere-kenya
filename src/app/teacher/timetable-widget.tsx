@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import * as React from 'react';
 
 type TimetableEntry = {
   startTime: string; // HH:MM
