@@ -204,7 +204,7 @@ export function TimetableBuilder() {
                                         ))}
                                     </div>
                                     <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2">
-                                        <Button variant="outline" className="w-full sm:w-auto" disabled>
+                                        <Button variant="outline" className="w-full sm:w-auto">
                                             <Plus className="mr-2 h-4 w-4"/>
                                             Add New Period
                                         </Button>
@@ -315,11 +315,11 @@ export function TimetableBuilder() {
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => {}}>Clear Timetable</Button>
-                    <Button variant="secondary" disabled>
+                    <Button variant="secondary">
                         <Share className="mr-2 h-4 w-4" />
                         Publish
                     </Button>
-                    <Button disabled>
+                    <Button>
                         <Save className="mr-2 h-4 w-4" />
                         Save Timetable
                     </Button>
