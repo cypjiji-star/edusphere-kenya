@@ -310,7 +310,7 @@ export default function AuditLogsPage() {
                 <div className="py-4 space-y-6">
                     <div className="space-y-1">
                         <h4 className="font-semibold">{selectedLog.description}</h4>
-                        <p className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.actionType}</Badge></p>
+                        <div className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.actionType}</Badge></div>
                     </div>
 
                     <Separator />
@@ -389,4 +389,3 @@ export default function AuditLogsPage() {
     </Dialog>
   );
 }
-
