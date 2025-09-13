@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Check, CheckCircle, Filter, Search, Paperclip, MoreHorizontal } from 'lucide-react';
+import { Megaphone, Check, CheckCircle, Filter, Search, Paperclip, MoreHorizontal, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -29,8 +29,19 @@ const announcementCategories: Record<AnnouncementCategory, { label: string; colo
     General: { label: 'General Info', color: 'bg-gray-500 border-gray-500 text-white' },
 };
 
+type Announcement = {
+    id: string;
+    title: string;
+    sender: { name: string; avatarUrl: string };
+    content: string;
+    audience: string;
+    sentAt: string;
+    category: AnnouncementCategory;
+    read: boolean;
+    attachments?: { name: string; size: string }[];
+}
 
-const mockAnnouncements = [
+const mockAnnouncements: Announcement[] = [
     {
         id: 'ann-1',
         title: 'PTA Meeting Reminder',
@@ -76,11 +87,36 @@ const mockAnnouncements = [
     }
 ];
 
+const additionalAnnouncements: Announcement[] = [
+    {
+        id: 'ann-5',
+        title: 'Mid-Term Exam Timetable',
+        sender: { name: 'Examinations Office', avatarUrl: 'https://picsum.photos/seed/exams/100' },
+        content: 'The Term 2 Mid-Term Examination timetable has been released. Please check the student portal for the detailed schedule for your child\'s class.',
+        audience: 'All Students, All Parents',
+        sentAt: '2024-07-24 01:00 PM',
+        category: 'Academic' as AnnouncementCategory,
+        read: true,
+    },
+    {
+        id: 'ann-6',
+        title: 'Sports Day Rehearsals',
+        sender: { name: 'Sports Department', avatarUrl: 'https://picsum.photos/seed/sports/100' },
+        content: 'Please be reminded that sports day rehearsals will be taking place every afternoon this week. Ensure your child has their sports kit.',
+        audience: 'All Parents',
+        sentAt: '2024-07-23 08:30 AM',
+        category: 'Event' as AnnouncementCategory,
+        read: true,
+    }
+]
+
 export default function ParentAnnouncementsPage() {
   const { toast } = useToast();
   const [announcements, setAnnouncements] = React.useState(mockAnnouncements);
   const [filter, setFilter] = React.useState<'All' | 'Read' | 'Unread'>('All');
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [hasLoadedMore, setHasLoadedMore] = React.useState(false);
 
   const handleMarkAsRead = (id: string) => {
     setAnnouncements(prev => prev.map(ann => ann.id === id ? { ...ann, read: true } : ann));
@@ -94,6 +130,26 @@ export default function ParentAnnouncementsPage() {
       const matchesSearch = searchTerm === '' || ann.content.toLowerCase().includes(searchTerm.toLowerCase()) || ann.sender.name.toLowerCase().includes(searchTerm.toLowerCase()) || ann.title.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesFilter && matchesSearch;
   });
+
+  const handleLoadMore = () => {
+    setIsLoadingMore(true);
+    setTimeout(() => {
+        setAnnouncements(prev => [...prev, ...additionalAnnouncements]);
+        setIsLoadingMore(false);
+        setHasLoadedMore(true);
+        toast({
+            title: 'Announcements Loaded',
+            description: 'Older announcements have been added to the list.',
+        });
+    }, 1000);
+  };
+
+  const handleAttachmentClick = (fileName: string) => {
+    toast({
+        title: 'Downloading Attachment',
+        description: `Your download for "${fileName}" will start shortly.`,
+    });
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -156,7 +212,7 @@ export default function ParentAnnouncementsPage() {
                                     <h4 className="font-semibold text-sm mb-2">Attachments</h4>
                                     <div className="space-y-2">
                                         {ann.attachments.map((file, index) => (
-                                            <Button key={index} variant="outline" size="sm" className="w-full justify-start">
+                                            <Button key={index} variant="outline" size="sm" className="w-full justify-start" onClick={() => handleAttachmentClick(file.name)}>
                                                 <Paperclip className="mr-2 h-4 w-4"/>
                                                 {file.name} ({file.size})
                                             </Button>
@@ -195,9 +251,13 @@ export default function ParentAnnouncementsPage() {
                 )}
             </CardContent>
             <CardFooter className="flex-col items-center gap-4">
-                <Button variant="outline" className="w-full">
-                    <MoreHorizontal className="mr-2 h-4 w-4" />
-                    Load More Announcements
+                <Button variant="outline" className="w-full" onClick={handleLoadMore} disabled={isLoadingMore || hasLoadedMore}>
+                     {isLoadingMore ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <MoreHorizontal className="mr-2 h-4 w-4" />
+                    )}
+                    {hasLoadedMore ? 'All announcements loaded' : 'Load More Announcements'}
                 </Button>
                 <p className="text-xs text-muted-foreground">
                     Showing {filteredAnnouncements.length} of {announcements.length} announcements
