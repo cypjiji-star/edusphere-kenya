@@ -115,7 +115,7 @@ type RecentEnrolment = {
     status: 'Pending' | 'Approved' | 'Incomplete';
 };
 
-const recentEnrolments: RecentEnrolment[] = [
+const initialRecentEnrolments: RecentEnrolment[] = [
     { id: 'enr-1', studentName: 'Alice Johnson', class: 'Form 1', parentName: 'Mark Johnson', date: '2024-07-28', status: 'Approved' },
     { id: 'enr-2', studentName: 'Brian Omondi', class: 'Form 1', parentName: 'Grace Omondi', date: '2024-07-27', status: 'Pending' },
 ];
@@ -128,6 +128,11 @@ const getStatusBadge = (status: RecentEnrolment['status']) => {
     }
 }
 
+const classOptions = [
+    { value: 'f1', label: 'Form 1' },
+    { value: 'f2', label: 'Form 2' },
+];
+
 
 export default function StudentEnrolmentPage() {
     const { toast } = useToast();
@@ -136,6 +141,7 @@ export default function StudentEnrolmentPage() {
     const [admissionDocs, setAdmissionDocs] = React.useState<File[]>([]);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
+    const [recentEnrolments, setRecentEnrolments] = React.useState<RecentEnrolment[]>(initialRecentEnrolments);
 
 
     const form = useForm<EnrolmentFormValues>({
@@ -193,6 +199,18 @@ export default function StudentEnrolmentPage() {
             title: 'Enrolment Submitted',
             description: `${values.studentFirstName} ${values.studentLastName} has been successfully submitted for enrolment.`,
         });
+
+        const newEnrolment: RecentEnrolment = {
+            id: `enr-${Date.now()}`,
+            studentName: `${values.studentFirstName} ${values.studentLastName}`,
+            class: classOptions.find(c => c.value === values.classId)?.label || 'Unknown',
+            parentName: `${values.parentFirstName} ${values.parentLastName}`,
+            date: new Date().toISOString().split('T')[0],
+            status: 'Pending',
+        };
+
+        setRecentEnrolments(prev => [newEnrolment, ...prev]);
+
         form.reset();
         setProfilePhoto(null);
         setAdmissionDocs([]);
@@ -374,7 +392,7 @@ export default function StudentEnrolmentPage() {
                             <CardTitle>Academic &amp; Administrative</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                             <FormField control={form.control} name="classId" render={({ field }) => ( <FormItem><FormLabel>Assign to Class</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a class" /></SelectTrigger></FormControl><SelectContent><SelectItem value="f1">Form 1</SelectItem><SelectItem value="f2">Form 2</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
+                             <FormField control={form.control} name="classId" render={({ field }) => ( <FormItem><FormLabel>Assign to Class</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a class" /></SelectTrigger></FormControl><SelectContent>{classOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )}/>
                              <FormField control={form.control} name="admissionYear" render={({ field }) => ( <FormItem><FormLabel>Year of Admission</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a year" /></SelectTrigger></FormControl><SelectContent>{years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )}/>
                             <Separator />
                             <div className="space-y-2">
