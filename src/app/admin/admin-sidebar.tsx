@@ -269,7 +269,11 @@ export function AdminSidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem><Settings className="mr-2" />Profile</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+                <Link href="/admin/profile">
+                    <Settings className="mr-2" />Profile
+                </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link href="/admin/support">
                     <HelpCircle className="mr-2" />
