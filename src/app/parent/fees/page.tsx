@@ -51,9 +51,9 @@ const feeData = {
       status: 'Partial' as const,
     },
     ledger: [
-        { id: 't-1', date: '2024-05-15', description: 'Term 2 Invoice', charge: 105000, payment: 0, balance: 105000 },
-        { id: 't-2', date: '2024-06-01', description: 'Payment Received via M-PESA', charge: 0, payment: 40000, balance: 65000 },
-        { id: 't-3', date: '2024-07-10', description: 'Payment Received via Bank', charge: 0, payment: 40000, balance: 25000 },
+        { id: 't-1', date: '2024-05-15', description: 'Term 2 Invoice', type: 'Charge', charge: 105000, payment: 0, balance: 105000 },
+        { id: 't-2', date: '2024-06-01', description: 'Payment Received via M-PESA', type: 'Payment', charge: 0, payment: 40000, balance: 65000 },
+        { id: 't-3', date: '2024-07-10', description: 'Payment Received via Bank', type: 'Payment', charge: 0, payment: 40000, balance: 25000 },
     ],
   },
   'child-2': {
@@ -65,8 +65,8 @@ const feeData = {
       status: 'Paid' as const,
     },
     ledger: [
-        { id: 't-4', date: '2024-05-15', description: 'Term 2 Invoice', charge: 105000, payment: 0, balance: 105000 },
-        { id: 't-5', date: '2024-05-20', description: 'Full Payment via Bank Transfer', charge: 0, payment: 105000, balance: 0 },
+        { id: 't-4', date: '2024-05-15', description: 'Term 2 Invoice', type: 'Charge', charge: 105000, payment: 0, balance: 105000 },
+        { id: 't-5', date: '2024-05-20', description: 'Full Payment via Bank Transfer', type: 'Payment', charge: 0, payment: 105000, balance: 0 },
     ],
   }
 };
@@ -195,6 +195,7 @@ export default function ParentFeesPage() {
                                     <TableHead className="text-right">Charges (KES)</TableHead>
                                     <TableHead className="text-right">Payments (KES)</TableHead>
                                     <TableHead className="text-right">Balance (KES)</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -209,6 +210,14 @@ export default function ParentFeesPage() {
                                                 {item.payment > 0 ? formatCurrency(item.payment) : '—'}
                                             </TableCell>
                                             <TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell>
+                                            <TableCell className="text-right">
+                                                {item.type === 'Payment' && (
+                                                    <Button variant="outline" size="sm" disabled>
+                                                        <FileDown className="mr-2 h-3 w-3" />
+                                                        Receipt
+                                                    </Button>
+                                                )}
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -247,4 +256,3 @@ export default function ParentFeesPage() {
         </div>
     );
 }
-
