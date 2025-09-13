@@ -42,7 +42,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { HeartPulse, Search, Filter, ChevronDown, FileDown, AlertCircle, Users, Stethoscope, Pill, User, Phone, ShieldAlert, Lock, FileText, CalendarIcon, Siren, Send, Paperclip, MapPin } from 'lucide-react';
+import { HeartPulse, Search, Filter, ChevronDown, FileDown, AlertCircle, Users, Stethoscope, Pill, User, Phone, ShieldAlert, Lock, FileText, CalendarIcon, Siren, Send, Paperclip, MapPin, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -182,6 +182,7 @@ export default function AdminHealthPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [typeFilter, setTypeFilter] = React.useState<IncidentType | 'All Types'>('All Types');
     const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
+    const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
 
     const currentHealthRecord = selectedHealthStudent ? studentHealthRecords[selectedHealthStudent] : null;
     const { toast } = useToast();
@@ -231,6 +232,16 @@ export default function AdminHealthPage() {
             title: 'Exporting Log',
             description: 'Your incident log is being exported.',
         });
+    };
+    
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setAttachedFile(event.target.files[0]);
+        }
+    };
+
+    const handleRemoveFile = () => {
+        setAttachedFile(null);
     };
 
     const filteredIncidents = mockIncidents.filter(incident => {
@@ -520,13 +531,25 @@ export default function AdminHealthPage() {
                                                 <div className="space-y-2">
                                                     <Label>Attach Medical Document</Label>
                                                     <div className="flex items-center justify-center w-full">
-                                                        <Label htmlFor="dropzone-file-admin" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                                            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                                                <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                                                                <p className="mb-2 text-sm text-muted-foreground">Attach doctor's note, etc. (Optional)</p>
+                                                        {attachedFile ? (
+                                                            <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                                                <div className="flex items-center gap-2 text-sm font-medium">
+                                                                    <FileText className="h-5 w-5 text-primary" />
+                                                                    <span className="truncate">{attachedFile.name}</span>
+                                                                </div>
+                                                                <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
+                                                                    <X className="h-4 w-4 text-destructive" />
+                                                                </Button>
                                                             </div>
-                                                            <Input id="dropzone-file-admin" type="file" className="hidden" disabled />
-                                                        </Label>
+                                                        ) : (
+                                                            <Label htmlFor="dropzone-file-admin" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                                    <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                                    <p className="mb-2 text-sm text-muted-foreground">Attach doctor's note, etc. (Optional)</p>
+                                                                </div>
+                                                                <Input id="dropzone-file-admin" type="file" className="hidden" onChange={handleFileChange} />
+                                                            </Label>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -805,4 +828,3 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
-
