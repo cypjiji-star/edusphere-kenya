@@ -35,6 +35,8 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { ClassAnalytics } from '../../students/class-analytics';
 
 
 // Mock Data
@@ -105,6 +107,7 @@ const mediaHighlights = [
 
 export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
   const { teamId } = React.use(params);
+  const { toast } = useToast();
   const teamDetails = teams[teamId] || { name: 'Unknown Team', coach: 'N/A' };
   const initialMembers = studentMembers[teamId] || [];
   
@@ -122,8 +125,20 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
             member.id === studentId ? { ...member, role: newRole } : member
         )
     );
-    // In a real app, you'd save this change via a server action.
+    toast({
+        title: 'Role Updated',
+        description: 'The member\'s role has been changed.',
+    })
   };
+  
+  const handleRemoveMember = (studentId: string) => {
+    setMembers(currentMembers => currentMembers.filter(member => member.id !== studentId));
+    toast({
+        title: 'Member Removed',
+        description: 'The student has been removed from the team roster.',
+        variant: 'destructive',
+    })
+  }
 
   const filteredMembers = members.filter(m => 
     m.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -153,7 +168,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                         Back to All Teams
                     </Link>
                 </Button>
-                <Button disabled>
+                <Button>
                     <UserPlus className="mr-2" />
                     Add Student
                 </Button>
@@ -237,9 +252,9 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    disabled
+                                    onClick={() => handleRemoveMember(member.id)}
                                 >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-4 w-4 text-destructive" />
                                     <span className="sr-only">Remove</span>
                                 </Button>
                                 </TableCell>
@@ -288,7 +303,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                      )}
                 </CardContent>
                 <CardFooter>
-                     <Button className="w-full" disabled>
+                     <Button className="w-full">
                         <CalendarPlus className="mr-2 h-4 w-4" />
                         Schedule New Event
                     </Button>
@@ -329,7 +344,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                                     <p className="mb-2 text-sm text-muted-foreground">Upload Media</p>
                                     <p className="text-xs text-muted-foreground">(Photos, Videos)</p>
                                 </div>
-                                <Input id="dropzone-file" type="file" className="hidden" disabled />
+                                <Input id="dropzone-file" type="file" className="hidden" />
                             </Label>
                         </div>
                     </div>
@@ -406,7 +421,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button disabled>
+                    <Button>
                         <Save className="mr-2 h-4 w-4" />
                         Save Records
                     </Button>
@@ -477,7 +492,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                     </Card>
                 </CardContent>
                 <CardFooter>
-                    <Button disabled>
+                    <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add New Award
                     </Button>

@@ -46,11 +46,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
-
+import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { Label } from '@/components/ui/label';
 
 // --- Mock Data ---
 
@@ -126,6 +139,8 @@ export const teacherClasses = [
 export default function GradesPage() {
     const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
     const [searchTerm, setSearchTerm] = React.useState('');
+    const { toast } = useToast();
+    const [editingStudent, setEditingStudent] = React.useState<StudentGrades | null>(null);
 
     const currentAssessments = assessmentsByClass[selectedClass] || [];
     const currentStudents = gradesByClass[selectedClass] || [];
@@ -138,6 +153,14 @@ export default function GradesPage() {
         const grade = student.grades.find(g => g.assessmentId === assessmentId);
         return grade ? grade.score : '—';
     };
+
+    const handleExport = (type: 'PDF' | 'CSV') => {
+        toast({
+            title: 'Exporting Gradebook',
+            description: `Your gradebook is being exported as a ${type} file.`
+        });
+        // Here you would implement the actual export logic
+    }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -192,16 +215,16 @@ export default function GradesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem disabled>
+                        <DropdownMenuItem onClick={() => handleExport('PDF')}>
                           <FileDown className="mr-2" />
                           Download as PDF
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
+                        <DropdownMenuItem onClick={() => handleExport('CSV')}>
                           <FileDown className="mr-2" />
-                          Download as Excel/CSV
+                          Download as CSV
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem disabled>
+                        <DropdownMenuItem onClick={() => window.print()}>
                           <Printer className="mr-2" />
                           Print Gradebook
                         </DropdownMenuItem>
@@ -248,7 +271,7 @@ export default function GradesPage() {
                                             <Badge>{student.overall}%</Badge>
                                          </TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" disabled>
+                                            <Button variant="ghost" size="sm" onClick={() => setEditingStudent(student)}>
                                                 <Edit className="mr-2 h-4 w-4" /> Edit
                                             </Button>
                                         </TableCell>
@@ -337,6 +360,38 @@ export default function GradesPage() {
             <ReportGenerator />
         </TabsContent>
       </Tabs>
+      <Dialog open={!!editingStudent} onOpenChange={(open) => !open && setEditingStudent(null)}>
+        {editingStudent && (
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Grades for {editingStudent.studentName}</DialogTitle>
+              <DialogDescription>
+                Update the assessment scores for this student.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {currentAssessments.map((assessment) => (
+                <div key={assessment.id} className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor={`grade-${assessment.id}`} className="text-right">
+                    {assessment.title}
+                  </Label>
+                  <Input
+                    id={`grade-${assessment.id}`}
+                    defaultValue={getGradeForStudent(editingStudent, assessment.id)}
+                    className="col-span-3"
+                  />
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="submit" onClick={() => {toast({title: 'Grades updated!'}); setEditingStudent(null);}}>Save changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }
