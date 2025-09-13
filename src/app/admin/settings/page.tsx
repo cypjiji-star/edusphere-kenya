@@ -141,7 +141,7 @@ export default function SettingsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary"/>User & Access Control</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary"/>User &amp; Access Control</CardTitle>
                     <CardDescription>Manage password policies, registration, and other security settings.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -204,7 +204,7 @@ export default function SettingsPage() {
                                 <Switch id="module-library" checked disabled />
                             </div>
                             <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                                <Label htmlFor="module-health">Health & Incidents</Label>
+                                <Label htmlFor="module-health">Health &amp; Incidents</Label>
                                 <Switch id="module-health" checked disabled />
                             </div>
                             <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
@@ -246,7 +246,7 @@ export default function SettingsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Notifications & Alerts</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Notifications &amp; Alerts</CardTitle>
                     <CardDescription>Manage automated notifications for key system events.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -274,6 +274,16 @@ export default function SettingsPage() {
                     <Separator/>
                      <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
+                            <Label className="font-semibold">Custom Alert Triggers</Label>
+                            <p className="text-xs text-muted-foreground">Get notified for specific events like large financial adjustments or role changes.</p>
+                        </div>
+                        <Button variant="secondary" disabled>
+                            Configure Alert Triggers
+                        </Button>
+                    </div>
+                    <Separator/>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
                             <Label className="font-semibold">Communication Channels</Label>
                             <p className="text-xs text-muted-foreground">Configure SMS, Email, and Push Notifications.</p>
                         </div>
@@ -296,7 +306,7 @@ export default function SettingsPage() {
                         <Label className="font-semibold">Storage Usage</Label>
                         <div className="space-y-2">
                            <div className="flex justify-between items-center text-xs text-muted-foreground">
-                                <span>Media & Files</span>
+                                <span>Media &amp; Files</span>
                                 <span>12.5 GB / 50 GB</span>
                            </div>
                            <Progress value={25} />
@@ -416,3 +426,5 @@ export default function SettingsPage() {
        </div>
     </div>
   );
+
+  
