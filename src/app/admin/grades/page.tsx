@@ -27,6 +27,7 @@ import {
   Send,
   BookCheck,
   CalendarIcon,
+  Users,
 } from 'lucide-react';
 import {
   Table,
@@ -74,6 +75,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -147,6 +149,13 @@ const initialGradingScale = [
     { grade: 'E', min: 0, max: 29 },
 ]
 
+const mockStudentGrades = [
+    { id: 'std-1', name: 'Student 1', avatar: 'https://picsum.photos/seed/f4-student1/100', score: 85 },
+    { id: 'std-2', name: 'Student 2', avatar: 'https://picsum.photos/seed/f4-student2/100', score: 78 },
+    { id: 'std-3', name: 'Student 3', avatar: 'https://picsum.photos/seed/f4-student3/100', score: 92 },
+];
+
+
 export default function AdminGradesPage() {
     const [clientReady, setClientReady] = React.useState(false);
     const [date, setDate] = React.useState<DateRange | undefined>();
@@ -155,6 +164,7 @@ export default function AdminGradesPage() {
     const [submissionClassFilter, setSubmissionClassFilter] = React.useState('Form 4');
     const [gradingScale, setGradingScale] = React.useState(initialGradingScale);
     const [mockSubmissions, setMockSubmissions] = React.useState(mockSubmissionsData);
+    const [viewingSubmission, setViewingSubmission] = React.useState<Submission | null>(null);
     const { toast } = useToast();
 
     React.useEffect(() => {
@@ -206,7 +216,7 @@ export default function AdminGradesPage() {
     };
 
     return (
-        <Dialog onOpenChange={(open) => !open && setSelectedExam(null)}>
+        <Dialog>
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="mb-6">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -460,9 +470,11 @@ export default function AdminGradesPage() {
                                                 <TableCell>{getSubmissionStatusBadge(submission.status)}</TableCell>
                                                 <TableCell>{clientReady && submission.lastUpdated !== 'N/A' ? new Date(submission.lastUpdated).toLocaleDateString() : 'N/A'}</TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="outline" size="sm" disabled={submission.status === 'Pending'}>
-                                                        View Grades
-                                                    </Button>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="outline" size="sm" disabled={submission.status === 'Pending'} onClick={() => setViewingSubmission(submission)}>
+                                                            View Grades
+                                                        </Button>
+                                                    </DialogTrigger>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -519,10 +531,9 @@ export default function AdminGradesPage() {
                                 </CardHeader>
                                 <CardContent>
                                      <div className="flex flex-col h-[150px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                                        <div className="text-center text-muted-foreground p-4">
-                                            <p className="mb-4">This feature is in development.</p>
-                                            <Button variant="secondary">Manage Templates</Button>
-                                        </div>
+                                        <Button variant="secondary">
+                                            Manage Templates
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -543,8 +554,11 @@ export default function AdminGradesPage() {
                 </TabsContent>
             </Tabs>
         </div>
-        {selectedExam && (
-            <DialogContent className="sm:max-w-xl">
+        
+        {/* Exam Details Dialog */}
+        <DialogContent className="sm:max-w-xl" onOpenChange={(open) => !open && setSelectedExam(null)}>
+            {selectedExam && (
+                <>
                 <DialogHeader>
                     <DialogTitle>{selectedExam.title}</DialogTitle>
                     <DialogDescription>Details for the selected examination period.</DialogDescription>
@@ -574,8 +588,60 @@ export default function AdminGradesPage() {
                         <Button variant="outline">Close</Button>
                     </DialogClose>
                 </DialogFooter>
-            </DialogContent>
-        )}
+                </>
+            )}
+        </DialogContent>
+        
+        {/* View Grades Dialog */}
+        <DialogContent className="sm:max-w-2xl" onOpenChange={(open) => !open && setViewingSubmission(null)}>
+            {viewingSubmission && (
+                <>
+                <DialogHeader>
+                    <DialogTitle>Grades for {viewingSubmission.subject}</DialogTitle>
+                    <DialogDescription>Submitted by {viewingSubmission.teacher} for {viewingSubmission.class}.</DialogDescription>
+                </DialogHeader>
+                 <div className="py-4">
+                     <div className="w-full overflow-auto rounded-lg border max-h-[60vh]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead className="text-right">Score</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {mockStudentGrades.map(grade => (
+                                    <TableRow key={grade.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-9 w-9">
+                                                    <AvatarImage src={grade.avatar} alt={grade.name} />
+                                                    <AvatarFallback>{grade.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium">{grade.name}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Badge variant="secondary">{grade.score}%</Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                 </div>
+                <DialogFooter>
+                    <Button variant="secondary" disabled>Request Changes</Button>
+                    <DialogClose asChild>
+                        <Button variant="outline">Close</Button>
+                    </DialogClose>
+                    <Button disabled={viewingSubmission.status !== 'Submitted'}>Approve Grades</Button>
+                </DialogFooter>
+                </>
+            )}
+        </DialogContent>
+
         </Dialog>
     );
 }
+
