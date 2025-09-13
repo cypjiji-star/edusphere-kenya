@@ -162,7 +162,7 @@ export default function AdminGradesPage() {
                                     <CardDescription>A log of all major examination periods.</CardDescription>
                                 </div>
                                 <div className="flex w-full md:w-auto items-center gap-2">
-                                     <Button disabled>
+                                     <Button>
                                         <PlusCircle className="mr-2 h-4 w-4"/>
                                         Create Exam
                                     </Button>
@@ -175,8 +175,8 @@ export default function AdminGradesPage() {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            <DropdownMenuItem disabled>Export Schedule (PDF)</DropdownMenuItem>
-                                            <DropdownMenuItem disabled>Export to Calendar (.ics)</DropdownMenuItem>
+                                            <DropdownMenuItem>Export Schedule (PDF)</DropdownMenuItem>
+                                            <DropdownMenuItem>Export to Calendar (.ics)</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
@@ -228,7 +228,7 @@ export default function AdminGradesPage() {
                                                     <Badge className={`${statusColors[exam.status]} text-white`}>{exam.status}</Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="ghost" size="sm" disabled>View Details</Button>
+                                                    <Button variant="ghost" size="sm">View Details</Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -254,16 +254,16 @@ export default function AdminGradesPage() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
-                                        <DropdownMenuItem disabled>
+                                        <DropdownMenuItem>
                                             <CheckCircle className="mr-2 h-4 w-4" />
                                             Approve All Submitted
                                         </DropdownMenuItem>
-                                         <DropdownMenuItem disabled>
+                                         <DropdownMenuItem>
                                             <BookCheck className="mr-2 h-4 w-4" />
                                             Publish All Approved Grades
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem disabled>
+                                        <DropdownMenuItem>
                                             <Send className="mr-2 h-4 w-4" />
                                             Send Submission Reminders
                                         </DropdownMenuItem>
