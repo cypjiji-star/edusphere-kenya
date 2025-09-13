@@ -8,8 +8,20 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageCircle, ArrowRight, User, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { conversations } from './messaging/chat-layout';
 import * as React from 'react';
+import { firestore } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+
+type Conversation = {
+  id: string;
+  name: string;
+  avatar: string;
+  icon: string;
+  lastMessage: string;
+  timestamp: Timestamp;
+  unread: boolean;
+};
+
 
 const getIconComponent = (iconName: string) => {
     if (iconName === 'User') return User;
@@ -18,7 +30,18 @@ const getIconComponent = (iconName: string) => {
 }
 
 export function MessagesWidget() {
+  const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const unreadCount = conversations.filter(m => m.unread).length;
+
+  React.useEffect(() => {
+    const q = query(collection(firestore, 'conversations'), orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const convos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
+        setConversations(convos);
+    });
+
+    return () => unsubscribe();
+  }, []);
     
   return (
     <Card>
@@ -46,7 +69,7 @@ export function MessagesWidget() {
                     <div className="flex-1">
                       <div className="flex justify-between items-center">
                           <p className="font-semibold text-sm">{message.name}</p>
-                          <p className="text-xs text-muted-foreground">{message.timestamp}</p>
+                          <p className="text-xs text-muted-foreground">{message.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                       <p className="text-sm text-muted-foreground truncate">{message.lastMessage}</p>
                     </div>
