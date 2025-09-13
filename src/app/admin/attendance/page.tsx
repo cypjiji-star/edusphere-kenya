@@ -400,8 +400,8 @@ export default function AdminAttendancePage() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem disabled><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
-                            <DropdownMenuItem disabled><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
+                            <DropdownMenuItem><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
+                            <DropdownMenuItem><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
