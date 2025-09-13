@@ -27,10 +27,11 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const recentChanges = [
     { user: 'Admin User', change: 'Enabled self-registration for parents.', date: '2024-07-28 10:05 AM' },
-    { user: 'Principal Jane', change: 'Updated the current academic term to Term 3.', date: '2024-07-27 02:00 PM' },
+    { user: 'Principal Jane Doe', change: 'Updated the current academic term to Term 3.', date: '2024-07-27 02:00 PM' },
     { user: 'Admin User', change: 'Set idle session timeout to 15 minutes.', date: '2024-07-26 09:30 AM' },
 ];
 
@@ -48,6 +49,10 @@ export default function SettingsPage() {
     const [currentTerm, setCurrentTerm] = React.useState('term-2');
     const [dataRetention, setDataRetention] = React.useState('5');
     const [autoBackup, setAutoBackup] = React.useState('daily');
+    
+    const [idleTimeout, setIdleTimeout] = React.useState('30');
+    const [selfRegistration, setSelfRegistration] = React.useState(false);
+    const [twoFactorAuth, setTwoFactorAuth] = React.useState(false);
 
 
     const handleSaveSettings = () => {
@@ -198,17 +203,51 @@ export default function SettingsPage() {
                             <Label htmlFor="password-policy" className="font-semibold">Password Policy</Label>
                             <p className="text-xs text-muted-foreground">Set minimum length and complexity for user passwords.</p>
                         </div>
-                        <Button variant="secondary" disabled>
-                            <KeyRound className="mr-2 h-4 w-4"/>
-                            Set Policy
-                        </Button>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="secondary">
+                                    <KeyRound className="mr-2 h-4 w-4"/>
+                                    Set Policy
+                                </Button>
+                            </DialogTrigger>
+                             <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Password Policy</DialogTitle>
+                                    <DialogDescription>Define password requirements for all users.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <Label>Minimum Length:</Label>
+                                        <Input type="number" defaultValue="8" className="w-24" />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Require Uppercase Letter:</Label>
+                                        <Switch defaultChecked />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Require Number:</Label>
+                                        <Switch defaultChecked />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Require Special Character:</Label>
+                                        <Switch />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <DialogClose asChild>
+                                        <Button onClick={() => toast({ title: 'Password Policy Updated' })}>Save Policy</Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
                             <Label htmlFor="idle-timeout" className="font-semibold">Idle Session Timeout</Label>
                             <p className="text-xs text-muted-foreground">Automatically log out users after a period of inactivity.</p>
                         </div>
-                         <Select defaultValue="30" disabled>
+                         <Select value={idleTimeout} onValueChange={(value) => { setIdleTimeout(value); toast({ title: "Setting Saved" })}}>
                             <SelectTrigger className="w-40">
                                 <SelectValue />
                             </SelectTrigger>
@@ -225,14 +264,14 @@ export default function SettingsPage() {
                             <Label htmlFor="self-registration" className="font-semibold">Enable Self-Registration</Label>
                             <p className="text-xs text-muted-foreground">Allow new parents and students to create their own accounts.</p>
                         </div>
-                        <Switch id="self-registration" disabled />
+                        <Switch id="self-registration" checked={selfRegistration} onCheckedChange={(checked) => { setSelfRegistration(checked); toast({ title: "Setting Saved" })}} />
                     </div>
                      <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
                             <Label htmlFor="2fa" className="font-semibold">Two-Factor Authentication (2FA)</Label>
                             <p className="text-xs text-muted-foreground">Require a second verification step for admins and teachers.</p>
                         </div>
-                        <Switch id="2fa" disabled />
+                        <Switch id="2fa" checked={twoFactorAuth} onCheckedChange={(checked) => { setTwoFactorAuth(checked); toast({ title: "Setting Saved" })}} />
                     </div>
                 </CardContent>
             </Card>
@@ -322,7 +361,7 @@ export default function SettingsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Wand2 className="h-5 w-5 text-primary"/>AI & Automation</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Wand2 className="h-5 w-5 text-primary"/>AI &amp; Automation</CardTitle>
                     <CardDescription>Manage AI-powered features and integrations.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
