@@ -574,7 +574,7 @@ export default function AdminHealthPage() {
                          <Card>
                             <CardHeader>
                                 <CardTitle>Student Health Records</CardTitle>
-                                <CardDescription>Look up important health information for any student in the school. Access is restricted and logged.</CardDescription>
+                                <CardDescription>Look up important health information for any student in the school. Records are stored securely for compliance purposes. Access is restricted and logged.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="max-w-md mb-6">

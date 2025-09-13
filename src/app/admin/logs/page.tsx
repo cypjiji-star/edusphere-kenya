@@ -204,10 +204,10 @@ export default function AuditLogsPage() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem disabled>
                                             <FileDown className="mr-2" />Export as PDF
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem disabled>
                                             <FileDown className="mr-2" />Export as CSV
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
