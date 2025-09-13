@@ -47,18 +47,26 @@ const eventColors: Record<CalendarEvent['type'], string> = {
   reminder: 'bg-yellow-500 hover:bg-yellow-600',
 };
 
+const referenceDate = new Date('2024-07-29T00:00:00');
+
 const MOCK_EVENTS: CalendarEvent[] = [
-  { id: '1', date: new Date(), title: "Staff Meeting", type: 'event', startTime: '11:00', endTime: '12:00' },
-  { id: '2', date: new Date(), title: "Form 4 Chem Practical", type: 'exam', startTime: '13:00', endTime: '15:00' },
-  { id: '3', date: sub(new Date(), { days: 2 }), title: "Grades Due", type: 'reminder' },
-  { id: '4', date: add(new Date(), { days: 5 }), title: "Sports Day", type: 'event' },
-  { id: '5', date: add(new Date(), { days: 10 }), title: "Mid-term Break", type: 'holiday' },
+  { id: '1', date: referenceDate, title: "Staff Meeting", type: 'event', startTime: '11:00', endTime: '12:00' },
+  { id: '2', date: referenceDate, title: "Form 4 Chem Practical", type: 'exam', startTime: '13:00', endTime: '15:00' },
+  { id: '3', date: sub(referenceDate, { days: 2 }), title: "Grades Due", type: 'reminder' },
+  { id: '4', date: add(referenceDate, { days: 5 }), title: "Sports Day", type: 'event' },
+  { id: '5', date: add(referenceDate, { days: 10 }), title: "Mid-term Break", type: 'holiday' },
 ];
 
 
 export function FullCalendar() {
-  const [currentDate, setCurrentDate] = React.useState(new Date());
+  const [currentDate, setCurrentDate] = React.useState(MOCK_EVENTS[0].date);
   const [view, setView] = React.useState<CalendarView>('month');
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+    setCurrentDate(new Date());
+  }, []);
 
   const handlePrev = () => {
     const newDate = sub(currentDate, { [view === 'month' ? 'months' : view === 'week' ? 'weeks' : 'days']: 1 });
@@ -85,7 +93,7 @@ export function FullCalendar() {
           <ChevronRight className="h-4 w-4" />
         </Button>
         <h2 className="text-xl font-semibold ml-4 font-headline">
-          {format(currentDate, view === 'month' ? 'MMMM yyyy' : view === 'week' ? 'MMMM yyyy' : 'PPP')}
+          {format(currentDate, 'MMMM yyyy')}
         </h2>
       </div>
        <div className="flex items-center gap-2">
@@ -129,20 +137,21 @@ export function FullCalendar() {
           ))}
         </div>
         <div className="grid grid-cols-7">
-          {weeks.map((weekStart, weekIndex) =>
-            eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day, dayIndex) => {
+          {weeks.map((weekStart) =>
+            eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day) => {
               const eventsForDay = MOCK_EVENTS.filter(e => isSameDay(e.date, day));
+              const isTodayFlag = clientReady && isToday(day);
               return (
                 <div
                   key={day.toString()}
                   className={cn(
                     'h-24 md:h-32 p-1 md:p-2 border-t border-l flex flex-col',
                     !isSameMonth(day, monthStart) && 'bg-muted/50 text-muted-foreground',
-                     isToday(day) && 'bg-accent/20 relative'
+                     isTodayFlag && 'bg-accent/20 relative'
                   )}
                 >
-                    {isToday(day) && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
-                  <span className={cn('font-medium text-xs md:text-sm', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
+                    {isTodayFlag && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
+                  <span className={cn('font-medium text-xs md:text-sm', isTodayFlag && 'text-primary')}>{format(day, 'd')}</span>
                    <div className="mt-1 space-y-1 overflow-y-auto">
                         {eventsForDay.map(event => (
                             <Badge key={event.id} className={cn('w-full truncate text-white text-[10px] md:text-xs', eventColors[event.type])}>
@@ -172,7 +181,7 @@ export function FullCalendar() {
                          {days.map(day => (
                             <div key={day.toString()} className="text-center p-2 border-l">
                                 <p className="text-sm font-semibold">{format(day, 'EEE')}</p>
-                                <p className={cn("text-lg font-bold", isToday(day) && "text-primary")}>{format(day, 'd')}</p>
+                                <p className={cn("text-lg font-bold", clientReady && isToday(day) && "text-primary")}>{format(day, 'd')}</p>
                             </div>
                         ))}
                     </div>
@@ -224,7 +233,7 @@ export function FullCalendar() {
                             <div className="w-24 text-sm font-semibold text-primary">
                                 {event.startTime && event.endTime ? `${event.startTime} - ${event.endTime}` : 'All Day'}
                             </div>
-                            <div className={cn("w-2 h-full rounded-full self-stretch", eventColors[event.type])} />
+                            <div className={cn("w-1.5 h-full rounded-full self-stretch", eventColors[event.type])} />
                              <div className="flex-1">
                                 <p className="font-bold">{event.title}</p>
                                 <Badge variant="secondary" className="capitalize">{event.type}</Badge>
