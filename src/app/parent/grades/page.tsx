@@ -133,6 +133,16 @@ export default function ParentGradesPage() {
                         <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
                     </SelectContent>
                 </Select>
+                <Select disabled>
+                    <SelectTrigger className="w-full md:w-auto">
+                        <SelectValue placeholder="All Exams" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Exams</SelectItem>
+                        <SelectItem value="midterm">Mid-Term</SelectItem>
+                        <SelectItem value="endterm">End-Term</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
           </div>
         </CardHeader>
