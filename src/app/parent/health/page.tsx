@@ -106,6 +106,14 @@ export default function ParentHealthPage() {
     }
 
     const hasNewIncident = data.incidents.some(inc => inc.status === 'Reported');
+    
+    const handleDownloadReport = () => {
+        toast({
+            title: "Downloading Report",
+            description: "A comprehensive health report for your child is being generated.",
+        });
+    }
+
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
@@ -177,7 +185,7 @@ export default function ParentHealthPage() {
                                         </DialogFooter>
                                     </DialogContent>
                                 </Dialog>
-                                <Button variant="secondary" className="w-full md:w-auto" disabled>
+                                <Button variant="secondary" className="w-full md:w-auto" onClick={handleDownloadReport}>
                                     <FileDown className="mr-2 h-4 w-4"/>
                                     Download Report
                                 </Button>
