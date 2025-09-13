@@ -7,49 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, ArrowRight, PlusCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-
-type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event';
-
-type UpcomingEvent = {
-  date: string;
-  day: string;
-  title: string;
-  type: EventType;
-};
-
-const upcomingEvents: UpcomingEvent[] = [
-  {
-    date: '25',
-    day: 'Jul',
-    title: 'PTA General Meeting',
-    type: 'Meeting',
-  },
-  {
-    date: '02',
-    day: 'Aug',
-    title: 'Mid-Term Examinations Begin',
-    type: 'Exam',
-  },
-    {
-    date: '10',
-    day: 'Aug',
-    title: 'Moi Day',
-    type: 'Holiday',
-  },
-  {
-    date: '15',
-    day: 'Aug',
-    title: 'Annual Sports Day',
-    type: 'Event',
-  },
-];
-
-const eventTypeColors: Record<EventType, string> = {
-    Meeting: 'bg-purple-500',
-    Exam: 'bg-red-600',
-    Holiday: 'bg-green-600',
-    Event: 'bg-blue-500',
-};
+import { upcomingEvents, eventTypeColors, EventType } from './dashboard-data';
 
 
 export function CalendarWidget() {

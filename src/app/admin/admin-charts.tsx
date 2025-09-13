@@ -21,17 +21,8 @@ import { CircleDollarSign, BarChart3, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { feeData, feeChartConfig, performanceData, performanceChartConfig } from './dashboard-data';
 
-
-const feeData = [
-    { status: 'Collected', value: 82, fill: 'hsl(var(--chart-1))' },
-    { status: 'Outstanding', value: 18, fill: 'hsl(var(--chart-2))' },
-];
-
-const feeChartConfig = {
-    Collected: { label: 'Collected', color: 'hsl(var(--chart-1))' },
-    Outstanding: { label: 'Outstanding', color: 'hsl(var(--chart-2))' },
-} satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
 export function FinanceSnapshot() {
   const totalCollected = 8200000;
@@ -97,23 +88,6 @@ export function FinanceSnapshot() {
       </Card>
   );
 }
-
-
-const performanceData = [
-  { subject: 'Math', avgScore: 82 },
-  { subject: 'Eng', avgScore: 78 },
-  { subject: 'Sci', avgScore: 85 },
-  { subject: 'Hist', avgScore: 75 },
-  { subject: 'Geo', avgScore: 72 },
-  { subject: 'Kisw', avgScore: 80 },
-];
-
-const performanceChartConfig = {
-  avgScore: {
-    label: 'Avg. Score',
-    color: 'hsl(var(--primary))',
-  },
-};
 
 export function PerformanceSnapshot() {
   return (

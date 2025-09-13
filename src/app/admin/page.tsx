@@ -7,96 +7,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, UserCheck, UserPlus, ClipboardCheck, CircleDollarSign, Calendar, ArrowUp, PlusCircle, Megaphone, Shapes, AlertTriangle, FileText, BookOpen, ShieldAlert } from 'lucide-react';
+import { Shapes, PlusCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { FinanceSnapshot, PerformanceSnapshot } from './admin-charts';
 import { CalendarWidget } from './calendar-widget';
-
-const overviewStats = [
-    {
-        title: "Total Students",
-        stat: "852",
-        icon: <Users className="h-6 w-6 text-muted-foreground" />,
-        subtext: "1.2%",
-        subtextIcon: <ArrowUp className="h-4 w-4 text-green-600" />,
-        subtextDescription: "vs last term",
-    },
-    {
-        title: "Total Teachers",
-        stat: "45",
-        icon: <UserCheck className="h-6 w-6 text-muted-foreground" />,
-    },
-    {
-        title: "Active Parents",
-        stat: "780",
-        icon: <Users className="h-6 w-6 text-muted-foreground" />,
-    },
-    {
-        title: "Pending Registrations",
-        stat: "5",
-        icon: <UserPlus className="h-6 w-6 text-muted-foreground" />,
-    }
-];
-
-const quickStats = [
-    {
-        title: "Today's Attendance",
-        stat: "96%",
-        icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" />,
-    },
-    {
-        title: "Fees Collected (Term 2)",
-        stat: "82%",
-        icon: <CircleDollarSign className="h-6 w-6 text-muted-foreground" />,
-    },
-     {
-        title: "Upcoming Events",
-        stat: "3",
-        icon: <Calendar className="h-6 w-6 text-muted-foreground" />,
-    },
-];
-
-const recentActivities = [
-    {
-        icon: <ShieldAlert className="h-5 w-5 text-red-600" />,
-        title: "Urgent: Critical health incident reported for student Jane Doe.",
-        time: "2m ago",
-        category: "Urgent",
-    },
-    {
-        icon: <UserPlus className="h-5 w-5 text-blue-500" />,
-        title: "New student registration pending for John Doe.",
-        time: "5m ago",
-        category: "Registration",
-    },
-     {
-        icon: <FileText className="h-5 w-5 text-green-500" />,
-        title: "Ms. Wanjiku submitted grades for Form 4 Chemistry.",
-        time: "2h ago",
-        category: "Grades",
-    },
-     {
-        icon: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
-        title: "Low attendance alert for Form 2 Physics (75%).",
-        time: "3h ago",
-        category: "Attendance",
-    },
-      {
-        icon: <BookOpen className="h-5 w-5 text-purple-500" />,
-        title: "Mr. Otieno published a new lesson plan for Form 3 English.",
-        time: "1d ago",
-        category: "Academics",
-    },
-    {
-        icon: <Megaphone className="h-5 w-5 text-cyan-500" />,
-        title: "School-wide announcement posted about PTA meeting.",
-        time: "2d ago",
-        category: "Comms",
-    },
-];
+import { overviewStats, quickStats, recentActivities } from './dashboard-data';
 
 
 export default function AdminDashboard() {
@@ -156,7 +74,7 @@ export default function AdminDashboard() {
                         <CardContent className="p-4">
                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 <Button disabled><PlusCircle /> Add Student</Button>
-                                <Button disabled><UserPlus /> Add Teacher</Button>
+                                <Button disabled><Users /> Add Teacher</Button>
                                 <Button disabled><Megaphone /> Post Announcement</Button>
                                 <Button variant="secondary" asChild disabled><Link href="#"><Shapes/>Manage Classes</Link></Button>
                                 <Button variant="secondary" asChild disabled><Link href="#"><CircleDollarSign/>Manage Fees</Link></Button>
