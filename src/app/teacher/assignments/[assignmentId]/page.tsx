@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search, CheckCircle, Clock, FileDown, Filter, ChevronDown, Printer } from 'lucide-react';
@@ -288,3 +289,5 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
     </div>
   );
 }
+
+    
