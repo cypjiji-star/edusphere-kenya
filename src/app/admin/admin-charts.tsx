@@ -30,7 +30,7 @@ export function FinanceSnapshot() {
   const netIncome = totalCollected - totalExpenses;
     
   return (
-      <Card>
+      <Card className="hover:bg-muted/50 transition-colors">
         <CardHeader>
             <CardTitle className="flex items-center gap-2">
                 <CircleDollarSign className="h-6 w-6 text-primary"/>
@@ -126,8 +126,8 @@ export function PerformanceSnapshot() {
           </BarChart>
         </ChartContainer>
          <div className="mt-4 flex justify-end">
-            <Button variant="link" asChild disabled>
-                <Link href="#">
+            <Button variant="link" asChild>
+                <Link href="/admin/grades">
                     View Detailed Reports
                     <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>

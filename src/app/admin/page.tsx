@@ -103,8 +103,8 @@ export default function AdminDashboard() {
                                 <Button asChild><Link href="/admin/enrolment"><PlusCircle /> Add Student</Link></Button>
                                 <Button asChild><Link href="/admin/users"><Users /> Add Teacher</Link></Button>
                                 <Button asChild><Link href="/admin/announcements"><Megaphone /> Post Announcement</Link></Button>
-                                <Button variant="secondary" asChild><Link href="/admin/subjects"><Shapes/>Manage Classes</Link></Button>
-                                <Button variant="secondary" asChild><Link href="/admin/fees"><CircleDollarSign/>Manage Fees</Link></Button>
+                                <Button asChild variant="secondary"><Link href="/admin/subjects"><Shapes/>Manage Classes</Link></Button>
+                                <Button asChild variant="secondary"><Link href="/admin/fees"><CircleDollarSign/>Manage Fees</Link></Button>
                            </div>
                         </CardContent>
                     </Card>
@@ -141,7 +141,9 @@ export default function AdminDashboard() {
             <CalendarWidget />
          </div>
           <div className="lg:col-span-2 space-y-8">
-            <FinanceSnapshot />
+            <Link href="/admin/fees">
+                <FinanceSnapshot />
+            </Link>
             <PerformanceSnapshot />
           </div>
       </div>
