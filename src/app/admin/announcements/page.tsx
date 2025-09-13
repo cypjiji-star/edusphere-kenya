@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive, Tag } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive, Tag, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -30,6 +30,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { translateText } from '@/ai/flows/translate-text';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -86,6 +87,7 @@ export default function AdminAnnouncementsPage() {
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
   const [pastAnnouncements, setPastAnnouncements] = React.useState(initialAnnouncements);
+  const [isTranslating, setIsTranslating] = React.useState(false);
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -95,12 +97,35 @@ export default function AdminAnnouncementsPage() {
   });
   const { toast } = useToast();
 
-  const handleTranslate = () => {
-    toast({
-        title: 'AI Translation Enabled',
-        description: 'This is a placeholder for AI translation. In a real app, this would translate the message content.',
-    });
-  }
+  const handleTranslate = async () => {
+    const message = form.getValues('message');
+    if (!message) {
+      toast({
+        variant: 'destructive',
+        title: 'No Message to Translate',
+        description: 'Please type a message before using the AI translation.',
+      });
+      return;
+    }
+    
+    setIsTranslating(true);
+    const result = await translateText({ text: message, targetLanguage: 'Swahili' });
+    setIsTranslating(false);
+    
+    if (result.success && result.data) {
+      form.setValue('message', result.data.translatedText);
+      toast({
+        title: 'Translation Complete',
+        description: 'The message has been translated to Swahili.',
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Translation Failed',
+        description: result.error || 'The AI could not translate the message.',
+      });
+    }
+  };
 
   function onSubmit(values: AnnouncementFormValues) {
     const newAnnouncement = {
@@ -145,8 +170,8 @@ export default function AdminAnnouncementsPage() {
                             <FormItem>
                                 <div className="flex items-center justify-between">
                                     <FormLabel>Message</FormLabel>
-                                    <Button type="button" variant="outline" size="sm" onClick={handleTranslate}>
-                                    <Languages className="mr-2 h-4 w-4" />
+                                    <Button type="button" variant="outline" size="sm" onClick={handleTranslate} disabled={isTranslating}>
+                                    {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
                                     Translate with AI
                                     </Button>
                                 </div>
@@ -364,6 +389,3 @@ export default function AdminAnnouncementsPage() {
     </div>
   );
 }
-
-
-    
