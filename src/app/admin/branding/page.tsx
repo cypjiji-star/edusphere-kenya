@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw, Type, History, Loader2 } from 'lucide-react';
+import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw, Type, History, Loader2, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -386,3 +386,5 @@ export default function BrandingPage() {
     </div>
   );
 }
+
+    
