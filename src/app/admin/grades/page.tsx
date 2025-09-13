@@ -147,12 +147,14 @@ const gradingScale = [
 export default function AdminGradesPage() {
     const [clientReady, setClientReady] = React.useState(false);
     const [date, setDate] = React.useState<DateRange | undefined>();
+    const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
 
     React.useEffect(() => {
         setClientReady(true);
     }, []);
 
     return (
+        <Dialog onOpenChange={(open) => !open && setSelectedExam(null)}>
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="mb-6">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -316,7 +318,9 @@ export default function AdminGradesPage() {
                                                     <Badge className={`${statusColors[exam.status]} text-white`}>{exam.status}</Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="ghost" size="sm">View Details</Button>
+                                                     <DialogTrigger asChild>
+                                                        <Button variant="ghost" size="sm" onClick={() => setSelectedExam(exam)}>View Details</Button>
+                                                     </DialogTrigger>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -486,4 +490,39 @@ export default function AdminGradesPage() {
                 </TabsContent>
             </Tabs>
         </div>
+        {selectedExam && (
+            <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>{selectedExam.title}</DialogTitle>
+                    <DialogDescription>Details for the selected examination period.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="font-semibold">Term</p>
+                            <p className="text-muted-foreground">{selectedExam.term}</p>
+                        </div>
+                         <div>
+                            <p className="font-semibold">Status</p>
+                            <Badge className={`${statusColors[selectedExam.status]} text-white`}>{selectedExam.status}</Badge>
+                        </div>
+                    </div>
+                     <div>
+                        <p className="font-semibold">Date Range</p>
+                        <p className="text-muted-foreground">{clientReady && `${new Date(selectedExam.startDate).toLocaleDateString()} - ${new Date(selectedExam.endDate).toLocaleDateString()}`}</p>
+                    </div>
+                     <div>
+                        <p className="font-semibold">Applicable To</p>
+                        <p className="text-muted-foreground">{selectedExam.classes}</p>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Close</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        )}
+        </Dialog>
     );
+}
