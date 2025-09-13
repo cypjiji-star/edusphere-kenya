@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
-import { PageLoader } from '@/components/ui/page-loader';
-import { Suspense } from 'react';
+import { ClientPageLoader } from '@/components/ui/client-page-loader';
 
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
@@ -23,9 +22,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <Suspense>
-            <PageLoader />
-        </Suspense>
+        <ClientPageLoader />
         {children}
         <Toaster />
       </body>
