@@ -23,6 +23,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 
 const recentChanges = [
     { user: 'Admin User', change: 'Enabled self-registration for parents.', date: '2024-07-28 10:05 AM' },
@@ -243,19 +245,59 @@ export default function SettingsPage() {
                     </div>
                 </CardContent>
             </Card>
-
+            
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Notifications &amp; Alerts</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Automated Communication</CardTitle>
                     <CardDescription>Manage automated notifications for key system events.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                        <div>
-                            <Label htmlFor="fee-alerts" className="font-semibold">Overdue Fee Reminders</Label>
-                            <p className="text-xs text-muted-foreground">Automatically notify parents about outstanding fee balances.</p>
+                    <div className="space-y-4 p-3 rounded-lg border">
+                        <div className="flex items-center justify-between space-x-2">
+                             <div>
+                                <Label htmlFor="fee-alerts" className="font-semibold">Automated Fee Reminders</Label>
+                                <p className="text-xs text-muted-foreground">Automatically notify parents about outstanding fee balances.</p>
+                            </div>
+                            <Switch id="fee-alerts" />
                         </div>
-                        <Switch id="fee-alerts" checked disabled />
+                        <Separator/>
+                        <div className="space-y-4 pl-2">
+                             <div className="grid w-full max-w-sm items-center gap-1.5">
+                                <Label htmlFor="reminder-schedule">Sending Schedule</Label>
+                                <div className="flex gap-2">
+                                     <Select defaultValue="weekly">
+                                        <SelectTrigger className="w-[120px]">
+                                            <SelectValue/>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="daily">Daily</SelectItem>
+                                            <SelectItem value="weekly">Weekly</SelectItem>
+                                        </SelectContent>
+                                     </Select>
+                                     <Select defaultValue="monday">
+                                        <SelectTrigger className="w-[120px]">
+                                            <SelectValue/>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="monday">on Mondays</SelectItem>
+                                            <SelectItem value="friday">on Fridays</SelectItem>
+                                        </SelectContent>
+                                     </Select>
+                                </div>
+                            </div>
+                             <div className="grid w-full max-w-xs items-center gap-1.5">
+                                <Label htmlFor="reminder-threshold">Send for balances overdue by</Label>
+                                <div className="flex items-center gap-2">
+                                <Input type="number" id="reminder-threshold" defaultValue={7} className="w-20" />
+                                <span>days or more.</span>
+                                </div>
+                            </div>
+                            <div className="grid w-full items-center gap-1.5">
+                                <Label htmlFor="reminder-message">Reminder Message Template</Label>
+                                <Textarea id="reminder-message" placeholder="Customize the message sent to parents." defaultValue="Dear Parent, this is a friendly reminder that a fee balance of {balance} for {studentName} is overdue. Please make a payment at your earliest convenience."/>
+                                <p className="text-xs text-muted-foreground">Use placeholders like `'{'{studentName}'}'`, `'{'{balance}'}'`, and `'{'{dueDate}'}'`.</p>
+                            </div>
+                        </div>
                     </div>
                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
@@ -270,26 +312,6 @@ export default function SettingsPage() {
                             <p className="text-xs text-muted-foreground">Alerts for storage limits, failed payments, etc.</p>
                         </div>
                         <Switch id="system-alerts" checked disabled />
-                    </div>
-                    <Separator/>
-                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                        <div>
-                            <Label className="font-semibold">Custom Alert Triggers</Label>
-                            <p className="text-xs text-muted-foreground">Get notified for specific events like large financial adjustments or role changes.</p>
-                        </div>
-                        <Button variant="secondary" disabled>
-                            Configure Alert Triggers
-                        </Button>
-                    </div>
-                    <Separator/>
-                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                        <div>
-                            <Label className="font-semibold">Escalation Policy</Label>
-                            <p className="text-xs text-muted-foreground">Automatically escalate unresolved tickets and notify relevant personnel.</p>
-                        </div>
-                        <Button variant="secondary" disabled>
-                            Configure Escalation Rules
-                        </Button>
                     </div>
                     <Separator/>
                      <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
@@ -452,7 +474,4 @@ export default function SettingsPage() {
        </div>
     </div>
   );
-
-  
-
-    
+}
