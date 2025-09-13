@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { format } from 'date-fns';
 
 
 const childrenData = [
@@ -87,6 +88,16 @@ const mockTimetable: Record<string, Record<string, { subject: string, teacher: {
 
 export default function ParentTimetablePage() {
     const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
+    const [clientReady, setClientReady] = React.useState(false);
+    
+    React.useEffect(() => {
+        setClientReady(true);
+    }, []);
+
+    // For demo purposes, we'll use Monday's data for "Today"
+    const today = "Monday";
+    const todaysLessons = clientReady ? Object.entries(mockTimetable[today] || {}).map(([time, lesson]) => ({ time, ...lesson })) : [];
+
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -129,7 +140,24 @@ export default function ParentTimetablePage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                     <div className="w-full overflow-auto rounded-lg border">
+                     {/* Mobile View */}
+                    <div className="md:hidden space-y-4">
+                        <h2 className="font-bold text-lg">Today's Lessons ({clientReady ? format(new Date(), 'EEEE') : ''})</h2>
+                        {todaysLessons.length > 0 ? todaysLessons.map(lesson => (
+                            <Card key={lesson.time} className="bg-muted/30">
+                                <CardContent className="p-4">
+                                    <p className="font-bold">{lesson.subject}</p>
+                                    <p className="text-sm text-muted-foreground">{lesson.time}</p>
+                                    <p className="text-sm text-muted-foreground">Teacher: {lesson.teacher.name}</p>
+                                    <p className="text-sm text-muted-foreground">Room: {lesson.room}</p>
+                                </CardContent>
+                            </Card>
+                        )) : (
+                            <p className="text-muted-foreground">No lessons scheduled for today.</p>
+                        )}
+                    </div>
+                     {/* Desktop View */}
+                     <div className="w-full overflow-auto rounded-lg border hidden md:block">
                         <Table className="min-w-[800px]">
                             <TableHeader>
                                 <TableRow>
