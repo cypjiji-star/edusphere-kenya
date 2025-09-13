@@ -49,6 +49,8 @@ import {
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { Calendar } from '@/components/ui/calendar';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 type CalendarView = 'month' | 'week' | 'day';
@@ -208,10 +210,36 @@ export function FullCalendar() {
   };
 
   const handleExport = (type: 'PDF' | 'iCal') => {
-    toast({
-      title: `Exporting Calendar as ${type}`,
-      description: `Your calendar is being prepared for export.`,
-    });
+    if (type === 'PDF') {
+      const doc = new jsPDF();
+      doc.text("School Calendar Events", 14, 16);
+      
+      const tableData = events.map(event => [
+        format(event.date, 'PPP'),
+        event.title,
+        event.type,
+        event.startTime ? `${event.startTime} - ${event.endTime}` : 'All Day',
+        event.location || 'N/A',
+      ]);
+
+      (doc as any).autoTable({
+          startY: 22,
+          head: [['Date', 'Title', 'Type', 'Time', 'Location']],
+          body: tableData,
+      });
+      
+      doc.save("school-calendar.pdf");
+
+      toast({
+          title: 'Export Successful',
+          description: 'Your calendar has been downloaded as a PDF.',
+      });
+    } else {
+        toast({
+            title: `Exporting Calendar as ${type}`,
+            description: `Your calendar is being prepared for export. This feature is coming soon.`,
+        });
+    }
   };
 
   const handleDeleteEvent = async (eventId: string) => {
