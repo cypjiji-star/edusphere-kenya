@@ -90,8 +90,9 @@ const mockUsers: User[] = [
 
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended', 'Transferred', 'Graduated'];
 const roles: UserRole[] = ['Admin', 'Teacher', 'Student', 'Parent'];
-const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
+const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1', 'Alumni'];
 const relationships: ParentRelationship[] = ['Father', 'Mother', 'Guardian'];
+const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i).toString());
 
 const getStatusBadge = (status: UserStatus) => {
     switch (status) {
@@ -106,6 +107,8 @@ const getStatusBadge = (status: UserStatus) => {
 export default function UserManagementPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'All Statuses'>('All Statuses');
+    const [classFilter, setClassFilter] = React.useState('All Classes');
+    const [yearFilter, setYearFilter] = React.useState('All Years');
     const [clientReady, setClientReady] = React.useState(false);
     
     React.useEffect(() => {
@@ -121,8 +124,10 @@ export default function UserManagementPage() {
 
             const matchesRole = roleFilter === 'All' || user.role === roleFilter;
             const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
+            const matchesClass = classFilter === 'All Classes' || user.class === classFilter;
+            const matchesYear = yearFilter === 'All Years' || new Date(user.createdAt).getFullYear().toString() === yearFilter;
 
-            return matchesSearch && matchesRole && matchesStatus;
+            return matchesSearch && matchesRole && matchesStatus && (roleFilter !== 'Student' || (matchesClass && matchesYear));
         });
 
         return (
@@ -216,16 +221,29 @@ export default function UserManagementPage() {
                                                         </div>
                                                         {user.role === 'Student' && (
                                                             <>
-                                                            <div className="space-y-2">
-                                                                <Label htmlFor="class">Class</Label>
-                                                                <Select defaultValue={user.class}>
-                                                                    <SelectTrigger id="class">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                                                    </SelectContent>
-                                                                </Select>
+                                                            <div className="grid grid-cols-2 gap-4">
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="class">Class</Label>
+                                                                    <Select defaultValue={user.class}>
+                                                                        <SelectTrigger id="class">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {classes.filter(c => c !== 'All Classes').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                                 <div className="space-y-2">
+                                                                    <Label htmlFor="admission-year">Year of Admission</Label>
+                                                                    <Select defaultValue={new Date(user.createdAt).getFullYear().toString()}>
+                                                                        <SelectTrigger id="admission-year">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
                                                             </div>
                                                             <Separator />
                                                             <div className="space-y-4">
@@ -321,7 +339,7 @@ export default function UserManagementPage() {
                 </div>
                  <CardFooter className="px-0 pt-6">
                     <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredUsers.length}</strong> of <strong>{mockUsers.length}</strong> total users.
+                        Showing <strong>{filteredUsers.length}</strong> of <strong>{mockUsers.filter(u => roleFilter === 'All' || u.role === roleFilter).length}</strong> users.
                     </div>
                 </CardFooter>
             </>
@@ -440,13 +458,30 @@ export default function UserManagementPage() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap">
                              <Select value={statusFilter} onValueChange={(v: UserStatus | 'All Statuses') => setStatusFilter(v)}>
-                                <SelectTrigger className="w-full md:w-[180px]">
+                                <SelectTrigger className="w-full md:w-[150px]">
                                     <SelectValue placeholder="Filter by status" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                </SelectContent>
+                             </Select>
+                              <Select value={classFilter} onValueChange={setClassFilter}>
+                                <SelectTrigger className="w-full md:w-[150px]">
+                                    <SelectValue placeholder="Filter by class" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                             </Select>
+                             <Select value={yearFilter} onValueChange={setYearFilter}>
+                                <SelectTrigger className="w-full md:w-[150px]">
+                                    <SelectValue placeholder="Filter by year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                     <SelectItem value="All Years">All Years</SelectItem>
+                                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                                 </SelectContent>
                              </Select>
                         </div>
@@ -482,5 +517,3 @@ export default function UserManagementPage() {
         </div>
     );
 }
-
-    
