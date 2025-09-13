@@ -123,6 +123,13 @@ export default function UserManagementPage() {
             description: 'A new user account has been created and an invitation has been sent.',
         });
     };
+    
+    const handleExport = (type: string) => {
+        toast({
+            title: 'Exporting Users',
+            description: `The user list is being exported as a ${type} file.`,
+        });
+    };
 
     const renderUserTable = (roleFilter: UserRole | 'All') => {
         const filteredUsers = mockUsers.filter(user => {
@@ -418,37 +425,83 @@ export default function UserManagementPage() {
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline">
-                                        Bulk Actions
-                                        <ChevronDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem>
-                                        <FileDown className="mr-2 h-4 w-4" />
-                                        Export All Users (CSV)
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem disabled>
-                                        <FileDown className="mr-2 h-4 w-4" />
-                                        Export Student List by Class (PDF)
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem disabled>
-                                        <FileDown className="mr-2 h-4 w-4" />
-                                        Export Teacher List (PDF)
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem disabled>
-                                        <FileText className="mr-2 h-4 w-4" />
-                                        Print Student ID Cards (PDF)
-                                    </DropdownMenuItem>
-                                     <DropdownMenuItem disabled>
-                                        <FileText className="mr-2 h-4 w-4" />
-                                        Print Teacher ID Cards (PDF)
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                             <Dialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline">
+                                            Bulk Actions
+                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DialogTrigger asChild>
+                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Import from CSV/Excel...
+                                            </DropdownMenuItem>
+                                        </DialogTrigger>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleExport('CSV')}>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export All Users (CSV)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExport('PDF')}>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export Student List (PDF)
+                                        </DropdownMenuItem>
+                                         <DropdownMenuItem onClick={() => handleExport('PDF')}>
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export Teacher List (PDF)
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <DialogContent className="sm:max-w-xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Import Users from CSV/Excel</DialogTitle>
+                                        <DialogDescription>Upload a file to bulk create new user accounts.</DialogDescription>
+                                    </DialogHeader>
+                                     <div className="grid gap-6 py-4">
+                                        <div className="space-y-2">
+                                            <Label>Step 1: Upload File</Label>
+                                            <div className="flex items-center justify-center w-full">
+                                                <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                        <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                        <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                                        <p className="text-xs text-muted-foreground">CSV or Excel (up to 2MB)</p>
+                                                    </div>
+                                                    <Input id="dropzone-file-bulk" type="file" className="hidden" />
+                                                </Label>
+                                            </div>
+                                        </div>
+                                         <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                                <Columns className="h-5 w-5 text-primary" />
+                                                <h4 className="font-medium">Step 2: Map Columns</h4>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground">Match columns from your file to the required fields.</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                    <Label>Full Name</Label>
+                                                    <Select><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                </div>
+                                                <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                    <Label>Email</Label>
+                                                    <Select><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                </div>
+                                                <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                    <Label>Role</Label>
+                                                    <Select><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <Button disabled>Process File</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </div>
                      <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
