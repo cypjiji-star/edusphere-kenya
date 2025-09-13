@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip } from 'lucide-react';
+import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip, Loader2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -47,8 +47,11 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormDescription } from '@/components/ui/form';
-import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
+import { firestore, storage } from '@/lib/firebase';
+import { collection, query, onSnapshot, Timestamp, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useToast } from '@/hooks/use-toast';
+
 
 type ExpenseStatus = 'Paid' | 'Pending Approval' | 'Reimbursed' | 'Declined';
 
@@ -63,6 +66,7 @@ type Expense = {
     status: ExpenseStatus;
     submittedBy: string;
     hasAttachment?: boolean;
+    attachmentUrl?: string;
 };
 
 const categories: ExpenseCategory[] = ['Utilities', 'Supplies', 'Maintenance', 'Salaries', 'Marketing', 'Transport', 'Stationery'];
@@ -88,8 +92,19 @@ export default function ExpensesPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [categoryFilter, setCategoryFilter] = React.useState('All Categories');
     const [statusFilter, setStatusFilter] = React.useState('All Statuses');
-    const [date, setDate] = React.useState<Date | undefined>(new Date());
     const [clientReady, setClientReady] = React.useState(false);
+    
+    // State for the new expense dialog
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [isAddExpenseOpen, setIsAddExpenseOpen] = React.useState(false);
+    const [newExpenseCategory, setNewExpenseCategory] = React.useState<ExpenseCategory | undefined>();
+    const [newExpenseAmount, setNewExpenseAmount] = React.useState('');
+    const [newExpenseDate, setNewExpenseDate] = React.useState<Date | undefined>(new Date());
+    const [newExpenseVendor, setNewExpenseVendor] = React.useState('');
+    const [newExpenseDescription, setNewExpenseDescription] = React.useState('');
+    const [newExpenseAttachment, setNewExpenseAttachment] = React.useState<File | null>(null);
+
+    const { toast } = useToast();
     const form = useForm();
 
      React.useEffect(() => {
@@ -109,6 +124,60 @@ export default function ExpensesPage() {
         return matchesSearch && matchesCategory && matchesStatus;
     });
 
+    const resetNewExpenseForm = () => {
+        setNewExpenseCategory(undefined);
+        setNewExpenseAmount('');
+        setNewExpenseDate(new Date());
+        setNewExpenseVendor('');
+        setNewExpenseDescription('');
+        setNewExpenseAttachment(null);
+    };
+
+    const handleSaveExpense = async () => {
+        if (!newExpenseCategory || !newExpenseAmount || !newExpenseDate || !newExpenseDescription) {
+            toast({ title: "Missing Information", description: "Please fill out all required fields.", variant: "destructive" });
+            return;
+        }
+
+        setIsSubmitting(true);
+        let attachmentUrl = '';
+        let hasAttachment = false;
+
+        try {
+            if (newExpenseAttachment) {
+                const storageRef = ref(storage, `expense-receipts/${newExpenseAttachment.name}_${Date.now()}`);
+                const snapshot = await uploadBytes(storageRef, newExpenseAttachment);
+                attachmentUrl = await getDownloadURL(snapshot.ref);
+                hasAttachment = true;
+            }
+
+            const expenseData = {
+                category: newExpenseCategory,
+                amount: Number(newExpenseAmount),
+                date: Timestamp.fromDate(newExpenseDate),
+                vendor: newExpenseVendor,
+                description: newExpenseDescription,
+                submittedBy: 'Admin User',
+                status: 'Pending Approval' as ExpenseStatus,
+                createdAt: serverTimestamp(),
+                hasAttachment,
+                attachmentUrl,
+            };
+
+            await addDoc(collection(firestore, 'expenses'), expenseData);
+
+            toast({ title: "Expense Saved", description: "Your new expense has been logged for approval." });
+            resetNewExpenseForm();
+            setIsAddExpenseOpen(false);
+
+        } catch (error) {
+            console.error("Error saving expense:", error);
+            toast({ title: "Error", description: "Could not save the expense. Please try again.", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
     const dashboardStats = React.useMemo(() => {
         const thisMonth = new Date().getMonth();
         const thisYear = new Date().getFullYear();
@@ -199,7 +268,7 @@ export default function ExpensesPage() {
                             <CardDescription>A detailed log of all expenses recorded in the system.</CardDescription>
                         </div>
                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                            <Dialog>
+                            <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
                                 <DialogTrigger asChild>
                                     <Button>
                                         <PlusCircle className="mr-2 h-4 w-4"/>
@@ -207,92 +276,89 @@ export default function ExpensesPage() {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-xl">
-                                    <Form {...form}>
-                                        <DialogHeader>
-                                            <DialogTitle>Log New Expense</DialogTitle>
-                                            <DialogDescription>
-                                                Record a new school expenditure or a request for reimbursement.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="grid gap-6 py-4">
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="exp-category">Category</Label>
-                                                    <Select>
-                                                        <SelectTrigger id="exp-category">
-                                                            <SelectValue placeholder="Select a category" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="exp-amount">Amount (KES)</Label>
-                                                    <Input id="exp-amount" type="number" placeholder="e.g., 5000" />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="exp-date">Date of Expense</Label>
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                        <Button
-                                                            variant={"outline"}
-                                                            className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
-                                                        >
-                                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {date ? format(date, "PPP") : <span>Pick a date</span>}
-                                                        </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0">
-                                                            <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="exp-vendor">Vendor / Payee</Label>
-                                                    <Input id="exp-vendor" placeholder="e.g., KPLC, Text Book Centre" />
-                                                </div>
+                                    <DialogHeader>
+                                        <DialogTitle>Log New Expense</DialogTitle>
+                                        <DialogDescription>
+                                            Record a new school expenditure or a request for reimbursement.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-6 py-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="exp-category">Category</Label>
+                                                <Select value={newExpenseCategory} onValueChange={(v: ExpenseCategory) => setNewExpenseCategory(v)}>
+                                                    <SelectTrigger id="exp-category">
+                                                        <SelectValue placeholder="Select a category" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="exp-desc">Description (Notes)</Label>
-                                                <Textarea id="exp-desc" placeholder="Provide a brief description of the expense..." />
-                                            </div>
-                                            <Separator/>
-                                            <div className="space-y-4">
-                                                <Label>Attach Receipt / Invoice</Label>
-                                                <div className="flex items-center justify-center w-full">
-                                                    <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                                            <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                                            <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                                                            <p className="text-xs text-muted-foreground">(PDF, JPG, PNG)</p>
-                                                        </div>
-                                                        <Input id="dropzone-file" type="file" className="hidden" />
-                                                    </Label>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">You can attach supporting documents like receipts or invoices.</p>
-                                            </div>
-                                            <Separator/>
-                                            <div className="space-y-2">
-                                                <div className="flex items-center space-x-2">
-                                                    <Switch id="recurring-expense" />
-                                                    <Label htmlFor="recurring-expense" className="flex items-center gap-2">
-                                                        <Repeat className="h-4 w-4" />
-                                                        This is a recurring expense
-                                                    </Label>
-                                                </div>
-                                                <FormDescription>
-                                                    Set up automated generation for monthly or termly expenses. (Coming soon)
-                                                </FormDescription>
+                                                <Label htmlFor="exp-amount">Amount (KES)</Label>
+                                                <Input id="exp-amount" type="number" placeholder="e.g., 5000" value={newExpenseAmount} onChange={(e) => setNewExpenseAmount(e.target.value)} />
                                             </div>
                                         </div>
-                                        <DialogFooter>
-                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                            <Button>Save Expense</Button>
-                                        </DialogFooter>
-                                    </Form>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="exp-date">Date of Expense</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn("w-full justify-start text-left font-normal", !newExpenseDate && "text-muted-foreground")}
+                                                    >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {newExpenseDate ? format(newExpenseDate, "PPP") : <span>Pick a date</span>}
+                                                    </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar mode="single" selected={newExpenseDate} onSelect={setNewExpenseDate} initialFocus />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="exp-vendor">Vendor / Payee</Label>
+                                                <Input id="exp-vendor" placeholder="e.g., KPLC, Text Book Centre" value={newExpenseVendor} onChange={(e) => setNewExpenseVendor(e.target.value)}/>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exp-desc">Description (Notes)</Label>
+                                            <Textarea id="exp-desc" placeholder="Provide a brief description of the expense..." value={newExpenseDescription} onChange={(e) => setNewExpenseDescription(e.target.value)} />
+                                        </div>
+                                        <Separator/>
+                                        <div className="space-y-2">
+                                            <Label>Attach Receipt / Invoice</Label>
+                                             {newExpenseAttachment ? (
+                                                <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                                    <div className="flex items-center gap-2 text-sm font-medium">
+                                                        <Paperclip className="h-5 w-5 text-primary" />
+                                                        <span className="truncate">{newExpenseAttachment.name}</span>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" onClick={() => setNewExpenseAttachment(null)} className="h-6 w-6">
+                                                        <X className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                        <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                        <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                                        <p className="text-xs text-muted-foreground">(PDF, JPG, PNG)</p>
+                                                    </div>
+                                                    <Input id="dropzone-file" type="file" className="hidden" onChange={(e) => setNewExpenseAttachment(e.target.files?.[0] || null)} />
+                                                </Label>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button variant="outline" onClick={() => setIsAddExpenseOpen(false)}>Cancel</Button>
+                                        <Button onClick={handleSaveExpense} disabled={isSubmitting}>
+                                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                            Save Expense
+                                        </Button>
+                                    </DialogFooter>
                                 </DialogContent>
                             </Dialog>
                             <DropdownMenu>
@@ -432,7 +498,11 @@ export default function ExpensesPage() {
                                         <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
                                         <TableCell className="font-medium flex items-center gap-2">
                                             {expense.description}
-                                            {expense.hasAttachment && <Paperclip className="h-4 w-4 text-muted-foreground" />}
+                                            {expense.hasAttachment && (
+                                                <a href={expense.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                                    <Paperclip className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                                </a>
+                                            )}
                                         </TableCell>
                                         <TableCell>{expense.submittedBy}</TableCell>
                                         <TableCell>{getStatusBadge(expense.status)}</TableCell>
