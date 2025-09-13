@@ -2,14 +2,28 @@
 'use client';
 
 import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { format } from 'date-fns';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import {
   Table,
   TableBody,
@@ -28,11 +42,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { HeartPulse, Search, Filter, ChevronDown, FileDown, AlertCircle, Users, Stethoscope, Pill, User, Phone, ShieldAlert, Lock, FileText } from 'lucide-react';
+import { HeartPulse, Search, Filter, ChevronDown, FileDown, AlertCircle, Users, Stethoscope, Pill, User, Phone, ShieldAlert, Lock, FileText, CalendarIcon, Siren, Send, Paperclip } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useToast } from '@/hooks/use-toast';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Other';
@@ -92,9 +112,48 @@ const getStatusBadge = (status: IncidentStatus) => {
     }
 }
 
+const incidentSchema = z.object({
+  studentId: z.string({ required_error: 'Please select a student.' }),
+  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Other']),
+  incidentDate: z.date({ required_error: 'An incident date is required.' }),
+  incidentTime: z.string().min(1, 'Time is required'),
+  description: z.string().min(20, 'Please provide a detailed description (at least 20 characters).'),
+  actionsTaken: z.string().min(10, 'Please describe the actions taken.'),
+  urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
+});
+
+type IncidentFormValues = z.infer<typeof incidentSchema>;
+
+const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
+    switch (urgency) {
+        case 'Critical': return 'bg-red-700 text-white';
+        case 'High': return 'bg-red-500 text-white';
+        case 'Medium': return 'bg-yellow-500 text-white';
+        case 'Low': return 'bg-blue-500 text-white';
+    }
+}
+
 export default function AdminHealthPage() {
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<keyof typeof studentHealthRecords | null>(null);
     const currentHealthRecord = selectedHealthStudent ? studentHealthRecords[selectedHealthStudent] : null;
+    const { toast } = useToast();
+    const form = useForm<IncidentFormValues>({
+        resolver: zodResolver(incidentSchema),
+        defaultValues: {
+            incidentType: 'Health',
+            incidentTime: format(new Date(), 'HH:mm'),
+            urgency: 'Low',
+        },
+    });
+
+    function onSubmit(values: IncidentFormValues) {
+        console.log(values);
+        toast({
+            title: 'Incident Reported',
+            description: 'The incident has been logged and relevant parties have been notified.',
+        });
+        form.reset();
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -107,8 +166,9 @@ export default function AdminHealthPage() {
             </div>
             
             <Tabs defaultValue="dashboard">
-                <TabsList className="mb-4 grid w-full grid-cols-4 md:w-auto md:inline-flex">
+                <TabsList className="mb-4 grid w-full grid-cols-5 md:w-auto md:inline-flex">
                     <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                    <TabsTrigger value="entry">New Entry</TabsTrigger>
                     <TabsTrigger value="log">Incident Log</TabsTrigger>
                     <TabsTrigger value="records">Health Records</TabsTrigger>
                     <TabsTrigger value="medication">Medication</TabsTrigger>
@@ -165,6 +225,203 @@ export default function AdminHealthPage() {
                         </CardContent>
                      </Card>
                 </TabsContent>
+                 <TabsContent value="entry">
+                    <Card className="mt-4">
+                        <CardHeader>
+                            <CardTitle>Log New Health Entry / Incident</CardTitle>
+                            <CardDescription>Use this form for new health reports, injuries, or other incidents.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                             <Form {...form}>
+                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-6">
+                                            <FormField
+                                                control={form.control}
+                                                name="studentId"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel>Student</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select a student" />
+                                                        </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                        {students.map((s) => (
+                                                            <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
+                                                        ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                             <FormField
+                                                control={form.control}
+                                                name="incidentType"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel>Type of Entry</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select a type" />
+                                                        </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="Health">Health Issue / Condition</SelectItem>
+                                                            <SelectItem value="Accident">Accident / Injury</SelectItem>
+                                                            <SelectItem value="Discipline">Disciplinary Note</SelectItem>
+                                                            <SelectItem value="Other">Other</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                             <div className="grid grid-cols-2 gap-4">
+                                                <FormField
+                                                    control={form.control}
+                                                    name="incidentDate"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-col">
+                                                        <FormLabel>Date of Report</FormLabel>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                                <Button
+                                                                variant={"outline"}
+                                                                className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}
+                                                                >
+                                                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </FormControl>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0" align="start">
+                                                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                        <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="incidentTime"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Time</FormLabel>
+                                                            <FormControl>
+                                                                <Input type="time" {...field} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <FormField
+                                                control={form.control}
+                                                name="urgency"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel>Urgency Level</FormLabel>
+                                                    <FormControl>
+                                                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4">
+                                                            {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                                <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                                    <FormControl>
+                                                                        <RadioGroupItem value={level} id={`urgency-admin-${level}`} />
+                                                                    </FormControl>
+                                                                    <FormLabel htmlFor={`urgency-admin-${level}`} className="font-normal">
+                                                                        <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                                    </FormLabel>
+                                                                </FormItem>
+                                                            ))}
+                                                        </RadioGroup>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                        <div className="space-y-6">
+                                            <FormField
+                                                control={form.control}
+                                                name="description"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Condition / Diagnosis / Details</FormLabel>
+                                                    <FormControl>
+                                                    <Textarea placeholder="Describe the condition, diagnosis, or incident..." className="min-h-[120px]" {...field}/>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name="actionsTaken"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Notes / Treatment Given</FormLabel>
+                                                    <FormControl>
+                                                    <Textarea placeholder="Record any notes, treatment given, or actions taken..." className="min-h-[120px]" {...field}/>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <div className="space-y-2">
+                                                <Label>Attach Medical Document</Label>
+                                                <div className="flex items-center justify-center w-full">
+                                                    <Label htmlFor="dropzone-file-admin" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                            <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                            <p className="mb-2 text-sm text-muted-foreground">Attach doctor's note, etc. (Optional)</p>
+                                                        </div>
+                                                        <Input id="dropzone-file-admin" type="file" className="hidden" disabled />
+                                                    </Label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <Separator className="my-8" />
+                                    <div className="space-y-4">
+                                        <Alert>
+                                            <Siren className="h-4 w-4" />
+                                            <AlertTitle>Follow-up & Notifications</AlertTitle>
+                                            <AlertDescription>
+                                                Assign a staff member for follow-up or send immediate notifications.
+                                            </AlertDescription>
+                                        </Alert>
+                                         <div className="space-y-2">
+                                            <Label>Assign for Follow-up (Optional)</Label>
+                                            <Select>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a teacher or nurse..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="nurse">School Nurse</SelectItem>
+                                                    <SelectItem value="teacher1">Ms. Wanjiku</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end pt-8">
+                                        <Button type="submit">
+                                            <Send className="mr-2 h-4 w-4" />
+                                            Save Record
+                                        </Button>
+                                    </div>
+                                </form>
+                            </Form>
+                        </CardContent>
+                    </Card>
+                 </TabsContent>
                 <TabsContent value="log">
                      <Card>
                         <CardHeader>
