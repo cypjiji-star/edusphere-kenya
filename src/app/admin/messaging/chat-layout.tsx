@@ -133,7 +133,7 @@ const newContactOptions = [
 
 export function AdminChatLayout() {
   const [conversations, setConversations] = React.useState(initialConversations);
-  const [selectedConvo, setSelectedConvo] = React.useState(conversations[0]);
+  const [selectedConvo, setSelectedConvo] = React.useState(conversations.length > 0 ? conversations[0] : null);
   const [message, setMessage] = React.useState("");
   const [messages, setMessages] = React.useState(initialMessages);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -227,6 +227,37 @@ export function AdminChatLayout() {
         setIsTranslating(false);
     }
   };
+
+  const handleArchive = () => {
+    if (!selectedConvo) return;
+
+    setConversations(prev => {
+        const newConversations = prev.filter(c => c.id !== selectedConvo.id);
+        setSelectedConvo(newConversations.length > 0 ? newConversations[0] : null);
+        return newConversations;
+    });
+
+    toast({
+        title: 'Conversation Archived',
+    });
+  }
+
+  const handleDelete = () => {
+    if (!selectedConvo) return;
+    
+    handleArchive(); // Same logic as archiving for now, but also deletes messages
+    
+    setMessages(prev => {
+        const newMessages = { ...prev };
+        delete newMessages[selectedConvo.id];
+        return newMessages;
+    });
+
+     toast({
+        title: 'Conversation Deleted',
+        variant: 'destructive',
+    });
+  }
 
   const filteredConversations = conversations.filter(convo => 
     convo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -331,11 +362,11 @@ export function AdminChatLayout() {
                     <p className="font-semibold">{selectedConvo.name}</p>
                 </div>
                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" disabled>
+                    <Button variant="ghost" size="icon" onClick={handleArchive}>
                         <Archive className="h-5 w-5 text-muted-foreground" />
                     </Button>
-                    <Button variant="ghost" size="icon" disabled>
-                        <Trash2 className="h-5 w-5 text-muted-foreground" />
+                    <Button variant="ghost" size="icon" onClick={handleDelete}>
+                        <Trash2 className="h-5 w-5 text-destructive" />
                     </Button>
                 </div>
               </div>
