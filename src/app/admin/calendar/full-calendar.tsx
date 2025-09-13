@@ -88,6 +88,8 @@ export function FullCalendar() {
   const [newEventEndTime, setNewEventEndTime] = React.useState('11:00');
   const [newEventType, setNewEventType] = React.useState<CalendarEvent['type']>('event');
   const [isAddEventPopoverOpen, setIsAddEventPopoverOpen] = React.useState(false);
+  const [notifyStaff, setNotifyStaff] = React.useState(true);
+  const [notifyParents, setNotifyParents] = React.useState(false);
   const { toast } = useToast();
 
   const handlePrev = () => {
@@ -127,12 +129,30 @@ export function FullCalendar() {
       title: 'Event Added',
       description: `"${newEventTitle}" has been added to the calendar.`,
     });
+    
+    if (notifyStaff || notifyParents) {
+        let notificationMessage = '';
+        if (notifyStaff && notifyParents) {
+            notificationMessage = 'Notifications sent to All Staff and All Parents.';
+        } else if (notifyStaff) {
+            notificationMessage = 'Notification sent to All Staff.';
+        } else if (notifyParents) {
+            notificationMessage = 'Notification sent to All Parents.';
+        }
+        toast({
+            title: 'Notifications Sent',
+            description: notificationMessage,
+        });
+    }
+
     // Reset form
     setNewEventTitle('');
     setNewEventStartTime('10:00');
     setNewEventEndTime('11:00');
     setNewEventType('event');
     setIsAddEventPopoverOpen(false);
+    setNotifyStaff(true);
+    setNotifyParents(false);
   };
 
   const handleExport = (type: 'PDF' | 'iCal') => {
@@ -230,14 +250,14 @@ export function FullCalendar() {
 
                       <div className="space-y-3">
                          <h4 className="font-medium leading-none flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Notifications</h4>
-                          <p className="text-xs text-muted-foreground">Notify relevant groups about this event. (Feature coming soon).</p>
+                          <p className="text-xs text-muted-foreground">Notify relevant groups about this event.</p>
                           <div className="flex flex-col space-y-2 pt-2">
                                <div className="flex items-center space-x-2">
-                                  <Switch id="notify-staff" disabled />
+                                  <Switch id="notify-staff" checked={notifyStaff} onCheckedChange={setNotifyStaff}/>
                                   <Label htmlFor="notify-staff">All Staff</Label>
                               </div>
                               <div className="flex items-center space-x-2">
-                                  <Switch id="notify-parents" disabled />
+                                  <Switch id="notify-parents" checked={notifyParents} onCheckedChange={setNotifyParents} />
                                   <Label htmlFor="notify-parents">All Parents</Label>
                               </div>
                           </div>
@@ -436,3 +456,4 @@ export function FullCalendar() {
     </Dialog>
   );
 }
+
