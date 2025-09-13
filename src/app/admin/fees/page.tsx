@@ -344,6 +344,20 @@ export default function FeesPage() {
             description: 'New invoices have been created for the selected students.',
         });
     }
+    
+    const handleSaveCategory = () => {
+        toast({
+            title: 'Fee Category Saved',
+            description: 'The new fee category has been added to the fee structure.',
+        });
+    };
+
+    const handleSaveDiscount = () => {
+        toast({
+            title: 'Discount Saved',
+            description: 'The new discount has been added and can be applied to student accounts.',
+        });
+    };
 
     return (
         <Dialog>
@@ -493,7 +507,9 @@ export default function FeesPage() {
                                             </div>
                                             <DialogFooter>
                                                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                <Button disabled>Save Category</Button>
+                                                <DialogClose asChild>
+                                                    <Button onClick={handleSaveCategory}>Save Category</Button>
+                                                </DialogClose>
                                             </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
@@ -581,7 +597,9 @@ export default function FeesPage() {
                                                 </div>
                                                 <DialogFooter>
                                                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                    <Button disabled>Save Discount</Button>
+                                                    <DialogClose asChild>
+                                                        <Button onClick={handleSaveDiscount}>Save Discount</Button>
+                                                    </DialogClose>
                                                 </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
@@ -797,5 +815,7 @@ export default function FeesPage() {
         </Dialog>
     );
 }
+
+    
 
     
