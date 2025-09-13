@@ -1,13 +1,11 @@
-
 'use client';
 
 import * as React from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { format } from 'date-fns';
 import {
-  gradeEntrySchema,
-  GradeEntryFormValues,
   saveGradesAction,
 } from '../actions';
 
@@ -50,6 +48,21 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+
+const studentGradeSchema = z.object({
+  studentId: z.string(),
+  grade: z.string().min(1, { message: "Grade is required" }),
+});
+
+export const gradeEntrySchema = z.object({
+  classId: z.string({ required_error: 'Please select a class.' }),
+  assessmentTitle: z.string().min(3, 'Assessment title must be at least 3 characters.'),
+  assessmentType: z.enum(['Exam', 'Quiz', 'Assignment', 'Project']),
+  assessmentDate: z.date({ required_error: 'An assessment date is required.' }),
+  grades: z.array(studentGradeSchema),
+});
+
+export type GradeEntryFormValues = z.infer<typeof gradeEntrySchema>;
 
 // Mock Data
 const studentsByClass: Record<string, { id: string; name: string; avatarUrl: string }[]> = {
