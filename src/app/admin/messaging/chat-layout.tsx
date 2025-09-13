@@ -80,7 +80,9 @@ const conversations = [
   },
 ];
 
-const messages: Record<string, { sender: 'me' | 'other'; text: string; timestamp: string; read?: boolean; senderName?: string; }[]> = {
+type Message = { sender: 'me' | 'other'; text: string; timestamp: string; read?: boolean; senderName?: string; };
+
+const initialMessages: Record<string, Message[]> = {
     'msg-1': [
         { sender: 'other', text: "The budget proposal for Term 3 has been approved. Please review the attached document.", timestamp: '10:30 AM' },
         { sender: 'me', text: "Excellent news. I will review it and get back to you by end of day.", timestamp: '10:31 AM', read: true },
@@ -98,12 +100,34 @@ const messages: Record<string, { sender: 'me' | 'other'; text: string; timestamp
     'msg-5': [
         { sender: 'other', text: 'Good morning, I have a question about the fee structure for next term.', timestamp: '2 days ago' },
     ]
-}
+};
 
 
 export function AdminChatLayout() {
   const [selectedConvo, setSelectedConvo] = React.useState(conversations[0]);
   const [message, setMessage] = React.useState("");
+  const [messages, setMessages] = React.useState(initialMessages);
+
+  const handleSendMessage = () => {
+    if (message.trim() === '' || !selectedConvo) return;
+    
+    const newMessage: Message = {
+      sender: 'me',
+      text: message,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      read: false,
+    };
+
+    setMessages(prev => {
+        const currentConvoMessages = prev[selectedConvo.id] || [];
+        return {
+            ...prev,
+            [selectedConvo.id]: [...currentConvoMessages, newMessage]
+        };
+    });
+
+    setMessage('');
+  };
 
   return (
     <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden">
@@ -171,7 +195,7 @@ export function AdminChatLayout() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {(messages[selectedConvo.id as keyof typeof messages] || []).map((msg, index) => (
+                {(messages[selectedConvo.id] || []).map((msg, index) => (
                     <div key={index} className={cn(
                         "flex items-end gap-2",
                         msg.sender === 'me' ? 'justify-end' : 'justify-start'
@@ -203,7 +227,7 @@ export function AdminChatLayout() {
                      onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        // handle send message
+                        handleSendMessage();
                       }
                     }}
                   />
@@ -226,7 +250,8 @@ export function AdminChatLayout() {
                     </TooltipProvider>
                     <Button
                         size="icon"
-                        disabled={!message}
+                        disabled={!message.trim()}
+                        onClick={handleSendMessage}
                     >
                         <Send className="h-5 w-5" />
                     </Button>
