@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon } from 'lucide-react';
+import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -34,9 +34,9 @@ const ColorPicker = ({ label, color, setColor }: { label: string, color: string,
 
 
 export default function BrandingPage() {
-    const [primaryColor, setPrimaryColor] = React.useState('#1d4ed8');
-    const [accentColor, setAccentColor] = React.useState('#f59e0b');
-    const [backgroundColor, setBackgroundColor] = React.useState('#f1f5f9');
+    const [primaryColor, setPrimaryColor] = React.useState('#008080');
+    const [accentColor, setAccentColor] = React.useState('#B8860B');
+    const [backgroundColor, setBackgroundColor] = React.useState('#F5F5DC');
     const [isDarkMode, setIsDarkMode] = React.useState(false);
 
     const previewStyle = {
@@ -132,10 +132,14 @@ export default function BrandingPage() {
                         <Switch id="dark-mode" checked={isDarkMode} onCheckedChange={setIsDarkMode} />
                     </div>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex-col items-stretch space-y-2">
                     <Button className="w-full" disabled>
                         <Save className="mr-2 h-4 w-4" />
                         Apply & Save Theme
+                    </Button>
+                    <Button variant="outline" className="w-full" disabled>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Reset to Default
                     </Button>
                 </CardFooter>
             </Card>
