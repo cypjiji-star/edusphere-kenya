@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardCheck, FileText, Percent, User, Users } from 'lucide-react';
+import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardCheck, FileText, Megaphone, Percent, User, Users } from 'lucide-react';
 import Link from 'next/link';
 
 const childrenData = [
@@ -57,6 +57,23 @@ const childrenData = [
     },
 ];
 
+const announcements = [
+    {
+        id: 'ann-1',
+        title: 'PTA Meeting Reminder',
+        content: 'This is a reminder about the Parent-Teacher Association meeting this Saturday at 10 AM in the main hall.',
+        date: '2 days ago',
+        read: false,
+    },
+    {
+        id: 'ann-2',
+        title: 'School Closure for Public Holiday',
+        content: 'The school will be closed this coming Friday for the public holiday. Classes will resume on Monday.',
+        date: '4 days ago',
+        read: true,
+    }
+];
+
 const getFeeStatusBadge = (status: 'Paid' | 'Partial' | 'Overdue') => {
     switch(status) {
         case 'Paid': return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
@@ -68,6 +85,43 @@ const getFeeStatusBadge = (status: 'Paid' | 'Partial' | 'Overdue') => {
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
 };
+
+
+function AnnouncementsWidget() {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Megaphone className="h-5 w-5 text-primary"/>
+                    Recent Announcements
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {announcements.map((ann, index) => (
+                     <div key={ann.id}>
+                        <div className="flex items-start gap-3">
+                            {!ann.read && <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
+                            <div className="flex-1 space-y-1">
+                                <p className="font-semibold text-sm">{ann.title}</p>
+                                <p className="text-sm text-muted-foreground truncate">{ann.content}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground whitespace-nowrap">{ann.date}</p>
+                        </div>
+                        {index < announcements.length - 1 && <Separator className="mt-4" />}
+                    </div>
+                ))}
+            </CardContent>
+            <CardFooter>
+                 <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link href="#">
+                        View All Announcements
+                        <ArrowRight className="ml-2 h-4 w-4"/>
+                    </Link>
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
 
 
 export default function ParentDashboard() {
@@ -124,6 +178,7 @@ export default function ParentDashboard() {
                     </div>
                 </CardContent>
              </Card>
+             <AnnouncementsWidget />
         </div>
 
         <div className="lg:col-span-2 space-y-8">

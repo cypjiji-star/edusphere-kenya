@@ -16,6 +16,8 @@ import {
   Calendar,
   CircleDollarSign,
   ClipboardCheck,
+  Megaphone,
+  HeartPulse,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -37,11 +39,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const navItems = [
-    { href: '/parent/grades', label: 'Grades & Reports', icon: FileText },
+    { href: '/parent/announcements', label: 'Announcements', icon: Megaphone },
     { href: '/parent/attendance', label: 'Attendance', icon: ClipboardCheck },
+    { href: '/parent/grades', label: 'Grades & Exams', icon: FileText },
+    { href: '/parent/timetable', label: 'Timetable', icon: Calendar },
     { href: '/parent/fees', label: 'Fees & Payments', icon: CircleDollarSign },
+    { href: '/parent/health', label: 'Health & Incidents', icon: HeartPulse },
     { href: '/parent/messaging', label: 'Messages', icon: MessageCircle },
-    { href: '/parent/calendar', label: 'School Calendar', icon: Calendar },
 ];
 
 
