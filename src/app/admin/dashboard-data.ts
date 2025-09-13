@@ -1,6 +1,4 @@
 
-'use client';
-
 import { ArrowUp, BookOpen, Calendar, CircleDollarSign, ClipboardCheck, Megaphone, ShieldAlert, Shapes, UserPlus, Users, UserCheck, FileText, AlertTriangle } from 'lucide-react';
 import * as React from 'react';
 
