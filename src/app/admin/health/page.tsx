@@ -222,9 +222,9 @@ export default function AdminHealthPage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Student</TableHead>
-                                            <TableHead>Class</TableHead>
                                             <TableHead>Type</TableHead>
                                             <TableHead>Date</TableHead>
+                                            <TableHead>Class</TableHead>
                                             <TableHead>Reported By</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
@@ -354,5 +354,3 @@ export default function AdminHealthPage() {
         </div>
     );
 }
-
-    
