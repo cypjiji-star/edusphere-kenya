@@ -107,13 +107,22 @@ const getStatusBadge = (status: AttendanceStatus) => {
     }
 }
 
-const dailyTrendData = [
-  { date: 'Jul 15', rate: 95 },
-  { date: 'Jul 16', rate: 92 },
-  { date: 'Jul 17', rate: 88 },
-  { date: 'Jul 18', rate: 91 },
-  { date: 'Jul 19', rate: 94 },
-];
+const allTrendData = {
+    'term2-2024': [
+        { date: 'Jul 15', rate: 95 },
+        { date: 'Jul 16', rate: 92 },
+        { date: 'Jul 17', rate: 88 },
+        { date: 'Jul 18', rate: 91 },
+        { date: 'Jul 19', rate: 94 },
+    ],
+    'term1-2024': [
+        { date: 'Mar 11', rate: 96 },
+        { date: 'Mar 12', rate: 98 },
+        { date: 'Mar 13', rate: 97 },
+        { date: 'Mar 14', rate: 95 },
+        { date: 'Mar 15', rate: 99 },
+    ]
+}
 
 const lowAttendanceAlerts = [
     { class: 'Form 2', teacher: 'Ms. Njeri', rate: 68 },
@@ -176,6 +185,9 @@ export default function AdminAttendancePage() {
   const [classFilter, setClassFilter] = React.useState('All Classes');
   const [teacherFilter, setTeacherFilter] = React.useState('All Teachers');
   const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'All Statuses'>('All Statuses');
+  const [selectedTerm, setSelectedTerm] = React.useState('term2-2024');
+  const [dailyTrendData, setDailyTrendData] = React.useState(allTrendData['term2-2024']);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     setDate({
@@ -183,6 +195,18 @@ export default function AdminAttendancePage() {
         to: new Date()
     })
   }, [])
+  
+  const handleTermChange = (term: keyof typeof allTrendData) => {
+    setSelectedTerm(term);
+    setDailyTrendData(allTrendData[term]);
+  };
+  
+  const handleCompare = () => {
+    toast({
+        title: 'Compare Feature',
+        description: 'Term comparison feature is coming soon.',
+    });
+  }
 
   const filteredRecords = MOCK_RECORDS.filter(record => {
       const recordDate = new Date(record.date);
@@ -278,19 +302,19 @@ export default function AdminAttendancePage() {
                         </div>
                     </div>
                      <div className="flex w-full md:w-auto items-center gap-2">
-                         <Select defaultValue="term2">
+                         <Select value={selectedTerm} onValueChange={(value: keyof typeof allTrendData) => handleTermChange(value)}>
                             <SelectTrigger className="w-full md:w-auto">
                                 <SelectValue placeholder="Select term" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="term2">Term 2, 2024</SelectItem>
-                                <SelectItem value="term1">Term 1, 2024</SelectItem>
+                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
                             </SelectContent>
                          </Select>
                          <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                     <Button variant="outline">Compare</Button>
+                                     <Button variant="outline" onClick={handleCompare}>Compare</Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                     <p>Term comparison feature is coming soon.</p>
