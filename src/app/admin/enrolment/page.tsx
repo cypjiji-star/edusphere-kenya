@@ -78,6 +78,7 @@ import {
   Columns,
   HeartPulse,
   X,
+  Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -133,6 +134,9 @@ export default function StudentEnrolmentPage() {
     const [bulkEnrolmentFile, setBulkEnrolmentFile] = React.useState<File | null>(null);
     const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
     const [admissionDocs, setAdmissionDocs] = React.useState<File[]>([]);
+    const [isProcessingFile, setIsProcessingFile] = React.useState(false);
+    const [isFileProcessed, setIsFileProcessed] = React.useState(false);
+
 
     const form = useForm<EnrolmentFormValues>({
         resolver: zodResolver(enrolmentSchema),
@@ -145,12 +149,26 @@ export default function StudentEnrolmentPage() {
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
             setBulkEnrolmentFile(event.target.files[0]);
+            setIsFileProcessed(false);
         }
     };
     
     const handleRemoveBulkFile = () => {
         setBulkEnrolmentFile(null);
+        setIsFileProcessed(false);
     };
+
+    const handleProcessFile = () => {
+        setIsProcessingFile(true);
+        setTimeout(() => {
+            setIsProcessingFile(false);
+            setIsFileProcessed(true);
+            toast({
+                title: 'File Processed',
+                description: 'Please map the columns from your file to the required fields.',
+            });
+        }, 1500);
+    }
 
     const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -240,7 +258,7 @@ export default function StudentEnrolmentPage() {
                           )}
                       </div>
                   </div>
-                  <div className="space-y-4">
+                  <div className={cn("space-y-4", !isFileProcessed && "opacity-50")}>
                       <div className="flex items-center gap-2">
                           <Columns className="h-5 w-5 text-primary" />
                           <h4 className="font-medium">Step 2: Map Columns</h4>
@@ -249,7 +267,7 @@ export default function StudentEnrolmentPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                               <Label>Full Name</Label>
-                              <Select defaultValue="col1">
+                              <Select defaultValue="col1" disabled={!isFileProcessed}>
                                   <SelectTrigger><SelectValue/></SelectTrigger>
                                   <SelectContent>
                                       <SelectItem value="col1">Column A</SelectItem>
@@ -260,7 +278,7 @@ export default function StudentEnrolmentPage() {
                           </div>
                           <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                               <Label>Admission No.</Label>
-                               <Select defaultValue="col2">
+                               <Select defaultValue="col2" disabled={!isFileProcessed}>
                                   <SelectTrigger><SelectValue/></SelectTrigger>
                                   <SelectContent>
                                       <SelectItem value="col1">Column A</SelectItem>
@@ -271,7 +289,7 @@ export default function StudentEnrolmentPage() {
                           </div>
                           <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                               <Label>Class</Label>
-                               <Select defaultValue="col3">
+                               <Select defaultValue="col3" disabled={!isFileProcessed}>
                                   <SelectTrigger><SelectValue/></SelectTrigger>
                                   <SelectContent>
                                       <SelectItem value="col1">Column A</SelectItem>
@@ -282,7 +300,7 @@ export default function StudentEnrolmentPage() {
                           </div>
                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                               <Label>Parent Name</Label>
-                               <Select>
+                               <Select disabled={!isFileProcessed}>
                                   <SelectTrigger><SelectValue placeholder="Select column..."/></SelectTrigger>
                                   <SelectContent>
                                       <SelectItem value="col4">Column D</SelectItem>
@@ -294,7 +312,9 @@ export default function StudentEnrolmentPage() {
               </div>
               <DialogFooter>
                   <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                  <Button disabled={!bulkEnrolmentFile}>Process File</Button>
+                  <Button onClick={handleProcessFile} disabled={!bulkEnrolmentFile || isProcessingFile}>
+                    {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
+                  </Button>
               </DialogFooter>
           </DialogContent>
         </Dialog>
