@@ -48,25 +48,6 @@ export default function SettingsPage() {
                     </div>
                 </CardContent>
             </Card>
-
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><LinkIcon className="h-5 w-5 text-primary"/>Third-Party Integrations</CardTitle>
-                    <CardDescription>Connect EduSphere to other services you use.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-between p-4 rounded-lg border">
-                        <div className='flex items-center gap-4'>
-                             <div className="h-10 w-10 bg-green-700 text-white flex items-center justify-center rounded-md font-bold text-lg">Q</div>
-                            <div>
-                                <h3 className="font-semibold">QuickBooks</h3>
-                                <p className="text-sm text-muted-foreground">Sync fee payments and expenses with QuickBooks.</p>
-                            </div>
-                        </div>
-                        <Button variant="secondary" disabled>Connect</Button>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
 
         <div className="lg:col-span-1 space-y-8">
