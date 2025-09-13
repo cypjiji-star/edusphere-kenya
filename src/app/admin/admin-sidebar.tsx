@@ -179,7 +179,12 @@ export function AdminSidebar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem><Settings className="mr-2" />Profile</DropdownMenuItem>
-            <DropdownMenuItem><HelpCircle className="mr-2" />Support</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+                <Link href="/admin/support">
+                    <HelpCircle className="mr-2" />
+                    Support
+                </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
                 <Link href="/">
@@ -193,3 +198,5 @@ export function AdminSidebar() {
     </>
   );
 }
+
+    
