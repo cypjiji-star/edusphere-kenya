@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
@@ -97,6 +98,7 @@ const getStatusBadge = (status: AttendanceStatus) => {
 export default function ParentAttendancePage() {
   const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
   const [date, setDate] = React.useState<DateRange | undefined>();
+  const { toast } = useToast();
 
   React.useEffect(() => {
     setDate({
@@ -121,6 +123,13 @@ export default function ParentAttendancePage() {
   const attendanceRate = totalRecords > 0 ? Math.round(((summaryStats.present + summaryStats.late) / totalRecords) * 100) : 0;
   
   const wasAbsentRecently = summaryStats.absent > 0;
+
+  const handleExport = () => {
+    toast({
+        title: 'Exporting Report',
+        description: 'Your attendance report is being generated.',
+    });
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -168,14 +177,14 @@ export default function ParentAttendancePage() {
                         </Popover>
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full sm:w-auto" disabled>
+                                <Button variant="outline" className="w-full sm:w-auto">
                                     <FileDown className="mr-2 h-4 w-4" />
                                     Export
                                     <ChevronDown className="ml-2 h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                                <DropdownMenuItem disabled>Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExport}>Export as PDF</DropdownMenuItem>
                             </DropdownMenuContent>
                          </DropdownMenu>
                     </div>
