@@ -26,14 +26,19 @@ const schedule: TimetableEntry[] = [
 ];
 
 export function TimetableWidget() {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  const [clientReady, setClientReady] = React.useState(false);
 
   useEffect(() => {
+    setClientReady(true);
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
     return () => clearInterval(timer);
   }, []);
 
   const isCurrentClass = (entry: TimetableEntry) => {
+    if (!currentTime) return false;
+    
     const now = currentTime;
     const [startHour, startMinute] = entry.startTime.split(':').map(Number);
     const [endHour, endMinute] = entry.endTime.split(':').map(Number);
@@ -58,7 +63,7 @@ export function TimetableWidget() {
       <CardContent>
         <div className="space-y-4">
           {schedule.map((event, index) => {
-            const isCurrent = isCurrentClass(event);
+            const isCurrent = clientReady && isCurrentClass(event);
             return (
               <div
                 key={index}
