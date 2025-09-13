@@ -70,7 +70,7 @@ type Expense = {
 };
 
 const categories: ExpenseCategory[] = ['Utilities', 'Supplies', 'Maintenance', 'Salaries', 'Marketing', 'Transport', 'Stationery'];
-const statuses: ExpenseStatus[] = ['Paid', 'Pending Approval', 'Reimbursed', 'Declined'];
+const statuses: ExpenseStatus[] = ['Paid', 'Pending Approval', 'Reimbursed' | 'Declined'];
 
 
 const getStatusBadge = (status: ExpenseStatus) => {
@@ -512,7 +512,7 @@ export default function ExpensesPage() {
                                         <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
                                         <TableCell className="font-medium flex items-center gap-2">
                                             {expense.description}
-                                            {expense.hasAttachment && (
+                                            {expense.hasAttachment && expense.attachmentUrl && (
                                                 <a href={expense.attachmentUrl} target="_blank" rel="noopener noreferrer">
                                                     <Paperclip className="h-4 w-4 text-muted-foreground hover:text-primary" />
                                                 </a>
@@ -552,3 +552,5 @@ export default function ExpensesPage() {
         </div>
     );
 }
+
+    
