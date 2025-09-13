@@ -35,6 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
 
 
 // Mock data - In a real app this would come from a central store or API
@@ -103,6 +104,7 @@ export function ReportGenerator() {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [report, setReport] = React.useState<{ student: StudentGrades, assessments: Assessment[] } | null>(null);
   const [date, setDate] = React.useState<DateRange | undefined>();
+  const { toast } = useToast();
 
   const studentsInClass = gradesByClass[selectedClass] || [];
 
@@ -140,6 +142,13 @@ export function ReportGenerator() {
     'individual': 'Individual Student Report',
     'summary': 'Class Performance Summary',
     'ranking': 'Student Ranking & Percentiles',
+  };
+
+  const handlePrint = () => {
+    toast({
+      title: 'Printing Report',
+      description: 'Your report is being sent to the printer.',
+    });
   };
 
   return (
@@ -231,7 +240,7 @@ export function ReportGenerator() {
                         <CardTitle>Report Preview</CardTitle>
                         <CardDescription>A preview of the generated report will appear below.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" disabled={!report || isGenerating}>
+                    <Button variant="outline" size="sm" disabled={!report || isGenerating} onClick={handlePrint}>
                         <Printer className="mr-2 h-4 w-4" />
                         Print
                     </Button>

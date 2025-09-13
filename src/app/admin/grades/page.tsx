@@ -215,6 +215,13 @@ export default function AdminGradesPage() {
         toast({ title: 'Reminders Sent (Simulation)', description: 'Reminder notifications have been sent to teachers with pending submissions.' });
     };
 
+    const handleExport = (type: string) => {
+        toast({
+            title: 'Exporting...',
+            description: `A ${type} file is being generated and will be downloaded shortly.`,
+        });
+    };
+
     return (
         <Dialog>
         <div className="p-4 sm:p-6 lg:p-8">
@@ -327,8 +334,8 @@ export default function AdminGradesPage() {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            <DropdownMenuItem>Export Schedule (PDF)</DropdownMenuItem>
-                                            <DropdownMenuItem>Export to Calendar (.ics)</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleExport('PDF')}>Export Schedule (PDF)</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleExport('.ics')}>Export to Calendar (.ics)</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
@@ -644,4 +651,3 @@ export default function AdminGradesPage() {
         </Dialog>
     );
 }
-
