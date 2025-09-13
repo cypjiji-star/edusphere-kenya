@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -43,7 +42,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { HeartPulse, Search, Filter, ChevronDown, FileDown, AlertCircle, Users, Stethoscope, Pill, User, Phone, ShieldAlert, Lock, FileText, CalendarIcon, Siren, Send, Paperclip, MapPin, X } from 'lucide-react';
+import { HeartPulse, Search, Filter, ChevronDown, FileDown, AlertCircle, Users, Stethoscope, Pill, User, Phone, ShieldAlert, Lock, FileText, CalendarIcon, Siren, Send, Paperclip, MapPin, X, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -189,6 +188,7 @@ export default function AdminHealthPage() {
     const [typeFilter, setTypeFilter] = React.useState<IncidentType | 'All Types'>('All Types');
     const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
     const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const currentHealthRecord = selectedHealthStudent ? studentHealthRecords[selectedHealthStudent] : null;
     const { toast } = useToast();
@@ -207,13 +207,33 @@ export default function AdminHealthPage() {
         }
     }, [selectedIncident]);
 
-    function onSubmit(values: IncidentFormValues) {
+    async function onSubmit(values: IncidentFormValues) {
+        setIsSubmitting(true);
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
         console.log(values);
         toast({
             title: 'Incident Reported',
             description: 'The incident has been logged and relevant parties have been notified.',
         });
+        
+        const student = students.find(s => s.id === values.studentId);
+        const newIncident: Incident = {
+            id: `inc-${Date.now()}`,
+            studentName: student?.name || 'Unknown Student',
+            studentAvatar: 'https://picsum.photos/seed/new-incident/100',
+            class: student?.class || 'Unknown',
+            type: values.incidentType,
+            description: values.description,
+            date: format(values.incidentDate, 'yyyy-MM-dd'),
+            reportedBy: 'Admin User', // Replace with actual user
+            status: 'Reported',
+        };
+
+        setMockIncidents(prev => [newIncident, ...prev]);
         form.reset();
+        setIsSubmitting(false);
     }
     
     const handleUpdateIncident = () => {
@@ -299,7 +319,7 @@ export default function AdminHealthPage() {
                                             <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">1</div>
+                                            <div className="text-2xl font-bold">{mockIncidents.filter(i => i.status === 'Under Review' || i.status === 'Reported').length}</div>
                                             <p className="text-xs text-muted-foreground">Currently under review</p>
                                         </CardContent>
                                     </Card>
@@ -309,7 +329,7 @@ export default function AdminHealthPage() {
                                             <Users className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">12</div>
+                                            <div className="text-2xl font-bold">{Object.values(studentHealthRecords).filter(r => r.allergies.length > 0 && r.allergies[0] !== 'None known').length}</div>
                                             <p className="text-xs text-muted-foreground">Across all classes</p>
                                         </CardContent>
                                     </Card>
@@ -319,7 +339,7 @@ export default function AdminHealthPage() {
                                             <Stethoscope className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">5</div>
+                                             <div className="text-2xl font-bold">{Object.values(studentHealthRecords).filter(r => r.conditions.length > 0 && r.conditions[0] !== 'None known').length}</div>
                                             <p className="text-xs text-muted-foreground">e.g., Asthma, Diabetes</p>
                                         </CardContent>
                                     </Card>
@@ -329,8 +349,8 @@ export default function AdminHealthPage() {
                                             <Pill className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">1</div>
-                                            <p className="text-xs text-muted-foreground">1 administered today</p>
+                                            <div className="text-2xl font-bold">{medicationLog.filter(m => new Date(m.time).toDateString() === new Date().toDateString()).length}</div>
+                                            <p className="text-xs text-muted-foreground">{medicationLog.filter(m => new Date(m.time).toDateString() === new Date().toDateString()).length} administered today</p>
                                         </CardContent>
                                     </Card>
                                 </div>
@@ -550,7 +570,7 @@ export default function AdminHealthPage() {
                                                                     <FileText className="h-5 w-5 text-primary" />
                                                                     <span className="truncate">{attachedFile.name}</span>
                                                                 </div>
-                                                                <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
+                                                                <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
                                                                     <X className="h-4 w-4 text-destructive" />
                                                                 </Button>
                                                             </div>
@@ -591,9 +611,8 @@ export default function AdminHealthPage() {
                                             </div>
                                         </div>
                                         <div className="flex justify-end pt-8">
-                                            <Button type="submit">
-                                                <Send className="mr-2 h-4 w-4" />
-                                                Save Record
+                                            <Button type="submit" disabled={isSubmitting}>
+                                                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : <><Send className="mr-2 h-4 w-4" />Save Record</>}
                                             </Button>
                                         </div>
                                     </form>
@@ -636,6 +655,9 @@ export default function AdminHealthPage() {
                                                 <SelectItem value="Health">Health</SelectItem>
                                                 <SelectItem value="Discipline">Discipline</SelectItem>
                                                 <SelectItem value="Accident">Accident</SelectItem>
+                                                <SelectItem value="Bullying">Bullying</SelectItem>
+                                                <SelectItem value="Safety Issue">Safety Issue</SelectItem>
+                                                <SelectItem value="Other">Other</SelectItem>
                                             </SelectContent>
                                         </Select>
                                          <Select value={statusFilter} onValueChange={(v: IncidentStatus | 'All Statuses') => setStatusFilter(v)}>
@@ -729,7 +751,7 @@ export default function AdminHealthPage() {
                                                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4>
                                                 <div className="space-x-2">
                                                     {currentHealthRecord.allergies.map(allergy => (
-                                                        <Badge key={allergy} variant="destructive">{allergy}</Badge>
+                                                        <Badge key={allergy} variant={allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>
                                                     ))}
                                                 </div>
                                             </div>
