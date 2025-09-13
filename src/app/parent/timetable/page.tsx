@@ -36,6 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 
 const childrenData = [
@@ -90,14 +91,23 @@ const mockTimetable: Record<string, Record<string, { subject: string, teacher: {
 export default function ParentTimetablePage() {
     const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
     const [clientReady, setClientReady] = React.useState(false);
+    const { toast } = useToast();
     
     React.useEffect(() => {
         setClientReady(true);
     }, []);
 
-    // For demo purposes, we'll use Monday's data for "Today"
-    const today = "Monday";
-    const todaysLessons = clientReady ? Object.entries(mockTimetable[today] || {}).map(([time, lesson]) => ({ time, ...lesson })) : [];
+    const todayDayName = clientReady ? format(new Date(), 'EEEE') : 'Monday';
+    const todaysLessons = clientReady && mockTimetable[todayDayName] 
+        ? Object.entries(mockTimetable[todayDayName]).map(([time, lesson]) => ({ time, ...lesson }))
+        : [];
+    
+    const handleExport = () => {
+        toast({
+            title: "Exporting Timetable",
+            description: "Your timetable is being prepared for download.",
+        });
+    }
 
 
     return (
@@ -136,14 +146,14 @@ export default function ParentTimetablePage() {
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" disabled>
+                                <Button variant="outline" onClick={handleExport}>
                                     Export
                                     <ChevronDown className="ml-2 h-4 w-4"/>
                                 </Button>
                             </DropdownMenuTrigger>
                              <DropdownMenuContent>
-                                <DropdownMenuItem disabled><Printer className="mr-2 h-4 w-4" /> Print Timetable</DropdownMenuItem>
-                                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem><Printer className="mr-2 h-4 w-4" /> Print Timetable</DropdownMenuItem>
+                                <DropdownMenuItem><FileDown className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
