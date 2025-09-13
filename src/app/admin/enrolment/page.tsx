@@ -180,6 +180,13 @@ export default function StudentEnrolmentPage() {
         setAdmissionDocs([]);
     }
     
+    const handleSaveDraft = () => {
+        toast({
+            title: 'Draft Saved',
+            description: 'The student enrolment application has been saved as a draft.',
+        });
+    }
+
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 10 }, (_, i) => (currentYear - i).toString());
 
@@ -358,13 +365,13 @@ export default function StudentEnrolmentPage() {
                                         <AvatarFallback><UserPlus/></AvatarFallback>
                                     </Avatar>
                                     {profilePhoto ? (
-                                        <Button variant="destructive" className="w-full" onClick={() => setProfilePhoto(null)}>
+                                        <Button type="button" variant="destructive" className="w-full" onClick={() => setProfilePhoto(null)}>
                                             <X className="mr-2 h-4 w-4" />
                                             Remove Photo
                                         </Button>
                                     ) : (
                                         <Label htmlFor="photo-upload" className="w-full">
-                                            <Button variant="outline" asChild className="w-full">
+                                            <Button type="button" variant="outline" asChild className="w-full">
                                                 <span>
                                                     <Upload className="mr-2 h-4 w-4" />
                                                     Upload Photo
@@ -383,13 +390,13 @@ export default function StudentEnrolmentPage() {
                                         {admissionDocs.map((file, index) => (
                                             <div key={index} className="flex items-center justify-between p-2 rounded-md border text-sm">
                                                 <span className="truncate">{file.name}</span>
-                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeAdmissionDoc(index)}>
+                                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeAdmissionDoc(index)}>
                                                     <X className="h-4 w-4 text-destructive" />
                                                 </Button>
                                             </div>
                                         ))}
                                         <Label htmlFor="dropzone-file-docs-more" className="w-full">
-                                            <Button variant="outline" asChild className="w-full">
+                                            <Button type="button" variant="outline" asChild className="w-full">
                                                 <span>
                                                     <Upload className="mr-2 h-4 w-4" />
                                                     Add More Files
@@ -446,7 +453,7 @@ export default function StudentEnrolmentPage() {
                 </div>
             </div>
              <CardFooter className="flex justify-end p-0 pt-6 gap-2">
-                <Button type="button" variant="secondary" className="w-full md:w-auto" disabled>
+                <Button type="button" variant="secondary" className="w-full md:w-auto" onClick={handleSaveDraft}>
                     Save as Draft
                 </Button>
                 <Button type="submit" className="w-full md:w-auto">
