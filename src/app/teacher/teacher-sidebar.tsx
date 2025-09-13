@@ -50,7 +50,7 @@ const navGroups = [
     items: [
       { href: '/teacher/students', label: 'Class Management', icon: Users },
       { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck },
-      { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked },
+      { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked, badge: '3' },
       { href: '/teacher/grades', label: 'Grades/Reports', icon: FileText },
       { href: '/teacher/sports', label: 'Sports', icon: Trophy },
       { href: '/teacher/health', label: 'Health & Incidents', icon: HeartPulse },
@@ -65,7 +65,7 @@ const navGroups = [
   {
     title: 'Communication',
     items: [
-      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false },
+      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false, badge: '1' },
       { href: '/teacher/announcements', label: 'Announcements', icon: Megaphone, disabled: false },
       { href: '/teacher/calendar', label: 'Events Calendar', icon: Calendar, disabled: false },
     ],
@@ -123,6 +123,7 @@ export function TeacherSidebar() {
                             <Link href={item.href}>
                                 <item.icon />
                                 <span>{item.label}</span>
+                                {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
                             </Link>
                         </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -178,3 +179,5 @@ export function TeacherSidebar() {
     </>
   );
 }
+
+    

@@ -37,6 +37,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuBadge,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,7 @@ const navGroups = [
     title: 'Academics',
     items: [
       { href: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
-      { href: '/admin/grades', label: 'Grades & Exams', icon: FileText },
+      { href: '/admin/grades', label: 'Grades & Exams', icon: FileText, badge: 'New' },
       { href: '/admin/timetable', label: 'Timetable', icon: Calendar },
       { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
       { href: '/admin/health', label: 'Health & Incidents', icon: HeartPulse },
@@ -77,7 +78,7 @@ const navGroups = [
    {
     title: 'Users',
     items: [
-      { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus },
+      { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus, badge: '2' },
       { href: '/admin/users', label: 'User Management', icon: Users },
       { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
@@ -85,7 +86,7 @@ const navGroups = [
   {
     title: 'Communication',
     items: [
-      { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+      { href: '/admin/announcements', label: 'Announcements', icon: Megaphone, badge: '1' },
       { href: '/admin/messaging', label: 'Messaging', icon: MessageCircle },
       { href: '/admin/calendar', label: 'Events Calendar', icon: Calendar },
     ],
@@ -234,6 +235,7 @@ export function AdminSidebar() {
                             <Link href={item.href}>
                                 <item.icon />
                                 <span>{item.label}</span>
+                                {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
                             </Link>
                         </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -294,3 +296,5 @@ export function AdminSidebar() {
   );
 }
 
+
+    
