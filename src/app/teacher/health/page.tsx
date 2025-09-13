@@ -176,7 +176,7 @@ const chartConfig = {
   },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-const medicationLog = [
+const initialMedicationLog = [
     { id: 'med-1', studentName: 'Student 1', medication: 'Asthma Inhaler', dosage: '2 puffs', time: '2024-07-15 10:30 AM', givenBy: 'Ms. Wanjiku' },
     { id: 'med-2', studentName: 'Student 32', medication: 'Paracetamol', dosage: '1 tablet', time: '2024-07-14 09:00 AM', givenBy: 'Nurse Joy' },
 ];
@@ -192,6 +192,13 @@ export default function HealthPage() {
     const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
     const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    
+    // State for medication log form
+    const [medicationLog, setMedicationLog] = React.useState(initialMedicationLog);
+    const [newMedStudent, setNewMedStudent] = React.useState<string | undefined>();
+    const [newMedName, setNewMedName] = React.useState('');
+    const [newMedDosage, setNewMedDosage] = React.useState('');
+    const [newMedTime, setNewMedTime] = React.useState(format(new Date(), 'HH:mm'));
 
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
@@ -265,10 +272,39 @@ export default function HealthPage() {
     };
 
     const handleSaveMedication = () => {
+        if (!newMedStudent || !newMedName || !newMedDosage) {
+            toast({
+                title: "Missing Information",
+                description: "Please select a student and enter the medication name and dosage.",
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        const student = students.find(s => s.id === newMedStudent);
+        if (!student) return;
+
+        const newLogEntry = {
+            id: `med-${Date.now()}`,
+            studentName: student.name,
+            medication: newMedName,
+            dosage: newMedDosage,
+            time: `${format(new Date(), 'yyyy-MM-dd')} ${newMedTime}`,
+            givenBy: 'Ms. Wanjiku', // Placeholder for current user
+        };
+
+        setMedicationLog(prev => [newLogEntry, ...prev]);
+
         toast({
             title: "Medication Logged",
-            description: "The medication administration has been saved."
+            description: `Administration of ${newMedName} for ${student.name} has been saved.`
         });
+        
+        // Reset form
+        setNewMedStudent(undefined);
+        setNewMedName('');
+        setNewMedDosage('');
+        setNewMedTime(format(new Date(), 'HH:mm'));
     };
 
     const filteredIncidents = mockIncidents.filter(incident => {
@@ -869,7 +905,7 @@ export default function HealthPage() {
                                         <div className="space-y-4">
                                             <div className="space-y-2">
                                                 <Label>Student</Label>
-                                                <Select>
+                                                <Select value={newMedStudent} onValueChange={setNewMedStudent}>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Select a student" />
                                                     </SelectTrigger>
@@ -882,16 +918,16 @@ export default function HealthPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="med-name">Medication Name</Label>
-                                                <Input id="med-name" placeholder="e.g., Paracetamol" />
+                                                <Input id="med-name" placeholder="e.g., Paracetamol" value={newMedName} onChange={(e) => setNewMedName(e.target.value)} />
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="med-dosage">Dosage</Label>
-                                                    <Input id="med-dosage" placeholder="e.g., 1 tablet, 5ml" />
+                                                    <Input id="med-dosage" placeholder="e.g., 1 tablet, 5ml" value={newMedDosage} onChange={(e) => setNewMedDosage(e.target.value)}/>
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label htmlFor="med-time">Time Given</Label>
-                                                    <Input id="med-time" type="time" defaultValue={format(new Date(), 'HH:mm')} />
+                                                    <Input id="med-time" type="time" value={newMedTime} onChange={(e) => setNewMedTime(e.target.value)} />
                                                 </div>
                                             </div>
                                             <Button onClick={handleSaveMedication}>Save Log</Button>
@@ -916,6 +952,11 @@ export default function HealthPage() {
                                                             <TableCell>{log.time}</TableCell>
                                                         </TableRow>
                                                     ))}
+                                                     {medicationLog.length === 0 && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={3} className="h-24 text-center">No records for today.</TableCell>
+                                                        </TableRow>
+                                                     )}
                                                 </TableBody>
                                             </Table>
                                         </div>
