@@ -284,6 +284,16 @@ export default function SettingsPage() {
                     <Separator/>
                      <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
+                            <Label className="font-semibold">Escalation Policy</Label>
+                            <p className="text-xs text-muted-foreground">Automatically escalate unresolved tickets and notify relevant personnel.</p>
+                        </div>
+                        <Button variant="secondary" disabled>
+                            Configure Escalation Rules
+                        </Button>
+                    </div>
+                    <Separator/>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
                             <Label className="font-semibold">Communication Channels</Label>
                             <p className="text-xs text-muted-foreground">Configure SMS, Email, and Push Notifications.</p>
                         </div>
@@ -428,3 +438,5 @@ export default function SettingsPage() {
   );
 
   
+
+    
