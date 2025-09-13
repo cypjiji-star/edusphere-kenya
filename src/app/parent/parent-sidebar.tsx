@@ -46,6 +46,7 @@ const navItems = [
     { href: '/parent/fees', label: 'Fees & Payments', icon: CircleDollarSign },
     { href: '/parent/health', label: 'Health & Incidents', icon: HeartPulse },
     { href: '/parent/messaging', label: 'Messages', icon: MessageCircle },
+    { href: '/parent/calendar', label: 'Events Calendar', icon: Calendar },
 ];
 
 
@@ -78,7 +79,7 @@ export function ParentSidebar() {
                     asChild
                     isActive={isActive(item.href)}
                     tooltip={{ children: item.label }}
-                    disabled
+                    disabled={item.href !== '/parent/calendar'}
                 >
                     <Link href={item.href}>
                         <item.icon />
@@ -130,3 +131,5 @@ export function ParentSidebar() {
     </>
   );
 }
+
+    
