@@ -76,6 +76,8 @@ export function ReportGenerator() {
   const [individualReport, setIndividualReport] = React.useState<{ student: StudentGrades, assessments: Assessment[] } | null>(null);
   const [summaryReport, setSummaryReport] = React.useState<ClassSummary | null>(null);
   const [date, setDate] = React.useState<DateRange | undefined>();
+  const [alertLowPerf, setAlertLowPerf] = React.useState(false);
+  const [alertAbsent, setAlertAbsent] = React.useState(false);
 
   const studentsInClass = gradesByClass[selectedClass] || [];
 
@@ -98,6 +100,11 @@ export function ReportGenerator() {
           setIndividualReport({ student: studentData, assessments: assessmentData });
         }
       } else if (reportType === 'summary') {
+        if (studentsInClass.length === 0) {
+            setSummaryReport(null);
+            setIsGenerating(false);
+            return;
+        }
         const grades = studentsInClass.map(s => s.overall);
         const average = grades.reduce((acc, grade) => acc + grade, 0) / grades.length;
         const distribution = [...gradeDistributionRanges.map(r => ({ ...r, count: 0 }))];
@@ -280,15 +287,15 @@ export function ReportGenerator() {
                     <Bell className="h-5 w-5 text-primary" />
                     Automated Alerts
                 </h4>
-                <p className="text-xs text-muted-foreground">Set up automated reports for specific triggers. (Coming soon)</p>
+                <p className="text-xs text-muted-foreground">Set up automated reports for specific triggers.</p>
                  <div className="space-y-3">
                     <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
                         <Label htmlFor="alert-low-perf" className="text-sm">Low performance alert</Label>
-                        <Switch id="alert-low-perf" disabled />
+                        <Switch id="alert-low-perf" checked={alertLowPerf} onCheckedChange={setAlertLowPerf} />
                     </div>
                     <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
                         <Label htmlFor="alert-absenteeism" className="text-sm">High absenteeism alert</Label>
-                        <Switch id="alert-absenteeism" disabled />
+                        <Switch id="alert-absenteeism" checked={alertAbsent} onCheckedChange={setAlertAbsent} />
                     </div>
                  </div>
              </div>
@@ -301,7 +308,7 @@ export function ReportGenerator() {
                         <CardTitle>Report Preview</CardTitle>
                         <CardDescription>A preview of the generated report will appear below.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" disabled={!showReport || isGenerating}>
+                    <Button variant="outline" size="sm" disabled={!showReport || isGenerating} onClick={() => window.print()}>
                         <Printer className="mr-2 h-4 w-4" />
                         Print
                     </Button>

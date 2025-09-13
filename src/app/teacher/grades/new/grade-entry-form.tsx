@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -80,6 +81,8 @@ const assessmentTypes = ['Exam', 'Quiz', 'Assignment', 'Project'] as const;
 export function GradeEntryForm() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [selectedClass, setSelectedClass] = React.useState<string>(teacherClasses[0].id);
+  const [isWeighted, setIsWeighted] = React.useState(false);
+  const [useRubric, setUseRubric] = React.useState(false);
   const { toast } = useToast();
 
   const form = useForm<GradeEntryFormValues>({
@@ -235,13 +238,13 @@ export function GradeEntryForm() {
                 />
             </div>
              <div className="space-y-4 pt-4">
-                <h4 className="font-medium">Advanced Options (Coming Soon)</h4>
+                <h4 className="font-medium">Advanced Options</h4>
                  <div className="flex items-center space-x-2">
-                    <Switch id="weighted-grading" disabled />
+                    <Switch id="weighted-grading" checked={isWeighted} onCheckedChange={setIsWeighted} />
                     <Label htmlFor="weighted-grading">Enable Weighted Grading</Label>
                 </div>
                  <div className="flex items-center space-x-2">
-                    <Switch id="custom-rubric" disabled />
+                    <Switch id="custom-rubric" checked={useRubric} onCheckedChange={setUseRubric} />
                     <Label htmlFor="custom-rubric">Use Custom Rubric</Label>
                 </div>
             </div>
