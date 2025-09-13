@@ -17,8 +17,8 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
-import { mockTimetableData, days } from './timetable/timetable-data';
-import { allAssignments } from './assignments/page';
+import { mockTimetableData, days } from '@/app/admin/timetable/timetable-data';
+import { allAssignments } from '@/app/teacher/assignments/page';
 
 
 const scheduleChartConfig = {

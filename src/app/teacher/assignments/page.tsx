@@ -34,7 +34,7 @@ export type Assignment = {
 };
 
 
-const allAssignments: Assignment[] = [
+export const allAssignments: Assignment[] = [
   {
     id: '1',
     title: 'Form 4 Chemistry - Acid-Base Titration Lab Report',
