@@ -115,7 +115,7 @@ const getStatusBadge = (status: IncidentStatus) => {
 
 const incidentSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
-  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue' | 'Other',]),
+  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue', 'Other']),
   incidentDate: z.date({ required_error: 'An incident date is required.' }),
   incidentTime: z.string().min(1, 'Time is required'),
   location: z.string().optional(),
@@ -221,6 +221,31 @@ export default function AdminHealthPage() {
                                     <CardContent>
                                         <div className="text-2xl font-bold">1</div>
                                         <p className="text-xs text-muted-foreground">1 administered today</p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            <Separator className="my-6" />
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Incidents by Type (Term 2)</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {/* Placeholder for chart */}
+                                        <div className="h-[250px] w-full flex items-center justify-center bg-muted rounded-md">
+                                            <p className="text-muted-foreground">Chart: Incidents by Type</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Incidents by Location (Term 2)</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {/* Placeholder for chart */}
+                                        <div className="h-[250px] w-full flex items-center justify-center bg-muted rounded-md">
+                                            <p className="text-muted-foreground">Chart: Incidents by Location</p>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             </div>
@@ -631,4 +656,6 @@ export default function AdminHealthPage() {
 }
 
     
+    
+
     
