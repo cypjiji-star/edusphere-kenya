@@ -30,9 +30,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
+  SidebarMenuBadge,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -91,7 +89,7 @@ export function TeacherSidebar() {
       <SidebarHeader>
         <Link href="/teacher" className="flex items-center gap-2">
           <GraduationCap className="size-6 text-primary" />
-          <span className="font-bold font-headline text-lg">EduSphere</span>
+          <span className="font-bold font-headline text-lg">Teacher Portal</span>
         </Link>
       </SidebarHeader>
 
@@ -109,32 +107,28 @@ export function TeacherSidebar() {
 
         {navGroups.map((group) => (
           <Collapsible key={group.title} defaultOpen>
-            <SidebarGroup>
-                <CollapsibleTrigger asChild>
-                    <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {group.items.map((item) => (
-                                <SidebarMenuItem key={item.href}>
-                                <SidebarMenuButton
-                                    asChild
-                                    isActive={isActive(item.href)}
-                                    disabled={item.disabled}
-                                    tooltip={{ children: item.label }}
-                                >
-                                    <Link href={item.href}>
-                                        <item.icon />
-                                        <span>{item.label}</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
+            <CollapsibleTrigger className="w-full p-2 text-left">
+                <span className="text-xs font-semibold text-muted-foreground">{group.title}</span>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <SidebarMenu>
+                    {group.items.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={isActive(item.href)}
+                            disabled={item.disabled}
+                            tooltip={{ children: item.label }}
+                        >
+                            <Link href={item.href}>
+                                <item.icon />
+                                <span>{item.label}</span>
+                            </Link>
+                        </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+            </CollapsibleContent>
           </Collapsible>
         ))}
       </SidebarContent>
@@ -184,5 +178,3 @@ export function TeacherSidebar() {
     </>
   );
 }
-
-    

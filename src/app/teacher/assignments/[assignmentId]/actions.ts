@@ -2,7 +2,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import type { GradingFormValues } from './grading-dialog';
+import { z } from 'zod';
+
+export const gradingSchema = z.object({
+  grade: z.string().min(1, 'Grade is required.'),
+  feedback: z.string().optional(),
+});
+
+
+export type GradingFormValues = z.infer<typeof gradingSchema>;
 
 
 // In a real app, this would save to a database.
@@ -20,4 +28,3 @@ export async function saveGradeAction(
 
   return { success: true, message: 'Grade saved successfully!' };
 }
-

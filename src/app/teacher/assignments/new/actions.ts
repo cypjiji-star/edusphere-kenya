@@ -3,7 +3,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { lessonPlanSchema } from '../../lesson-plans/new/actions';
 
 export const assignmentSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters.'),

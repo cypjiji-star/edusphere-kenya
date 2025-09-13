@@ -30,9 +30,7 @@ export default function CalendarPage() {
         </Alert>
 
       <Card>
-        <CardHeader>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
             <FullCalendar />
         </CardContent>
       </Card>

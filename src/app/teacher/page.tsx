@@ -1,4 +1,7 @@
 
+'use client';
+
+import * as React from 'react';
 import Link from 'next/link';
 import {
   Card,
@@ -8,50 +11,53 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, BookMarked, ClipboardCheck, FileText, ArrowRight, Bell, Calendar, Percent } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { Users, BookMarked, ClipboardCheck, Percent } from 'lucide-react';
 import { TimetableWidget } from './timetable-widget';
 import { PendingTasksWidget } from './pending-tasks-widget';
 import { AbsentStudentsWidget } from './absent-students-widget';
 import { MessagesWidget } from './messages-widget';
 import { DashboardCharts } from './dashboard-charts';
 import { LibraryNoticesWidget } from './library-notices-widget';
+import { teacherClasses } from './students/page';
+import { allAssignments } from './assignments/page';
 
-const quickStats = [
-    {
-        title: "Total Students",
-        stat: "125",
-        icon: <Users className="h-6 w-6 text-muted-foreground" />,
-        href: "/teacher/students",
-    },
-    {
-        title: "Today's Attendance",
-        stat: "94%",
-        icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" />,
-        href: "/teacher/attendance",
-    },
-    {
-        title: "Ungraded Assignments",
-        stat: "5",
-        icon: <BookMarked className="h-6 w-6 text-muted-foreground" />,
-        href: "/teacher/assignments",
-    },
-    {
-        title: "Avg. Last Exam Score",
-        stat: "78%",
-        icon: <Percent className="h-6 w-6 text-muted-foreground" />,
-        href: "/teacher/grades",
-    }
-];
 
 export default function TeacherDashboard() {
+    const totalStudents = teacherClasses.reduce((acc, curr) => acc + curr.students.length, 0);
+    const ungradedAssignments = allAssignments.filter(a => a.submissions < a.totalStudents).length;
+
+    const quickStats = [
+        {
+            title: "Total Students",
+            stat: totalStudents,
+            icon: <Users className="h-6 w-6 text-muted-foreground" />,
+            href: "/teacher/students",
+        },
+        {
+            title: "Today's Attendance",
+            stat: "94%",
+            icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" />,
+            href: "/teacher/attendance",
+        },
+        {
+            title: "Ungraded Assignments",
+            stat: ungradedAssignments,
+            icon: <BookMarked className="h-6 w-6 text-muted-foreground" />,
+            href: "/teacher/assignments",
+        },
+        {
+            title: "Avg. Last Exam Score",
+            stat: "78%",
+            icon: <Percent className="h-6 w-6 text-muted-foreground" />,
+            href: "/teacher/grades",
+        }
+    ];
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="font-headline text-3xl font-bold">Welcome, Ms. Wanjiku!</h1>
-        <p className="text-muted-foreground">Here's your summary for today, July 18th, 2024.</p>
+        <p className="text-muted-foreground">Here's your summary for today, {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

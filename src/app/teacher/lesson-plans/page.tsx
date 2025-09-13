@@ -73,7 +73,7 @@ export default function LessonPlansPage() {
             </Button>
         </div>
 
-      <Tabs defaultValue="calendar-view">
+      <Tabs defaultValue="calendar-view" className="w-full">
         <div className="flex items-center justify-between">
             <TabsList>
                 <TabsTrigger value="list-view">List View</TabsTrigger>
@@ -119,7 +119,7 @@ export default function LessonPlansPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                                <DropdownMenuItem disabled>
+                                <DropdownMenuItem>
                                 <FileDown className="mr-2" />
                                 Export All (PDF)
                                 </DropdownMenuItem>

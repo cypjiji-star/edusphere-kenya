@@ -31,7 +31,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
-  PlusCircle,
   Search,
   FileDown,
   Edit,
@@ -48,22 +47,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { Label } from '@/components/ui/label';
 import { GradeEntryForm } from './new/grade-entry-form';
 
 // --- Mock Data ---
@@ -142,6 +136,7 @@ export default function GradesPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const { toast } = useToast();
     const [editingStudent, setEditingStudent] = React.useState<StudentGrades | null>(null);
+    const [activeTab, setActiveTab] = React.useState('gradebook');
 
     const currentAssessments = assessmentsByClass[selectedClass] || [];
     const currentStudents = gradesByClass[selectedClass] || [];
@@ -198,7 +193,7 @@ export default function GradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <Tabs defaultValue="reports" onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <CardHeader className="px-0">
           <div className="md:flex md:items-start md:justify-between">
             <div>
@@ -353,9 +348,7 @@ export default function GradesPage() {
                             <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
                             <h3 className="mt-4 text-xl font-semibold">No Grade Data</h3>
                             <p className="mt-2 text-sm text-muted-foreground">There is no grade information for this class yet.</p>
-                            <Button asChild className="mt-4">
-                                <Link href="/teacher/grades/new">Enter Grades</Link>
-                            </Button>
+                            <Button className="mt-4" onClick={() => setActiveTab('entry')}>Enter Grades</Button>
                         </div>
                     </div>
                 )}
@@ -406,9 +399,7 @@ export default function GradesPage() {
               ))}
             </div>
             <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
-              </DialogClose>
+              <Button type="button" variant="outline" onClick={() => setEditingStudent(null)}>Cancel</Button>
               <Button type="submit" onClick={() => {toast({title: 'Grades updated!'}); setEditingStudent(null);}}>Save changes</Button>
             </DialogFooter>
           </DialogContent>
