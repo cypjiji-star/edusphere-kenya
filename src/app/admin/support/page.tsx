@@ -138,6 +138,8 @@ export default function SupportPage() {
     const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
     const [faqSearchTerm, setFaqSearchTerm] = React.useState('');
     const [feedbackRating, setFeedbackRating] = React.useState(0);
+    const [feedbackText, setFeedbackText] = React.useState('');
+    const [isAnonymous, setIsAnonymous] = React.useState(false);
     const [mockTickets, setMockTickets] = React.useState(initialMockTickets);
     const [category, setCategory] = React.useState<TicketCategory | undefined>();
     const [priority, setPriority] = React.useState<TicketPriority | undefined>();
@@ -215,6 +217,27 @@ export default function SupportPage() {
             title: 'Ticket Submitted!',
             description: 'Our support team will get back to you shortly.',
         });
+    };
+    
+    const handleFeedbackSubmit = () => {
+        if (feedbackRating === 0 && !feedbackText) {
+            toast({
+                variant: 'destructive',
+                title: 'Empty Feedback',
+                description: 'Please provide a rating or a comment.',
+            });
+            return;
+        }
+
+        toast({
+            title: 'Feedback Submitted!',
+            description: 'Thank you for helping us improve.',
+        });
+
+        // Reset form
+        setFeedbackRating(0);
+        setFeedbackText('');
+        setIsAnonymous(false);
     };
 
     return (
@@ -470,15 +493,15 @@ export default function SupportPage() {
                              </div>
                              <div className="space-y-2">
                                 <Label htmlFor="feedback-suggestion">Suggestion / Feedback</Label>
-                                <Textarea id="feedback-suggestion" placeholder="What can we improve?" />
+                                <Textarea id="feedback-suggestion" placeholder="What can we improve?" value={feedbackText} onChange={e => setFeedbackText(e.target.value)} />
                              </div>
                              <div className="flex items-center space-x-2">
-                                <Switch id="anonymous-feedback" />
+                                <Switch id="anonymous-feedback" checked={isAnonymous} onCheckedChange={setIsAnonymous} />
                                 <Label htmlFor="anonymous-feedback">Submit Anonymously</Label>
                             </div>
                         </CardContent>
                         <CardFooter>
-                            <Button className="w-full" disabled>Submit Feedback</Button>
+                            <Button className="w-full" onClick={handleFeedbackSubmit}>Submit Feedback</Button>
                         </CardFooter>
                     </Card>
                     <Card>
