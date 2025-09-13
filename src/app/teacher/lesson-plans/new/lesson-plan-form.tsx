@@ -6,7 +6,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse, isValid } from 'date-fns';
-import { lessonPlanSchema, generateContentAction, LessonPlanFormValues } from './actions';
+import { generateContentAction } from './actions';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +37,20 @@ import { Label } from '@/components/ui/label';
 import { useAtom } from 'jotai';
 import { lessonPlansAtom } from '../data';
 import type { LessonPlan } from '../data';
+
+
+export const lessonPlanSchema = z.object({
+  topic: z.string().min(3, 'Topic is required.'),
+  subject: z.string().min(3, 'Subject is required.'),
+  grade: z.string().min(1, 'Grade level is required.'),
+  date: z.date({ required_error: 'A date for the lesson is required.' }),
+  objectives: z.string().min(20, 'Objectives must be at least 20 characters.'),
+  materials: z.string().optional(),
+  activities: z.string().min(20, 'Activities must be at least 20 characters.'),
+  assessment: z.string().min(10, 'Assessment must be at least 10 characters.'),
+});
+
+export type LessonPlanFormValues = z.infer<typeof lessonPlanSchema>;
 
 
 const teacherClasses = [
