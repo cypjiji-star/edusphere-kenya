@@ -135,7 +135,7 @@ const mockSubjects = [
     { id: 'sub-hist', name: 'History & Government', code: '311', department: 'Humanities', teachers: ['Mr. Kamau'], classes: ['Form 1', 'Form 2', 'Form 3'] },
 ];
 
-const mockClassAssignments = {
+const initialClassAssignments = {
     'form-4-a': [
         { subject: 'Mathematics', teacher: 'Mr. Otieno' },
         { subject: 'English', teacher: 'Ms. Njeri' },
@@ -158,15 +158,17 @@ const mockClassAssignments = {
 
 export default function ClassesAndSubjectsPage() {
     const { toast } = useToast();
+    const [classAssignments, setClassAssignments] = React.useState(initialClassAssignments);
+    
     const teacherWorkload: Record<string, number> = React.useMemo(() => {
         const load: Record<string, number> = {};
-        Object.values(mockClassAssignments).flat().forEach(assignment => {
+        Object.values(classAssignments).flat().forEach(assignment => {
             if (assignment.teacher) {
                 load[assignment.teacher] = (load[assignment.teacher] || 0) + 1;
             }
         });
         return load;
-    }, []);
+    }, [classAssignments]);
 
     const OVER_ASSIGNED_THRESHOLD = 3;
 
@@ -182,7 +184,26 @@ export default function ClassesAndSubjectsPage() {
             title: 'Exporting...',
             description: `Your data is being exported as a ${type} file.`,
         });
-    }
+    };
+
+    const handleAssignTeacher = (classId: string, subject: string, teacher: string) => {
+        setClassAssignments(prev => {
+            const newAssignments = { ...prev };
+            const assignmentsForClass = newAssignments[classId as keyof typeof newAssignments];
+            if (assignmentsForClass) {
+                const assignmentIndex = assignmentsForClass.findIndex(a => a.subject === subject);
+                if (assignmentIndex !== -1) {
+                    assignmentsForClass[assignmentIndex].teacher = teacher;
+                }
+            }
+            return newAssignments;
+        });
+
+        toast({
+            title: 'Teacher Assigned',
+            description: `${teacher} has been assigned to teach ${subject} in this class.`
+        })
+    };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -270,7 +291,7 @@ export default function ClassesAndSubjectsPage() {
                             </Dialog>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline">
+                                    <Button variant="outline" onClick={() => handleExport('PDF')}>
                                         <FileDown className="mr-2 h-4 w-4" />
                                         Export
                                         <ChevronDown className="ml-2 h-4 w-4" />
@@ -579,7 +600,7 @@ export default function ClassesAndSubjectsPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <TooltipProvider>
-                    {Object.entries(mockClassAssignments).map(([classId, assignments]) => {
+                    {Object.entries(classAssignments).map(([classId, assignments]) => {
                         const schoolClass = mockClasses.find(c => c.id === classId);
                         if (!schoolClass) return null;
                         
@@ -626,7 +647,7 @@ export default function ClassesAndSubjectsPage() {
                                                             <div className="space-y-2">
                                                                 <p className="font-semibold text-sm">Suggested Teachers</p>
                                                                 {availableTeachers.length > 0 ? availableTeachers.map(t => (
-                                                                    <Button key={t} variant="ghost" size="sm" className="w-full justify-start">
+                                                                    <Button key={t} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacher(classId, assignment.subject, t)}>
                                                                         <UserCheck className="mr-2 h-4 w-4" /> {t}
                                                                     </Button>
                                                                 )) : <p className="text-xs text-muted-foreground">No available teachers found.</p>}
