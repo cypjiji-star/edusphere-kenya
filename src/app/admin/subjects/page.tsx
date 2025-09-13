@@ -204,6 +204,14 @@ export default function ClassesAndSubjectsPage() {
             description: `${teacher} has been assigned to teach ${subject} in this class.`
         })
     };
+    
+     const handleDelete = (item: string, type: 'subject' | 'class') => {
+        toast({
+            title: `${type === 'subject' ? 'Subject' : 'Class'} Deleted`,
+            description: `The ${type} "${item}" has been deleted.`,
+            variant: 'destructive',
+        });
+    };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -291,7 +299,7 @@ export default function ClassesAndSubjectsPage() {
                             </Dialog>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" onClick={() => handleExport('PDF')}>
+                                    <Button variant="outline">
                                         <FileDown className="mr-2 h-4 w-4" />
                                         Export
                                         <ChevronDown className="ml-2 h-4 w-4" />
@@ -563,9 +571,57 @@ export default function ClassesAndSubjectsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm">
-                                                <Edit className="mr-2 h-4 w-4" /> Edit
-                                            </Button>
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="sm">
+                                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Edit Subject: {subject.name}</DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="grid gap-6 py-4">
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="subject-name-edit">Subject Name</Label>
+                                                                <Input id="subject-name-edit" defaultValue={subject.name} />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="subject-code-edit">Subject Code</Label>
+                                                                <Input id="subject-code-edit" defaultValue={subject.code} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="subject-dept-edit">Department</Label>
+                                                            <Select defaultValue={subject.department}>
+                                                                <SelectTrigger id="subject-dept-edit">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {mockDepartments.map(dept => (
+                                                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </div>
+                                                    <DialogFooter className="justify-between">
+                                                        <DialogClose asChild>
+                                                            <Button variant="destructive" onClick={() => handleDelete(subject.name, 'subject')}>
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete Subject
+                                                            </Button>
+                                                        </DialogClose>
+                                                        <div className="flex gap-2">
+                                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                            <DialogClose asChild>
+                                                                <Button onClick={() => handleSaveChanges(`Updated details for ${subject.name}`)}>Save Changes</Button>
+                                                            </DialogClose>
+                                                        </div>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
                                         </TableCell>
                                     </TableRow>
                                 ))}
