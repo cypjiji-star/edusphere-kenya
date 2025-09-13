@@ -12,7 +12,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save, FileDown, Printer, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save, FileDown, Printer, CheckCircle, Clock, XCircle, Edit } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -143,6 +143,7 @@ export default function StudentsPage() {
   const [allClassStudents, setAllClassStudents] = React.useState(initialStudents);
   const [newStudentName, setNewStudentName] = React.useState('');
   const [isAddStudentOpen, setIsAddStudentOpen] = React.useState(false);
+  const [editingStudent, setEditingStudent] = React.useState<Student | null>(null);
 
   const studentsForCurrentTab = allClassStudents[activeTab] || [];
   
@@ -240,6 +241,31 @@ export default function StudentsPage() {
          doc.save(`${activeTab}-roster.pdf`);
     }
   };
+
+  const handleUpdateStudent = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingStudent) return;
+
+    const formData = new FormData(e.currentTarget);
+    const updatedName = formData.get('name') as string;
+    const updatedRollNumber = formData.get('rollNumber') as string;
+
+    setAllClassStudents(prevAllStudents => {
+      const newStudentsForClass = (prevAllStudents[activeTab] || []).map(s =>
+        s.id === editingStudent.id ? { ...s, name: updatedName, rollNumber: updatedRollNumber } : s
+      );
+      return {
+        ...prevAllStudents,
+        [activeTab]: newStudentsForClass,
+      };
+    });
+
+    toast({
+      title: 'Student Updated',
+      description: `Details for ${updatedName} have been saved.`,
+    });
+    setEditingStudent(null);
+  }
 
   const getAttendanceBadge = (status: AttendanceStatus, isTrigger: boolean = false) => {
     switch (status) {
@@ -402,12 +428,40 @@ export default function StudentsPage() {
                                 </Select>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button asChild variant="ghost" size="sm">
-                                <Link href={`/teacher/students/${student.id}`}>
-                                  View Profile
-                                  <ArrowRight className="ml-2 h-4 w-4" />
-                                </Link>
-                              </Button>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="ghost" size="sm">
+                                            <Edit className="mr-2 h-4 w-4"/>Edit
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Edit Student Details</DialogTitle>
+                                        </DialogHeader>
+                                        <form onSubmit={handleUpdateStudent}>
+                                            <div className="grid gap-4 py-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="edit-name">Name</Label>
+                                                    <Input id="edit-name" name="name" defaultValue={student.name} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="edit-rollNumber">Roll Number</Label>
+                                                    <Input id="edit-rollNumber" name="rollNumber" defaultValue={student.rollNumber} />
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild><Button variant="outline" type="button">Cancel</Button></DialogClose>
+                                                <Button type="submit">Save Changes</Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button asChild variant="ghost" size="sm">
+                                    <Link href={`/teacher/students/${student.id}`}>
+                                        View Profile
+                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Link>
+                                </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -432,6 +486,35 @@ export default function StudentsPage() {
           </TabsContent>
         ))}
       </Tabs>
+
+      <Dialog onOpenChange={(open) => !open && setEditingStudent(null)}>
+        {editingStudent && (
+             <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Student Details</DialogTitle>
+                    <DialogDescription>
+                        Update the details for {editingStudent.name}.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleUpdateStudent}>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Name</Label>
+                            <Input id="name" name="name" defaultValue={editingStudent.name} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="rollNumber">Roll Number</Label>
+                            <Input id="rollNumber" name="rollNumber" defaultValue={editingStudent.rollNumber} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                        <Button type="submit">Save Changes</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }
