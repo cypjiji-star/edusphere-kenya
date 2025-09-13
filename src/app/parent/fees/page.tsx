@@ -33,8 +33,9 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, User, ChevronDown, FileDown, Printer, CreditCard } from 'lucide-react';
+import { CircleDollarSign, User, ChevronDown, FileDown, Printer, CreditCard, Upload, Phone } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
 
 const childrenData = [
   { id: 'child-1', name: 'John Doe', class: 'Form 4' },
@@ -228,29 +229,43 @@ export default function ParentFeesPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Payment Options</CardTitle>
+                        <CardDescription>Select your preferred payment method.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <Button className="w-full" disabled>
-                            <CreditCard className="mr-2 h-4 w-4"/>
-                            Pay Online Now
-                        </Button>
+                    <CardContent className="space-y-6">
+                         <div className="space-y-4">
+                            <h4 className="font-semibold text-sm">Pay with M-Pesa (STK Push)</h4>
+                             <div className="flex items-center gap-2">
+                                <Phone className="h-5 w-5 text-muted-foreground" />
+                                <Input defaultValue="0722123456" disabled />
+                             </div>
+                            <Button className="w-full" disabled>
+                                <div className="h-5 w-5 bg-contain bg-no-repeat bg-center mr-2" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg')" }}/>
+                                Pay with M-Pesa
+                            </Button>
+                        </div>
                         <Separator />
-                        <div className="space-y-2">
-                            <h4 className="font-semibold text-sm">Pay via M-PESA</h4>
-                            <p className="text-sm">Paybill: <span className="font-bold">123456</span></p>
-                            <p className="text-sm">Account: <span className="font-bold">{selectedChild === 'child-1' ? '1234' : '5678'}</span></p>
+                         <div className="space-y-4">
+                            <h4 className="font-semibold text-sm">Pay with Card</h4>
+                            <Button className="w-full" variant="outline" disabled>
+                                <CreditCard className="mr-2 h-4 w-4"/>
+                                Visa / Mastercard
+                            </Button>
                         </div>
                          <Separator />
-                        <div className="space-y-2">
-                            <h4 className="font-semibold text-sm">Pay via Bank</h4>
-                            <p className="text-sm">Bank: <span className="font-bold">Kenya Commercial Bank</span></p>
-                            <p className="text-sm">Account: <span className="font-bold">1122334455</span></p>
-                            <p className="text-sm">Branch: <span className="font-bold">University Way</span></p>
+                        <div className="space-y-4">
+                            <h4 className="font-semibold text-sm">Bank Transfer</h4>
+                            <div className="text-xs space-y-1 text-muted-foreground bg-muted/50 p-3 rounded-md">
+                                <p>Bank: <span className="font-bold">Kenya Commercial Bank</span></p>
+                                <p>Account: <span className="font-bold">1122334455</span></p>
+                                <p>Branch: <span className="font-bold">University Way</span></p>
+                                <p>Account Name: <span className="font-bold">EduSphere High School</span></p>
+                            </div>
+                             <Button className="w-full" variant="outline" disabled>
+                                <Upload className="mr-2 h-4 w-4"/>
+                                Upload Proof of Payment
+                            </Button>
                         </div>
                     </CardContent>
-                    <CardFooter>
-                        <p className="text-xs text-muted-foreground">Online payments are processed securely. Feature coming soon.</p>
-                    </CardFooter>
                 </Card>
             </div>
         </div>
