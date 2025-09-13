@@ -386,6 +386,13 @@ export default function FeesPage() {
         });
     };
 
+    const handleExport = (type: 'PDF' | 'CSV') => {
+        toast({
+            title: 'Exporting Report',
+            description: `The student fee report is being exported as a ${type} file.`,
+        });
+    };
+
     return (
         <Dialog>
             <div className="p-4 sm:p-6 lg:p-8">
@@ -701,8 +708,8 @@ export default function FeesPage() {
                                                     </DialogTrigger>
                                                     <DropdownMenuItem onClick={sendReminders}><Send className="mr-2"/>Send Reminders</DropdownMenuItem>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem><FileDown className="mr-2"/>Export Report (PDF)</DropdownMenuItem>
-                                                    <DropdownMenuItem><FileText className="mr-2"/>Export as CSV</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2"/>Export Report (PDF)</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleExport('CSV')}><FileText className="mr-2"/>Export as CSV</DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                             <DialogContent>
