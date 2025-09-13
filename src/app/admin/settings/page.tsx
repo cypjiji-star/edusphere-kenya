@@ -84,6 +84,13 @@ export default function SettingsPage() {
         });
     };
 
+    const handleRollback = () => {
+        toast({
+            title: 'Rollback Simulated',
+            description: 'In a real application, this would revert the last profile change.'
+        });
+    };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
@@ -483,7 +490,7 @@ export default function SettingsPage() {
                             <ArrowRight className="ml-2 h-4 w-4"/>
                         </Link>
                     </Button>
-                    <Button variant="outline" disabled>
+                    <Button variant="outline" onClick={handleRollback}>
                         Rollback Last Change
                     </Button>
                 </CardFooter>
