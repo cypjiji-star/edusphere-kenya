@@ -157,7 +157,7 @@ export default function StudentEnrolmentPage() {
                                 <FormField control={form.control} name="studentLastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="e.g., Doe" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                                 <FormField control={form.control} name="dateOfBirth" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Date of Birth</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)}/>
                                 <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a gender" /></SelectTrigger></FormControl><SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
-                                 <FormField control={form.control} name="admissionNumber" render={({ field }) => ( <FormItem><FormLabel>Admission Number</FormLabel><FormControl><Input placeholder="Auto-generated if blank" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                 <FormField control={form.control} name="admissionNumber" render={({ field }) => ( <FormItem><FormLabel>Admission Number</FormLabel><FormControl><Input placeholder="e.g., SCH-1234" {...field} /></FormControl><FormDescription>Leave blank to auto-generate.</FormDescription><FormMessage /></FormItem> )}/>
                             </div>
                         </CardContent>
                     </Card>
@@ -235,7 +235,10 @@ export default function StudentEnrolmentPage() {
                     </Card>
                 </div>
             </div>
-             <CardFooter className="flex justify-end p-0 pt-6">
+             <CardFooter className="flex justify-end p-0 pt-6 gap-2">
+                <Button type="button" variant="secondary" className="w-full md:w-auto" disabled>
+                    Save as Draft
+                </Button>
                 <Button type="submit" className="w-full md:w-auto">
                     <Save className="mr-2 h-4 w-4"/>
                     Submit Enrolment Application
@@ -245,4 +248,5 @@ export default function StudentEnrolmentPage() {
       </Form>
     </div>
   );
-}
+
+    
