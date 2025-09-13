@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw, Type } from 'lucide-react';
+import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw, Type, History } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -47,6 +47,12 @@ const googleFonts = [
     { name: 'PT Sans', family: "'PT Sans', sans-serif" },
 ];
 
+const versionHistory = [
+    { version: 4, date: '2024-07-28', author: 'Admin User', summary: 'Summer Theme' },
+    { version: 3, date: '2024-06-15', author: 'Admin User', summary: 'Updated Primary Color' },
+    { version: 2, date: '2024-05-01', author: 'Principal Jane', summary: 'Initial Branding Setup' },
+    { version: 1, date: '2024-04-20', author: 'System', summary: 'Default Theme' },
+];
 
 export default function BrandingPage() {
     const [primaryColor, setPrimaryColor] = React.useState('#008080');
@@ -206,6 +212,25 @@ export default function BrandingPage() {
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Reset to Default
                     </Button>
+                </CardContent>
+             </Card>
+              <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Branding History</CardTitle>
+                    <CardDescription>Review and restore previous branding versions.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        {versionHistory.map(version => (
+                            <div key={version.version} className="flex items-center justify-between text-sm">
+                                <div>
+                                    <p className="font-medium">Version {version.version} - <span className="font-normal text-muted-foreground">{version.summary}</span></p>
+                                    <p className="text-xs text-muted-foreground">Saved by {version.author} on {version.date}</p>
+                                </div>
+                                <Button variant="ghost" size="sm" disabled>Restore</Button>
+                            </div>
+                        ))}
+                    </div>
                 </CardContent>
              </Card>
         </div>
