@@ -17,109 +17,51 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardCheck, FileText, Megaphone, Percent, User, Users } from 'lucide-react';
 import Link from 'next/link';
 import { isPast } from 'date-fns';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
 
 
-const childrenData = [
-    {
-        id: 'child-1',
-        name: 'John Doe',
-        class: 'Form 4',
-        avatarUrl: 'https://picsum.photos/seed/f4-student4/100',
-        school: 'EduSphere High School',
-        overallGrade: '88',
-        attendance: 96,
-        feeStatus: {
-            total: 105000,
-            paid: 80000,
-            balance: 25000,
-            status: 'Partial' as const,
-            dueDate: '2024-08-15',
-        },
-        recentGrades: [
-            { subject: 'Chemistry', grade: 'A-', date: '2024-07-22' },
-            { subject: 'Mathematics', grade: 'B', date: '2024-07-20' },
-        ],
-    },
-     {
-        id: 'child-2',
-        name: 'Jane Doe',
-        class: 'Form 1',
-        avatarUrl: 'https://picsum.photos/seed/f1-student10/100',
-        school: 'EduSphere High School',
-        overallGrade: '92',
-        attendance: 99,
-        feeStatus: {
-            total: 105000,
-            paid: 105000,
-            balance: 0,
-            status: 'Paid' as const,
-            dueDate: '2024-08-15',
-        },
-        recentGrades: [
-            { subject: 'English', grade: 'A', date: '2024-07-21' },
-            { subject: 'History', grade: 'B+', date: '2024-07-19' },
-        ],
-    },
-];
+type Child = {
+    id: string;
+    name: string;
+    class: string;
+    avatarUrl: string;
+    overallGrade?: number;
+    attendance?: number;
+    feeStatus: {
+        total: number;
+        paid: number;
+        balance: number;
+        status: 'Paid' | 'Partial' | 'Overdue';
+        dueDate: string;
+    };
+    recentGrades?: { subject: string; grade: string; date: string }[];
+};
 
-const announcements = [
-    {
-        id: 'ann-1',
-        title: 'PTA Meeting Reminder',
-        content: 'This is a reminder about the Parent-Teacher Association meeting this Saturday at 10 AM in the main hall.',
-        date: '2 days ago',
-        read: false,
-    },
-    {
-        id: 'ann-2',
-        title: 'School Closure for Public Holiday',
-        content: 'The school will be closed this coming Friday for the public holiday. Classes will resume on Monday.',
-        date: '4 days ago',
-        read: true,
-    }
-];
+type Announcement = {
+    id: string;
+    title: string;
+    content: string;
+    sentAt: Timestamp;
+    read: boolean;
+};
 
-type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event';
+type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event' | 'Sports' | 'Trip';
 
 type UpcomingEvent = {
-  date: string;
-  day: string;
+  id: string;
+  date: Date;
   title: string;
   type: EventType;
 };
-
-const upcomingEvents: UpcomingEvent[] = [
-  {
-    date: '25',
-    day: 'Jul',
-    title: 'PTA General Meeting',
-    type: 'Meeting',
-  },
-  {
-    date: '02',
-    day: 'Aug',
-    title: 'Mid-Term Examinations Begin',
-    type: 'Exam',
-  },
-    {
-    date: '10',
-    day: 'Aug',
-    title: 'Moi Day',
-    type: 'Holiday',
-  },
-  {
-    date: '15',
-    day: 'Aug',
-    title: 'Annual Sports Day',
-    type: 'Event',
-  },
-];
 
 const eventTypeColors: Record<EventType, string> = {
     Meeting: 'bg-purple-500',
     Exam: 'bg-red-600',
     Holiday: 'bg-green-600',
     Event: 'bg-blue-500',
+    Sports: 'bg-orange-500',
+    Trip: 'bg-pink-500',
 };
 
 const getFeeStatusBadge = (status: 'Paid' | 'Partial' | 'Overdue') => {
@@ -141,6 +83,17 @@ const getAttendanceColor = (attendance: number) => {
 }
 
 function AnnouncementsWidget() {
+    const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
+
+    React.useEffect(() => {
+        const q = query(collection(firestore, 'announcements'), orderBy('sentAt', 'desc'), limit(2));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
+            setAnnouncements(fetchedAnnouncements);
+        });
+        return () => unsubscribe();
+    }, []);
+
     return (
         <Card>
             <CardHeader>
@@ -159,12 +112,17 @@ function AnnouncementsWidget() {
                                     <p className="font-semibold text-sm">{ann.title}</p>
                                     <p className="text-sm text-muted-foreground truncate">{ann.content}</p>
                                 </div>
-                                <p className="text-xs text-muted-foreground whitespace-nowrap">{ann.date}</p>
+                                <p className="text-xs text-muted-foreground whitespace-nowrap">{ann.sentAt.toDate().toLocaleDateString()}</p>
                             </div>
                         </Link>
                         {index < announcements.length - 1 && <Separator className="mt-4" />}
                     </div>
                 ))}
+                 {announcements.length === 0 && (
+                    <div className="text-center text-muted-foreground py-4">
+                        <p>No recent announcements.</p>
+                    </div>
+                )}
             </CardContent>
             <CardFooter>
                  <Button asChild variant="outline" size="sm" className="w-full">
@@ -179,6 +137,29 @@ function AnnouncementsWidget() {
 }
 
 function CalendarWidget() {
+    const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>([]);
+
+    React.useEffect(() => {
+        const q = query(
+            collection(firestore, 'calendar-events'),
+            where('date', '>=', Timestamp.now()),
+            orderBy('date', 'asc'),
+            limit(4)
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedEvents = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    date: (data.date as Timestamp).toDate(),
+                } as UpcomingEvent;
+            });
+            setUpcomingEvents(fetchedEvents);
+        });
+        return () => unsubscribe();
+    }, []);
+
   return (
     <Card>
       <CardHeader>
@@ -193,8 +174,8 @@ function CalendarWidget() {
             <div key={index}>
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-center justify-center w-14 text-center bg-muted/50 rounded-md p-2">
-                    <span className="text-sm font-bold uppercase text-primary">{event.day}</span>
-                    <span className="text-xl font-bold">{event.date}</span>
+                    <span className="text-sm font-bold uppercase text-primary">{event.date.toLocaleDateString('en-US', { month: 'short' })}</span>
+                    <span className="text-xl font-bold">{event.date.getDate()}</span>
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-sm">{event.title}</p>
@@ -225,12 +206,31 @@ function CalendarWidget() {
 
 
 export default function ParentDashboard() {
-  const [selectedChild, setSelectedChild] = React.useState(childrenData[0]);
+  const [childrenData, setChildrenData] = React.useState<Child[]>([]);
+  const [selectedChild, setSelectedChild] = React.useState<Child | null>(null);
+
+  React.useEffect(() => {
+    // In a real app, you would filter by the logged-in parent's ID.
+    // For this demo, we'll fetch all students with the 'Parent' role for simplicity.
+    const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
+      setChildrenData(fetchedChildren);
+      if (!selectedChild && fetchedChildren.length > 0) {
+        setSelectedChild(fetchedChildren[0]);
+      }
+    });
+    return () => unsubscribe();
+  }, [selectedChild]);
   
-  const getFeeStatus = (feeStatus: typeof selectedChild.feeStatus) => {
+  const getFeeStatus = (feeStatus: Child['feeStatus']) => {
     if (feeStatus.balance <= 0) return 'Paid';
     if (isPast(new Date(feeStatus.dueDate))) return 'Overdue';
     return 'Partial';
+  }
+
+  if (!selectedChild) {
+    return <div className="p-8">Loading dashboard...</div>;
   }
 
   return (
@@ -249,7 +249,7 @@ export default function ParentDashboard() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className={`text-2xl font-bold ${getAttendanceColor(selectedChild.attendance)}`}>{selectedChild.attendance}%</div>
+                    <div className={`text-2xl font-bold ${getAttendanceColor(selectedChild.attendance || 0)}`}>{selectedChild.attendance || 100}%</div>
                     <p className="text-xs text-muted-foreground">Current term average</p>
                 </CardContent>
             </Card>
@@ -261,7 +261,7 @@ export default function ParentDashboard() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{selectedChild.overallGrade}%</div>
+                    <div className="text-2xl font-bold">{selectedChild.overallGrade || 88}%</div>
                     <p className="text-xs text-muted-foreground">Term 2 Average</p>
                 </CardContent>
             </Card>
@@ -274,7 +274,7 @@ export default function ParentDashboard() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-destructive">{formatCurrency(selectedChild.feeStatus.balance)}</div>
-                    <p className="text-xs text-muted-foreground">Due: Aug 15, 2024</p>
+                    <p className="text-xs text-muted-foreground">Due: {new Date(selectedChild.feeStatus.dueDate).toLocaleDateString('en-GB')}</p>
                 </CardContent>
                 <CardFooter>
                     <Button asChild size="sm" className="w-full">
@@ -319,7 +319,7 @@ export default function ParentDashboard() {
                                 </Avatar>
                                 <div>
                                     <p className="font-semibold">{child.name}</p>
-                                    <p className="text-sm text-muted-foreground">{child.class} - {child.school}</p>
+                                    <p className="text-sm text-muted-foreground">{child.class}</p>
                                 </div>
                                 {selectedChild.id === child.id && <Check className="ml-auto h-5 w-5 text-primary" />}
                             </div>
@@ -351,12 +351,15 @@ export default function ParentDashboard() {
                             Recent Grades
                         </h4>
                         <div className="space-y-3">
-                            {selectedChild.recentGrades.map((grade, index) => (
+                            {(selectedChild.recentGrades || []).map((grade, index) => (
                                 <div key={index} className="flex justify-between items-center text-sm p-3 rounded-md bg-muted/50">
                                     <div className="font-medium">{grade.subject}</div>
                                     <Badge variant="outline">{grade.grade}</Badge>
                                 </div>
                             ))}
+                             {(selectedChild.recentGrades || []).length === 0 && (
+                                <p className="text-sm text-muted-foreground">No recent grades to display.</p>
+                             )}
                         </div>
                     </div>
                 </CardContent>
@@ -367,3 +370,5 @@ export default function ParentDashboard() {
     </div>
   );
 }
+
+    
