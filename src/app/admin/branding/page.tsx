@@ -13,12 +13,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Palette, Upload, Eye, Save, Moon, Sun } from 'lucide-react';
+import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { FormDescription } from '@/components/ui/form';
 
 
 const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
@@ -63,8 +64,8 @@ export default function BrandingPage() {
         <div className="lg:col-span-1 space-y-6">
              <Card>
                 <CardHeader>
-                    <CardTitle>School Identity</CardTitle>
-                    <CardDescription>Upload your school's logo and cover image.</CardDescription>
+                    <CardTitle>School Logo & Media</CardTitle>
+                    <CardDescription>Upload your school's logo, cover image, and favicon.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
@@ -79,19 +80,37 @@ export default function BrandingPage() {
                                 Upload New Logo
                             </Button>
                         </div>
+                        <FormDescription>Recommended format: PNG or SVG.</FormDescription>
                     </div>
                      <div className="space-y-2">
                         <Label>Login Page Cover Image</Label>
                         <div className="flex items-center justify-center w-full">
                             <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
                                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                    <ImageIcon className="w-8 h-8 mb-2 text-muted-foreground" />
                                     <p className="mb-2 text-sm text-muted-foreground">Upload Cover Image</p>
                                     <p className="text-xs text-muted-foreground">(1920x1080 recommended)</p>
                                 </div>
                                 <Input id="dropzone-file" type="file" className="hidden" disabled />
                             </Label>
                         </div>
+                         <FormDescription>This image is shown on the dashboard login page.</FormDescription>
+                    </div>
+                     <div className="space-y-2">
+                        <Label>School Favicon</Label>
+                        <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 flex items-center justify-center bg-muted rounded-md">
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src="https://picsum.photos/seed/school-logo/200" />
+                                    <AvatarFallback>SL</AvatarFallback>
+                                </Avatar>
+                            </div>
+                            <Button variant="outline" className="w-full" disabled>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload Favicon
+                            </Button>
+                        </div>
+                        <FormDescription>An icon for the browser tab. Recommended format: .ico or .png (32x32px).</FormDescription>
                     </div>
                 </CardContent>
             </Card>
