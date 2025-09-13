@@ -16,6 +16,8 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardCheck, FileText, Megaphone, Percent, User, Users } from 'lucide-react';
 import Link from 'next/link';
+import { isPast } from 'date-fns';
+
 
 const childrenData = [
     {
@@ -31,6 +33,7 @@ const childrenData = [
             paid: 80000,
             balance: 25000,
             status: 'Partial' as const,
+            dueDate: '2024-08-15',
         },
         recentGrades: [
             { subject: 'Chemistry', grade: 'A-', date: '2024-07-22' },
@@ -50,6 +53,7 @@ const childrenData = [
             paid: 105000,
             balance: 0,
             status: 'Paid' as const,
+            dueDate: '2024-08-15',
         },
         recentGrades: [
             { subject: 'English', grade: 'A', date: '2024-07-21' },
@@ -220,6 +224,12 @@ function CalendarWidget() {
 
 export default function ParentDashboard() {
   const [selectedChild, setSelectedChild] = React.useState(childrenData[0]);
+  
+  const getFeeStatus = (feeStatus: typeof selectedChild.feeStatus) => {
+    if (feeStatus.balance <= 0) return 'Paid';
+    if (isPast(new Date(feeStatus.dueDate))) return 'Overdue';
+    return 'Partial';
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
