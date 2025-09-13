@@ -8,55 +8,46 @@ import { usePathname } from "next/navigation";
 export function PageLoader() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    // Reset loading state on route change
-    setLoading(false);
-  }, [pathname]);
-  
   useEffect(() => {
     const handleStart = (url: string) => {
-        if (url !== window.location.pathname) {
-            setLoading(true);
-        }
-    }
-    const handleComplete = () => setLoading(false);
-    
-    const handleLinkClick = (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        const link = target.closest('a');
-        if (link && link.href && link.target !== '_blank' && new URL(link.href).origin === window.location.origin) {
-            if (new URL(link.href).pathname !== window.location.pathname) {
-                handleStart(link.href);
-            }
-        }
+      if (url !== window.location.pathname) {
+        setLoading(true);
+      }
     };
-    
-    // Fallback for when page is ready
-    const onPageLoad = () => {
-        handleComplete();
+    const handleComplete = () => {
+      setLoading(false);
     };
 
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('a');
+      // Check if it's a link, has an href, isn't a new tab, and is an internal navigation
+      if (link && link.href && link.target !== '_blank' && new URL(link.href).origin === window.location.origin) {
+        if (new URL(link.href).pathname !== window.location.pathname) {
+          handleStart(link.href);
+        }
+      }
+    };
+
+    // Listen for link clicks to start loading
     document.addEventListener("click", handleLinkClick);
-    
-    if (document.readyState === 'complete') {
-      onPageLoad();
-    } else {
-      window.addEventListener('load', onPageLoad);
-    }
+
+    // This effect runs on route change, which means the new page is ready
+    handleComplete();
     
     return () => {
-        document.removeEventListener("click", handleLinkClick);
-        window.removeEventListener('load', onPageLoad);
+      document.removeEventListener("click", handleLinkClick);
     };
-  }, []);
 
-  if (!isClient) {
+  }, [pathname]);
+
+  if (!isMounted) {
     return null;
   }
 
@@ -64,7 +55,7 @@ export function PageLoader() {
     <AnimatePresence mode="wait">
       {loading && (
         <motion.div
-          key={pathname}
+          key="loader"
           className="fixed inset-0 flex items-center justify-center bg-background z-[9999]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
