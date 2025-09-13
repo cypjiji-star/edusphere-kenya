@@ -30,6 +30,9 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { firestore, storage } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
@@ -68,6 +71,8 @@ const versionHistory = [
 export default function BrandingPage() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = React.useState(false);
+    const [isUploadingLogo, setIsUploadingLogo] = React.useState(false);
+    const [logoUrl, setLogoUrl] = React.useState("https://picsum.photos/seed/school-logo/200");
     const [primaryColor, setPrimaryColor] = React.useState(defaultTheme.primaryColor);
     const [accentColor, setAccentColor] = React.useState(defaultTheme.accentColor);
     const [backgroundColor, setBackgroundColor] = React.useState(defaultTheme.backgroundColor);
@@ -75,6 +80,20 @@ export default function BrandingPage() {
     const [bodyFont, setBodyFont] = React.useState(defaultTheme.bodyFont);
 
     const form = useForm();
+    
+    React.useEffect(() => {
+        const fetchProfile = async () => {
+            const profileRef = doc(firestore, 'schoolProfile', 'main');
+            const profileSnap = await getDoc(profileRef);
+            if (profileSnap.exists()) {
+                const data = profileSnap.data();
+                if (data.logoUrl) {
+                    setLogoUrl(data.logoUrl);
+                }
+            }
+        };
+        fetchProfile();
+    }, []);
 
     const previewStyle = {
         '--preview-primary': primaryColor,
@@ -111,6 +130,31 @@ export default function BrandingPage() {
             description: `The theme has been reset to the system default.`,
         });
     }
+    
+    const handleLogoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingLogo(true);
+        toast({ title: 'Uploading Logo...', description: 'Please wait while the new logo is being uploaded.' });
+
+        try {
+            const storagePath = `school_assets/logo_${Date.now()}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            setLogoUrl(downloadURL);
+            await setDoc(doc(firestore, 'schoolProfile', 'main'), { logoUrl: downloadURL }, { merge: true });
+
+            toast({ title: 'Logo Updated!', description: 'The new school logo has been saved.' });
+        } catch (error) {
+            console.error('Error uploading logo:', error);
+            toast({ title: 'Upload Failed', description: 'Could not upload the logo. Please try again.', variant: 'destructive' });
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    };
 
     const handleSaveTheme = async () => {
         setIsLoading(true);
@@ -161,13 +205,19 @@ export default function BrandingPage() {
                             <Label>School Logo</Label>
                             <div className="flex items-center gap-4">
                                 <Avatar className="h-16 w-16">
-                                    <AvatarImage src="https://picsum.photos/seed/school-logo/200" />
+                                    <AvatarImage src={logoUrl} />
                                     <AvatarFallback>SL</AvatarFallback>
                                 </Avatar>
-                                <Button variant="outline" className="w-full" disabled>
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Upload New Logo
+                                <Button asChild variant="outline" className="w-full">
+                                    <Label htmlFor="logo-upload" className="cursor-pointer">
+                                        {isUploadingLogo ? (
+                                            <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Uploading...</>
+                                        ) : (
+                                            <><Upload className="mr-2 h-4 w-4" />Upload New Logo</>
+                                        )}
+                                    </Label>
                                 </Button>
+                                <Input id="logo-upload" type="file" className="hidden" accept="image/*" onChange={handleLogoChange} disabled={isUploadingLogo} />
                             </div>
                             <FormDescription>Recommended format: PNG or SVG.</FormDescription>
                         </div>
@@ -190,7 +240,7 @@ export default function BrandingPage() {
                             <div className="flex items-center gap-4">
                                 <div className="h-10 w-10 flex items-center justify-center bg-muted rounded-md">
                                     <Avatar className="h-8 w-8">
-                                        <AvatarImage src="https://picsum.photos/seed/school-logo/200" />
+                                        <AvatarImage src={logoUrl} />
                                         <AvatarFallback>SL</AvatarFallback>
                                     </Avatar>
                                 </div>
