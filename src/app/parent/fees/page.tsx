@@ -33,13 +33,24 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, User, ChevronDown, FileDown, Printer, CreditCard, Upload, Phone, AlertCircle } from 'lucide-react';
+import { CircleDollarSign, User, ChevronDown, FileDown, Printer, CreditCard, Upload, Phone, AlertCircle, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { differenceInDays, isFuture } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 
 const childrenData = [
@@ -111,21 +122,37 @@ export default function ParentFeesPage() {
     const data = feeData[selectedChild as keyof typeof feeData];
     const paymentHistory = historyData[selectedChild as keyof typeof historyData];
     const [clientReady, setClientReady] = React.useState(false);
+    const [isMpesaDialogOpen, setIsMpesaDialogOpen] = React.useState(false);
+    const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
+    const [mpesaPhoneNumber, setMpesaPhoneNumber] = React.useState('0722123456');
+    const [paymentAmount, setPaymentAmount] = React.useState(data.summary.balance);
     const { toast } = useToast();
-
 
     React.useEffect(() => {
         setClientReady(true);
-    }, []);
+        setPaymentAmount(data.summary.balance);
+    }, [selectedChild, data.summary.balance]);
 
     const daysUntilDue = clientReady ? differenceInDays(new Date(data.summary.dueDate), new Date()) : 0;
     const isOverdue = clientReady ? !isFuture(new Date(data.summary.dueDate)) : false;
 
-    const handlePayment = (method: 'M-Pesa' | 'Card') => {
+    const handleCardPayment = () => {
         toast({
             title: 'Simulating Payment',
-            description: `Initiating ${method} payment process...`,
+            description: 'Redirecting to secure card payment gateway...',
         });
+    };
+
+    const handleMpesaPayment = () => {
+        setIsProcessingPayment(true);
+        setTimeout(() => {
+            setIsProcessingPayment(false);
+            setIsMpesaDialogOpen(false);
+            toast({
+                title: 'Payment Successful',
+                description: `A payment of ${formatCurrency(paymentAmount)} has been processed.`,
+            });
+        }, 2500);
     };
 
     return (
@@ -279,21 +306,50 @@ export default function ParentFeesPage() {
                                 <CardDescription>Select your preferred payment method.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="space-y-4">
-                                    <h4 className="font-semibold text-sm">Pay with M-Pesa (STK Push)</h4>
-                                    <div className="flex items-center gap-2">
-                                        <Phone className="h-5 w-5 text-muted-foreground" />
-                                        <Input defaultValue="0722123456" disabled />
-                                    </div>
-                                    <Button className="w-full" onClick={() => handlePayment('M-Pesa')}>
-                                        <div className="h-5 w-5 bg-contain bg-no-repeat bg-center mr-2" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg')" }}/>
-                                        Pay with M-Pesa
-                                    </Button>
-                                </div>
+                                <Dialog open={isMpesaDialogOpen} onOpenChange={setIsMpesaDialogOpen}>
+                                    <DialogTrigger asChild>
+                                         <Button className="w-full">
+                                            <div className="h-5 w-5 bg-contain bg-no-repeat bg-center mr-2" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg')" }}/>
+                                            Pay with M-Pesa
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>M-Pesa Express Payment</DialogTitle>
+                                            <DialogDescription>
+                                                Enter your M-Pesa registered phone number to receive a payment prompt.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="py-4 space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="phone-number">Phone Number</Label>
+                                                <Input id="phone-number" value={mpesaPhoneNumber} onChange={(e) => setMpesaPhoneNumber(e.target.value)} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="amount">Amount to Pay (KES)</Label>
+                                                <Input id="amount" type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))}/>
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <Button onClick={handleMpesaPayment} disabled={isProcessingPayment}>
+                                                {isProcessingPayment ? (
+                                                    <>
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        Processing...
+                                                    </>
+                                                ) : 'Confirm Payment'}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+
                                 <Separator />
                                 <div className="space-y-4">
                                     <h4 className="font-semibold text-sm">Pay with Card</h4>
-                                    <Button className="w-full" variant="outline" onClick={() => handlePayment('Card')}>
+                                    <Button className="w-full" variant="outline" onClick={handleCardPayment}>
                                         <CreditCard className="mr-2 h-4 w-4"/>
                                         Visa / Mastercard
                                     </Button>
