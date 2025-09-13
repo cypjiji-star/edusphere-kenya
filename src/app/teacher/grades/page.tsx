@@ -64,6 +64,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Label } from '@/components/ui/label';
+import { GradeEntryForm } from './new/grade-entry-form';
 
 // --- Mock Data ---
 
@@ -155,11 +156,44 @@ export default function GradesPage() {
     };
 
     const handleExport = (type: 'PDF' | 'CSV') => {
+        const doc = new jsPDF();
+        const tableData = filteredStudents.map(student => [
+            student.name,
+            student.rollNumber,
+            student.overallGrade,
+        ]);
+    
+        if (type === 'CSV') {
+            const headers = ['Name', 'Roll Number', 'Overall Grade'];
+            const csvContent = [
+                headers.join(','),
+                ...tableData.map(row => row.join(','))
+            ].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `${selectedClass}-grades.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        } else {
+             doc.text(`${teacherClasses.find(c => c.id === selectedClass)?.name} Grades`, 14, 16);
+             (doc as any).autoTable({
+                startY: 22,
+                head: [['Name', 'Roll Number', 'Overall Grade']],
+                body: tableData,
+             });
+             doc.save(`${selectedClass}-grades.pdf`);
+        }
+
         toast({
             title: 'Exporting Gradebook',
             description: `Your gradebook is being exported as a ${type} file.`
         });
-        // Here you would implement the actual export logic
     }
 
   return (
@@ -336,23 +370,11 @@ export default function GradesPage() {
         <TabsContent value="entry">
            <Card>
                 <CardHeader>
-                    <CardTitle>Create New Assessment</CardTitle>
-                    <CardDescription>
-                        Create a new assessment record (e.g., Exam, Quiz) and enter grades for your class.
-                    </CardDescription>
+                    <CardTitle>Enter New Grades</CardTitle>
+                    <CardDescription>Fill out the form to add a new assessment and enter grades for your class.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex min-h-[400px] flex-col items-center justify-center">
-                     <div className="text-center">
-                        <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="mt-4 text-xl font-semibold">Ready to Enter Grades?</h3>
-                        <p className="mt-2 text-sm text-muted-foreground">Click the button below to go to the grade entry form.</p>
-                        <Button asChild className="mt-6">
-                            <Link href="/teacher/grades/new">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Create New Assessment
-                            </Link>
-                        </Button>
-                    </div>
+                <CardContent>
+                    <GradeEntryForm />
                 </CardContent>
             </Card>
         </TabsContent>
