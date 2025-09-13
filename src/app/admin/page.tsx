@@ -144,9 +144,7 @@ export default function AdminDashboard() {
             <Link href="/admin/fees">
                 <FinanceSnapshot />
             </Link>
-            <Link href="/admin/grades">
-                <PerformanceSnapshot />
-            </Link>
+            <PerformanceSnapshot />
           </div>
       </div>
     </div>
