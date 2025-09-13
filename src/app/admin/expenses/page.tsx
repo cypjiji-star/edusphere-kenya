@@ -375,10 +375,21 @@ export default function ExpensesPage() {
                 title: 'Status Updated',
                 description: `The expense has been marked as ${status}.`
             });
+            
+            // This is the new notification toast
             toast({
                 title: 'Submitter Notified',
                 description: `A notification has been sent to the submitter about the status change.`
             });
+
+            await addDoc(collection(firestore, 'notifications'), {
+                title: `Expense ${status}`,
+                description: `Your expense report for ${formatCurrency(expenses.find(e => e.id === expenseId)?.amount || 0)} has been ${status.toLowerCase()}.`,
+                createdAt: serverTimestamp(),
+                read: false,
+                href: `/admin/expenses`,
+            });
+            
         } catch (error) {
             console.error("Error updating status:", error);
             toast({ title: "Error", description: "Could not update the expense status.", variant: "destructive" });
@@ -869,5 +880,6 @@ export default function ExpensesPage() {
       
 
     
+
 
 
