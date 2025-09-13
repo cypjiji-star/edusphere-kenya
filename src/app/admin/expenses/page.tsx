@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip, Loader2, X, Edit, Bell } from 'lucide-react';
+import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip, Loader2, X, Edit, Bell, TrendingUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -388,6 +388,7 @@ export default function ExpensesPage() {
     const dashboardStats = React.useMemo(() => {
         const thisMonth = new Date().getMonth();
         const thisYear = new Date().getFullYear();
+        const monthlyBudget = 1500000;
 
         const monthlyExpenses = expenses.filter(exp => {
             const expDate = exp.date.toDate();
@@ -405,12 +406,15 @@ export default function ExpensesPage() {
         }, {} as Record<ExpenseCategory, number>);
 
         const topCategory = Object.entries(categorySpending).sort(([,a],[,b]) => b-a)[0];
+        
+        const budgetVariance = monthlyBudget - total;
 
         return {
             total,
             pending,
             topCategoryName: topCategory ? topCategory[0] : 'N/A',
             topCategoryPercentage: topCategory && total > 0 ? Math.round((topCategory[1] / total) * 100) : 0,
+            budgetVariance,
         };
     }, [expenses]);
 
@@ -528,11 +532,18 @@ export default function ExpensesPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Budget Variance</CardTitle>
-                        <TrendingDown className="h-4 w-4 text-green-600" />
+                        {dashboardStats.budgetVariance >= 0 ? 
+                            <TrendingDown className="h-4 w-4 text-green-600" /> : 
+                            <TrendingUp className="h-4 w-4 text-destructive" />
+                        }
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-600">- KES 122,000</div>
-                        <p className="text-xs text-muted-foreground">Under budget for July</p>
+                        <div className={cn("text-2xl font-bold", dashboardStats.budgetVariance >= 0 ? 'text-green-600' : 'text-destructive')}>
+                            {formatCurrency(Math.abs(dashboardStats.budgetVariance))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {dashboardStats.budgetVariance >= 0 ? 'Under budget for this month' : 'Over budget for this month'}
+                        </p>
                     </CardContent>
                 </Card>
                  <Card>
@@ -858,4 +869,5 @@ export default function ExpensesPage() {
       
 
     
+
 
