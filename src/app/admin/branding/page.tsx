@@ -50,21 +50,29 @@ const googleFonts = [
     { name: 'PT Sans', family: "'PT Sans', sans-serif" },
 ];
 
+const defaultTheme = {
+    primaryColor: '#2563eb',
+    accentColor: '#f59e0b',
+    backgroundColor: '#0f172a',
+    headlineFont: googleFonts[1].family,
+    bodyFont: googleFonts[4].family,
+};
+
 const versionHistory = [
-    { version: 4, date: '2024-07-28', author: 'Admin User', summary: 'Summer Theme' },
-    { version: 3, date: '2024-06-15', author: 'Admin User', summary: 'Updated Primary Color' },
-    { version: 2, date: '2024-05-01', author: 'Principal Jane', summary: 'Initial Branding Setup' },
-    { version: 1, date: '2024-04-20', author: 'System', summary: 'Default Theme' },
+    { version: 4, date: '2024-07-28', author: 'Admin User', summary: 'Summer Theme', theme: { primaryColor: '#db2777', accentColor: '#fde047', backgroundColor: '#fdf4ff', headlineFont: googleFonts[1].family, bodyFont: googleFonts[0].family } },
+    { version: 3, date: '2024-06-15', author: 'Admin User', summary: 'Updated Primary Color', theme: { primaryColor: '#16a34a', accentColor: '#fb923c', backgroundColor: '#1e293b', headlineFont: googleFonts[1].family, bodyFont: googleFonts[2].family } },
+    { version: 2, date: '2024-05-01', author: 'Principal Jane', summary: 'Initial Branding Setup', theme: { primaryColor: '#2563eb', accentColor: '#f59e0b', backgroundColor: '#0f172a', headlineFont: googleFonts[1].family, bodyFont: googleFonts[4].family } },
+    { version: 1, date: '2024-04-20', author: 'System', summary: 'Default Theme', theme: defaultTheme },
 ];
 
 export default function BrandingPage() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = React.useState(false);
-    const [primaryColor, setPrimaryColor] = React.useState('#2563eb');
-    const [accentColor, setAccentColor] = React.useState('#f59e0b');
-    const [backgroundColor, setBackgroundColor] = React.useState('#0f172a');
-    const [headlineFont, setHeadlineFont] = React.useState(googleFonts[1].family);
-    const [bodyFont, setBodyFont] = React.useState(googleFonts[4].family);
+    const [primaryColor, setPrimaryColor] = React.useState(defaultTheme.primaryColor);
+    const [accentColor, setAccentColor] = React.useState(defaultTheme.accentColor);
+    const [backgroundColor, setBackgroundColor] = React.useState(defaultTheme.backgroundColor);
+    const [headlineFont, setHeadlineFont] = React.useState(defaultTheme.headlineFont);
+    const [bodyFont, setBodyFont] = React.useState(defaultTheme.bodyFont);
 
     const form = useForm();
 
@@ -79,6 +87,30 @@ export default function BrandingPage() {
         '--preview-font-headline': headlineFont,
         '--preview-font-body': bodyFont,
     } as React.CSSProperties;
+    
+    const applyTheme = (theme: typeof defaultTheme) => {
+        setPrimaryColor(theme.primaryColor);
+        setAccentColor(theme.accentColor);
+        setBackgroundColor(theme.backgroundColor);
+        setHeadlineFont(theme.headlineFont);
+        setBodyFont(theme.bodyFont);
+    };
+
+    const handleRestore = (version: typeof versionHistory[0]) => {
+        applyTheme(version.theme);
+        toast({
+            title: 'Theme Restored',
+            description: `You are now previewing "${version.summary}".`,
+        });
+    };
+    
+    const handleReset = () => {
+        applyTheme(defaultTheme);
+         toast({
+            title: 'Theme Reset',
+            description: `The theme has been reset to the system default.`,
+        });
+    }
 
     const handleSaveTheme = () => {
         setIsLoading(true);
@@ -229,7 +261,7 @@ export default function BrandingPage() {
                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
                             Apply &amp; Save Theme
                         </Button>
-                        <Button variant="outline" className="w-full" disabled>
+                        <Button variant="outline" className="w-full" onClick={handleReset}>
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Reset to Default
                         </Button>
@@ -248,7 +280,7 @@ export default function BrandingPage() {
                                         <p className="font-medium">Version {version.version} - <span className="font-normal text-muted-foreground">{version.summary}</span></p>
                                         <p className="text-xs text-muted-foreground">Saved by {version.author} on {version.date}</p>
                                     </div>
-                                    <Button variant="ghost" size="sm" disabled>Restore</Button>
+                                    <Button variant="ghost" size="sm" onClick={() => handleRestore(version)}>Restore</Button>
                                 </div>
                             ))}
                         </div>
@@ -304,4 +336,3 @@ export default function BrandingPage() {
     </div>
   );
 }
-
