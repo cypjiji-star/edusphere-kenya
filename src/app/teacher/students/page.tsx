@@ -187,7 +187,7 @@ export default function StudentsPage() {
 
         {teacherClasses.map((cls) => (
           <TabsContent key={cls.id} value={cls.id}>
-             <ClassAnalytics students={studentsForCurrentTab} />
+             <ClassAnalytics students={filteredStudents} />
             <Card className="mt-6">
               <CardHeader>
                 <div className="md:flex-row md:items-start md:justify-between">
