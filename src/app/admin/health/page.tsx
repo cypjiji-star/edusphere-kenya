@@ -65,7 +65,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Bar, BarChart, CartesianGrid, XAxis, LabelList } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, LabelList } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
