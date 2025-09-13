@@ -143,7 +143,10 @@ function NewTransactionDialog({ students }: { students: StudentFee[] }) {
         }
 
         const isCredit = transactionType === 'payment' || transactionType === 'waiver';
-        const transactionAmount = isCredit ? -Math.abs(Number(amount)) : Math.abs(Number(amount));
+        let transactionAmount = isCredit ? -Math.abs(Number(amount)) : Math.abs(Number(amount));
+        if (transactionType === 'refund') {
+            transactionAmount = Math.abs(Number(amount));
+        }
 
         const transactionTypeLabels: Record<TransactionType, Transaction['type']> = {
             payment: 'Payment',
@@ -167,8 +170,13 @@ function NewTransactionDialog({ students }: { students: StudentFee[] }) {
 
             await addDoc(collection(firestore, `students/${studentId}/transactions`), transactionData);
 
-            const newBalance = studentDoc.balance + transactionAmount;
-            const newAmountPaid = isCredit && transactionType !== 'waiver' ? studentDoc.amountPaid + Math.abs(transactionAmount) : studentDoc.amountPaid;
+            let newBalance = studentDoc.balance + transactionAmount;
+            if(transactionType === 'waiver') {
+                newBalance = studentDoc.balance - Math.abs(Number(amount));
+                transactionData.amount = -Math.abs(Number(amount)); // ensure waiver is negative
+            }
+
+            const newAmountPaid = (isCredit && transactionType !== 'waiver') ? studentDoc.amountPaid + Math.abs(transactionAmount) : studentDoc.amountPaid;
             
             await updateDoc(studentRef, {
                 balance: newBalance,
@@ -614,24 +622,52 @@ export default function FeesPage() {
     };
 
     const handleDeleteItem = async (collectionName: string, id: string, name: string) => {
-        try {
-            await deleteDoc(doc(firestore, collectionName, id));
-            toast({
-                title: 'Item Deleted',
-                description: `"${name}" has been removed.`,
-                variant: 'destructive',
-            });
-        } catch (error) {
-            console.error("Error deleting item:", error);
-            toast({ title: "Error", description: "Failed to delete item.", variant: "destructive" });
+        if (window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+            try {
+                await deleteDoc(doc(firestore, collectionName, id));
+                toast({
+                    title: 'Item Deleted',
+                    description: `"${name}" has been removed.`,
+                    variant: 'destructive',
+                });
+            } catch (error) {
+                console.error("Error deleting item:", error);
+                toast({ title: "Error", description: "Failed to delete item.", variant: "destructive" });
+            }
         }
     };
 
     const handleExport = (type: 'PDF' | 'CSV') => {
-        toast({
-            title: 'Exporting Report',
-            description: `The student fee report is being exported as a ${type} file.`,
-        });
+        if (type === 'CSV') {
+            const headers = ['Student Name', 'Class', 'Fee Status', 'Total Fee', 'Amount Paid', 'Balance'];
+            const rows = filteredStudents.map(student => 
+                [
+                    `"${student.name}"`,
+                    student.class,
+                    student.feeStatus,
+                    student.totalFee,
+                    student.amountPaid,
+                    student.balance
+                ].join(',')
+            );
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "student-fees-report.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        } else {
+             toast({
+                title: 'Exporting Report',
+                description: `PDF export is not yet available.`,
+            });
+        }
     };
 
     return (
