@@ -27,6 +27,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+  DialogFooter
+} from '@/components/ui/dialog';
+import {
   FileText,
   User,
   ChevronDown,
@@ -36,6 +46,7 @@ import {
   ArrowUp,
   ArrowDown,
   MessageCircle,
+  Send,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from 'recharts';
@@ -46,6 +57,8 @@ import {
 } from '@/components/ui/chart';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 const childrenData = [
   { id: 'child-1', name: 'John Doe', class: 'Form 4' },
@@ -64,12 +77,12 @@ const gradeData = {
       lowest: 'History (72%)',
     },
     subjects: [
-      { name: 'Mathematics', cat1: 80, midTerm: 85, cat2: 78, final: 84, average: 82, grade: 'A-', comment: 'Good progress, but needs to work on algebraic expressions.' },
-      { name: 'English', cat1: 88, midTerm: 90, cat2: 85, final: 87, average: 88, grade: 'A', comment: 'Excellent work in literature analysis.' },
-      { name: 'Kiswahili', cat1: 75, midTerm: 78, cat2: 80, final: 82, average: 79, grade: 'A-', comment: 'Improvement in vocabulary is needed.' },
-      { name: 'Chemistry', cat1: 90, midTerm: 92, cat2: 88, final: 94, average: 91, grade: 'A', comment: 'Outstanding performance in practicals.' },
-      { name: 'Physics', cat1: 78, midTerm: 80, cat2: 75, final: 79, average: 78, grade: 'A-', comment: 'Good understanding of core concepts.' },
-      { name: 'History', cat1: 70, midTerm: 72, cat2: 74, final: 72, average: 72, grade: 'B', comment: 'More attention to detail in essays is required.' },
+      { name: 'Mathematics', cat1: 80, midTerm: 85, cat2: 78, final: 84, average: 82, grade: 'A-', comment: 'Good progress, but needs to work on algebraic expressions.', teacher: 'Mr. Otieno' },
+      { name: 'English', cat1: 88, midTerm: 90, cat2: 85, final: 87, average: 88, grade: 'A', comment: 'Excellent work in literature analysis.', teacher: 'Ms. Njeri' },
+      { name: 'Kiswahili', cat1: 75, midTerm: 78, cat2: 80, final: 82, average: 79, grade: 'A-', comment: 'Improvement in vocabulary is needed.', teacher: 'Ms. Akinyi' },
+      { name: 'Chemistry', cat1: 90, midTerm: 92, cat2: 88, final: 94, average: 91, grade: 'A', comment: 'Outstanding performance in practicals.', teacher: 'Ms. Wanjiku' },
+      { name: 'Physics', cat1: 78, midTerm: 80, cat2: 75, final: 79, average: 78, grade: 'A-', comment: 'Good understanding of core concepts.', teacher: 'Mr. Kamau' },
+      { name: 'History', cat1: 70, midTerm: 72, cat2: 74, final: 72, average: 'B', comment: 'More attention to detail in essays is required.', teacher: 'Mr. Kamau' },
     ]
   },
   'child-2': {
@@ -83,8 +96,8 @@ const gradeData = {
       lowest: 'Mathematics (80%)',
     },
     subjects: [
-        { name: 'Mathematics', cat1: 78, midTerm: 82, cat2: 79, final: 81, average: 80, grade: 'A-', comment: 'Excellent effort.' },
-        { name: 'English', cat1: 92, midTerm: 95, cat2: 93, final: 96, average: 94, grade: 'A', comment: 'Top of the class. Keep it up.' },
+        { name: 'Mathematics', cat1: 78, midTerm: 82, cat2: 79, final: 81, average: 80, grade: 'A-', comment: 'Excellent effort.', teacher: 'Mr. Otieno' },
+        { name: 'English', cat1: 92, midTerm: 95, cat2: 93, final: 96, average: 94, grade: 'A', comment: 'Top of the class. Keep it up.', teacher: 'Ms. Njeri' },
     ]
   }
 };
@@ -93,11 +106,60 @@ const chartConfig = {
   average: { label: 'Average Score', color: 'hsl(var(--primary))' },
 };
 
+type SubjectData = (typeof gradeData)['child-1']['subjects'][0];
+
+function CommentDialog({ studentName, subject, open, onOpenChange }: { studentName: string, subject: SubjectData | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+    const { toast } = useToast();
+    const handleSendReply = () => {
+        toast({
+            title: 'Reply Sent (Simulation)',
+            description: `Your message has been sent to ${subject?.teacher}.`,
+        });
+        onOpenChange(false);
+    }
+
+    if (!subject) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Teacher's Comment: {subject.name}</DialogTitle>
+                    <DialogDescription>
+                        Comment regarding {studentName}'s performance.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <Card className="bg-muted/50">
+                        <CardContent className="p-4">
+                             <p className="text-sm italic">"{subject.comment}"</p>
+                             <p className="text-xs text-muted-foreground mt-2">- {subject.teacher}</p>
+                        </CardContent>
+                    </Card>
+                     <Separator />
+                    <div className="space-y-2">
+                        <Label htmlFor="reply-message">Send a Reply</Label>
+                        <Textarea id="reply-message" placeholder={`Type your message to ${subject.teacher}...`} />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button onClick={handleSendReply}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Send Reply
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function ParentGradesPage() {
   const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
   const { toast } = useToast();
   const data = gradeData[selectedChild as keyof typeof gradeData];
   const chartData = data.subjects.map(s => ({ name: s.name.substring(0, 3).toUpperCase(), average: s.average }));
+  const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
 
   const handleDownload = () => {
     toast({
@@ -107,6 +169,13 @@ export default function ParentGradesPage() {
   };
 
   return (
+    <>
+    <CommentDialog 
+        studentName={childrenData.find(c => c.id === selectedChild)?.name || ''}
+        subject={selectedSubjectComment}
+        open={!!selectedSubjectComment}
+        onOpenChange={(open) => !open && setSelectedSubjectComment(null)}
+    />
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       <div className="mb-2">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -142,7 +211,7 @@ export default function ParentGradesPage() {
                         <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
                     </SelectContent>
                 </Select>
-                <Select disabled>
+                <Select>
                     <SelectTrigger className="w-full md:w-auto">
                         <SelectValue placeholder="All Exams" />
                     </SelectTrigger>
@@ -246,8 +315,8 @@ export default function ParentGradesPage() {
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm">
                                         <div className="flex items-center justify-between">
-                                            <span>{subject.comment}</span>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                            <span className="truncate">{subject.comment}</span>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedSubjectComment(subject)}>
                                                 <MessageCircle className="h-4 w-4"/>
                                             </Button>
                                         </div>
@@ -265,7 +334,7 @@ export default function ParentGradesPage() {
                 </Button>
             </CardFooter>
         </Card>
-
     </div>
+    </>
   );
 }
