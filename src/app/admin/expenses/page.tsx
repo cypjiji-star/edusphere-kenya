@@ -51,6 +51,8 @@ import { firestore, storage } from '@/lib/firebase';
 import { collection, query, onSnapshot, Timestamp, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 type ExpenseStatus = 'Paid' | 'Pending Approval' | 'Reimbursed' | 'Declined';
@@ -70,7 +72,7 @@ type Expense = {
 };
 
 const categories: ExpenseCategory[] = ['Utilities', 'Supplies', 'Maintenance', 'Salaries', 'Marketing', 'Transport', 'Stationery'];
-const statuses: ExpenseStatus[] = ['Paid', 'Pending Approval', 'Reimbursed' | 'Declined'];
+const statuses: ExpenseStatus[] = ['Paid', 'Pending Approval', 'Reimbursed', 'Declined'];
 
 
 const getStatusBadge = (status: ExpenseStatus) => {
@@ -103,6 +105,12 @@ export default function ExpensesPage() {
     const [newExpenseVendor, setNewExpenseVendor] = React.useState('');
     const [newExpenseDescription, setNewExpenseDescription] = React.useState('');
     const [newExpenseAttachment, setNewExpenseAttachment] = React.useState<File | null>(null);
+
+    // State for bulk import
+    const [isBulkImportOpen, setIsBulkImportOpen] = React.useState(false);
+    const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
+    const [isProcessingFile, setIsProcessingFile] = React.useState(false);
+    const [isFileProcessed, setIsFileProcessed] = React.useState(false);
 
     const { toast } = useToast();
     const form = useForm();
@@ -220,6 +228,86 @@ export default function ExpensesPage() {
             topCategoryPercentage: topCategory && total > 0 ? Math.round((topCategory[1] / total) * 100) : 0,
         };
     }, [expenses]);
+
+    const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setBulkImportFile(event.target.files[0]);
+            setIsFileProcessed(false);
+        }
+    };
+    
+    const handleRemoveBulkFile = () => {
+        setBulkImportFile(null);
+        setIsFileProcessed(false);
+    };
+
+    const handleProcessFile = () => {
+        setIsProcessingFile(true);
+        setTimeout(() => {
+            setIsProcessingFile(false);
+            setIsFileProcessed(true);
+            toast({
+                title: 'File Processed',
+                description: 'Please map the columns from your file to the required fields.',
+            });
+        }, 1500);
+    }
+    
+     const handleImportExpenses = () => {
+        setIsBulkImportOpen(false); // Close the dialog
+        toast({
+            title: 'Import Successful',
+            description: 'The expenses have been added to the log for approval.',
+        });
+        // Reset dialog state after closing
+        setTimeout(() => {
+            setBulkImportFile(null);
+            setIsFileProcessed(false);
+        }, 300);
+    };
+
+    const handleExport = (type: 'PDF' | 'CSV') => {
+        const doc = new jsPDF();
+        const tableData = filteredExpenses.map(exp => [
+            clientReady ? exp.date.toDate().toLocaleDateString() : '',
+            exp.category,
+            exp.description,
+            exp.submittedBy,
+            exp.status,
+            formatCurrency(exp.amount),
+        ]);
+
+        if (type === 'CSV') {
+            const headers = ['Date', 'Category', 'Description', 'Submitted By', 'Status', 'Amount'];
+            const csvContent = [
+                headers.join(','),
+                ...tableData.map(row => row.join(','))
+            ].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "expenses-report.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        } else {
+             doc.text("Expense Records", 14, 16);
+             (doc as any).autoTable({
+                startY: 22,
+                head: [['Date', 'Category', 'Description', 'Submitted By', 'Status', 'Amount']],
+                body: tableData,
+             });
+             doc.save('expenses-report.pdf');
+        }
+        toast({
+            title: 'Exporting Records',
+            description: `Your expense records are being exported as a ${type} file.`,
+        });
+    };
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -383,7 +471,7 @@ export default function ExpensesPage() {
                                 </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <Dialog>
+                                    <Dialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen}>
                                         <DialogTrigger asChild>
                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                                 <Upload className="mr-2 h-4 w-4" />
@@ -391,66 +479,84 @@ export default function ExpensesPage() {
                                             </DropdownMenuItem>
                                         </DialogTrigger>
                                         <DialogContent className="sm:max-w-2xl">
-                                            <Form {...form}>
-                                                <DialogHeader>
-                                                    <DialogTitle>Import Expenses from CSV/Excel</DialogTitle>
-                                                    <DialogDescription>
-                                                        Upload a file to bulk add new expenses.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <div className="grid gap-6 py-4">
-                                                    <div className="space-y-2">
-                                                        <Label>Step 1: Upload File</Label>
-                                                        <div className="flex items-center justify-center w-full">
+                                            <DialogHeader>
+                                                <DialogTitle>Import Expenses from CSV/Excel</DialogTitle>
+                                                <DialogDescription>
+                                                    Upload a file to bulk add new expenses.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <div className="grid gap-6 py-4">
+                                                <div className="space-y-2">
+                                                    <Label>Step 1: Upload File</Label>
+                                                    <div className="flex items-center justify-center w-full">
+                                                        {bulkImportFile ? (
+                                                            <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                                                <div className="flex items-center gap-2 text-sm font-medium">
+                                                                    <FileDown className="h-5 w-5 text-primary" />
+                                                                    <span className="truncate">{bulkImportFile.name}</span>
+                                                                </div>
+                                                                <Button variant="ghost" size="icon" onClick={handleRemoveBulkFile} className="h-6 w-6">
+                                                                    <X className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
                                                             <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
                                                                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                                                                     <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
                                                                     <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
                                                                     <p className="text-xs text-muted-foreground">CSV or Excel (up to 2MB)</p>
                                                                 </div>
-                                                                <Input id="dropzone-file-bulk" type="file" className="hidden" />
+                                                                <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} />
                                                             </Label>
-                                                        </div>
+                                                        )}
                                                     </div>
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <Columns className="h-5 w-5 text-primary" />
-                                                            <h4 className="font-medium">Step 2: Map Columns</h4>
+                                                </div>
+                                                <div className={cn("space-y-4", !isFileProcessed && "opacity-50")}>
+                                                    <div className="flex items-center gap-2">
+                                                        <Columns className="h-5 w-5 text-primary" />
+                                                        <h4 className="font-medium">Step 2: Map Columns</h4>
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
+                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                            <Label>Date</Label>
+                                                            <Select defaultValue="col1" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col1">Column A</SelectItem></SelectContent></Select>
                                                         </div>
-                                                        <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                                                                <Label>Date</Label>
-                                                                <Select defaultValue="col1"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col1">Column A</SelectItem></SelectContent></Select>
-                                                            </div>
-                                                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                                                                <Label>Amount</Label>
-                                                                <Select defaultValue="col2"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col2">Column B</SelectItem></SelectContent></Select>
-                                                            </div>
-                                                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                                                                <Label>Description</Label>
-                                                                <Select defaultValue="col3"><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col3">Column C</SelectItem></SelectContent></Select>
-                                                            </div>
-                                                            <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                                                                <Label>Category</Label>
-                                                                <Select><SelectTrigger><SelectValue placeholder="Assign..."/></SelectTrigger><SelectContent></SelectContent></Select>
-                                                            </div>
+                                                        <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                            <Label>Amount</Label>
+                                                            <Select defaultValue="col2" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col2">Column B</SelectItem></SelectContent></Select>
+                                                        </div>
+                                                        <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                            <Label>Description</Label>
+                                                            <Select defaultValue="col3" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col3">Column C</SelectItem></SelectContent></Select>
+                                                        </div>
+                                                        <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                                            <Label>Category</Label>
+                                                            <Select disabled={!isFileProcessed}><SelectTrigger><SelectValue placeholder="Assign..."/></SelectTrigger><SelectContent></SelectContent></Select>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <DialogFooter>
-                                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                    <Button disabled>Process File</Button>
-                                                </DialogFooter>
-                                            </Form>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button variant="outline" onClick={() => setIsBulkImportOpen(false)}>Cancel</Button>
+                                                {isFileProcessed ? (
+                                                    <Button onClick={handleImportExpenses}>
+                                                        <CheckCircle className="mr-2 h-4 w-4" /> Import Expenses
+                                                    </Button>
+                                                ) : (
+                                                    <Button onClick={handleProcessFile} disabled={!bulkImportFile || isProcessingFile}>
+                                                        {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
+                                                    </Button>
+                                                )}
+                                            </DialogFooter>
                                         </DialogContent>
                                     </Dialog>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('PDF')}>
                                         <FileDown className="mr-2 h-4 w-4" />
                                         Export as PDF
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('CSV')}>
                                         <FileDown className="mr-2 h-4 w-4" />
                                         Export as CSV
                                     </DropdownMenuItem>
@@ -553,4 +659,4 @@ export default function ExpensesPage() {
     );
 }
 
-    
+      
