@@ -11,14 +11,7 @@ export type CalendarEvent = {
 };
 
 // Using a fixed reference date to ensure consistency across server and client renders
-const getReferenceDate = () => {
-    // A function to prevent this from being evaluated at build time,
-    // ensuring it's relative to the user's "now" but consistent.
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-};
-
-const referenceDate = getReferenceDate();
+const referenceDate = new Date('2024-07-20T00:00:00');
 
 export const MOCK_EVENTS: CalendarEvent[] = [
   { id: '1', date: referenceDate, title: "Form 4 Exams Begin", type: 'exam' },
