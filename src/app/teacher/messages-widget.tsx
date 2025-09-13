@@ -8,33 +8,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageCircle, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-
-const messages = [
-  {
-    sender: 'Mr. Omondi (Parent)',
-    avatarUrl: 'https://picsum.photos/seed/parent1/100',
-    preview: 'Good morning, I wanted to check on John\'s progress in Chemistry...',
-    time: '9:15 AM',
-    unread: true,
-  },
-  {
-    sender: 'Jane Achieng (Student)',
-    avatarUrl: 'https://picsum.photos/seed/student3/100',
-    preview: 'Hello Ms. Wanjiku, I have a question about the assignment deadline.',
-    time: 'Yesterday',
-    unread: true,
-  },
-    {
-    sender: 'Admin Office',
-    avatarUrl: 'https://picsum.photos/seed/admin/100',
-    preview: 'Reminder: Staff meeting today at 3:00 PM in the staff room.',
-    time: 'Yesterday',
-    unread: false,
-  },
-];
+import { conversations } from './messaging/chat-layout';
 
 export function MessagesWidget() {
-  const unreadCount = messages.filter(m => m.unread).length;
+  const unreadCount = conversations.filter(m => m.unread).length;
     
   return (
     <Card>
@@ -49,28 +26,28 @@ export function MessagesWidget() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {messages.map((message, index) => (
+          {conversations.slice(0, 3).map((message, index) => (
             <div key={index} className="space-y-3">
               <Link href="/teacher/messaging" className="block hover:bg-muted/50 p-2 rounded-lg">
                 <div className="flex items-start gap-3">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={message.avatarUrl} alt={message.sender} />
-                    <AvatarFallback>{message.sender.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={message.avatar} alt={message.name} />
+                    <AvatarFallback>{message.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex justify-between items-center">
-                        <p className="font-semibold text-sm">{message.sender}</p>
-                        <p className="text-xs text-muted-foreground">{message.time}</p>
+                        <p className="font-semibold text-sm">{message.name}</p>
+                        <p className="text-xs text-muted-foreground">{message.timestamp}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">{message.preview}</p>
+                    <p className="text-sm text-muted-foreground truncate">{message.lastMessage}</p>
                   </div>
                    {message.unread && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1"></div>}
                 </div>
               </Link>
-              {index < messages.length - 1 && <Separator />}
+              {index < conversations.slice(0, 3).length - 1 && <Separator />}
             </div>
           ))}
-          {messages.length === 0 && (
+          {conversations.length === 0 && (
             <div className="text-center text-muted-foreground py-4">
               <p className="font-semibold">No new messages</p>
               <p className="text-sm">Your inbox is clear.</p>
