@@ -498,9 +498,10 @@ export default function AdminGradesPage() {
                                     <CardDescription>Manage templates for official student report cards.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="flex h-[150px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                                        <div className="text-center text-muted-foreground">
-                                            <p>Template management coming soon.</p>
+                                     <div className="flex flex-col h-[150px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                                        <div className="text-center text-muted-foreground p-4">
+                                            <p className="mb-4">This feature is in development.</p>
+                                            <Button variant="secondary" disabled>Manage Templates</Button>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -512,7 +513,7 @@ export default function AdminGradesPage() {
                                 </CardHeader>
                                 <CardContent>
                                    <div className="flex items-center space-x-2">
-                                        <Switch id="gpa-switch" disabled />
+                                        <Switch id="gpa-switch" />
                                         <Label htmlFor="gpa-switch">Enable GPA on reports</Label>
                                     </div>
                                 </CardContent>
