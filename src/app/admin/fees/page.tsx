@@ -143,10 +143,7 @@ function NewTransactionDialog({ students }: { students: StudentFee[] }) {
         }
 
         const isCredit = transactionType === 'payment' || transactionType === 'waiver';
-        let transactionAmount = isCredit ? -Math.abs(Number(amount)) : Math.abs(Number(amount));
-        if (transactionType === 'refund') {
-            transactionAmount = Math.abs(Number(amount));
-        }
+        const isDebit = transactionType === 'charge' || transactionType === 'refund';
 
         const transactionTypeLabels: Record<TransactionType, Transaction['type']> = {
             payment: 'Payment',
@@ -159,7 +156,7 @@ function NewTransactionDialog({ students }: { students: StudentFee[] }) {
             date: Timestamp.fromDate(date || new Date()),
             description,
             type: transactionTypeLabels[transactionType],
-            amount: transactionAmount,
+            amount: 0,
             recordedBy: 'Admin User', // In real app, get current user
         };
 
@@ -168,16 +165,25 @@ function NewTransactionDialog({ students }: { students: StudentFee[] }) {
             const studentDoc = students.find(s => s.id === studentId);
             if (!studentDoc) throw new Error("Student not found");
 
-            await addDoc(collection(firestore, `students/${studentId}/transactions`), transactionData);
+            let newBalance = studentDoc.balance;
+            let newAmountPaid = studentDoc.amountPaid;
+            const transactionAmount = Number(amount);
 
-            let newBalance = studentDoc.balance + transactionAmount;
-            if(transactionType === 'waiver') {
-                newBalance = studentDoc.balance - Math.abs(Number(amount));
-                transactionData.amount = -Math.abs(Number(amount)); // ensure waiver is negative
+            if (isCredit) {
+                newBalance -= transactionAmount;
+                newAmountPaid += transactionAmount;
+                transactionData.amount = -transactionAmount;
+            }
+            if (isDebit) {
+                newBalance += transactionAmount;
+                 transactionData.amount = transactionAmount;
+            }
+             if (transactionType === 'waiver') {
+                newAmountPaid = studentDoc.amountPaid; // Waivers don't count as 'paid'
             }
 
-            const newAmountPaid = (isCredit && transactionType !== 'waiver') ? studentDoc.amountPaid + Math.abs(transactionAmount) : studentDoc.amountPaid;
-            
+            await addDoc(collection(firestore, `students/${studentId}/transactions`), transactionData);
+
             await updateDoc(studentRef, {
                 balance: newBalance,
                 amountPaid: newAmountPaid,
@@ -517,9 +523,18 @@ export default function FeesPage() {
     });
     
     const sendReminders = () => {
+        const studentsWithBalance = filteredStudents.filter(s => s.balance > 0);
+        if (studentsWithBalance.length === 0) {
+            toast({
+                title: 'No Reminders Sent',
+                description: 'All students in the current view have a zero balance.',
+            });
+            return;
+        }
+
         toast({
             title: 'Reminders Sent (Simulation)',
-            description: 'In a real app, this would trigger SMS/email reminders to selected parents.',
+            description: `Fee reminders would be sent to ${studentsWithBalance.length} parent(s).`,
         });
     }
     
