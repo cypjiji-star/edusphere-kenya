@@ -4,6 +4,7 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
@@ -26,11 +27,18 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Book, Bell } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { gradingSchema, GradingFormValues, saveGradeAction } from './actions';
+import { saveGradeAction } from './actions';
 import type { Submission } from './types';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+export const gradingSchema = z.object({
+  grade: z.string().min(1, 'Grade is required.'),
+  feedback: z.string().optional(),
+});
+
+export type GradingFormValues = z.infer<typeof gradingSchema>;
 
 interface GradingDialogProps {
   student: Submission | null;
