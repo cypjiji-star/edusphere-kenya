@@ -73,8 +73,9 @@ const enrolmentSchema = z.object({
   studentLastName: z.string().min(2, 'Last name is required.'),
   dateOfBirth: z.date({ required_error: 'Date of birth is required.' }),
   gender: z.string({ required_error: 'Please select a gender.' }),
-  nationality: z.string().min(2, 'Nationality is required.'),
+  admissionNumber: z.string().optional(),
   classId: z.string({ required_error: 'Please assign a class.' }),
+  admissionYear: z.string({ required_error: 'Please select an admission year.'}),
   parentFirstName: z.string().min(2, 'Parent\'s first name is required.'),
   parentLastName: z.string().min(2, 'Parent\'s last name is required.'),
   parentRelationship: z.string({ required_error: 'Relationship is required.' }),
@@ -115,7 +116,6 @@ export default function StudentEnrolmentPage() {
     const form = useForm<EnrolmentFormValues>({
         resolver: zodResolver(enrolmentSchema),
         defaultValues: {
-            nationality: 'Kenyan',
             generateInvoice: true,
             sendInvite: true,
         },
@@ -129,6 +129,9 @@ export default function StudentEnrolmentPage() {
         });
         form.reset();
     }
+    
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 10 }, (_, i) => (currentYear - i).toString());
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -143,33 +146,32 @@ export default function StudentEnrolmentPage() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-8">
                      <Card>
                         <CardHeader>
-                            <CardTitle>Enrolment Form</CardTitle>
-                            <CardDescription>Enter the details for the new student and their guardian.</CardDescription>
+                            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Student Details</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-8">
-                            <div className="space-y-4">
-                                <h4 className="font-semibold text-lg flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Student Details</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FormField control={form.control} name="studentFirstName" render={({ field }) => ( <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="e.g., Jane" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                    <FormField control={form.control} name="studentLastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="e.g., Doe" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                    <FormField control={form.control} name="dateOfBirth" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Date of Birth</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)}/>
-                                    <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a gender" /></SelectTrigger></FormControl><SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
-                                    <FormField control={form.control} name="nationality" render={({ field }) => ( <FormItem><FormLabel>Nationality</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                </div>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField control={form.control} name="studentFirstName" render={({ field }) => ( <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="e.g., Jane" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="studentLastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="e.g., Doe" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="dateOfBirth" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Date of Birth</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)}/>
+                                <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a gender" /></SelectTrigger></FormControl><SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
+                                 <FormField control={form.control} name="admissionNumber" render={({ field }) => ( <FormItem><FormLabel>Admission Number</FormLabel><FormControl><Input placeholder="Auto-generated if blank" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             </div>
-                            <Separator />
-                            <div className="space-y-4">
-                                <h4 className="font-semibold text-lg flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Guardian Details</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FormField control={form.control} name="parentFirstName" render={({ field }) => ( <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="e.g., Mark" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                    <FormField control={form.control} name="parentLastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="e.g., Johnson" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                    <FormField control={form.control} name="parentRelationship" render={({ field }) => ( <FormItem><FormLabel>Relationship to Student</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a relationship" /></SelectTrigger></FormControl><SelectContent><SelectItem value="father">Father</SelectItem><SelectItem value="mother">Mother</SelectItem><SelectItem value="guardian">Guardian</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
-                                    <FormField control={form.control} name="parentEmail" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="guardian@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                    <FormField control={form.control} name="parentPhone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                </div>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Guardian Details</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField control={form.control} name="parentFirstName" render={({ field }) => ( <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="e.g., Mark" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="parentLastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="e.g., Johnson" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="parentRelationship" render={({ field }) => ( <FormItem><FormLabel>Relationship to Student</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a relationship" /></SelectTrigger></FormControl><SelectContent><SelectItem value="father">Father</SelectItem><SelectItem value="mother">Mother</SelectItem><SelectItem value="guardian">Guardian</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="parentEmail" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="guardian@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="parentPhone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             </div>
                         </CardContent>
                     </Card>
@@ -177,33 +179,30 @@ export default function StudentEnrolmentPage() {
                 <div className="lg:col-span-1 space-y-6">
                      <Card>
                         <CardHeader>
-                            <CardTitle>Administrative</CardTitle>
+                            <CardTitle>Academic &amp; Administrative</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                              <FormField control={form.control} name="classId" render={({ field }) => ( <FormItem><FormLabel>Assign to Class</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a class" /></SelectTrigger></FormControl><SelectContent><SelectItem value="f1">Form 1</SelectItem><SelectItem value="f2">Form 2</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
+                             <FormField control={form.control} name="admissionYear" render={({ field }) => ( <FormItem><FormLabel>Year of Admission</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a year" /></SelectTrigger></FormControl><SelectContent>{years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )}/>
                             <Separator />
-                            <div className="space-y-4">
-                                <Label>Required Documents</Label>
-                                <div className="flex items-center justify-center w-full">
-                                    <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                            <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                            <p className="mb-2 text-sm text-muted-foreground">Upload Birth Certificate</p>
-                                        </div>
-                                        <Input id="dropzone-file" type="file" className="hidden" disabled />
-                                    </Label>
+                            <div className="space-y-2">
+                                <Label>Student Profile Photo</Label>
+                                <div className="flex items-center gap-4">
+                                     <Avatar className="h-16 w-16">
+                                        <AvatarImage src="" />
+                                        <AvatarFallback><UserPlus/></AvatarFallback>
+                                    </Avatar>
+                                    <Button variant="outline" className="w-full" disabled>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Upload Photo
+                                    </Button>
                                 </div>
+                                <FormDescription>Recommended: 400x400px.</FormDescription>
                             </div>
                             <Separator />
                              <FormField control={form.control} name="generateInvoice" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Generate Pro-forma Invoice</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
                              <FormField control={form.control} name="sendInvite" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Send Portal Invitation</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
                         </CardContent>
-                        <CardFooter>
-                            <Button type="submit" className="w-full">
-                                <Save className="mr-2 h-4 w-4"/>
-                                Submit Enrolment Application
-                            </Button>
-                        </CardFooter>
                     </Card>
 
                     <Card>
@@ -236,6 +235,12 @@ export default function StudentEnrolmentPage() {
                     </Card>
                 </div>
             </div>
+             <CardFooter className="flex justify-end p-0 pt-6">
+                <Button type="submit" className="w-full md:w-auto">
+                    <Save className="mr-2 h-4 w-4"/>
+                    Submit Enrolment Application
+                </Button>
+            </CardFooter>
         </form>
       </Form>
     </div>
