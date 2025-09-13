@@ -108,10 +108,11 @@ export default async function LoginPage() {
                                 <Button type="submit" asChild>
                                     <Link href="/admin">Login as Admin</Link>
                                 </Button>
-                            </div>
-                             <div className="grid grid-cols-1">
                                 <Button type="submit" asChild variant="secondary">
                                     <Link href="/parent">Login as Parent</Link>
+                                </Button>
+                                <Button type="submit" asChild variant="secondary">
+                                    <Link href="/developer">Login as Developer</Link>
                                 </Button>
                             </div>
                         </form>
