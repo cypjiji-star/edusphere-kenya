@@ -27,7 +27,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { HeartPulse, User, Phone, Stethoscope, ShieldAlert, FileText, CalendarIcon, AlertCircle } from 'lucide-react';
+import { HeartPulse, User, Phone, Stethoscope, ShieldAlert, FileText, CalendarIcon, AlertCircle, Lock } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
@@ -50,6 +50,7 @@ const healthData = {
         allergies: ['Asthma (mild)'],
         conditions: ['None'],
         emergencyContact: { name: 'Joseph Kariuki', relationship: 'Father', phone: '0722 123 456' },
+        lastHealthCheck: '2024-01-15',
         incidents: [
             { id: 'inc-1', date: '2024-07-12', type: 'Accident', description: 'Slipped and fell during break time. Minor scrape on the knee.', reportedBy: 'Mr. Otieno', status: 'Resolved' },
         ],
@@ -61,6 +62,7 @@ const healthData = {
         allergies: ['Peanuts'],
         conditions: ['None'],
         emergencyContact: { name: 'Mr. Omondi', relationship: 'Father', phone: '0712 345 678' },
+        lastHealthCheck: '2024-01-20',
         incidents: [
             { id: 'inc-2', date: '2024-06-20', type: 'Health', description: 'Complained of a stomach ache after lunch.', reportedBy: 'Ms. Njeri', status: 'Resolved' },
         ],
@@ -113,6 +115,48 @@ export default function ParentHealthPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                         <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="w-full md:w-auto">Report an Absence</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Report Child's Absence</DialogTitle>
+                                    <DialogDescription>
+                                        Notify the school about your child's absence. This will be sent to the school office and class teacher.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label>Date of Absence</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                            <Button
+                                                variant={"outline"}
+                                                className={cn("w-full justify-start text-left font-normal", !absenceDate && "text-muted-foreground")}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {absenceDate ? format(absenceDate, "PPP") : <span>Pick a date</span>}
+                                            </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar mode="single" selected={absenceDate} onSelect={setAbsenceDate} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                        <div className="space-y-2">
+                                        <Label htmlFor="absence-reason">Reason for Absence</Label>
+                                        <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <DialogClose asChild>
+                                        <Button onClick={handleReportAbsence}>Send Notification</Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </CardHeader>
             </Card>
@@ -121,80 +165,55 @@ export default function ParentHealthPage() {
                 <div className="lg:col-span-1 space-y-8">
                      <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <Stethoscope className="h-5 w-5 text-primary"/>
-                                Health Summary
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <ShieldAlert className="h-5 w-5 text-red-500" />
+                                Known Allergies
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div>
-                                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4>
-                                <div className="space-x-2">
-                                    {data.allergies.map(allergy => (
-                                        <Badge key={allergy} variant={allergy !== "None" ? "destructive" : "secondary"}>{allergy}</Badge>
-                                    ))}
-                                </div>
-                            </div>
-                            <Separator />
-                            <div>
-                                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><HeartPulse className="h-4 w-4" /> Ongoing Conditions</h4>
-                                <div className="space-x-2">
-                                    <Badge variant="secondary">{data.conditions.join(', ') || 'None'}</Badge>
-                                </div>
-                            </div>
-                            <Separator />
-                             <div>
-                                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Phone className="h-4 w-4" /> Emergency Contact</h4>
-                                <div className="text-sm">
-                                    <p><span className="font-medium">{data.emergencyContact.name}</span> ({data.emergencyContact.relationship})</p>
-                                    <p className="text-muted-foreground">{data.emergencyContact.phone}</p>
-                                </div>
+                        <CardContent>
+                             <div className="space-x-2">
+                                {data.allergies.map(allergy => (
+                                    <Badge key={allergy} variant={allergy !== "None" ? "destructive" : "secondary"}>{allergy}</Badge>
+                                ))}
                             </div>
                         </CardContent>
-                        <CardFooter>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" className="w-full">Report an Absence</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Report Child's Absence</DialogTitle>
-                                        <DialogDescription>
-                                            Notify the school about your child's absence. This will be sent to the school office and class teacher.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="grid gap-4 py-4">
-                                        <div className="space-y-2">
-                                            <Label>Date of Absence</Label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn("w-full justify-start text-left font-normal", !absenceDate && "text-muted-foreground")}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {absenceDate ? format(absenceDate, "PPP") : <span>Pick a date</span>}
-                                                </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0">
-                                                    <Calendar mode="single" selected={absenceDate} onSelect={setAbsenceDate} initialFocus />
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="absence-reason">Reason for Absence</Label>
-                                            <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." />
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <DialogClose asChild>
-                                            <Button onClick={handleReportAbsence}>Send Notification</Button>
-                                        </DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                        </CardFooter>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <Stethoscope className="h-5 w-5 text-primary"/>
+                                Ongoing Conditions
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            <div className="space-x-2">
+                                <Badge variant="secondary">{data.conditions.join(', ') || 'None'}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Lock className="h-3 w-3"/> Medical records are confidential.</p>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <Phone className="h-5 w-5 text-primary"/>
+                                Emergency Contact
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm">
+                           <p><span className="font-medium">{data.emergencyContact.name}</span> ({data.emergencyContact.relationship})</p>
+                           <p className="text-muted-foreground">{data.emergencyContact.phone}</p>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <CalendarIcon className="h-5 w-5 text-primary"/>
+                                Last Health Check
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm">
+                            {clientReady && <p className="font-semibold">{new Date(data.lastHealthCheck).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>}
+                        </CardContent>
                     </Card>
                 </div>
                 <div className="lg:col-span-2 space-y-8">
