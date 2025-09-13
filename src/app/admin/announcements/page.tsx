@@ -41,6 +41,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { translateText } from '@/ai/flows/translate-text';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -61,6 +63,7 @@ type Announcement = {
     views: number;
     totalRecipients: number;
     category: AnnouncementCategory;
+    channels: { app: boolean; email: boolean; sms: boolean };
 };
 
 const initialAnnouncements: Announcement[] = [
@@ -73,6 +76,7 @@ const initialAnnouncements: Announcement[] = [
         views: 1250,
         totalRecipients: 1800,
         category: 'General' as AnnouncementCategory,
+        channels: { app: true, email: true, sms: false },
     },
     {
         id: 'ann-2',
@@ -83,6 +87,7 @@ const initialAnnouncements: Announcement[] = [
         views: 600,
         totalRecipients: 780,
         category: 'Event' as AnnouncementCategory,
+        channels: { app: true, email: false, sms: false },
     },
     {
         id: 'ann-3',
@@ -93,6 +98,7 @@ const initialAnnouncements: Announcement[] = [
         views: 750,
         totalRecipients: 780,
         category: 'Urgent' as AnnouncementCategory,
+        channels: { app: true, email: true, sms: true },
     }
 ];
 
@@ -100,6 +106,9 @@ const announcementSchema = z.object({
     message: z.string().min(10, 'Message must be at least 10 characters.'),
     audience: z.string({ required_error: 'Please select an audience.' }),
     category: z.string({ required_error: 'Please select a category.' }),
+    notifyApp: z.boolean().default(true),
+    notifyEmail: z.boolean().default(false),
+    notifySms: z.boolean().default(false),
 });
 
 type AnnouncementFormValues = z.infer<typeof announcementSchema>;
@@ -133,10 +142,18 @@ function StatsDialog({ announcement, open, onOpenChange }: { announcement: Annou
                         </div>
                     </div>
                     <Separator/>
-                    <div className="text-sm">
+                    <div className="text-sm space-y-2">
                         <p><span className="font-semibold">Audience:</span> {announcement.audience}</p>
                         <p><span className="font-semibold">Category:</span> {announcementCategories[announcement.category].label}</p>
-                        <p><span className="font-semibold">Content:</span> <span className="text-muted-foreground italic">"{announcement.content}"</span></p>
+                        <div className="space-y-1">
+                             <p className="font-semibold">Channels Used:</p>
+                             <div className="flex flex-wrap gap-2">
+                                {announcement.channels.app && <Badge>In-App</Badge>}
+                                {announcement.channels.email && <Badge>Email</Badge>}
+                                {announcement.channels.sms && <Badge>SMS</Badge>}
+                            </div>
+                        </div>
+                         <p className="pt-2"><span className="font-semibold">Content:</span> <span className="text-muted-foreground italic">"{announcement.content}"</span></p>
                     </div>
                 </div>
                 <DialogFooter>
@@ -161,6 +178,9 @@ export default function AdminAnnouncementsPage() {
     resolver: zodResolver(announcementSchema),
     defaultValues: {
         message: '',
+        notifyApp: true,
+        notifyEmail: false,
+        notifySms: false,
     }
   });
   const { toast } = useToast();
@@ -214,6 +234,32 @@ export default function AdminAnnouncementsPage() {
     setSelectedAnnouncementForStats(announcement);
   };
 
+  const handleExport = () => {
+    const doc = new jsPDF();
+    doc.text("Announcement History", 14, 16);
+    
+    const tableData = pastAnnouncements.map(ann => [
+      ann.sentAt,
+      ann.sender.name,
+      ann.audience,
+      ann.category,
+      ann.content.substring(0, 50) + '...',
+    ]);
+
+    (doc as any).autoTable({
+        startY: 22,
+        head: [['Date', 'Sender', 'Audience', 'Category', 'Content']],
+        body: tableData,
+    });
+    
+    doc.save("announcement-history.pdf");
+
+    toast({
+        title: 'Export Successful',
+        description: 'Your announcement history has been downloaded as a PDF.',
+    });
+  }
+
 
   function onSubmit(values: AnnouncementFormValues) {
     const newAnnouncement: Announcement = {
@@ -225,9 +271,14 @@ export default function AdminAnnouncementsPage() {
         views: 0,
         totalRecipients: 1800, // Mock total
         category: values.category as AnnouncementCategory,
+        channels: {
+            app: values.notifyApp,
+            email: values.notifyEmail,
+            sms: values.notifySms
+        }
     };
     setPastAnnouncements(prev => [newAnnouncement, ...prev]);
-    form.reset({ message: '', audience: undefined, category: undefined });
+    form.reset({ message: '', audience: undefined, category: undefined, notifyApp: true, notifyEmail: false, notifySms: false });
     setAttachedFile(null);
     
     if (isScheduling && scheduledDate) {
@@ -405,18 +456,42 @@ export default function AdminAnnouncementsPage() {
                               </AlertDescription>
                           </Alert>
                           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                              <div className="flex items-center space-x-2">
-                                  <Switch id="notify-app" defaultChecked />
-                                  <Label htmlFor="notify-app">In-App Notification</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                  <Switch id="notify-email" />
-                                  <Label htmlFor="notify-email">Send as Email</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                  <Switch id="notify-sms" />
-                                  <Label htmlFor="notify-sms">Send as SMS</Label>
-                              </div>
+                              <FormField
+                                control={form.control}
+                                name="notifyApp"
+                                render={({ field }) => (
+                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-app" />
+                                        </FormControl>
+                                        <Label htmlFor="notify-app">In-App Notification</Label>
+                                    </FormItem>
+                                )}
+                              />
+                               <FormField
+                                control={form.control}
+                                name="notifyEmail"
+                                render={({ field }) => (
+                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-email" />
+                                        </FormControl>
+                                        <Label htmlFor="notify-email">Send as Email</Label>
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={form.control}
+                                name="notifySms"
+                                render={({ field }) => (
+                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-sms" />
+                                        </FormControl>
+                                        <Label htmlFor="notify-sms">Send as SMS</Label>
+                                    </FormItem>
+                                )}
+                                />
                           </div>
                       </div>
                   </CardContent>
@@ -440,13 +515,13 @@ export default function AdminAnnouncementsPage() {
                         </CardTitle>
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" disabled>
+                                <Button variant="outline" size="sm">
                                     Export
                                     <ChevronDown className="ml-2 h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExport}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
                                 <DropdownMenuItem disabled><Archive className="mr-2 h-4 w-4" />Archive All</DropdownMenuItem>
                             </DropdownMenuContent>
                          </DropdownMenu>
