@@ -21,8 +21,8 @@ import { LibraryNoticesWidget } from './library-notices-widget';
 
 const quickStats = [
     {
-        title: "Class Size (Form 4)",
-        stat: "31",
+        title: "Total Students",
+        stat: "125",
         icon: <Users className="h-6 w-6 text-muted-foreground" />,
         href: "/teacher/students",
     },
