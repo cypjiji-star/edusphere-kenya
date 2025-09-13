@@ -8,6 +8,11 @@ import { usePathname } from "next/navigation";
 export function PageLoader() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     // Reset loading state on route change
@@ -15,11 +20,13 @@ export function PageLoader() {
   }, [pathname]);
   
   useEffect(() => {
-    const handleStart = (url: string) => (url !== window.location.pathname) && setLoading(true);
+    const handleStart = (url: string) => {
+        if (url !== window.location.pathname) {
+            setLoading(true);
+        }
+    }
     const handleComplete = () => setLoading(false);
     
-    // In a real Next.js app, we'd use the router events.
-    // Since this is a simulation, we'll listen to all clicks on links.
     const handleLinkClick = (e: MouseEvent) => {
         const target = e.target as HTMLElement;
         const link = target.closest('a');
@@ -48,6 +55,10 @@ export function PageLoader() {
         window.removeEventListener('load', onPageLoad);
     };
   }, []);
+
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <AnimatePresence mode="wait">
