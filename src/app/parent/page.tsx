@@ -161,8 +161,8 @@ function AnnouncementsWidget() {
                 ))}
             </CardContent>
             <CardFooter>
-                 <Button asChild variant="outline" size="sm" className="w-full" disabled>
-                    <Link href="#">
+                 <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link href="/parent/announcements">
                         View All Announcements
                         <ArrowRight className="ml-2 h-4 w-4"/>
                     </Link>
@@ -265,7 +265,9 @@ export default function ParentDashboard() {
                     <p className="text-xs text-muted-foreground">Due: Aug 15, 2024</p>
                 </CardContent>
                 <CardFooter>
-                    <Button size="sm" className="w-full" disabled>Pay Now</Button>
+                    <Button asChild size="sm" className="w-full">
+                      <Link href="/parent/fees">Pay Now</Link>
+                    </Button>
                 </CardFooter>
             </Card>
             <Card>
@@ -321,8 +323,8 @@ export default function ParentDashboard() {
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                         <span>Academic Snapshot</span>
-                         <Button asChild variant="secondary" size="sm" disabled>
-                            <Link href="#">
+                         <Button asChild variant="secondary" size="sm">
+                            <Link href="/parent/grades">
                                 View Full Report
                                 <ArrowRight className="ml-2 h-4 w-4"/>
                             </Link>
