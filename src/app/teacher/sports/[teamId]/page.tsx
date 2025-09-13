@@ -30,7 +30,7 @@ import {
   } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload, Save, Trophy, Edit as EditIcon } from 'lucide-react';
+import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload, Save, Trophy, Edit as EditIcon, PlusCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -607,3 +607,5 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
     </div>
   );
 }
+
+    
