@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw, LayoutDashboard, Brush } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -183,6 +183,61 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
             
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Brush className="h-5 w-5 text-primary"/>Portal Customization</CardTitle>
+                    <CardDescription>Customize portal functionality and appearance.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                        <Label className="text-base font-semibold">Enabled Modules</Label>
+                        <p className="text-sm text-muted-foreground">Toggle modules on or off for all users. Changes will affect sidebar navigation.</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                                <Label htmlFor="module-library">Library</Label>
+                                <Switch id="module-library" checked disabled />
+                            </div>
+                            <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                                <Label htmlFor="module-health">Health & Incidents</Label>
+                                <Switch id="module-health" checked disabled />
+                            </div>
+                            <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                                <Label htmlFor="module-events">Events Calendar</Label>
+                                <Switch id="module-events" checked disabled />
+                            </div>
+                             <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border bg-muted/50">
+                                <Label htmlFor="module-cameras" className="text-muted-foreground">Cameras (Coming Soon)</Label>
+                                <Switch id="module-cameras" disabled />
+                            </div>
+                        </div>
+                    </div>
+                    <Separator/>
+                     <div className="space-y-4">
+                        <Label className="text-base font-semibold">User Experience</Label>
+                         <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                            <div>
+                                <Label className="font-medium">Dashboard Layout</Label>
+                                <p className="text-xs text-muted-foreground">Reorder the widgets on the main teacher and admin dashboards.</p>
+                            </div>
+                            <Button variant="secondary" disabled>
+                                <LayoutDashboard className="mr-2 h-4 w-4"/>
+                                Customize Layout
+                            </Button>
+                        </div>
+                         <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                            <div>
+                                <Label className="font-medium">Default Landing Page</Label>
+                                <p className="text-xs text-muted-foreground">Set the first page users see after logging in.</p>
+                            </div>
+                            <Button variant="secondary" disabled>
+                                <Edit className="mr-2 h-4 w-4"/>
+                                Set Pages
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Communication Settings</CardTitle>
