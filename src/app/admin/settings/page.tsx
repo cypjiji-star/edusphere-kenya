@@ -123,24 +123,6 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     </div>
-                    <Separator/>
-                    <div className="space-y-4">
-                         <Label className="text-base font-semibold">Portal Access</Label>
-                        <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                            <div>
-                                <Label htmlFor="maintenance-mode" className="font-medium">Maintenance Mode</Label>
-                                <p className="text-xs text-muted-foreground">Temporarily disable access for non-administrators.</p>
-                            </div>
-                            <Switch id="maintenance-mode" disabled />
-                        </div>
-                         <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                            <div>
-                                <Label htmlFor="registration-status" className="font-medium">Open Registrations</Label>
-                                <p className="text-xs text-muted-foreground">Allow new parents and students to register.</p>
-                            </div>
-                            <Switch id="registration-status" checked disabled />
-                        </div>
-                    </div>
                 </CardContent>
                 <CardFooter>
                     <Button disabled>
@@ -148,6 +130,56 @@ export default function SettingsPage() {
                         Save Settings
                     </Button>
                 </CardFooter>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary"/>User & Access Control</CardTitle>
+                    <CardDescription>Manage password policies, registration, and other security settings.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="password-policy" className="font-semibold">Password Policy</Label>
+                            <p className="text-xs text-muted-foreground">Set minimum length and complexity for user passwords.</p>
+                        </div>
+                        <Button variant="secondary" disabled>
+                            <KeyRound className="mr-2 h-4 w-4"/>
+                            Set Policy
+                        </Button>
+                    </div>
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="idle-timeout" className="font-semibold">Idle Session Timeout</Label>
+                            <p className="text-xs text-muted-foreground">Automatically log out users after a period of inactivity.</p>
+                        </div>
+                         <Select defaultValue="30" disabled>
+                            <SelectTrigger className="w-40">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="15">15 minutes</SelectItem>
+                                <SelectItem value="30">30 minutes</SelectItem>
+                                <SelectItem value="60">1 hour</SelectItem>
+                                <SelectItem value="never">Never</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="self-registration" className="font-semibold">Enable Self-Registration</Label>
+                            <p className="text-xs text-muted-foreground">Allow new parents and students to create their own accounts.</p>
+                        </div>
+                        <Switch id="self-registration" checked disabled />
+                    </div>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="2fa" className="font-semibold">Two-Factor Authentication (2FA)</Label>
+                            <p className="text-xs text-muted-foreground">Require a second verification step for admins and teachers.</p>
+                        </div>
+                        <Switch id="2fa" disabled />
+                    </div>
+                </CardContent>
             </Card>
         </div>
 
@@ -169,6 +201,20 @@ export default function SettingsPage() {
                  <CardFooter>
                     <p className="text-xs text-muted-foreground">Use these actions for archival purposes. Backups are created automatically every 24 hours.</p>
                  </CardFooter>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Portal Access</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="maintenance-mode" className="font-medium">Maintenance Mode</Label>
+                            <p className="text-xs text-muted-foreground">Temporarily disable access for non-administrators.</p>
+                        </div>
+                        <Switch id="maintenance-mode" disabled />
+                    </div>
+                </CardContent>
             </Card>
         </div>
 
