@@ -3,6 +3,8 @@
 
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Form, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Form, FormDescription, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -39,8 +41,7 @@ const announcementCategories: Record<AnnouncementCategory, { label: string; colo
     General: { label: 'General Info', color: 'bg-gray-500 border-gray-500 text-white' },
 };
 
-
-const pastAnnouncements = [
+const initialAnnouncements = [
     {
         id: 'ann-1',
         sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
@@ -73,16 +74,50 @@ const pastAnnouncements = [
     }
 ];
 
+const announcementSchema = z.object({
+    message: z.string().min(10, 'Message must be at least 10 characters.'),
+    audience: z.string({ required_error: 'Please select an audience.' }),
+    category: z.string({ required_error: 'Please select a category.' }),
+});
+
+type AnnouncementFormValues = z.infer<typeof announcementSchema>;
+
 export default function AdminAnnouncementsPage() {
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
-  const form = useForm();
+  const [pastAnnouncements, setPastAnnouncements] = React.useState(initialAnnouncements);
+
+  const form = useForm<AnnouncementFormValues>({
+    resolver: zodResolver(announcementSchema),
+    defaultValues: {
+        message: '',
+    }
+  });
   const { toast } = useToast();
 
   const handleTranslate = () => {
     toast({
         title: 'AI Translation Enabled',
         description: 'This is a placeholder for AI translation. In a real app, this would translate the message content.',
+    });
+  }
+
+  function onSubmit(values: AnnouncementFormValues) {
+    const newAnnouncement = {
+        id: `ann-${Date.now()}`,
+        sender: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' },
+        content: values.message,
+        audience: values.audience,
+        sentAt: format(new Date(), 'yyyy-MM-dd h:mm a'),
+        views: 0,
+        totalRecipients: 1800, // Mock total
+        category: values.category as AnnouncementCategory,
+    };
+    setPastAnnouncements(prev => [newAnnouncement, ...prev]);
+    form.reset();
+    toast({
+        title: 'Announcement Sent!',
+        description: 'Your message has been broadcast to the selected audience.',
     });
   }
 
@@ -96,26 +131,35 @@ export default function AdminAnnouncementsPage() {
        <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
             <Form {...form}>
-            <form onSubmit={form.handleSubmit(() => {})}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Send className="h-6 w-6 text-primary"/>Compose New Announcement</CardTitle>
                     <CardDescription>Draft and send a new broadcast message to selected groups.</CardDescription>
                 </CardHeader>
                   <CardContent className="space-y-6">
-                      <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="message">Message</Label>
-                            <Button variant="outline" size="sm" onClick={handleTranslate}>
-                              <Languages className="mr-2 h-4 w-4" />
-                              Translate with AI
-                            </Button>
-                          </div>
-                          <Textarea id="message" placeholder="Type your announcement here..." className="min-h-[150px]" />
-                           <FormDescription>
-                            Use the AI to translate your message into multiple languages like Swahili.
-                          </FormDescription>
-                      </div>
+                      <FormField
+                        control={form.control}
+                        name="message"
+                        render={({ field }) => (
+                            <FormItem>
+                                <div className="flex items-center justify-between">
+                                    <FormLabel>Message</FormLabel>
+                                    <Button type="button" variant="outline" size="sm" onClick={handleTranslate}>
+                                    <Languages className="mr-2 h-4 w-4" />
+                                    Translate with AI
+                                    </Button>
+                                </div>
+                                <FormControl>
+                                    <Textarea placeholder="Type your announcement here..." className="min-h-[150px]" {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                    Use the AI to translate your message into multiple languages like Swahili.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                       />
                       <div className="space-y-2">
                           <Label>File Attachments</Label>
                           <div className="flex items-center justify-center w-full">
@@ -133,34 +177,52 @@ export default function AdminAnnouncementsPage() {
                           </FormDescription>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                              <Label htmlFor="audience">Audience</Label>
-                              <Select>
-                                  <SelectTrigger id="audience">
-                                      <SelectValue placeholder="Select target groups" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="all">All Students, Parents & Staff</SelectItem>
-                                      <SelectItem value="all-students">All Students</SelectItem>
-                                      <SelectItem value="all-parents">All Parents</SelectItem>
-                                      <SelectItem value="all-staff">All Staff</SelectItem>
-                                      <SelectItem value="specific-classes">Specific Classes (coming soon)</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                           <div className="space-y-2">
-                              <Label htmlFor="category">Category</Label>
-                              <Select>
-                                  <SelectTrigger id="category">
-                                      <SelectValue placeholder="Select a category" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.entries(announcementCategories).map(([key, {label}]) => (
-                                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                              </Select>
-                          </div>
+                            <FormField
+                                control={form.control}
+                                name="audience"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Audience</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select target groups" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="All Students, Parents & Staff">All Students, Parents & Staff</SelectItem>
+                                            <SelectItem value="All Students">All Students</SelectItem>
+                                            <SelectItem value="All Parents">All Parents</SelectItem>
+                                            <SelectItem value="All Staff">All Staff</SelectItem>
+                                            <SelectItem value="specific-classes">Specific Classes (coming soon)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                           <FormField
+                                control={form.control}
+                                name="category"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Category</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a category" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {Object.entries(announcementCategories).map(([key, {label}]) => (
+                                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
                       </div>
                        <div className="space-y-2">
                               <div className="flex items-center space-x-2 mb-2">
@@ -222,7 +284,7 @@ export default function AdminAnnouncementsPage() {
                       </div>
                   </CardContent>
                 <CardFooter>
-                    <Button disabled>
+                    <Button type="submit">
                         <Send className="mr-2 h-4 w-4" />
                         {isScheduling ? 'Schedule Announcement' : 'Send Announcement'}
                     </Button>
@@ -283,7 +345,7 @@ export default function AdminAnnouncementsPage() {
                                  <div className="flex items-center justify-between text-xs text-muted-foreground pl-12">
                                     <div className="flex items-center gap-2" title="Views">
                                         <Eye className="h-4 w-4" />
-                                        <span className="font-medium">{Math.round((ann.views / ann.totalRecipients) * 100)}% view rate</span>
+                                        <span className="font-medium">{ann.totalRecipients > 0 ? Math.round((ann.views / ann.totalRecipients) * 100) : 0}% view rate</span>
                                     </div>
                                     <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs" disabled>
                                         <Link href="#">
@@ -302,3 +364,6 @@ export default function AdminAnnouncementsPage() {
     </div>
   );
 }
+
+
+    
