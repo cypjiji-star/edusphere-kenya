@@ -14,14 +14,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw } from 'lucide-react';
+import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw, Type } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Form, FormDescription } from '@/components/ui/form';
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
     <div className="space-y-2">
@@ -33,12 +39,23 @@ const ColorPicker = ({ label, color, setColor }: { label: string, color: string,
     </div>
 );
 
+const googleFonts = [
+    { name: 'Inter', family: 'Inter, sans-serif' },
+    { name: 'Playfair Display', family: "'Playfair Display', serif" },
+    { name: 'Roboto', family: 'Roboto, sans-serif' },
+    { name: 'Lato', family: 'Lato, sans-serif' },
+    { name: 'PT Sans', family: "'PT Sans', sans-serif" },
+];
+
 
 export default function BrandingPage() {
     const [primaryColor, setPrimaryColor] = React.useState('#008080');
     const [accentColor, setAccentColor] = React.useState('#B8860B');
     const [backgroundColor, setBackgroundColor] = React.useState('#F5F5DC');
     const [isDarkMode, setIsDarkMode] = React.useState(false);
+    const [headlineFont, setHeadlineFont] = React.useState(googleFonts[1].family);
+    const [bodyFont, setBodyFont] = React.useState(googleFonts[4].family);
+
     const form = useForm();
 
     const previewStyle = {
@@ -49,6 +66,8 @@ export default function BrandingPage() {
         '--preview-card': isDarkMode ? '#293548' : '#ffffff',
         '--preview-muted': isDarkMode ? '#334155' : '#f1f5f9',
         '--preview-muted-foreground': isDarkMode ? '#94a3b8' : '#64748b',
+        '--preview-font-headline': headlineFont,
+        '--preview-font-body': bodyFont,
     } as React.CSSProperties;
 
 
@@ -69,8 +88,9 @@ export default function BrandingPage() {
                     <CardTitle>School Logo & Media</CardTitle>
                     <CardDescription>Upload your school's logo, cover image, and favicon.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent>
                     <Form {...form}>
+                    <form className="space-y-6">
                     <div className="space-y-2">
                         <Label>School Logo</Label>
                         <div className="flex items-center gap-4">
@@ -115,6 +135,7 @@ export default function BrandingPage() {
                         </div>
                         <FormDescription>An icon for the browser tab. Recommended format: .ico or .png (32x32px).</FormDescription>
                     </div>
+                    </form>
                     </Form>
                 </CardContent>
             </Card>
@@ -136,7 +157,47 @@ export default function BrandingPage() {
                         <Switch id="dark-mode" checked={isDarkMode} onCheckedChange={setIsDarkMode} />
                     </div>
                 </CardContent>
-                <CardFooter className="flex-col items-stretch space-y-2">
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Type className="h-5 w-5 text-primary"/>Typography</CardTitle>
+                    <CardDescription>Select fonts for headings and body text.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="headline-font">Headline Font</Label>
+                        <Select value={headlineFont} onValueChange={setHeadlineFont}>
+                            <SelectTrigger id="headline-font"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {googleFonts.map(font => (
+                                    <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
+                                        {font.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="body-font">Body Font</Label>
+                        <Select value={bodyFont} onValueChange={setBodyFont}>
+                            <SelectTrigger id="body-font"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {googleFonts.map(font => (
+                                    <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
+                                        {font.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+            </Card>
+
+             <Card>
+                <CardHeader>
+                    <CardTitle>Save Changes</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col items-stretch space-y-2">
                     <Button className="w-full" disabled>
                         <Save className="mr-2 h-4 w-4" />
                         Apply & Save Theme
@@ -145,8 +206,8 @@ export default function BrandingPage() {
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Reset to Default
                     </Button>
-                </CardFooter>
-            </Card>
+                </CardContent>
+             </Card>
         </div>
         <div className="lg:col-span-2">
              <Card className="sticky top-4">
@@ -157,12 +218,12 @@ export default function BrandingPage() {
                 <CardContent>
                     <div
                         className="rounded-lg border p-6 transition-colors"
-                        style={previewStyle}
+                        style={{ ...previewStyle, fontFamily: 'var(--preview-font-body)' }}
                     >
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2">
                                 <div className="h-8 w-8 rounded-full" style={{ backgroundColor: 'var(--preview-primary)' }}></div>
-                                <h3 className="font-bold text-lg" style={{ color: 'var(--preview-foreground)' }}>School Portal</h3>
+                                <h3 className="font-bold text-lg" style={{ color: 'var(--preview-foreground)', fontFamily: 'var(--preview-font-headline)' }}>School Portal</h3>
                             </div>
                             <Avatar>
                                 <AvatarImage src="https://picsum.photos/seed/admin-avatar/100" />
@@ -172,20 +233,20 @@ export default function BrandingPage() {
 
                         <Card style={{ backgroundColor: 'var(--preview-card)' }}>
                             <CardHeader>
-                                <CardTitle style={{ color: 'var(--preview-foreground)' }}>Example Card</CardTitle>
-                                <CardDescription style={{ color: 'var(--preview-muted-foreground)' }}>This is a preview of a card component.</CardDescription>
+                                <CardTitle style={{ color: 'var(--preview-foreground)', fontFamily: 'var(--preview-font-headline)' }}>Example Card</CardTitle>
+                                <CardDescription style={{ color: 'var(--preview-muted-foreground)', fontFamily: 'var(--preview-font-body)' }}>This is a preview of a card component.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="flex items-center gap-4">
-                                    <Button style={{ backgroundColor: 'var(--preview-primary)', color: 'white' }}>Primary Button</Button>
-                                    <Button variant="secondary" style={{ backgroundColor: 'var(--preview-accent)', color: 'white' }}>Accent Button</Button>
+                                    <Button style={{ backgroundColor: 'var(--preview-primary)', color: 'white', fontFamily: 'var(--preview-font-body)' }}>Primary Button</Button>
+                                    <Button variant="secondary" style={{ backgroundColor: 'var(--preview-accent)', color: 'white', fontFamily: 'var(--preview-font-body)' }}>Accent Button</Button>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <Badge style={{ backgroundColor: 'var(--preview-primary)', color: 'white' }}>Primary Badge</Badge>
-                                    <Badge style={{ backgroundColor: 'var(--preview-accent)', color: 'white' }}>Accent Badge</Badge>
+                                    <Badge style={{ backgroundColor: 'var(--preview-primary)', color: 'white', fontFamily: 'var(--preview-font-body)' }}>Primary Badge</Badge>
+                                    <Badge style={{ backgroundColor: 'var(--preview-accent)', color: 'white', fontFamily: 'var(--preview-font-body)' }}>Accent Badge</Badge>
                                 </div>
                                 <div className="p-4 rounded-md" style={{ backgroundColor: 'var(--preview-muted)' }}>
-                                    <p className="text-sm" style={{ color: 'var(--preview-muted-foreground)' }}>This is a muted background area.</p>
+                                    <p className="text-sm" style={{ color: 'var(--preview-muted-foreground)', fontFamily: 'var(--preview-font-body)' }}>This is a muted background area.</p>
                                 </div>
                             </CardContent>
                         </Card>
