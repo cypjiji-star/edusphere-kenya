@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock, Mic, ClipboardCheck } from 'lucide-react';
+import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock, Mic, ClipboardCheck, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -62,9 +62,10 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const incidentSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
-  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Other']),
+  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue' | 'Other']),
   incidentDate: z.date({ required_error: 'An incident date is required.' }),
   incidentTime: z.string().min(1, 'Time is required'),
+  location: z.string().optional(),
   description: z.string().min(20, 'Please provide a detailed description (at least 20 characters).'),
   actionsTaken: z.string().min(10, 'Please describe the actions taken.'),
   urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
@@ -298,7 +299,7 @@ export default function HealthPage() {
                                         name="studentId"
                                         render={({ field }) => (
                                             <FormItem>
-                                            <FormLabel>Student</FormLabel>
+                                            <FormLabel>Student(s) Involved</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
                                                 <SelectTrigger>
@@ -311,6 +312,7 @@ export default function HealthPage() {
                                                 ))}
                                                 </SelectContent>
                                             </Select>
+                                            <FormDescription>Multi-student selection coming soon.</FormDescription>
                                             <FormMessage />
                                             </FormItem>
                                         )}
@@ -329,8 +331,10 @@ export default function HealthPage() {
                                                 </FormControl>
                                                 <SelectContent>
                                                     <SelectItem value="Health">Health Issue</SelectItem>
-                                                    <SelectItem value="Discipline">Disciplinary Issue</SelectItem>
                                                     <SelectItem value="Accident">Accident / Injury</SelectItem>
+                                                    <SelectItem value="Bullying">Bullying</SelectItem>
+                                                    <SelectItem value="Safety Issue">Safety Issue</SelectItem>
+                                                    <SelectItem value="Discipline">Disciplinary Note</SelectItem>
                                                     <SelectItem value="Other">Other</SelectItem>
                                                 </SelectContent>
                                             </Select>
@@ -388,6 +392,19 @@ export default function HealthPage() {
                                             )}
                                         />
                                     </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="location"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Location of Incident</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g., Playground, Classroom 3B" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                     <FormField
                                         control={form.control}
                                         name="urgency"

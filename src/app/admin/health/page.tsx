@@ -42,7 +42,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { HeartPulse, Search, Filter, ChevronDown, FileDown, AlertCircle, Users, Stethoscope, Pill, User, Phone, ShieldAlert, Lock, FileText, CalendarIcon, Siren, Send, Paperclip } from 'lucide-react';
+import { HeartPulse, Search, Filter, ChevronDown, FileDown, AlertCircle, Users, Stethoscope, Pill, User, Phone, ShieldAlert, Lock, FileText, CalendarIcon, Siren, Send, Paperclip, MapPin } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -55,7 +55,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 
 
-type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Other';
+type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
 type IncidentStatus = 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
 
 type Incident = {
@@ -114,9 +114,10 @@ const getStatusBadge = (status: IncidentStatus) => {
 
 const incidentSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
-  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Other']),
+  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue', 'Other']),
   incidentDate: z.date({ required_error: 'An incident date is required.' }),
   incidentTime: z.string().min(1, 'Time is required'),
+  location: z.string().optional(),
   description: z.string().min(20, 'Please provide a detailed description (at least 20 characters).'),
   actionsTaken: z.string().min(10, 'Please describe the actions taken.'),
   urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
@@ -241,7 +242,7 @@ export default function AdminHealthPage() {
                                                 name="studentId"
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                    <FormLabel>Student</FormLabel>
+                                                    <FormLabel>Student(s) Involved</FormLabel>
                                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                         <FormControl>
                                                         <SelectTrigger>
@@ -254,6 +255,7 @@ export default function AdminHealthPage() {
                                                         ))}
                                                         </SelectContent>
                                                     </Select>
+                                                    <FormDescription>Multi-student selection coming soon.</FormDescription>
                                                     <FormMessage />
                                                     </FormItem>
                                                 )}
@@ -271,8 +273,10 @@ export default function AdminHealthPage() {
                                                         </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="Health">Health Issue / Condition</SelectItem>
+                                                            <SelectItem value="Health">Health Issue</SelectItem>
                                                             <SelectItem value="Accident">Accident / Injury</SelectItem>
+                                                            <SelectItem value="Bullying">Bullying</SelectItem>
+                                                            <SelectItem value="Safety Issue">Safety Issue</SelectItem>
                                                             <SelectItem value="Discipline">Disciplinary Note</SelectItem>
                                                             <SelectItem value="Other">Other</SelectItem>
                                                         </SelectContent>
@@ -324,6 +328,19 @@ export default function AdminHealthPage() {
                                             </div>
                                             <FormField
                                                 control={form.control}
+                                                name="location"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel>Location</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="e.g., Science Lab, Playground" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
                                                 name="urgency"
                                                 render={({ field }) => (
                                                     <FormItem>
@@ -353,7 +370,7 @@ export default function AdminHealthPage() {
                                                 name="description"
                                                 render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Condition / Diagnosis / Details</FormLabel>
+                                                    <FormLabel>Detailed Description</FormLabel>
                                                     <FormControl>
                                                     <Textarea placeholder="Describe the condition, diagnosis, or incident..." className="min-h-[120px]" {...field}/>
                                                     </FormControl>
@@ -366,7 +383,7 @@ export default function AdminHealthPage() {
                                                 name="actionsTaken"
                                                 render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Notes / Treatment Given</FormLabel>
+                                                    <FormLabel>Action(s) Taken</FormLabel>
                                                     <FormControl>
                                                     <Textarea placeholder="Record any notes, treatment given, or actions taken..." className="min-h-[120px]" {...field}/>
                                                     </FormControl>
@@ -611,3 +628,5 @@ export default function AdminHealthPage() {
         </div>
     );
 }
+
+    
