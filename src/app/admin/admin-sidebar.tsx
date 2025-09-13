@@ -25,6 +25,7 @@ import {
   Receipt,
   FileClock,
   UserPlus,
+  HeartPulse,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -56,6 +57,7 @@ const navGroups = [
       { href: '/admin/grades', label: 'Grades & Exams', icon: FileText },
       { href: '/admin/timetable', label: 'Timetable', icon: Calendar },
       { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
+      { href: '/admin/health', label: 'Health & Incidents', icon: HeartPulse },
     ],
   },
    {
