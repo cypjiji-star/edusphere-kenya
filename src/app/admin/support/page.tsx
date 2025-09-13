@@ -145,6 +145,11 @@ export default function SupportPage() {
     const [description, setDescription] = React.useState('');
     const [attachment, setAttachment] = React.useState<File | null>(null);
     const { toast } = useToast();
+    
+    const [ticketSearchTerm, setTicketSearchTerm] = React.useState('');
+    const [statusFilter, setStatusFilter] = React.useState<'all' | TicketStatus>('all');
+    const [priorityFilter, setPriorityFilter] = React.useState<'all' | TicketPriority>('all');
+    const [categoryFilter, setCategoryFilter] = React.useState<'all' | TicketCategory>('all');
 
     const filteredFaqs = React.useMemo(() => {
         if (!faqSearchTerm) return faqs;
@@ -157,6 +162,16 @@ export default function SupportPage() {
             return { ...category, questions: filteredQuestions };
         }).filter(category => category.questions.length > 0);
     }, [faqSearchTerm]);
+    
+    const filteredTickets = React.useMemo(() => {
+        return mockTickets.filter(ticket => {
+            const matchesSearch = ticket.subject.toLowerCase().includes(ticketSearchTerm.toLowerCase()) || ticket.id.toLowerCase().includes(ticketSearchTerm.toLowerCase());
+            const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
+            const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
+            const matchesCategory = categoryFilter === 'all' || ticket.category === categoryFilter;
+            return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
+        });
+    }, [mockTickets, ticketSearchTerm, statusFilter, priorityFilter, categoryFilter]);
     
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -344,10 +359,12 @@ export default function SupportPage() {
                                         type="search"
                                         placeholder="Search by keyword or ID..."
                                         className="w-full bg-background pl-8"
+                                        value={ticketSearchTerm}
+                                        onChange={(e) => setTicketSearchTerm(e.target.value)}
                                     />
                                 </div>
                                 <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                                    <Select>
+                                    <Select value={statusFilter} onValueChange={(v: 'all' | TicketStatus) => setStatusFilter(v)}>
                                         <SelectTrigger className="w-full md:w-[150px]">
                                             <SelectValue placeholder="Filter by status" />
                                         </SelectTrigger>
@@ -359,7 +376,7 @@ export default function SupportPage() {
                                             <SelectItem value="Closed">Closed</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Select>
+                                    <Select value={priorityFilter} onValueChange={(v: 'all' | TicketPriority) => setPriorityFilter(v)}>
                                         <SelectTrigger className="w-full md:w-[150px]">
                                             <SelectValue placeholder="Filter by priority" />
                                         </SelectTrigger>
@@ -371,7 +388,7 @@ export default function SupportPage() {
                                             <SelectItem value="Low">Low</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Select>
+                                    <Select value={categoryFilter} onValueChange={(v: 'all' | TicketCategory) => setCategoryFilter(v)}>
                                         <SelectTrigger className="w-full md:w-[150px]">
                                             <SelectValue placeholder="Filter by category" />
                                         </SelectTrigger>
@@ -400,7 +417,7 @@ export default function SupportPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {mockTickets.map(ticket => (
+                                        {filteredTickets.map(ticket => (
                                             <DialogTrigger asChild key={ticket.id}>
                                                 <TableRow className="cursor-pointer" onClick={() => setSelectedTicket(ticket)}>
                                                     <TableCell className="font-medium">{ticket.id}</TableCell>
