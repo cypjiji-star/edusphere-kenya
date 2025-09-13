@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'next/navigation';
 
 const versionHistory = [
     { version: 3, date: '2024-07-28 10:00 AM', author: 'Ms. Wanjiku', summary: 'Added new assessment method.', data: { topic: 'Photosynthesis & Respiration', subject: 'Biology', grade: 'Form 2', date: '2024-07-28', objectives: 'Students will be able to explain the Krebs cycle.', activities: '1. Lecture on Krebs Cycle\n2. Diagram drawing.', assessment: 'Label a diagram of the Krebs cycle.' } },
@@ -33,9 +34,10 @@ const versionHistory = [
     { version: 1, date: '2024-07-26 09:00 AM', author: 'Ms. Wanjiku', summary: 'Initial draft created.', data: { topic: 'Photosynthesis', subject: 'Biology', grade: 'Form 2', date: '2024-07-26', objectives: 'Define Photosynthesis.', activities: 'Introductory lecture.', assessment: 'Define the term.' } },
 ]
 
-export default function NewLessonPlanPage({ searchParams }: { searchParams: { id?: string, date?: string }}) {
-  const lessonPlanId = searchParams.id;
-  const prefilledDate = searchParams.date;
+export default function NewLessonPlanPage() {
+  const searchParams = useSearchParams();
+  const lessonPlanId = searchParams.get('id') || undefined;
+  const prefilledDate = searchParams.get('date') || undefined;
   const isEditMode = !!lessonPlanId;
   const { toast } = useToast();
   const [activeTab, setActiveTab] = React.useState('editor');
@@ -187,4 +189,3 @@ export default function NewLessonPlanPage({ searchParams }: { searchParams: { id
     </div>
   );
 }
-
