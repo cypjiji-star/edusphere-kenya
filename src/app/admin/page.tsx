@@ -17,6 +17,20 @@ import { CalendarWidget } from './calendar-widget';
 import { overviewStats, quickStats, recentActivities } from './dashboard-data';
 
 
+const overviewLinks: Record<string, string> = {
+    "Total Students": "/admin/users",
+    "Total Teachers": "/admin/users",
+    "Active Parents": "/admin/users",
+    "Pending Registrations": "/admin/enrolment",
+}
+
+const quickStatLinks: Record<string, string> = {
+    "Today's Attendance": "/admin/attendance",
+    "Fees Collected (Term 2)": "/admin/fees",
+    "Upcoming Events": "/admin/calendar",
+}
+
+
 export default function AdminDashboard() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -30,21 +44,23 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-semibold mb-4">School Overview</h2>
                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {overviewStats.map((stat) => (
-                        <Card key={stat.title}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                                {stat.icon}
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stat.stat}</div>
-                                {stat.subtext && (
-                                     <div className="flex items-center text-xs text-muted-foreground">
-                                        {stat.subtextIcon}
-                                        <span>{stat.subtext} {stat.subtextDescription}</span>
-                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                        <Link href={overviewLinks[stat.title] || '#'} key={stat.title}>
+                            <Card className="hover:bg-muted/50 transition-colors">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                                    {stat.icon}
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{stat.stat}</div>
+                                    {stat.subtext && (
+                                        <div className="flex items-center text-xs text-muted-foreground">
+                                            {stat.subtextIcon}
+                                            <span>{stat.subtext} {stat.subtextDescription}</span>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </Link>
                     ))}
                 </div>
             </div>
@@ -56,15 +72,17 @@ export default function AdminDashboard() {
                     <h2 className="text-xl font-semibold mb-4">Quick Stats</h2>
                      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {quickStats.map((stat) => (
-                            <Card key={stat.title}>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                                    {stat.icon}
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{stat.stat}</div>
-                                </CardContent>
-                            </Card>
+                            <Link href={quickStatLinks[stat.title] || '#'} key={stat.title}>
+                                <Card className="hover:bg-muted/50 transition-colors">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                        <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                                        {stat.icon}
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold">{stat.stat}</div>
+                                    </CardContent>
+                                </Card>
+                            </Link>
                         ))}
                      </div>
                 </div>
@@ -73,11 +91,11 @@ export default function AdminDashboard() {
                      <Card>
                         <CardContent className="p-4">
                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <Button disabled><PlusCircle /> Add Student</Button>
-                                <Button disabled><Users /> Add Teacher</Button>
-                                <Button disabled><Megaphone /> Post Announcement</Button>
-                                <Button variant="secondary" asChild disabled><Link href="#"><Shapes/>Manage Classes</Link></Button>
-                                <Button variant="secondary" asChild disabled><Link href="#"><CircleDollarSign/>Manage Fees</Link></Button>
+                                <Button asChild><Link href="/admin/enrolment"><PlusCircle /> Add Student</Link></Button>
+                                <Button asChild><Link href="/admin/users"><Users /> Add Teacher</Link></Button>
+                                <Button asChild><Link href="/admin/announcements"><Megaphone /> Post Announcement</Link></Button>
+                                <Button variant="secondary" asChild><Link href="/admin/subjects"><Shapes/>Manage Classes</Link></Button>
+                                <Button variant="secondary" asChild><Link href="/admin/fees"><CircleDollarSign/>Manage Fees</Link></Button>
                            </div>
                         </CardContent>
                     </Card>
