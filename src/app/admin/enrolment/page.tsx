@@ -142,6 +142,7 @@ export default function StudentEnrolmentPage() {
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
     const [recentEnrolments, setRecentEnrolments] = React.useState<RecentEnrolment[]>(initialRecentEnrolments);
+    const [isBulkDialogOpen, setIsBulkDialogOpen] = React.useState(false);
 
 
     const form = useForm<EnrolmentFormValues>({
@@ -175,6 +176,20 @@ export default function StudentEnrolmentPage() {
             });
         }, 1500);
     }
+    
+     const handleImportStudents = () => {
+        setIsBulkDialogOpen(false); // Close the dialog
+        toast({
+            title: 'Import Successful',
+            description: 'The students have been added to the enrolment queue.',
+        });
+        // Reset dialog state after closing
+        setTimeout(() => {
+            setBulkEnrolmentFile(null);
+            setIsFileProcessed(false);
+        }, 300);
+    };
+
 
     const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -236,7 +251,7 @@ export default function StudentEnrolmentPage() {
           </h1>
           <p className="text-muted-foreground">Register new students individually or in bulk.</p>
         </div>
-        <Dialog>
+        <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="outline">
               <Upload className="mr-2 h-4 w-4" />
@@ -329,11 +344,17 @@ export default function StudentEnrolmentPage() {
                   </div>
               </div>
               <DialogFooter>
-                  <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                  <Button onClick={handleProcessFile} disabled={!bulkEnrolmentFile || isProcessingFile}>
-                    {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
-                  </Button>
-              </DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                {isFileProcessed ? (
+                    <Button onClick={handleImportStudents}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Import Students
+                    </Button>
+                ) : (
+                    <Button onClick={handleProcessFile} disabled={!bulkEnrolmentFile || isProcessingFile}>
+                        {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
+                    </Button>
+                )}
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
@@ -409,7 +430,7 @@ export default function StudentEnrolmentPage() {
                                         </Button>
                                     ) : (
                                         <Label htmlFor="photo-upload" className="w-full">
-                                            <Button type="button" variant="outline" asChild className="w-full">
+                                            <Button type="button" variant="outline" asChild className="w-full cursor-pointer">
                                                 <span>
                                                     <Upload className="mr-2 h-4 w-4" />
                                                     Upload Photo
@@ -434,7 +455,7 @@ export default function StudentEnrolmentPage() {
                                             </div>
                                         ))}
                                         <Label htmlFor="dropzone-file-docs-more" className="w-full">
-                                            <Button type="button" variant="outline" asChild className="w-full">
+                                            <Button type="button" variant="outline" asChild className="w-full cursor-pointer">
                                                 <span>
                                                     <Upload className="mr-2 h-4 w-4" />
                                                     Add More Files
