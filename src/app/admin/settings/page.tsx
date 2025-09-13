@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
+import { Progress } from '@/components/ui/progress';
 
 export default function SettingsPage() {
   return (
@@ -186,20 +187,60 @@ export default function SettingsPage() {
         <div className="lg:col-span-1 space-y-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>Data Management</CardTitle>
+                    <CardTitle>Data &amp; Storage Management</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <Button variant="outline" className="w-full justify-start" disabled>
-                        <Download className="mr-2"/>
-                        Export All School Data
-                    </Button>
-                     <Button variant="outline" className="w-full justify-start" disabled>
-                        <Download className="mr-2"/>
-                        Download System Backup
-                    </Button>
+                <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                        <Label className="font-semibold">Storage Usage</Label>
+                        <div className="space-y-2">
+                           <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                <span>Media & Files</span>
+                                <span>12.5 GB / 50 GB</span>
+                           </div>
+                           <Progress value={25} />
+                        </div>
+                         <div className="space-y-2">
+                           <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                <span>Database</span>
+                                <span>2.1 GB / 10 GB</span>
+                           </div>
+                           <Progress value={21} />
+                        </div>
+                    </div>
+                    <Separator/>
+                     <div className="space-y-2">
+                        <Label htmlFor="retention-policy" className="font-semibold">Data Retention Policy</Label>
+                        <Select defaultValue="5" disabled>
+                            <SelectTrigger id="retention-policy">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="1">1 Year</SelectItem>
+                                <SelectItem value="5">5 Years</SelectItem>
+                                <SelectItem value="10">10 Years</SelectItem>
+                                <SelectItem value="indefinite">Indefinitely</SelectItem>
+                            </SelectContent>
+                        </Select>
+                         <p className="text-xs text-muted-foreground">Set how long logs and attendance data are kept.</p>
+                    </div>
+                    <Separator/>
+                     <div className="space-y-3">
+                        <Button variant="outline" className="w-full justify-start" disabled>
+                            <Archive className="mr-2"/>
+                            Archive Old Records
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start" disabled>
+                            <Download className="mr-2"/>
+                            Export All School Data
+                        </Button>
+                         <Button variant="outline" className="w-full justify-start" disabled>
+                            <Database className="mr-2"/>
+                            Download System Backup
+                        </Button>
+                    </div>
                 </CardContent>
                  <CardFooter>
-                    <p className="text-xs text-muted-foreground">Use these actions for archival purposes. Backups are created automatically every 24 hours.</p>
+                    <p className="text-xs text-muted-foreground">Manage data policies and backups.</p>
                  </CardFooter>
             </Card>
             <Card>
