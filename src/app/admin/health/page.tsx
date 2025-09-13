@@ -81,7 +81,7 @@ type Incident = {
   status: IncidentStatus;
 };
 
-const mockIncidents: Incident[] = [
+const MOCK_INCIDENTS_DATA: Incident[] = [
     { id: 'inc-1', studentName: 'Student 1', studentAvatar: 'https://picsum.photos/seed/f4-student1/100', class: 'Form 4', type: 'Health', description: 'Complained of a headache and feeling dizzy during the chemistry lesson.', date: '2024-07-15', reportedBy: 'Ms. Wanjiku', status: 'Under Review' },
     { id: 'inc-2', studentName: 'Student 32', studentAvatar: 'https://picsum.photos/seed/f3-student1/100', class: 'Form 3', type: 'Accident', description: 'Slipped and fell during break time. Minor scrape on the knee.', date: '2024-07-12', reportedBy: 'Mr. Otieno', status: 'Resolved' },
     { id: 'inc-3', studentName: 'Student 60', studentAvatar: 'https://picsum.photos/seed/f2-student1/100', class: 'Form 2', type: 'Discipline', description: 'Skipped afternoon classes.', date: '2024-07-10', reportedBy: 'Mr. Kamau', status: 'Resolved' },
@@ -148,6 +148,8 @@ const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
 export default function AdminHealthPage() {
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<keyof typeof studentHealthRecords | null>(null);
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
+    const [updatedStatus, setUpdatedStatus] = React.useState<IncidentStatus | undefined>();
+    const [mockIncidents, setMockIncidents] = React.useState(MOCK_INCIDENTS_DATA);
     const currentHealthRecord = selectedHealthStudent ? studentHealthRecords[selectedHealthStudent] : null;
     const { toast } = useToast();
     const form = useForm<IncidentFormValues>({
@@ -159,6 +161,12 @@ export default function AdminHealthPage() {
         },
     });
 
+    React.useEffect(() => {
+        if (selectedIncident) {
+            setUpdatedStatus(selectedIncident.status);
+        }
+    }, [selectedIncident]);
+
     function onSubmit(values: IncidentFormValues) {
         console.log(values);
         toast({
@@ -167,6 +175,23 @@ export default function AdminHealthPage() {
         });
         form.reset();
     }
+    
+    const handleUpdateIncident = () => {
+        if (!selectedIncident || !updatedStatus) return;
+
+        setMockIncidents(prev => 
+            prev.map(inc => 
+                inc.id === selectedIncident.id ? { ...inc, status: updatedStatus } : inc
+            )
+        );
+
+        toast({
+            title: 'Incident Updated',
+            description: `The status for incident #${selectedIncident.id} has been set to "${updatedStatus}".`
+        });
+
+        setSelectedIncident(null);
+    };
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
@@ -685,7 +710,7 @@ export default function AdminHealthPage() {
                              <div className="space-y-4">
                                  <div className="space-y-2">
                                      <Label htmlFor="incident-status">Update Status</Label>
-                                     <Select defaultValue={selectedIncident.status}>
+                                     <Select value={updatedStatus} onValueChange={(value: IncidentStatus) => setUpdatedStatus(value)}>
                                         <SelectTrigger id="incident-status">
                                             <SelectValue />
                                         </SelectTrigger>
@@ -708,7 +733,7 @@ export default function AdminHealthPage() {
                         <DialogClose asChild>
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
-                        <Button>Save Changes</Button>
+                        <Button onClick={handleUpdateIncident}>Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
             )}
