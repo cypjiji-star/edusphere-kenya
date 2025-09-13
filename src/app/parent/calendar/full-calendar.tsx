@@ -44,12 +44,13 @@ const eventTypes: CalendarEvent['type'][] = ['exam', 'meeting', 'trip', 'sports'
 
 
 export function FullCalendar() {
-  const [currentDate, setCurrentDate] = React.useState(new Date());
+  const [currentDate, setCurrentDate] = React.useState(MOCK_EVENTS[0]?.date || new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
     setClientReady(true);
+    setCurrentDate(new Date());
   }, []);
 
   const handlePrev = () => {

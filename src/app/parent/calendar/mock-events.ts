@@ -1,5 +1,5 @@
 
-import { add, sub, parse } from 'date-fns';
+import { add, sub } from 'date-fns';
 
 export type CalendarEvent = {
   id: string;
@@ -11,7 +11,14 @@ export type CalendarEvent = {
 };
 
 // Using a fixed reference date to ensure consistency across server and client renders
-const referenceDate = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+const getReferenceDate = () => {
+    // A function to prevent this from being evaluated at build time,
+    // ensuring it's relative to the user's "now" but consistent.
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+const referenceDate = getReferenceDate();
 
 export const MOCK_EVENTS: CalendarEvent[] = [
   { id: '1', date: referenceDate, title: "Form 4 Exams Begin", type: 'exam' },
