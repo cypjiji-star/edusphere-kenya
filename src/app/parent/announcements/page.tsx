@@ -156,7 +156,7 @@ export default function ParentAnnouncementsPage() {
                                     <h4 className="font-semibold text-sm mb-2">Attachments</h4>
                                     <div className="space-y-2">
                                         {ann.attachments.map((file, index) => (
-                                            <Button key={index} variant="outline" size="sm" className="w-full justify-start" disabled>
+                                            <Button key={index} variant="outline" size="sm" className="w-full justify-start">
                                                 <Paperclip className="mr-2 h-4 w-4"/>
                                                 {file.name} ({file.size})
                                             </Button>
@@ -195,7 +195,7 @@ export default function ParentAnnouncementsPage() {
                 )}
             </CardContent>
             <CardFooter className="flex-col items-center gap-4">
-                <Button variant="outline" className="w-full" disabled>
+                <Button variant="outline" className="w-full">
                     <MoreHorizontal className="mr-2 h-4 w-4" />
                     Load More Announcements
                 </Button>
