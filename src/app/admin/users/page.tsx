@@ -52,9 +52,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { initialRolePermissions } from '../permissions/roles-data';
 
 
-type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent';
+type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
 type UserStatus = 'Active' | 'Pending' | 'Suspended' | 'Transferred' | 'Graduated';
 type ParentRelationship = 'Father' | 'Mother' | 'Guardian';
 
@@ -90,7 +91,7 @@ const mockUsers: User[] = [
 ];
 
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended', 'Transferred', 'Graduated'];
-const roles: UserRole[] = ['Admin', 'Teacher', 'Student', 'Parent'];
+const roles: UserRole[] = Object.keys(initialRolePermissions);
 const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1', 'Alumni'];
 const relationships: ParentRelationship[] = ['Father', 'Mother', 'Guardian'];
 const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i).toString());
