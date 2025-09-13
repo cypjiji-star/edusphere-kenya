@@ -46,6 +46,8 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 
 type CalendarView = 'month' | 'week' | 'day';
@@ -68,30 +70,42 @@ const eventColors: Record<CalendarEvent['type'], string> = {
   meeting: 'bg-purple-500 hover:bg-purple-600',
 };
 
-const MOCK_EVENTS: CalendarEvent[] = [
-  { id: '1', date: new Date(), title: "Form 4 Exams Begin", type: 'exam', startTime: '08:00', endTime: '16:00', description: 'The official start of the Form 4 final examinations for Term 2.', location: 'Main Hall' },
-  { id: '2', date: add(new Date(), { days: 1 }), title: "PTA Meeting", type: 'meeting', startTime: '14:00', endTime: '15:00', description: 'A general meeting for all parents and teachers to discuss the term\'s progress.', location: 'Auditorium' },
-  { id: '3', date: sub(new Date(), { days: 5 }), title: "Staff Briefing", type: 'meeting', description: 'Weekly staff briefing session.', location: 'Staff Room' },
-  { id: '4', date: add(new Date(), { days: 12 }), title: "Annual Sports Day", type: 'event', description: 'Annual school-wide sports day event. All are welcome.', location: 'School Sports Field' },
-  { id: '5', date: add(new Date(), { days: 20 }), title: "Moi Day", type: 'holiday', description: 'School closed for the public holiday.' },
-];
-
 
 export function FullCalendar() {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
-  const [events, setEvents] = React.useState<CalendarEvent[]>(MOCK_EVENTS);
+  const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
 
   const [newEventTitle, setNewEventTitle] = React.useState('');
+  const [newEventDate, setNewEventDate] = React.useState<Date | undefined>(new Date());
   const [newEventStartTime, setNewEventStartTime] = React.useState('10:00');
   const [newEventEndTime, setNewEventEndTime] = React.useState('11:00');
   const [newEventType, setNewEventType] = React.useState<CalendarEvent['type']>('event');
+  const [newEventDescription, setNewEventDescription] = React.useState('');
+  const [newEventLocation, setNewEventLocation] = React.useState('');
   const [isAddEventPopoverOpen, setIsAddEventPopoverOpen] = React.useState(false);
   const [notifyStaff, setNotifyStaff] = React.useState(true);
   const [notifyParents, setNotifyParents] = React.useState(false);
   const { toast } = useToast();
   const [editingEvent, setEditingEvent] = React.useState<CalendarEvent | null>(null);
+
+  React.useEffect(() => {
+    const q = query(collection(firestore, 'calendar-events'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const fetchedEvents = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                date: (data.date as Timestamp).toDate(),
+            } as CalendarEvent;
+        });
+        setEvents(fetchedEvents);
+    });
+    return () => unsubscribe();
+  }, []);
+
 
   const handlePrev = () => {
     const newDate = sub(currentDate, { [view === 'month' ? 'months' : view === 'week' ? 'weeks' : 'days']: 1 });
@@ -106,41 +120,54 @@ export function FullCalendar() {
   const handleToday = () => {
     setCurrentDate(new Date());
   }
+  
+  const resetForm = () => {
+    setNewEventTitle('');
+    setNewEventDate(new Date());
+    setNewEventStartTime('10:00');
+    setNewEventEndTime('11:00');
+    setNewEventType('event');
+    setNewEventDescription('');
+    setNewEventLocation('');
+    setNotifyStaff(true);
+    setNotifyParents(false);
+    setEditingEvent(null);
+  };
 
-  const handleAddOrUpdateEvent = () => {
-    if (!newEventTitle) {
+  const handleAddOrUpdateEvent = async () => {
+    if (!newEventTitle || !newEventDate) {
       toast({
         title: 'Error',
-        description: 'Event title is required.',
+        description: 'Event title and date are required.',
         variant: 'destructive',
       });
       return;
     }
   
+    const eventData = {
+        title: newEventTitle,
+        date: newEventDate,
+        type: newEventType,
+        startTime: newEventStartTime,
+        endTime: newEventEndTime,
+        description: newEventDescription,
+        location: newEventLocation,
+    };
+
     if (editingEvent) {
       // Update existing event
-      const updatedEvents = events.map(event => 
-        event.id === editingEvent.id 
-        ? { ...event, title: newEventTitle, type: newEventType, startTime: newEventStartTime, endTime: newEventEndTime } 
-        : event
-      );
-      setEvents(updatedEvents);
+      const eventRef = doc(firestore, 'calendar-events', editingEvent.id);
+      await updateDoc(eventRef, eventData);
       toast({
         title: 'Event Updated',
         description: `"${newEventTitle}" has been updated.`,
       });
     } else {
       // Add new event
-      const newEvent: CalendarEvent = {
-        id: (events.length + 1).toString(),
-        date: currentDate, // For simplicity, adds to the current date being viewed
-        title: newEventTitle,
-        description: 'A newly added event.', // Placeholder description
-        type: newEventType,
-        startTime: newEventStartTime,
-        endTime: newEventEndTime,
-      };
-      setEvents([...events, newEvent]);
+      await addDoc(collection(firestore, 'calendar-events'), {
+          ...eventData,
+          createdAt: serverTimestamp(),
+      });
       toast({
         title: 'Event Added',
         description: `"${newEventTitle}" has been added to the calendar.`,
@@ -162,23 +189,19 @@ export function FullCalendar() {
         });
     }
 
-    // Reset form and state
-    setNewEventTitle('');
-    setNewEventStartTime('10:00');
-    setNewEventEndTime('11:00');
-    setNewEventType('event');
+    resetForm();
     setIsAddEventPopoverOpen(false);
-    setNotifyStaff(true);
-    setNotifyParents(false);
-    setEditingEvent(null);
   };
   
   const handleEditClick = (event: CalendarEvent) => {
     setEditingEvent(event);
     setNewEventTitle(event.title);
+    setNewEventDate(event.date);
     setNewEventType(event.type);
     setNewEventStartTime(event.startTime || '10:00');
     setNewEventEndTime(event.endTime || '11:00');
+    setNewEventDescription(event.description || '');
+    setNewEventLocation(event.location || '');
     setSelectedEvent(null);
     setIsAddEventPopoverOpen(true);
   };
@@ -190,8 +213,8 @@ export function FullCalendar() {
     });
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    setEvents(events.filter(event => event.id !== eventId));
+  const handleDeleteEvent = async (eventId: string) => {
+    await deleteDoc(doc(firestore, 'calendar-events', eventId));
     setSelectedEvent(null);
     toast({
         title: "Event Deleted",
@@ -240,7 +263,7 @@ export function FullCalendar() {
         </DropdownMenu>
         <Popover open={isAddEventPopoverOpen} onOpenChange={(open) => {
             setIsAddEventPopoverOpen(open);
-            if (!open) setEditingEvent(null);
+            if (!open) resetForm();
         }}>
             <PopoverTrigger asChild>
                 <Button><PlusCircle className="mr-2"/> Add Event</Button>
@@ -257,6 +280,20 @@ export function FullCalendar() {
                       <div className="grid gap-2">
                         <Label htmlFor="event-title">Title</Label>
                         <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} />
+                      </div>
+                       <div className="grid gap-2">
+                          <Label>Date</Label>
+                          <Popover>
+                              <PopoverTrigger asChild>
+                                  <Button variant="outline" className="font-normal w-full justify-start">
+                                      <CalendarIcon className="mr-2 h-4 w-4"/>
+                                      {newEventDate ? format(newEventDate, 'PPP') : 'Pick a date'}
+                                  </Button>
+                              </PopoverTrigger>
+                              <PopoverContent>
+                                  <Calendar mode="single" selected={newEventDate} onSelect={setNewEventDate} initialFocus/>
+                              </PopoverContent>
+                          </Popover>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
@@ -286,6 +323,14 @@ export function FullCalendar() {
                             </SelectContent>
                           </Select>
                       </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="event-description">Description</Label>
+                            <Textarea id="event-description" placeholder="Event details..." value={newEventDescription} onChange={(e) => setNewEventDescription(e.target.value)} />
+                        </div>
+                         <div className="grid gap-2">
+                            <Label htmlFor="event-location">Location</Label>
+                            <Input id="event-location" placeholder="e.g., Main Hall" value={newEventLocation} onChange={(e) => setNewEventLocation(e.target.value)} />
+                        </div>
 
                       <Separator />
 
@@ -497,4 +542,3 @@ export function FullCalendar() {
     </Dialog>
   );
 }
-
