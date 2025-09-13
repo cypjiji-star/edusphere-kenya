@@ -50,7 +50,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -61,13 +60,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 
 
-type AttendanceStatus = 'present' | 'absent' | 'late';
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'unmarked';
 
 type Student = {
     id: string;
     name: string;
     avatarUrl: string;
-    status: AttendanceStatus | 'unmarked';
+    status: AttendanceStatus;
     notes?: string;
 };
 
@@ -104,6 +103,7 @@ export default function AttendancePage() {
   });
   const [students, setStudents] = React.useState<Student[]>([]);
   const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'all'>('all');
   
   const isRange = date?.from && date?.to;
   const selectedDate = date?.from && !date.to ? date.from : undefined;
@@ -145,8 +145,6 @@ export default function AttendancePage() {
     setStudents(currentStudents => 
       currentStudents.map(s => s.id === studentId ? { ...s, status } : s)
     );
-    // Auto-save on change
-    handleSaveAttendance();
   };
 
   const handleNotesChange = (studentId: string, notes: string) => {
@@ -154,7 +152,6 @@ export default function AttendancePage() {
     setStudents(currentStudents =>
       currentStudents.map(s => s.id === studentId ? { ...s, notes } : s)
     );
-    handleSaveAttendance();
   };
   
   const markAll = (status: AttendanceStatus) => {
@@ -183,6 +180,13 @@ export default function AttendancePage() {
       lateCount
     };
   }, [students]);
+
+  const filteredStudents = React.useMemo(() => {
+    if (statusFilter === 'all') {
+      return students;
+    }
+    return students.filter(s => s.status === statusFilter);
+  }, [students, statusFilter]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -250,19 +254,27 @@ export default function AttendancePage() {
                   </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={() => markAll('present')} disabled={!isEditable} className="w-full sm:w-auto">Mark All Present</Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                        Bulk Actions
+                        <ChevronDown className="ml-2 h-4 w-4"/>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => markAll('present')} disabled={!isEditable}>Mark All Present</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => markAll('absent')} disabled={!isEditable}>Mark All Absent</DropdownMenuItem>
+                    <DropdownMenuItem onClick={clearAll} disabled={!isEditable}>Clear All Selections</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                      Actions
+                      Export
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={clearAll} disabled={!isEditable}>
-                      Clear All Selections
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem disabled>
                       <FileDown className="mr-2" />
                       Download as PDF
@@ -281,42 +293,54 @@ export default function AttendancePage() {
             </div>
              {!isRange && (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Overall Attendance</CardTitle>
-                            <Percent className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{attendanceSummary.present}%</div>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Present</CardTitle>
-                            <UserCheck className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{attendanceSummary.presentCount}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Absent</CardTitle>
-                            <UserX className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-destructive">{attendanceSummary.absentCount}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Late</CardTitle>
-                            <UserCheck className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-yellow-600">{attendanceSummary.lateCount}</div>
-                        </CardContent>
-                    </Card>
+                    <button className="w-full text-left" onClick={() => setStatusFilter('all')}>
+                        <Card className="hover:bg-muted/50 transition-colors h-full">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Overall Attendance</CardTitle>
+                                <Percent className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{attendanceSummary.present}%</div>
+                                <p className="text-xs text-muted-foreground">{attendanceSummary.presentCount + attendanceSummary.lateCount} of {students.length} students</p>
+                            </CardContent>
+                        </Card>
+                    </button>
+                    <button className="w-full text-left" onClick={() => setStatusFilter('absent')}>
+                        <Card className="hover:bg-muted/50 transition-colors h-full">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
+                                <UserX className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-destructive">{attendanceSummary.absentCount}</div>
+                                <p className="text-xs text-muted-foreground">students marked absent</p>
+                            </CardContent>
+                        </Card>
+                    </button>
+                    <button className="w-full text-left" onClick={() => setStatusFilter('late')}>
+                        <Card className="hover:bg-muted/50 transition-colors h-full">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
+                                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-yellow-600">{attendanceSummary.lateCount}</div>
+                                <p className="text-xs text-muted-foreground">students marked late</p>
+                            </CardContent>
+                        </Card>
+                    </button>
+                     <button className="w-full text-left" onClick={() => setStatusFilter('present')}>
+                        <Card className="hover:bg-muted/50 transition-colors h-full">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Present</CardTitle>
+                                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-green-600">{attendanceSummary.presentCount}</div>
+                                <p className="text-xs text-muted-foreground">students present on time</p>
+                            </CardContent>
+                        </Card>
+                    </button>
                 </div>
             )}
         </CardHeader>
@@ -402,7 +426,7 @@ export default function AttendancePage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {students.map(student => (
+                    {filteredStudents.map(student => (
                     <TableRow key={student.id} className="flex flex-col md:table-row">
                         <TableCell>
                         <div className="flex items-center gap-3">
@@ -451,7 +475,7 @@ export default function AttendancePage() {
                                     placeholder="Add a note (e.g., Sick, family emergency)"
                                     value={student.notes}
                                     onChange={(e) => handleNotesChange(student.id, e.target.value)}
-                                    onBlur={() => handleSaveAttendance()}
+                                    onBlur={handleSaveAttendance}
                                     disabled={!isEditable}
                                     className="mt-2 md:mt-0"
                                 />
@@ -480,11 +504,11 @@ export default function AttendancePage() {
                 </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
                     <div className="flex items-center space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
-                        <Switch id="notify-parents" disabled />
+                        <Switch id="notify-parents" />
                         <Label htmlFor="notify-parents">Notify parents of absent students</Label>
                     </div>
                      <div className="flex items-center space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
-                        <Switch id="notify-admin" disabled />
+                        <Switch id="notify-admin" />
                         <Label htmlFor="notify-admin">Alert admin for low attendance</Label>
                     </div>
                 </div>
