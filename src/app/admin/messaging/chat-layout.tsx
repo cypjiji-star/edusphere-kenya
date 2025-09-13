@@ -27,6 +27,9 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
+  doc,
+  deleteDoc,
+  updateDoc,
 } from 'firebase/firestore';
 
 import { cn } from '@/lib/utils';
@@ -69,7 +72,7 @@ type Conversation = {
   id: string;
   name: string;
   avatar: string;
-  icon: React.ElementType;
+  icon: string;
   lastMessage: string;
   timestamp: Timestamp;
   unread: boolean;
@@ -114,7 +117,7 @@ export function AdminChatLayout() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [selectedConvo]);
 
   React.useEffect(() => {
     if (!selectedConvo) return;
@@ -167,6 +170,13 @@ export function AdminChatLayout() {
     };
     
     await addDoc(collection(firestore, 'conversations', selectedConvo.id, 'messages'), newMessage);
+
+    // Update last message in conversation
+    const convoRef = doc(firestore, 'conversations', selectedConvo.id);
+    await updateDoc(convoRef, {
+        lastMessage: messageText,
+        timestamp: serverTimestamp(),
+    });
 
     setMessage('');
     setAttachment(null);
@@ -247,7 +257,7 @@ export function AdminChatLayout() {
   const handleTranslateIncomingMessage = async (messageIndex: number, text: string) => {
     if (!selectedConvo) return;
     try {
-        const result = await translateText({ text, targetLanguage: 'Swahili' });
+        const result = await translateText({ text, targetLanguage: 'English' });
         if (result && result.translatedText) {
             setMessages(prev => {
                 const currentConvoMessages = prev[selectedConvo.id] || [];
@@ -274,30 +284,18 @@ export function AdminChatLayout() {
     }
 };
 
-  const handleArchive = () => {
-    if (!selectedConvo) return;
-
-    setConversations(prev => {
-        const newConversations = prev.filter(c => c.id !== selectedConvo.id);
-        setSelectedConvo(newConversations.length > 0 ? newConversations[0] : null);
-        return newConversations;
-    });
-
-    toast({
-        title: 'Conversation Archived',
-    });
-  }
-
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedConvo) return;
     
-    handleArchive(); // Same logic as archiving for now, but also deletes messages
+    await deleteDoc(doc(firestore, 'conversations', selectedConvo.id));
     
     setMessages(prev => {
         const newMessages = { ...prev };
         delete newMessages[selectedConvo.id];
         return newMessages;
     });
+
+    setSelectedConvo(null);
 
      toast({
         title: 'Conversation Deleted',
@@ -376,7 +374,7 @@ export function AdminChatLayout() {
           <div className="flex-1 overflow-y-auto">
             <div className="p-2 space-y-1">
             {filteredConversations.map((convo) => {
-                const IconComponent = getIconComponent(convo.icon as unknown as string);
+                const IconComponent = getIconComponent(convo.icon);
                 return (
                     <button
                         key={convo.id}
@@ -412,14 +410,11 @@ export function AdminChatLayout() {
                 <div className="flex items-center gap-3">
                      <Avatar className="h-10 w-10">
                         <AvatarImage src={selectedConvo.avatar} alt={selectedConvo.name} />
-                        <AvatarFallback>{React.createElement(getIconComponent(selectedConvo.icon as unknown as string))}</AvatarFallback>
+                        <AvatarFallback>{React.createElement(getIconComponent(selectedConvo.icon))}</AvatarFallback>
                     </Avatar>
                     <p className="font-semibold">{selectedConvo.name}</p>
                 </div>
                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={handleArchive}>
-                        <Archive className="h-5 w-5 text-muted-foreground" />
-                    </Button>
                     <Button variant="ghost" size="icon" onClick={handleDelete}>
                         <Trash2 className="h-5 w-5 text-destructive" />
                     </Button>
