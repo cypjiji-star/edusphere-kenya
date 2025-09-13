@@ -28,9 +28,9 @@ const gradeRanges = [
 ];
 
 const ATTENDANCE_COLORS = {
-    present: 'hsl(142.1 76.2% 42.2%)',
-    late: 'hsl(38 92% 50%)',
-    absent: 'hsl(0 84.2% 60.2%)',
+    present: 'hsl(120, 80%, 70%)',
+    late: 'hsl(40, 90%, 70%)',
+    absent: 'hsl(0, 80%, 70%)',
 };
 
 
@@ -44,15 +44,15 @@ const performanceChartConfig = {
 const attendanceChartConfig = {
   present: {
     label: 'Present',
-    color: 'hsl(142.1 76.2% 42.2%)',
+    color: ATTENDANCE_COLORS.present,
   },
   late: {
     label: 'Late',
-    color: 'hsl(38 92% 50%)',
+    color: ATTENDANCE_COLORS.late,
   },
   absent: {
     label: 'Absent',
-    color: 'hsl(0 84.2% 60.2%)',
+    color: ATTENDANCE_COLORS.absent,
   },
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
@@ -106,14 +106,11 @@ export function ClassAnalytics({ students }: { students: Student[] }) {
                 cursor={false}
                 content={<ChartTooltipContent hideLabel />}
               />
-              <Bar dataKey="students" fill="var(--color-students)" radius={5} barSize={20}>
-                 <LabelList
-                  position="right"
-                  offset={8}
-                  className="fill-foreground font-bold"
-                  fontSize={12}
-                />
-              </Bar>
+              {performanceData.map((item) => (
+                 <Bar key={item.name} dataKey="students" data={[item]} fill="var(--color-students)" radius={5} barSize={20}>
+                    <LabelList dataKey="students" position="right" offset={8} />
+                </Bar>
+              ))}
             </BarChart>
           </ChartContainer>
         </CardContent>
