@@ -48,7 +48,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormDescription } from '@/components/ui/form';
 import { firestore, storage } from '@/lib/firebase';
-import { collection, query, onSnapshot, Timestamp, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, Timestamp, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 
@@ -175,6 +175,20 @@ export default function ExpensesPage() {
             toast({ title: "Error", description: "Could not save the expense. Please try again.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
+        }
+    };
+    
+    const handleUpdateStatus = async (expenseId: string, status: 'Paid' | 'Declined') => {
+        try {
+            const expenseRef = doc(firestore, 'expenses', expenseId);
+            await updateDoc(expenseRef, { status });
+            toast({
+                title: 'Status Updated',
+                description: `The expense has been marked as ${status}.`
+            });
+        } catch (error) {
+            console.error("Error updating status:", error);
+            toast({ title: "Error", description: "Could not update the expense status.", variant: "destructive" });
         }
     };
     
@@ -510,11 +524,11 @@ export default function ExpensesPage() {
                                         <TableCell className="text-right space-x-2">
                                             {expense.status === 'Pending Approval' ? (
                                                 <>
-                                                    <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700">
+                                                    <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700" onClick={() => handleUpdateStatus(expense.id, 'Paid')}>
                                                         <CheckCircle className="mr-2 h-4 w-4" />
                                                         Approve
                                                     </Button>
-                                                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                                                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleUpdateStatus(expense.id, 'Declined')}>
                                                         <XCircle className="mr-2 h-4 w-4" />
                                                         Decline
                                                     </Button>
