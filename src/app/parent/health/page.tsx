@@ -16,15 +16,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
   Table,
   TableBody,
   TableCell,
@@ -41,7 +32,7 @@ import {
   } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { HeartPulse, User, Phone, Stethoscope, ShieldAlert, FileText, CalendarIcon, AlertCircle, Lock, Clock, MapPin, CheckCircle, FileDown } from 'lucide-react';
+import { HeartPulse, User, Phone, Stethoscope, ShieldAlert, FileText, CalendarIcon, AlertCircle, Lock, Clock, MapPin, CheckCircle, FileDown, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
@@ -51,61 +42,139 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
 
 
-const childrenData = [
-  { id: 'child-1', name: 'John Doe', class: 'Form 4' },
-  { id: 'child-2', name: 'Jane Doe', class: 'Form 1' },
-];
+type Child = {
+    id: string;
+    name: string;
+    class: string;
+};
 
-const healthData = {
-    'child-1': {
-        allergies: ['Asthma (mild)'],
-        conditions: ['None'],
-        emergencyContact: { name: 'Joseph Kariuki', relationship: 'Father', phone: '0722 123 456' },
-        lastHealthCheck: '2024-01-15',
-        incidents: [
-            { id: 'inc-1', date: '2024-07-12', time: '11:15 AM', location: 'Playground', type: 'Accident' as const, description: 'Slipped and fell during break time. Minor scrape on the knee.', reportedBy: 'Mr. Otieno', status: 'Resolved' as const, actionsTaken: 'Cleaned the scrape and applied a plaster. Student returned to class.', followUpNeeded: 'None' },
-        ],
-        medications: [
-            { id: 'med-1', date: '2024-07-12 11:30 AM', medication: 'Antiseptic Wipe & Plaster', dosage: 'N/A', administeredBy: 'Nurse Joy' },
-        ]
-    },
-    'child-2': {
-        allergies: ['Peanuts'],
-        conditions: ['None'],
-        emergencyContact: { name: 'Mr. Omondi', relationship: 'Father', phone: '0712 345 678' },
-        lastHealthCheck: '2024-01-20',
-        incidents: [
-            { id: 'inc-2', date: '2024-07-28', time: '12:45 PM', location: 'Cafeteria', type: 'Health' as const, description: 'Complained of a stomach ache after lunch. Seems to have resolved after a short rest.', reportedBy: 'Ms. Njeri', status: 'Reported' as const, actionsTaken: 'Student rested at the nurse\'s office for 30 minutes. Parent was notified via phone call.', followUpNeeded: 'Monitor at home' },
-        ],
-        medications: []
-    }
-}
+type Incident = {
+  id: string;
+  date: Timestamp;
+  time: string;
+  location: string;
+  type: 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
+  description: string;
+  reportedBy: string;
+  status: 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
+  actionsTaken: string;
+  followUpNeeded: string;
+};
 
-type Incident = (typeof healthData)['child-1']['incidents'][0];
+type Medication = {
+    id: string;
+    date: Timestamp;
+    medication: string;
+    dosage: string;
+    administeredBy: string;
+};
+
+type HealthRecord = {
+    allergies: string[];
+    conditions: string[];
+    emergencyContact: { name: string; relationship: string; phone: string };
+    lastHealthCheck?: string;
+};
 
 export default function ParentHealthPage() {
-    const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
-    const [clientReady, setClientReady] = React.useState(false);
+    const [childrenData, setChildrenData] = React.useState<Child[]>([]);
+    const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
+    const [healthRecord, setHealthRecord] = React.useState<HealthRecord | null>(null);
+    const [incidents, setIncidents] = React.useState<Incident[]>([]);
+    const [medications, setMedications] = React.useState<Medication[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+
     const [absenceDate, setAbsenceDate] = React.useState<Date | undefined>(new Date());
+    const [absenceReason, setAbsenceReason] = React.useState('');
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const { toast } = useToast();
 
     React.useEffect(() => {
-        setClientReady(true);
-    }, []);
-    
-    const data = healthData[selectedChild as keyof typeof healthData];
-
-    const handleReportAbsence = () => {
-        toast({
-            title: "Absence Reported",
-            description: "The school has been notified of your child's absence.",
+        // In a real app, you would filter by parent ID. For now, we fetch a few students.
+        const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
+            setChildrenData(fetchedChildren);
+            if (!selectedChild && fetchedChildren.length > 0) {
+                setSelectedChild(fetchedChildren[0].id);
+            }
         });
+        return () => unsubscribe();
+    }, [selectedChild]);
+    
+    React.useEffect(() => {
+        if (!selectedChild) return;
+
+        setIsLoading(true);
+        const childRef = doc(firestore, 'students', selectedChild);
+        const unsubChild = onSnapshot(childRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setHealthRecord({
+                    allergies: data.allergies || ['None known'],
+                    conditions: data.medicalConditions ? [data.medicalConditions] : ['None known'],
+                    emergencyContact: {
+                        name: data.emergencyContactName || 'N/A',
+                        relationship: 'Parent/Guardian',
+                        phone: data.emergencyContactPhone || 'N/A',
+                    },
+                    lastHealthCheck: data.lastHealthCheck || 'N/A',
+                });
+            }
+            setIsLoading(false);
+        });
+
+        const incidentsQuery = query(collection(firestore, `students/${selectedChild}/incidents`), orderBy('date', 'desc'));
+        const unsubIncidents = onSnapshot(incidentsQuery, (snapshot) => {
+            setIncidents(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Incident)));
+        });
+
+        const medsQuery = query(collection(firestore, `students/${selectedChild}/medications`), orderBy('date', 'desc'));
+        const unsubMeds = onSnapshot(medsQuery, (snapshot) => {
+            setMedications(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Medication)));
+        });
+
+
+        return () => {
+            unsubChild();
+            unsubIncidents();
+            unsubMeds();
+        };
+
+    }, [selectedChild]);
+
+    const handleReportAbsence = async () => {
+        if (!selectedChild || !absenceDate || !absenceReason) {
+            toast({ title: 'Missing Information', description: 'Please select a date and provide a reason.', variant: 'destructive' });
+            return;
+        }
+
+        try {
+            await addDoc(collection(firestore, 'absences'), {
+                studentId: selectedChild,
+                studentName: childrenData.find(c => c.id === selectedChild)?.name,
+                date: Timestamp.fromDate(absenceDate),
+                reason: absenceReason,
+                reportedBy: 'Parent', // In a real app, use parent's ID/name
+                reportedAt: serverTimestamp(),
+            });
+
+            toast({
+                title: "Absence Reported",
+                description: "The school has been notified of your child's absence.",
+            });
+            setAbsenceReason('');
+        } catch (error) {
+            console.error("Error reporting absence:", error);
+            toast({ title: 'Submission Failed', description: 'Could not report absence. Please try again.', variant: 'destructive' });
+        }
     }
 
-    const hasNewIncident = data.incidents.some(inc => inc.status === 'Reported');
+    const hasNewIncident = incidents.some(inc => inc.status === 'Reported');
     
     const handleDownloadReport = () => {
         toast({
@@ -114,6 +183,13 @@ export default function ParentHealthPage() {
         });
     }
 
+    if (isLoading) {
+      return (
+        <div className="p-8 h-full flex items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary"/>
+        </div>
+      )
+    }
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
@@ -174,7 +250,7 @@ export default function ParentHealthPage() {
                                             </div>
                                                 <div className="space-y-2">
                                                 <Label htmlFor="absence-reason">Reason for Absence</Label>
-                                                <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." />
+                                                <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." value={absenceReason} onChange={(e) => setAbsenceReason(e.target.value)} />
                                             </div>
                                         </div>
                                         <DialogFooter>
@@ -215,8 +291,8 @@ export default function ParentHealthPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-x-2">
-                                    {data.allergies.map(allergy => (
-                                        <Badge key={allergy} variant={allergy !== "None" ? "destructive" : "secondary"}>{allergy}</Badge>
+                                    {healthRecord?.allergies.map(allergy => (
+                                        <Badge key={allergy} variant={allergy !== "None" && allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>
                                     ))}
                                 </div>
                             </CardContent>
@@ -230,7 +306,7 @@ export default function ParentHealthPage() {
                             </CardHeader>
                             <CardContent className="space-y-2">
                                 <div className="space-x-2">
-                                    {data.conditions.map(condition => (
+                                    {healthRecord?.conditions.map(condition => (
                                         <Badge key={condition} variant="secondary">{condition}</Badge>
                                     ))}
                                 </div>
@@ -245,8 +321,8 @@ export default function ParentHealthPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="text-sm">
-                            <p><span className="font-medium">{data.emergencyContact.name}</span> ({data.emergencyContact.relationship})</p>
-                            <p className="text-muted-foreground">{data.emergencyContact.phone}</p>
+                            <p><span className="font-medium">{healthRecord?.emergencyContact.name}</span> ({healthRecord?.emergencyContact.relationship})</p>
+                            <p className="text-muted-foreground">{healthRecord?.emergencyContact.phone}</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -257,7 +333,11 @@ export default function ParentHealthPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="text-sm">
-                                {clientReady && <p className="font-semibold">{new Date(data.lastHealthCheck).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>}
+                               {healthRecord?.lastHealthCheck && healthRecord.lastHealthCheck !== 'N/A' ? (
+                                    <p className="font-semibold">{format(new Date(healthRecord.lastHealthCheck), 'PPP')}</p>
+                               ) : (
+                                    <p className="font-semibold text-muted-foreground">No date recorded.</p>
+                               )}
                             </CardContent>
                         </Card>
                     </div>
@@ -282,10 +362,10 @@ export default function ParentHealthPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {data.incidents.length > 0 ? data.incidents.map(incident => (
+                                            {incidents.length > 0 ? incidents.map(incident => (
                                                 <DialogTrigger asChild key={incident.id}>
                                                     <TableRow className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
-                                                        <TableCell className="font-medium">{clientReady ? new Date(incident.date).toLocaleDateString() : ''}</TableCell>
+                                                        <TableCell className="font-medium">{incident.date.toDate().toLocaleDateString()}</TableCell>
                                                         <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'secondary'}>{incident.type}</Badge></TableCell>
                                                         <TableCell className="text-muted-foreground max-w-xs truncate">{incident.description}</TableCell>
                                                         <TableCell><Badge variant="outline">{incident.status}</Badge></TableCell>
@@ -325,9 +405,9 @@ export default function ParentHealthPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {data.medications.length > 0 ? data.medications.map(med => (
+                                            {medications.length > 0 ? medications.map(med => (
                                                 <TableRow key={med.id}>
-                                                    <TableCell className="font-medium">{med.date}</TableCell>
+                                                    <TableCell className="font-medium">{med.date.toDate().toLocaleString()}</TableCell>
                                                     <TableCell>{med.medication}</TableCell>
                                                     <TableCell>{med.dosage}</TableCell>
                                                     <TableCell className="text-muted-foreground">{med.administeredBy}</TableCell>
@@ -350,7 +430,7 @@ export default function ParentHealthPage() {
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Incident Details</DialogTitle>
-                        <DialogDescription>A detailed summary of the incident reported on {new Date(selectedIncident.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.</DialogDescription>
+                        <DialogDescription>A detailed summary of the incident reported on {selectedIncident.date.toDate().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-6">
                         <div className="grid grid-cols-2 gap-4 text-sm">
