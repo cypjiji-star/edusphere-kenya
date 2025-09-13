@@ -18,15 +18,17 @@ export function PageLoader() {
   }, [pathname, previousPathname]);
 
   useEffect(() => {
-    if (previousPathname !== pathname) {
-      // Short delay to allow the animation to be seen
-      const timer = setTimeout(() => {
-        setLoading(false);
-        setPreviousPathname(pathname);
-      }, 700);
-      return () => clearTimeout(timer);
+    if (loading) {
+        // When loading is true, we set a timeout to hide the loader.
+        // This simulates the end of a page load.
+        const timer = setTimeout(() => {
+            setLoading(false);
+            setPreviousPathname(pathname);
+        }, 700); 
+
+        return () => clearTimeout(timer);
     }
-  }, [pathname, previousPathname]);
+  }, [loading, pathname]);
 
   return (
     <AnimatePresence mode="wait">
