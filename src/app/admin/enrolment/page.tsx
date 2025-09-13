@@ -77,6 +77,7 @@ import {
   AlertCircle,
   Columns,
   HeartPulse,
+  X,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -129,6 +130,7 @@ const getStatusBadge = (status: RecentEnrolment['status']) => {
 
 export default function StudentEnrolmentPage() {
     const { toast } = useToast();
+    const [bulkEnrolmentFile, setBulkEnrolmentFile] = React.useState<File | null>(null);
 
     const form = useForm<EnrolmentFormValues>({
         resolver: zodResolver(enrolmentSchema),
@@ -137,6 +139,16 @@ export default function StudentEnrolmentPage() {
             sendInvite: true,
         },
     });
+    
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setBulkEnrolmentFile(event.target.files[0]);
+        }
+    };
+    
+    const handleRemoveFile = () => {
+        setBulkEnrolmentFile(null);
+    };
 
     function onSubmit(values: EnrolmentFormValues) {
         console.log(values);
@@ -178,14 +190,26 @@ export default function StudentEnrolmentPage() {
                   <div className="space-y-2">
                       <Label>Step 1: Upload File</Label>
                       <div className="flex items-center justify-center w-full">
-                          <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                              <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                  <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                  <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                                  <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
+                          {bulkEnrolmentFile ? (
+                               <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                  <div className="flex items-center gap-2 text-sm font-medium">
+                                      <FileText className="h-5 w-5 text-primary" />
+                                      <span className="truncate">{bulkEnrolmentFile.name}</span>
+                                  </div>
+                                  <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
+                                      <X className="h-4 w-4 text-destructive" />
+                                  </Button>
                               </div>
-                              <Input id="dropzone-file" type="file" className="hidden" />
-                          </Label>
+                          ) : (
+                              <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                  <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                      <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                      <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                      <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
+                                  </div>
+                                  <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} />
+                              </Label>
+                          )}
                       </div>
                   </div>
                   <div className="space-y-4">
@@ -242,7 +266,7 @@ export default function StudentEnrolmentPage() {
               </div>
               <DialogFooter>
                   <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                  <Button disabled>Process File</Button>
+                  <Button disabled={!bulkEnrolmentFile}>Process File</Button>
               </DialogFooter>
           </DialogContent>
         </Dialog>
