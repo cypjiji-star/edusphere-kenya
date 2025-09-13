@@ -28,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
     <div className="space-y-2">
@@ -89,150 +91,159 @@ export default function BrandingPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
-             <Card>
-                <CardHeader>
-                    <CardTitle>School Logo & Media</CardTitle>
-                    <CardDescription>Upload your school's logo, cover image, and favicon.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Form {...form}>
-                    <form className="space-y-6">
-                    <div className="space-y-2">
-                        <Label>School Logo</Label>
-                        <div className="flex items-center gap-4">
-                            <Avatar className="h-16 w-16">
-                                <AvatarImage src="https://picsum.photos/seed/school-logo/200" />
-                                <AvatarFallback>SL</AvatarFallback>
-                            </Avatar>
-                            <Button variant="outline" className="w-full" disabled>
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload New Logo
-                            </Button>
-                        </div>
-                        <FormDescription>Recommended format: PNG or SVG.</FormDescription>
-                    </div>
-                     <div className="space-y-2">
-                        <Label>Login Page Cover Image</Label>
-                        <div className="flex items-center justify-center w-full">
-                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                    <ImageIcon className="w-8 h-8 mb-2 text-muted-foreground" />
-                                    <p className="mb-2 text-sm text-muted-foreground">Upload Cover Image</p>
-                                    <p className="text-xs text-muted-foreground">(1920x1080 recommended)</p>
+            <Tabs defaultValue="customize">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="customize">Customize</TabsTrigger>
+                    <TabsTrigger value="manage">Manage</TabsTrigger>
+                </TabsList>
+                <TabsContent value="customize" className="space-y-6 mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>School Logo & Media</CardTitle>
+                            <CardDescription>Upload your school's logo, cover image, and favicon.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Form {...form}>
+                            <form className="space-y-6">
+                            <div className="space-y-2">
+                                <Label>School Logo</Label>
+                                <div className="flex items-center gap-4">
+                                    <Avatar className="h-16 w-16">
+                                        <AvatarImage src="https://picsum.photos/seed/school-logo/200" />
+                                        <AvatarFallback>SL</AvatarFallback>
+                                    </Avatar>
+                                    <Button variant="outline" className="w-full" disabled>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Upload New Logo
+                                    </Button>
                                 </div>
-                                <Input id="dropzone-file" type="file" className="hidden" disabled />
-                            </Label>
-                        </div>
-                         <FormDescription>This image is shown on the dashboard login page.</FormDescription>
-                    </div>
-                     <div className="space-y-2">
-                        <Label>School Favicon</Label>
-                        <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 flex items-center justify-center bg-muted rounded-md">
-                                <Avatar className="h-8 w-8">
-                                    <AvatarImage src="https://picsum.photos/seed/school-logo/200" />
-                                    <AvatarFallback>SL</AvatarFallback>
-                                </Avatar>
+                                <FormDescription>Recommended format: PNG or SVG.</FormDescription>
                             </div>
-                            <Button variant="outline" className="w-full" disabled>
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload Favicon
-                            </Button>
-                        </div>
-                        <FormDescription>An icon for the browser tab. Recommended format: .ico or .png (32x32px).</FormDescription>
-                    </div>
-                    </form>
-                    </Form>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Color Scheme</CardTitle>
-                    <CardDescription>Customize the look and feel of the portal.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <ColorPicker label="Primary Color" color={primaryColor} setColor={setPrimaryColor} />
-                    <ColorPicker label="Accent Color" color={accentColor} setColor={setAccentColor} />
-                    <ColorPicker label="Background Color (Light Mode)" color={backgroundColor} setColor={setBackgroundColor} />
-                     <Separator />
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="dark-mode" className="flex items-center gap-2">
-                            {isDarkMode ? <Moon/> : <Sun />}
-                            {isDarkMode ? 'Dark Mode' : 'Light Mode'}
-                        </Label>
-                        <Switch id="dark-mode" checked={isDarkMode} onCheckedChange={setIsDarkMode} />
-                    </div>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Type className="h-5 w-5 text-primary"/>Typography</CardTitle>
-                    <CardDescription>Select fonts for headings and body text.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="headline-font">Headline Font</Label>
-                        <Select value={headlineFont} onValueChange={setHeadlineFont}>
-                            <SelectTrigger id="headline-font"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {googleFonts.map(font => (
-                                    <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
-                                        {font.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="body-font">Body Font</Label>
-                        <Select value={bodyFont} onValueChange={setBodyFont}>
-                            <SelectTrigger id="body-font"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {googleFonts.map(font => (
-                                    <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
-                                        {font.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-            </Card>
-
-             <Card>
-                <CardHeader>
-                    <CardTitle>Save Changes</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col items-stretch space-y-2">
-                    <Button className="w-full" disabled>
-                        <Save className="mr-2 h-4 w-4" />
-                        Apply & Save Theme
-                    </Button>
-                    <Button variant="outline" className="w-full" disabled>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Reset to Default
-                    </Button>
-                </CardContent>
-             </Card>
-              <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Branding History</CardTitle>
-                    <CardDescription>Review and restore previous branding versions.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {versionHistory.map(version => (
-                            <div key={version.version} className="flex items-center justify-between text-sm">
-                                <div>
-                                    <p className="font-medium">Version {version.version} - <span className="font-normal text-muted-foreground">{version.summary}</span></p>
-                                    <p className="text-xs text-muted-foreground">Saved by {version.author} on {version.date}</p>
+                            <div className="space-y-2">
+                                <Label>Login Page Cover Image</Label>
+                                <div className="flex items-center justify-center w-full">
+                                    <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                            <ImageIcon className="w-8 h-8 mb-2 text-muted-foreground" />
+                                            <p className="mb-2 text-sm text-muted-foreground">Upload Cover Image</p>
+                                            <p className="text-xs text-muted-foreground">(1920x1080 recommended)</p>
+                                        </div>
+                                        <Input id="dropzone-file" type="file" className="hidden" disabled />
+                                    </Label>
                                 </div>
-                                <Button variant="ghost" size="sm" disabled>Restore</Button>
+                                <FormDescription>This image is shown on the dashboard login page.</FormDescription>
                             </div>
-                        ))}
-                    </div>
-                </CardContent>
-             </Card>
+                            <div className="space-y-2">
+                                <Label>School Favicon</Label>
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-10 flex items-center justify-center bg-muted rounded-md">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src="https://picsum.photos/seed/school-logo/200" />
+                                            <AvatarFallback>SL</AvatarFallback>
+                                        </Avatar>
+                                    </div>
+                                    <Button variant="outline" className="w-full" disabled>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Upload Favicon
+                                    </Button>
+                                </div>
+                                <FormDescription>An icon for the browser tab. Recommended format: .ico or .png (32x32px).</FormDescription>
+                            </div>
+                            </form>
+                            </Form>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Color Scheme</CardTitle>
+                            <CardDescription>Customize the look and feel of the portal.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <ColorPicker label="Primary Color" color={primaryColor} setColor={setPrimaryColor} />
+                            <ColorPicker label="Accent Color" color={accentColor} setColor={setAccentColor} />
+                            <ColorPicker label="Background Color (Light Mode)" color={backgroundColor} setColor={setBackgroundColor} />
+                            <Separator />
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="dark-mode" className="flex items-center gap-2">
+                                    {isDarkMode ? <Moon/> : <Sun />}
+                                    {isDarkMode ? 'Dark Mode' : 'Light Mode'}
+                                </Label>
+                                <Switch id="dark-mode" checked={isDarkMode} onCheckedChange={setIsDarkMode} />
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Type className="h-5 w-5 text-primary"/>Typography</CardTitle>
+                            <CardDescription>Select fonts for headings and body text.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="headline-font">Headline Font</Label>
+                                <Select value={headlineFont} onValueChange={setHeadlineFont}>
+                                    <SelectTrigger id="headline-font"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {googleFonts.map(font => (
+                                            <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
+                                                {font.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="body-font">Body Font</Label>
+                                <Select value={bodyFont} onValueChange={setBodyFont}>
+                                    <SelectTrigger id="body-font"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {googleFonts.map(font => (
+                                            <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
+                                                {font.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="manage" className="space-y-6 mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Save Changes</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-stretch space-y-2">
+                            <Button className="w-full" disabled>
+                                <Save className="mr-2 h-4 w-4" />
+                                Apply & Save Theme
+                            </Button>
+                            <Button variant="outline" className="w-full" disabled>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Reset to Default
+                            </Button>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Branding History</CardTitle>
+                            <CardDescription>Review and restore previous branding versions.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {versionHistory.map(version => (
+                                    <div key={version.version} className="flex items-center justify-between text-sm">
+                                        <div>
+                                            <p className="font-medium">Version {version.version} - <span className="font-normal text-muted-foreground">{version.summary}</span></p>
+                                            <p className="text-xs text-muted-foreground">Saved by {version.author} on {version.date}</p>
+                                        </div>
+                                        <Button variant="ghost" size="sm" disabled>Restore</Button>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
         <div className="lg:col-span-2">
              <Card className="sticky top-4">
