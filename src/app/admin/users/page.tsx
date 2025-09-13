@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -113,6 +113,8 @@ export default function UserManagementPage() {
     const [clientReady, setClientReady] = React.useState(false);
     const { toast } = useToast();
     const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
+    const [isProcessingFile, setIsProcessingFile] = React.useState(false);
+    const [isFileProcessed, setIsFileProcessed] = React.useState(false);
     
     React.useEffect(() => {
         setClientReady(true);
@@ -121,12 +123,26 @@ export default function UserManagementPage() {
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
             setBulkImportFile(event.target.files[0]);
+            setIsFileProcessed(false);
         }
     };
     
     const handleRemoveBulkFile = () => {
         setBulkImportFile(null);
+        setIsFileProcessed(false);
     };
+
+    const handleProcessFile = () => {
+        setIsProcessingFile(true);
+        setTimeout(() => {
+            setIsProcessingFile(false);
+            setIsFileProcessed(true);
+            toast({
+                title: 'File Processed',
+                description: 'Please map the columns from your file to the required fields.',
+            });
+        }, 1500);
+    }
 
     const handleCreateUser = () => {
         toast({
@@ -522,22 +538,30 @@ export default function UserManagementPage() {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                                                     <Label>Full Name</Label>
-                                                    <Select disabled><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                    <Select disabled={!isFileProcessed}><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
                                                 </div>
                                                 <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                                                     <Label>Email</Label>
-                                                    <Select disabled><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                    <Select disabled={!isFileProcessed}><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
                                                 </div>
                                                 <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                                                     <Label>Role</Label>
-                                                    <Select disabled><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                    <Select disabled={!isFileProcessed}><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button disabled={!bulkImportFile}>Process File</Button>
+                                        {isFileProcessed ? (
+                                            <Button disabled>
+                                                Import Users
+                                            </Button>
+                                        ) : (
+                                            <Button onClick={handleProcessFile} disabled={!bulkImportFile || isProcessingFile}>
+                                                {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
+                                            </Button>
+                                        )}
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
