@@ -24,6 +24,7 @@ import {
   CircleDollarSign,
   Receipt,
   FileClock,
+  UserPlus,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -60,6 +61,7 @@ const navGroups = [
    {
     title: 'Users',
     items: [
+      { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus },
       { href: '/admin/users', label: 'User Management', icon: Users },
       { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
@@ -198,5 +200,3 @@ export function AdminSidebar() {
     </>
   );
 }
-
-    
