@@ -41,6 +41,12 @@ export default function SettingsPage() {
     const [reminderDay, setReminderDay] = React.useState('monday');
     const [reminderThreshold, setReminderThreshold] = React.useState(7);
     const [reminderMessage, setReminderMessage] = React.useState("Dear Parent, this is a friendly reminder that a fee balance of {balance} for {studentName} is overdue. Please make a payment at your earliest convenience.");
+    
+    const [timezone, setTimezone] = React.useState('Africa/Nairobi');
+    const [language, setLanguage] = React.useState('en-KE');
+    const [academicYear, setAcademicYear] = React.useState('2024');
+    const [currentTerm, setCurrentTerm] = React.useState('term-2');
+
 
     const handleSaveSettings = () => {
         toast({
@@ -91,7 +97,7 @@ export default function SettingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="timezone">Default Time Zone</Label>
-                                <Select defaultValue="Africa/Nairobi" disabled>
+                                <Select value={timezone} onValueChange={setTimezone}>
                                     <SelectTrigger id="timezone">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -102,7 +108,7 @@ export default function SettingsPage() {
                             </div>
                              <div className="space-y-2">
                                 <Label htmlFor="language">Default Language</Label>
-                                <Select defaultValue="en-KE" disabled>
+                                <Select value={language} onValueChange={setLanguage}>
                                     <SelectTrigger id="language">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -123,7 +129,7 @@ export default function SettingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="academic-year">Current Academic Year</Label>
-                                <Select defaultValue="2024" disabled>
+                                <Select value={academicYear} onValueChange={setAcademicYear}>
                                     <SelectTrigger id="academic-year">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -135,7 +141,7 @@ export default function SettingsPage() {
                             </div>
                              <div className="space-y-2">
                                 <Label htmlFor="current-term">Current Term</Label>
-                                <Select defaultValue="term-2" disabled>
+                                <Select value={currentTerm} onValueChange={setCurrentTerm}>
                                     <SelectTrigger id="current-term">
                                         <SelectValue />
                                     </SelectTrigger>
