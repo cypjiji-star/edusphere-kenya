@@ -51,6 +51,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 
 type SchoolClass = {
@@ -156,6 +157,7 @@ const mockClassAssignments = {
 
 
 export default function ClassesAndSubjectsPage() {
+    const { toast } = useToast();
     const teacherWorkload: Record<string, number> = React.useMemo(() => {
         const load: Record<string, number> = {};
         Object.values(mockClassAssignments).flat().forEach(assignment => {
@@ -167,6 +169,13 @@ export default function ClassesAndSubjectsPage() {
     }, []);
 
     const OVER_ASSIGNED_THRESHOLD = 3;
+
+    const handleSaveChanges = (message: string) => {
+        toast({
+            title: 'Changes Saved',
+            description: message,
+        });
+    };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -246,7 +255,9 @@ export default function ClassesAndSubjectsPage() {
                                     </div>
                                     <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button>Save Class</Button>
+                                        <DialogClose asChild>
+                                            <Button onClick={() => handleSaveChanges('A new class has been created.')}>Save Class</Button>
+                                        </DialogClose>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
@@ -347,7 +358,9 @@ export default function ClassesAndSubjectsPage() {
                                                         </Button>
                                                         <div className="flex gap-2">
                                                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                            <Button>Save Changes</Button>
+                                                            <DialogClose asChild>
+                                                                <Button onClick={() => handleSaveChanges(`Updated details for ${schoolClass.name} ${schoolClass.stream || ''}`)}>Save Changes</Button>
+                                                            </DialogClose>
                                                         </div>
                                                     </DialogFooter>
                                                 </DialogContent>
@@ -387,7 +400,9 @@ export default function ClassesAndSubjectsPage() {
                                                     </div>
                                                     <DialogFooter>
                                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                        <Button>Save Assignments</Button>
+                                                        <DialogClose asChild>
+                                                            <Button onClick={() => handleSaveChanges(`Subject assignments updated for ${schoolClass.name} ${schoolClass.stream || ''}`)}>Save Assignments</Button>
+                                                        </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
