@@ -44,15 +44,15 @@ const performanceChartConfig = {
 const attendanceChartConfig = {
   present: {
     label: 'Present',
-    color: ATTENDANCE_COLORS.present,
+    color: 'hsl(142.1 76.2% 42.2%)',
   },
   late: {
     label: 'Late',
-    color: ATTENDANCE_COLORS.late,
+    color: 'hsl(38 92% 50%)',
   },
   absent: {
     label: 'Absent',
-    color: ATTENDANCE_COLORS.absent,
+    color: 'hsl(0 84.2% 60.2%)',
   },
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
