@@ -151,8 +151,8 @@ export function GradeAnalysisCharts() {
                         <CardDescription>Form 1 (Avg. 68%)</CardDescription>
                     </CardHeader>
                 </Card>
-                 <Button asChild variant="outline" className="w-full" disabled>
-                    <Link href="#">
+                 <Button asChild variant="outline" className="w-full">
+                    <Link href="/admin/grades">
                         Generate Full Report
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
