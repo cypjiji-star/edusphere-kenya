@@ -162,6 +162,10 @@ export default function AuditLogsPage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
+                                        <div className="flex items-center space-x-2 pt-2">
+                                            <Switch id="include-archived" disabled />
+                                            <Label htmlFor="include-archived" className="text-sm font-normal">Include archived logs</Label>
+                                        </div>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
@@ -382,4 +386,3 @@ export default function AuditLogsPage() {
          )}
     </Dialog>
   );
-}
