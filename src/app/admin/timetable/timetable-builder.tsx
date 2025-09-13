@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { classes, teachers, rooms, periods, subjects, mockTimetableData, views } from './timetable-data';
+import { classes, teachers, rooms, periods, subjects, mockTimetableData, views, days } from './timetable-data';
 import type { Subject } from './timetable-data';
 
 
