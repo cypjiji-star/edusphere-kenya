@@ -33,10 +33,12 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, User, ChevronDown, FileDown, Printer, CreditCard, Upload, Phone } from 'lucide-react';
+import { CircleDollarSign, User, ChevronDown, FileDown, Printer, CreditCard, Upload, Phone, AlertCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { differenceInDays, isFuture } from 'date-fns';
 
 
 const childrenData = [
@@ -113,6 +115,9 @@ export default function ParentFeesPage() {
         setClientReady(true);
     }, []);
 
+    const daysUntilDue = clientReady ? differenceInDays(new Date(data.summary.dueDate), new Date()) : 0;
+    const isOverdue = clientReady ? !isFuture(new Date(data.summary.dueDate)) : false;
+
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <div className="mb-2">
@@ -142,6 +147,22 @@ export default function ParentFeesPage() {
                     </div>
                 </CardHeader>
             </Card>
+
+            {data.summary.balance > 0 && (
+                <Alert variant={isOverdue ? "destructive" : "default"}>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>
+                        {isOverdue
+                        ? 'Fee Balance Overdue'
+                        : `Upcoming Payment Due`}
+                    </AlertTitle>
+                    <AlertDescription>
+                        {isOverdue
+                        ? 'The fee balance for this term is overdue. Please make a payment as soon as possible.'
+                        : `The outstanding fee balance is due in ${daysUntilDue} days.`}
+                    </AlertDescription>
+                </Alert>
+            )}
 
             <Tabs defaultValue="statement">
                 <TabsList className="grid w-full grid-cols-2">
@@ -334,3 +355,5 @@ export default function ParentFeesPage() {
         </div>
     );
 }
+
+    
