@@ -49,36 +49,6 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Book className="h-5 w-5 text-primary"/>Academic Settings</CardTitle>
-                  <CardDescription>Manage school terms, working hours, and grading policies.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                      <div>
-                          <Label className="font-semibold">Academic Year</Label>
-                          <p className="text-xs text-muted-foreground">Manage terms/semesters and school holidays.</p>
-                      </div>
-                      <Button variant="secondary" disabled>Manage Terms</Button>
-                  </div>
-                  <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                      <div>
-                          <Label className="font-semibold">Operating Hours</Label>
-                          <p className="text-xs text-muted-foreground">Set the default working days and hours for timetabling.</p>
-                      </div>
-                      <Button variant="secondary" disabled>Set Hours</Button>
-                  </div>
-                   <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                        <div>
-                            <Label htmlFor="class-naming" className="font-semibold">Class Naming Convention</Label>
-                            <p className="text-xs text-muted-foreground">e.g., Form 1A, Grade 6 Blue</p>
-                        </div>
-                         <Button variant="secondary" disabled>Define</Button>
-                    </div>
-              </CardContent>
-            </Card>
-
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><LinkIcon className="h-5 w-5 text-primary"/>Third-Party Integrations</CardTitle>
