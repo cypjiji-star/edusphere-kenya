@@ -18,6 +18,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, Timestamp, getDocs, startAfter, collectionGroup } from 'firebase/firestore';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -35,94 +37,55 @@ type Announcement = {
     sender: { name: string; avatarUrl: string };
     content: string;
     audience: string;
-    sentAt: string;
+    sentAt: Timestamp;
     category: AnnouncementCategory;
     read: boolean;
     attachments?: { name: string; size: string }[];
 }
 
-const mockAnnouncements: Announcement[] = [
-    {
-        id: 'ann-1',
-        title: 'PTA Meeting Reminder',
-        sender: { name: 'Principal\'s Office', avatarUrl: 'https://picsum.photos/seed/principal/100' },
-        content: 'This is a reminder about the Parent-Teacher Association meeting this Saturday at 10 AM in the main hall. Your participation is highly encouraged.',
-        audience: 'All Parents',
-        sentAt: '2024-07-28 09:00 AM',
-        category: 'Event' as AnnouncementCategory,
-        read: false,
-    },
-    {
-        id: 'ann-2',
-        title: 'School Closure for Public Holiday',
-        sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
-        content: 'The school will be closed on Friday for the public holiday. Classes will resume on Monday. We wish you a restful weekend.',
-        audience: 'All Students, All Parents, All Staff',
-        sentAt: '2024-07-27 02:30 PM',
-        category: 'General' as AnnouncementCategory,
-        read: false,
-    },
-    {
-        id: 'ann-3',
-        title: 'Urgent: Fee Payment Deadline',
-        sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
-        content: 'The fee payment deadline for Term 2 is this Friday. Please ensure all outstanding balances are cleared to avoid any inconveniences.',
-        audience: 'All Parents',
-        sentAt: '2024-07-26 11:00 AM',
-        category: 'Urgent' as AnnouncementCategory,
-        read: true,
-    },
-     {
-        id: 'ann-4',
-        title: 'Career Guidance Session for Form 4s',
-        sender: { name: 'Form 4 Teachers', avatarUrl: 'https://picsum.photos/seed/teachers/100' },
-        content: 'A special career guidance session for all Form 4 students and their parents will be held next Wednesday in the auditorium. More details to follow.',
-        audience: 'Form 4 Parents, Form 4 Students',
-        sentAt: '2024-07-25 04:00 PM',
-        category: 'Academic' as AnnouncementCategory,
-        read: true,
-        attachments: [
-            { name: 'Career_Day_Schedule.pdf', size: '256 KB' },
-        ],
-    }
-];
-
-const additionalAnnouncements: Announcement[] = [
-    {
-        id: 'ann-5',
-        title: 'Mid-Term Exam Timetable',
-        sender: { name: 'Examinations Office', avatarUrl: 'https://picsum.photos/seed/exams/100' },
-        content: 'The Term 2 Mid-Term Examination timetable has been released. Please check the student portal for the detailed schedule for your child\'s class.',
-        audience: 'All Students, All Parents',
-        sentAt: '2024-07-24 01:00 PM',
-        category: 'Academic' as AnnouncementCategory,
-        read: true,
-    },
-    {
-        id: 'ann-6',
-        title: 'Sports Day Rehearsals',
-        sender: { name: 'Sports Department', avatarUrl: 'https://picsum.photos/seed/sports/100' },
-        content: 'Please be reminded that sports day rehearsals will be taking place every afternoon this week. Ensure your child has their sports kit.',
-        audience: 'All Parents',
-        sentAt: '2024-07-23 08:30 AM',
-        category: 'Event' as AnnouncementCategory,
-        read: true,
-    }
-]
-
 export default function ParentAnnouncementsPage() {
   const { toast } = useToast();
-  const [announcements, setAnnouncements] = React.useState(mockAnnouncements);
+  const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
   const [filter, setFilter] = React.useState<'All' | 'Read' | 'Unread'>('All');
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [lastVisible, setLastVisible] = React.useState<any>(null);
+  const [hasMore, setHasMore] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [hasLoadedMore, setHasLoadedMore] = React.useState(false);
 
-  const handleMarkAsRead = (id: string) => {
-    setAnnouncements(prev => prev.map(ann => ann.id === id ? { ...ann, read: true } : ann));
-    toast({
-        title: 'Marked as Read',
+  React.useEffect(() => {
+    setIsLoading(true);
+    const q = query(
+      collection(firestore, 'announcements'), 
+      orderBy('sentAt', 'desc'), 
+      limit(5)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
+      setAnnouncements(fetchedAnnouncements);
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(!snapshot.empty);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Error fetching announcements:", error);
+      toast({ variant: 'destructive', title: 'Failed to load announcements.' });
+      setIsLoading(false);
     });
+
+    return () => unsubscribe();
+  }, [toast]);
+
+
+  const handleMarkAsRead = async (id: string) => {
+    const announcementRef = doc(firestore, 'announcements', id);
+    try {
+        await updateDoc(announcementRef, { read: true });
+        toast({ title: 'Marked as Read' });
+    } catch(e) {
+        console.error("Error marking as read:", e);
+        toast({ variant: 'destructive', title: 'Could not mark as read.' });
+    }
   }
   
   const filteredAnnouncements = announcements.filter(ann => {
@@ -131,17 +94,28 @@ export default function ParentAnnouncementsPage() {
       return matchesFilter && matchesSearch;
   });
 
-  const handleLoadMore = () => {
+  const handleLoadMore = async () => {
+    if (!lastVisible || !hasMore) return;
+    
     setIsLoadingMore(true);
-    setTimeout(() => {
-        setAnnouncements(prev => [...prev, ...additionalAnnouncements]);
-        setIsLoadingMore(false);
-        setHasLoadedMore(true);
-        toast({
-            title: 'Announcements Loaded',
-            description: 'Older announcements have been added to the list.',
-        });
-    }, 1000);
+    const nextQuery = query(
+      collection(firestore, 'announcements'),
+      orderBy('sentAt', 'desc'),
+      startAfter(lastVisible),
+      limit(5)
+    );
+    
+    const documentSnapshots = await getDocs(nextQuery);
+    const newAnnouncements = documentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
+    
+    if (newAnnouncements.length > 0) {
+        setAnnouncements(prev => [...prev, ...newAnnouncements]);
+        setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
+    } else {
+        setHasMore(false);
+        toast({ description: 'No more announcements to load.' });
+    }
+    setIsLoadingMore(false);
   };
 
   const handleAttachmentClick = (fileName: string) => {
@@ -189,81 +163,90 @@ export default function ParentAnnouncementsPage() {
         </Card>
 
         <Card>
-            <CardContent className="space-y-6 pt-6">
-                {filteredAnnouncements.length > 0 ? filteredAnnouncements.map((ann) => (
-                    <Card key={ann.id} className={cn(!ann.read && 'border-primary/50')}>
-                        <CardHeader className="flex flex-row items-start justify-between gap-4">
-                            <div className="flex-1">
-                                <CardTitle className="font-headline text-xl flex items-center gap-2">
-                                    {!ann.read ? <div className="h-2.5 w-2.5 rounded-full bg-primary" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
-                                    {ann.title}
-                                </CardTitle>
-                                <CardDescription>Posted: {ann.sentAt}</CardDescription>
-                            </div>
-                            <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category].color)}>
-                                {announcementCategories[ann.category].label}
-                            </Badge>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <p className="text-sm leading-relaxed">{ann.content}</p>
+            {isLoading ? (
+                <CardContent className="h-96 flex items-center justify-center">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary"/>
+                </CardContent>
+            ) : (
+            <>
+                <CardContent className="space-y-6 pt-6">
+                    {filteredAnnouncements.length > 0 ? filteredAnnouncements.map((ann) => (
+                        <Card key={ann.id} className={cn(!ann.read && 'border-primary/50')}>
+                            <CardHeader className="flex flex-row items-start justify-between gap-4">
+                                <div className="flex-1">
+                                    <CardTitle className="font-headline text-xl flex items-center gap-2">
+                                        {!ann.read ? <div className="h-2.5 w-2.5 rounded-full bg-primary" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
+                                        {ann.title}
+                                    </CardTitle>
+                                    <CardDescription>Posted: {ann.sentAt.toDate().toLocaleString()}</CardDescription>
+                                </div>
+                                <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category].color)}>
+                                    {announcementCategories[ann.category].label}
+                                </Badge>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm leading-relaxed">{ann.content}</p>
 
-                            {ann.attachments && ann.attachments.length > 0 && (
-                                <div>
-                                    <h4 className="font-semibold text-sm mb-2">Attachments</h4>
-                                    <div className="space-y-2">
-                                        {ann.attachments.map((file, index) => (
-                                            <Button key={index} variant="outline" size="sm" className="w-full justify-start" onClick={() => handleAttachmentClick(file.name)}>
-                                                <Paperclip className="mr-2 h-4 w-4"/>
-                                                {file.name} ({file.size})
-                                            </Button>
-                                        ))}
+                                {ann.attachments && ann.attachments.length > 0 && (
+                                    <div>
+                                        <h4 className="font-semibold text-sm mb-2">Attachments</h4>
+                                        <div className="space-y-2">
+                                            {ann.attachments.map((file, index) => (
+                                                <Button key={index} variant="outline" size="sm" className="w-full justify-start" onClick={() => handleAttachmentClick(file.name)}>
+                                                    <Paperclip className="mr-2 h-4 w-4"/>
+                                                    {file.name} ({file.size})
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <Separator />
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
+                                        <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="text-xs font-semibold">Sent by {ann.sender.name}</p>
                                     </div>
                                 </div>
-                            )}
-
-                            <Separator />
-                            <div className="flex items-center gap-3">
-                                <Avatar className="h-8 w-8">
-                                    <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
-                                    <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <p className="text-xs font-semibold">Sent by {ann.sender.name}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                        {!ann.read && (
-                            <CardFooter>
-                                <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id)}>
-                                    <Check className="mr-2 h-4 w-4"/>
-                                    Mark as Read
-                                </Button>
-                            </CardFooter>
-                        )}
-                    </Card>
-                )) : (
-                        <Card>
-                            <CardContent className="text-center text-muted-foreground py-16">
-                                <p className="font-semibold">No Announcements Found</p>
-                                <p>Your search or filter returned no results.</p>
                             </CardContent>
+                            {!ann.read && (
+                                <CardFooter>
+                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id)}>
+                                        <Check className="mr-2 h-4 w-4"/>
+                                        Mark as Read
+                                    </Button>
+                                </CardFooter>
+                            )}
                         </Card>
-                )}
-            </CardContent>
-            <CardFooter className="flex-col items-center gap-4">
-                <Button variant="outline" className="w-full" onClick={handleLoadMore} disabled={isLoadingMore || hasLoadedMore}>
-                     {isLoadingMore ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <MoreHorizontal className="mr-2 h-4 w-4" />
+                    )) : (
+                            <Card>
+                                <CardContent className="text-center text-muted-foreground py-16">
+                                    <p className="font-semibold">No Announcements Found</p>
+                                    <p>Your search or filter returned no results.</p>
+                                </CardContent>
+                            </Card>
                     )}
-                    {hasLoadedMore ? 'All announcements loaded' : 'Load More Announcements'}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                    Showing {filteredAnnouncements.length} of {announcements.length} announcements
-                </p>
-            </CardFooter>
+                </CardContent>
+                <CardFooter className="flex-col items-center gap-4">
+                    <Button variant="outline" className="w-full" onClick={handleLoadMore} disabled={isLoadingMore || !hasMore}>
+                        {isLoadingMore ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <MoreHorizontal className="mr-2 h-4 w-4" />
+                        )}
+                        {hasMore ? 'Load More Announcements' : 'All announcements loaded'}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                        Showing {filteredAnnouncements.length} of {announcements.length} announcements
+                    </p>
+                </CardFooter>
+            </>
+            )}
         </Card>
     </div>
   );
 }
+
