@@ -73,6 +73,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -131,7 +132,7 @@ const getSubmissionStatusBadge = (status: SubmissionStatus) => {
 }
 
 
-const gradingScale = [
+const initialGradingScale = [
     { grade: 'A', min: 80, max: 100 },
     { grade: 'A-', min: 75, max: 79 },
     { grade: 'B+', min: 70, max: 74 },
@@ -152,6 +153,8 @@ export default function AdminGradesPage() {
     const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
     const [submissionExamFilter, setSubmissionExamFilter] = React.useState('ex-1');
     const [submissionClassFilter, setSubmissionClassFilter] = React.useState('Form 4');
+    const [gradingScale, setGradingScale] = React.useState(initialGradingScale);
+    const { toast } = useToast();
 
     React.useEffect(() => {
         setClientReady(true);
@@ -160,6 +163,27 @@ export default function AdminGradesPage() {
     const filteredSubmissions = mockSubmissions.filter(s =>
         s.examId === submissionExamFilter && s.class === submissionClassFilter
     );
+    
+    const handleGradingScaleChange = (index: number, field: 'min' | 'max', value: number) => {
+        const newScale = [...gradingScale];
+        newScale[index][field] = value;
+        setGradingScale(newScale);
+    };
+
+    const addGradingRow = () => {
+        setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0 }]);
+    };
+    
+    const removeGradingRow = (index: number) => {
+        setGradingScale(gradingScale.filter((_, i) => i !== index));
+    };
+
+    const handleSaveScale = () => {
+        toast({
+            title: 'Grading Scale Saved',
+            description: 'The new grading scale has been applied school-wide.',
+        });
+    }
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedExam(null)}>
@@ -445,23 +469,23 @@ export default function AdminGradesPage() {
                                 <div className="space-y-2">
                                 {gradingScale.map((item, index) => (
                                     <div key={index} className="flex items-center gap-2">
-                                        <Input value={item.grade} className="w-16 font-bold" readOnly />
-                                        <Input type="number" value={item.min} readOnly className="w-20" />
+                                        <Input defaultValue={item.grade} className="w-16 font-bold" />
+                                        <Input type="number" defaultValue={item.min} onChange={(e) => handleGradingScaleChange(index, 'min', parseInt(e.target.value, 10) || 0)} className="w-20" />
                                         <span>-</span>
-                                        <Input type="number" value={item.max} readOnly className="w-20" />
-                                        <Button variant="ghost" size="icon" disabled>
-                                            <Trash2 className="h-4 w-4" />
+                                        <Input type="number" defaultValue={item.max} onChange={(e) => handleGradingScaleChange(index, 'max', parseInt(e.target.value, 10) || 0)} className="w-20" />
+                                        <Button variant="ghost" size="icon" onClick={() => removeGradingRow(index)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
                                     </div>
                                 ))}
                                 </div>
                             </CardContent>
                             <CardFooter className="flex justify-between">
-                                <Button variant="outline" disabled>
+                                <Button variant="outline" onClick={addGradingRow}>
                                     <PlusCircle className="mr-2 h-4 w-4"/>
                                     Add Row
                                 </Button>
-                                <Button>
+                                <Button onClick={handleSaveScale}>
                                     <Save className="mr-2 h-4 w-4"/>
                                     Save Scale
                                 </Button>
