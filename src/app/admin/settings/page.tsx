@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw, LayoutDashboard, Brush, AlertCircle } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw, LayoutDashboard, Brush, AlertCircle, History } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -23,6 +23,12 @@ import {
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
+
+const recentChanges = [
+    { user: 'Admin User', change: 'Enabled self-registration for parents.', date: '2024-07-28 10:05 AM' },
+    { user: 'Principal Jane', change: 'Updated the current academic term to Term 3.', date: '2024-07-27 02:00 PM' },
+    { user: 'Admin User', change: 'Set idle session timeout to 15 minutes.', date: '2024-07-26 09:30 AM' },
+];
 
 export default function SettingsPage() {
   return (
@@ -364,6 +370,36 @@ export default function SettingsPage() {
             </Card>
             <Card>
                 <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Change History</CardTitle>
+                    <CardDescription>A log of recent changes made to system settings.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        {recentChanges.map((change, index) => (
+                            <div key={index} className="flex items-center justify-between text-sm">
+                                <div>
+                                    <p className="font-medium">{change.change}</p>
+                                    <p className="text-xs text-muted-foreground">By {change.user}</p>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{change.date}</p>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+                <CardFooter className="flex-wrap gap-2">
+                    <Button asChild variant="secondary">
+                        <Link href="/admin/logs">
+                            View Full Audit Log
+                            <ArrowRight className="ml-2 h-4 w-4"/>
+                        </Link>
+                    </Button>
+                    <Button variant="outline" disabled>
+                        Rollback Last Change
+                    </Button>
+                </CardFooter>
+            </Card>
+            <Card>
+                <CardHeader>
                     <CardTitle>Portal Access</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -377,8 +413,6 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
         </div>
-
        </div>
     </div>
   );
-}
