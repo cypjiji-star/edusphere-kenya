@@ -278,7 +278,7 @@ export default function AdminAttendancePage() {
                         </div>
                     </div>
                      <div className="flex w-full md:w-auto items-center gap-2">
-                         <Select defaultValue="term2" disabled>
+                         <Select defaultValue="term2">
                             <SelectTrigger className="w-full md:w-auto">
                                 <SelectValue placeholder="Select term" />
                             </SelectTrigger>
@@ -290,7 +290,7 @@ export default function AdminAttendancePage() {
                          <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                     <Button variant="outline" disabled>Compare</Button>
+                                     <Button variant="outline">Compare</Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                     <p>Term comparison feature is coming soon.</p>
