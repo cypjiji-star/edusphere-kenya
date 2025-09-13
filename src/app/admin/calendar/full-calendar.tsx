@@ -91,6 +91,7 @@ export function FullCalendar() {
   const [notifyStaff, setNotifyStaff] = React.useState(true);
   const [notifyParents, setNotifyParents] = React.useState(false);
   const { toast } = useToast();
+  const [editingEvent, setEditingEvent] = React.useState<CalendarEvent | null>(null);
 
   const handlePrev = () => {
     const newDate = sub(currentDate, { [view === 'month' ? 'months' : view === 'week' ? 'weeks' : 'days']: 1 });
@@ -106,7 +107,7 @@ export function FullCalendar() {
     setCurrentDate(new Date());
   }
 
-  const handleAddEvent = () => {
+  const handleAddOrUpdateEvent = () => {
     if (!newEventTitle) {
       toast({
         title: 'Error',
@@ -115,21 +116,37 @@ export function FullCalendar() {
       });
       return;
     }
-    const newEvent: CalendarEvent = {
-      id: (events.length + 1).toString(),
-      date: currentDate, // For simplicity, adds to the current date being viewed
-      title: newEventTitle,
-      description: 'A newly added event.', // Placeholder description
-      type: newEventType,
-      startTime: newEventStartTime,
-      endTime: newEventEndTime,
-    };
-    setEvents([...events, newEvent]);
-    toast({
-      title: 'Event Added',
-      description: `"${newEventTitle}" has been added to the calendar.`,
-    });
-    
+  
+    if (editingEvent) {
+      // Update existing event
+      const updatedEvents = events.map(event => 
+        event.id === editingEvent.id 
+        ? { ...event, title: newEventTitle, type: newEventType, startTime: newEventStartTime, endTime: newEventEndTime } 
+        : event
+      );
+      setEvents(updatedEvents);
+      toast({
+        title: 'Event Updated',
+        description: `"${newEventTitle}" has been updated.`,
+      });
+    } else {
+      // Add new event
+      const newEvent: CalendarEvent = {
+        id: (events.length + 1).toString(),
+        date: currentDate, // For simplicity, adds to the current date being viewed
+        title: newEventTitle,
+        description: 'A newly added event.', // Placeholder description
+        type: newEventType,
+        startTime: newEventStartTime,
+        endTime: newEventEndTime,
+      };
+      setEvents([...events, newEvent]);
+      toast({
+        title: 'Event Added',
+        description: `"${newEventTitle}" has been added to the calendar.`,
+      });
+    }
+
     if (notifyStaff || notifyParents) {
         let notificationMessage = '';
         if (notifyStaff && notifyParents) {
@@ -145,7 +162,7 @@ export function FullCalendar() {
         });
     }
 
-    // Reset form
+    // Reset form and state
     setNewEventTitle('');
     setNewEventStartTime('10:00');
     setNewEventEndTime('11:00');
@@ -153,6 +170,17 @@ export function FullCalendar() {
     setIsAddEventPopoverOpen(false);
     setNotifyStaff(true);
     setNotifyParents(false);
+    setEditingEvent(null);
+  };
+  
+  const handleEditClick = (event: CalendarEvent) => {
+    setEditingEvent(event);
+    setNewEventTitle(event.title);
+    setNewEventType(event.type);
+    setNewEventStartTime(event.startTime || '10:00');
+    setNewEventEndTime(event.endTime || '11:00');
+    setSelectedEvent(null);
+    setIsAddEventPopoverOpen(true);
   };
 
   const handleExport = (type: 'PDF' | 'iCal') => {
@@ -160,6 +188,16 @@ export function FullCalendar() {
       title: `Exporting Calendar as ${type}`,
       description: `Your calendar is being prepared for export.`,
     });
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    setEvents(events.filter(event => event.id !== eventId));
+    setSelectedEvent(null);
+    toast({
+        title: "Event Deleted",
+        description: "The event has been removed from the calendar.",
+        variant: "destructive",
+    })
   };
 
   const renderHeader = () => (
@@ -200,16 +238,19 @@ export function FullCalendar() {
                 <DropdownMenuItem onClick={() => handleExport('iCal')}><FileDown className="mr-2 h-4 w-4" /> Export as iCal (.ics)</DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
-        <Popover open={isAddEventPopoverOpen} onOpenChange={setIsAddEventPopoverOpen}>
+        <Popover open={isAddEventPopoverOpen} onOpenChange={(open) => {
+            setIsAddEventPopoverOpen(open);
+            if (!open) setEditingEvent(null);
+        }}>
             <PopoverTrigger asChild>
                 <Button><PlusCircle className="mr-2"/> Add Event</Button>
             </PopoverTrigger>
              <PopoverContent className="w-96">
                 <div className="grid gap-4">
                     <div className="space-y-1">
-                        <h4 className="font-medium leading-none">Add New Event</h4>
+                        <h4 className="font-medium leading-none">{editingEvent ? 'Edit Event' : 'Add New Event'}</h4>
                         <p className="text-sm text-muted-foreground">
-                        Fill in the details to add a new event to the school calendar.
+                        {editingEvent ? 'Update the details for this event.' : 'Fill in the details to add a new event.'}
                         </p>
                     </div>
                     <div className="grid gap-4">
@@ -263,9 +304,9 @@ export function FullCalendar() {
                           </div>
                       </div>
 
-                      <Button onClick={handleAddEvent} className="w-full">
+                      <Button onClick={handleAddOrUpdateEvent} className="w-full">
                         <PlusCircle className="mr-2 h-4 w-4"/>
-                        Add to Calendar
+                        {editingEvent ? 'Save Changes' : 'Add to Calendar'}
                       </Button>
                     </div>
                 </div>
@@ -442,11 +483,11 @@ export function FullCalendar() {
                 <p className="text-sm text-muted-foreground">{selectedEvent.description}</p>
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" disabled>
+                <Button variant="outline" onClick={() => handleEditClick(selectedEvent)}>
                     <Edit className="mr-2 h-4 w-4"/>
                     Edit Event
                 </Button>
-                <Button variant="destructive" disabled>
+                <Button variant="destructive" onClick={() => handleDeleteEvent(selectedEvent.id)}>
                     <Trash2 className="mr-2 h-4 w-4"/>
                     Delete Event
                 </Button>
