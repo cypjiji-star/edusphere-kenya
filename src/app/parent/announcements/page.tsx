@@ -12,11 +12,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Check, CheckCircle, Filter } from 'lucide-react';
+import { Megaphone, Check, CheckCircle, Filter, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -71,7 +72,8 @@ const mockAnnouncements = [
 export default function ParentAnnouncementsPage() {
   const { toast } = useToast();
   const [announcements, setAnnouncements] = React.useState(mockAnnouncements);
-  const [filter, setFilter] = React.useState('All');
+  const [filter, setFilter] = React.useState<'All' | 'Read' | 'Unread'>('All');
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   const handleMarkAsRead = (id: string) => {
     setAnnouncements(prev => prev.map(ann => ann.id === id ? { ...ann, read: true } : ann));
@@ -80,7 +82,11 @@ export default function ParentAnnouncementsPage() {
     });
   }
   
-  const filteredAnnouncements = announcements.filter(ann => filter === 'All' || !ann.read);
+  const filteredAnnouncements = announcements.filter(ann => {
+      const matchesFilter = filter === 'All' || (filter === 'Read' && ann.read) || (filter === 'Unread' && !ann.read);
+      const matchesSearch = searchTerm === '' || ann.content.toLowerCase().includes(searchTerm.toLowerCase()) || ann.sender.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesFilter && matchesSearch;
+  });
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -91,17 +97,27 @@ export default function ParentAnnouncementsPage() {
        
        <Card>
            <CardHeader>
-               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <CardTitle>Inbox</CardTitle>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="relative w-full md:max-w-sm">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="search"
+                            placeholder="Search by keyword..."
+                            className="w-full bg-background pl-8"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                     <div className="flex w-full md:w-auto items-center gap-2">
                         <Filter className="h-4 w-4 text-muted-foreground"/>
-                        <Select value={filter} onValueChange={setFilter}>
+                        <Select value={filter} onValueChange={(value: 'All' | 'Read' | 'Unread') => setFilter(value)}>
                             <SelectTrigger className="w-full md:w-[180px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="All">Show All</SelectItem>
-                                <SelectItem value="Unread">Show Unread Only</SelectItem>
+                                <SelectItem value="All">All Statuses</SelectItem>
+                                <SelectItem value="Read">Read</SelectItem>
+                                <SelectItem value="Unread">Unread</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -151,8 +167,8 @@ export default function ParentAnnouncementsPage() {
                     </div>
                 )) : (
                      <div className="text-center text-muted-foreground py-16">
-                        <p className="font-semibold">All caught up!</p>
-                        <p>You have no unread announcements.</p>
+                        <p className="font-semibold">No Announcements Found</p>
+                        <p>Your search or filter returned no results.</p>
                     </div>
                 )}
             </CardContent>
