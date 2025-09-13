@@ -31,8 +31,28 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
-const conversations = [
+
+const initialConversations = [
   {
     id: 'msg-1',
     name: 'Finance Department',
@@ -102,11 +122,19 @@ const initialMessages: Record<string, Message[]> = {
     ]
 };
 
+const newContactOptions = [
+    { id: 'contact-1', name: 'Mr. Otieno (Teacher)', avatar: 'https://picsum.photos/seed/teacher-otieno/100', icon: User },
+    { id: 'contact-2', name: 'Ms. Njeri (Teacher)', avatar: 'https://picsum.photos/seed/teacher-njeri/100', icon: User },
+    { id: 'contact-3', name: 'Mrs. Kamau (Parent)', avatar: 'https://picsum.photos/seed/parent2/100', icon: User },
+];
+
 
 export function AdminChatLayout() {
+  const [conversations, setConversations] = React.useState(initialConversations);
   const [selectedConvo, setSelectedConvo] = React.useState(conversations[0]);
   const [message, setMessage] = React.useState("");
   const [messages, setMessages] = React.useState(initialMessages);
+  const { toast } = useToast();
 
   const handleSendMessage = () => {
     if (message.trim() === '' || !selectedConvo) return;
@@ -125,9 +153,43 @@ export function AdminChatLayout() {
             [selectedConvo.id]: [...currentConvoMessages, newMessage]
         };
     });
+    
+    setConversations(prev => prev.map(convo => 
+      convo.id === selectedConvo.id ? { ...convo, lastMessage: message } : convo
+    ));
 
     setMessage('');
   };
+  
+  const handleCreateConversation = (contactId: string) => {
+    const contact = newContactOptions.find(c => c.id === contactId);
+    if (!contact) return;
+    
+    // Check if conversation already exists
+    const existingConvo = conversations.find(c => c.name === contact.name);
+    if (existingConvo) {
+        setSelectedConvo(existingConvo);
+        return;
+    }
+
+    const newConvo = {
+        id: `msg-${Date.now()}`,
+        name: contact.name,
+        avatar: contact.avatar,
+        icon: contact.icon,
+        lastMessage: 'New conversation started.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        unread: false,
+    };
+    
+    setConversations(prev => [newConvo, ...prev]);
+    setSelectedConvo(newConvo);
+    setMessages(prev => ({ ...prev, [newConvo.id]: [] }));
+    toast({
+        title: 'Conversation Started',
+        description: `You can now chat with ${contact.name}.`
+    });
+  }
 
   return (
     <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden">
@@ -136,9 +198,45 @@ export function AdminChatLayout() {
           <div className="flex-shrink-0 p-4 border-b">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold font-headline flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary"/>Messenger</h2>
-                <Button variant="ghost" size="icon" disabled>
-                    <PlusCircle className="h-5 w-5" />
-                </Button>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <PlusCircle className="h-5 w-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>New Conversation</DialogTitle>
+                            <DialogDescription>Select a user to start a new chat.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                           <Label htmlFor="new-chat-recipient">Recipient</Label>
+                           <Select onValueChange={handleCreateConversation}>
+                                <SelectTrigger id="new-chat-recipient">
+                                    <SelectValue placeholder="Select a teacher or parent..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {newContactOptions.map(contact => (
+                                        <SelectItem key={contact.id} value={contact.id}>
+                                            <div className="flex items-center gap-2">
+                                                <Avatar className="h-6 w-6">
+                                                    <AvatarImage src={contact.avatar} />
+                                                    <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span>{contact.name}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                           </Select>
+                        </div>
+                         <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
             <div className="relative mt-4">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -271,3 +369,5 @@ export function AdminChatLayout() {
     </div>
   );
 }
+
+    
