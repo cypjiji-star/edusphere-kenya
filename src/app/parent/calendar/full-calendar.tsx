@@ -46,6 +46,11 @@ const eventTypes: CalendarEvent['type'][] = ['exam', 'meeting', 'trip', 'sports'
 export function FullCalendar() {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const handlePrev = () => {
     const newDate = sub(currentDate, { [view === 'month' ? 'months' : view === 'week' ? 'weeks' : 'days']: 1 });
@@ -136,17 +141,18 @@ export function FullCalendar() {
           {weeks.map((weekStart) =>
             eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day) => {
               const eventsForDay = MOCK_EVENTS.filter(e => isSameDay(e.date, day));
+              const isTodayFlag = clientReady && isToday(day);
               return (
                 <div
                   key={day.toString()}
                   className={cn(
                     'h-24 md:h-32 p-1 md:p-2 border-t border-l flex flex-col',
                     !isSameMonth(day, monthStart) && 'bg-muted/50 text-muted-foreground',
-                     isToday(day) && 'bg-accent/20 relative'
+                     isTodayFlag && 'bg-accent/20 relative'
                   )}
                 >
-                    {isToday(day) && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
-                  <span className={cn('font-medium text-xs md:text-sm', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
+                    {isTodayFlag && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
+                  <span className={cn('font-medium text-xs md:text-sm', isTodayFlag && 'text-primary')}>{format(day, 'd')}</span>
                    <div className="mt-1 space-y-1 overflow-y-auto">
                         {eventsForDay.map(event => (
                             <Badge key={event.id} className={cn('w-full truncate text-white text-[10px] md:text-xs', eventColors[event.type])}>
