@@ -41,8 +41,7 @@ const getStudentData = (studentId: string) => {
 }
 
 
-export default function StudentProfilePage({ params }: { params: { studentId: string } }) {
-  const { studentId } = params;
+export default function StudentProfilePage({ params: { studentId } }: { params: { studentId: string } }) {
   const student = getStudentData(studentId);
   const [formattedDob, setFormattedDob] = useState('');
   const [clientReady, setClientReady] = useState(false);
