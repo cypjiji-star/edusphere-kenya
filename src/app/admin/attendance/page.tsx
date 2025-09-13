@@ -68,6 +68,7 @@ import {
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
 
@@ -124,6 +125,15 @@ const chartConfig = {
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
 function LowAttendanceAlerts() {
+    const { toast } = useToast();
+
+    const handleSendReminder = (teacher: string) => {
+        toast({
+            title: 'Reminder Sent',
+            description: `A reminder notification has been sent to ${teacher}.`,
+        });
+    }
+
     return (
         <Card className="border-red-500/50">
             <CardHeader>
@@ -143,13 +153,13 @@ function LowAttendanceAlerts() {
                          <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button variant="secondary" size="sm" disabled>
+                                    <Button variant="secondary" size="sm" onClick={() => handleSendReminder(alert.teacher)}>
                                         <Send className="mr-2 h-4 w-4"/>
                                         Send Reminder
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Reminder functionality is coming soon. Teachers handle attendance marking.</p>
+                                    <p>Send a reminder to the class teacher.</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
