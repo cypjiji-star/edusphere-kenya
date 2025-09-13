@@ -4,6 +4,8 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
 
 import { cn } from '@/lib/utils';
 import {
@@ -12,7 +14,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,7 +55,6 @@ import {
   ChevronDown,
   FileDown,
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
@@ -64,27 +64,17 @@ type AttendanceStatus = 'Present' | 'Absent' | 'Late';
 type AttendanceRecord = {
   id: string;
   studentId: string;
-  date: string;
+  date: Timestamp;
   status: AttendanceStatus;
   notes?: string;
 };
 
-// --- Mock Data ---
+type Child = {
+    id: string;
+    name: string;
+    class: string;
+};
 
-const MOCK_RECORDS: AttendanceRecord[] = [
-  { id: 'rec-1', studentId: 'child-1', date: '2024-07-18', status: 'Present' },
-  { id: 'rec-2', studentId: 'child-1', date: '2024-07-17', status: 'Present' },
-  { id: 'rec-3', studentId: 'child-1', date: '2024-07-16', status: 'Late', notes: 'Arrived at 8:30 AM' },
-  { id: 'rec-4', studentId: 'child-1', date: '2024-07-15', status: 'Absent', notes: 'Sick' },
-  { id: 'rec-5', studentId: 'child-2', date: '2024-07-18', status: 'Present' },
-  { id: 'rec-6', studentId: 'child-2', date: '2024-07-17', status: 'Present' },
-  { id: 'rec-7', studentId: 'child-2', date: '2024-07-16', status: 'Present' },
-];
-
-const childrenData = [
-    { id: 'child-1', name: 'John Doe', class: 'Form 4' },
-    { id: 'child-2', name: 'Jane Doe', class: 'Form 1' },
-];
 
 const getStatusBadge = (status: AttendanceStatus) => {
     switch (status) {
@@ -96,20 +86,44 @@ const getStatusBadge = (status: AttendanceStatus) => {
 
 
 export default function ParentAttendancePage() {
-  const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
+  const [childrenData, setChildrenData] = React.useState<Child[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = React.useState<AttendanceRecord[]>([]);
+  const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
   const [date, setDate] = React.useState<DateRange | undefined>();
   const { toast } = useToast();
 
   React.useEffect(() => {
-    setDate({
+    // In a real app, you would filter by parent ID. For now, we fetch a few students.
+    const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
+        setChildrenData(fetchedChildren);
+        if (!selectedChild && fetchedChildren.length > 0) {
+            setSelectedChild(fetchedChildren[0].id);
+        }
+    });
+     setDate({
       from: new Date(new Date().setDate(new Date().getDate() - 7)),
       to: new Date(),
     });
+    return () => unsubscribe();
   }, []);
 
-  const filteredRecords = MOCK_RECORDS.filter(record => {
-      if (record.studentId !== selectedChild) return false;
-      const recordDate = new Date(record.date);
+  React.useEffect(() => {
+    if (!selectedChild) return;
+
+    const q = query(collection(firestore, `students/${selectedChild}/attendance`));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+      setAttendanceRecords(records);
+    });
+
+    return () => unsubscribe();
+  }, [selectedChild]);
+
+
+  const filteredRecords = attendanceRecords.filter(record => {
+      const recordDate = record.date.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
       return isDateInRange;
   });
@@ -257,7 +271,7 @@ export default function ParentAttendancePage() {
                 {filteredRecords.length > 0 ? (
                   filteredRecords.map((record) => (
                     <TableRow key={record.id}>
-                      <TableCell className="font-medium">{record.date}</TableCell>
+                      <TableCell className="font-medium">{format(record.date.toDate(), 'PPP')}</TableCell>
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
                       <TableCell className="text-muted-foreground">{record.notes || '—'}</TableCell>
                     </TableRow>
