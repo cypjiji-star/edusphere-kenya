@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
@@ -45,6 +45,39 @@ export default function SettingsPage() {
                             <p className="text-xs text-muted-foreground">Allow new parents and students to register.</p>
                         </div>
                         <Switch id="registration-status" checked disabled />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary"/>Security & Privacy</CardTitle>
+                    <CardDescription>Configure data access, password policies, and other security settings.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="camera-access" className="font-semibold">Camera Access</Label>
+                            <p className="text-xs text-muted-foreground">Configure who can access security cameras (CampusHub module).</p>
+                        </div>
+                        <Button variant="secondary" disabled>Configure</Button>
+                    </div>
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="parent-grade-view" className="font-semibold">Parent Grade Viewing</Label>
+                            <p className="text-xs text-muted-foreground">Allow parents to view their children's detailed grades.</p>
+                        </div>
+                        <Switch id="parent-grade-view" checked disabled />
+                    </div>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="password-policy" className="font-semibold">Password Policy</Label>
+                            <p className="text-xs text-muted-foreground">Set minimum length and reset frequency requirements.</p>
+                        </div>
+                        <Button variant="secondary" disabled>
+                            <KeyRound className="mr-2 h-4 w-4"/>
+                            Set Policy
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
