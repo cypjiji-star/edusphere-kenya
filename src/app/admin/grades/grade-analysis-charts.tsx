@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { BarChart, Bar, CartesianGrid, XAxis, LabelList, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, CartesianGrid, XAxis, LabelList } from 'recharts';
 import {
   Card,
   CardContent,
@@ -26,16 +26,28 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 
-const distributionData = [
-  { name: 'A', students: 120 },
-  { name: 'A-', students: 98 },
-  { name: 'B+', students: 150 },
-  { name: 'B', students: 180 },
-  { name: 'B-', students: 110 },
-  { name: 'C+', students: 80 },
-  { name: 'C/C-', students: 50 },
-  { name: 'D/E', students: 25 },
-];
+const allDistributionData = {
+    'term1-2024': [
+        { name: 'A', students: 120 },
+        { name: 'A-', students: 98 },
+        { name: 'B+', students: 150 },
+        { name: 'B', students: 180 },
+        { name: 'B-', students: 110 },
+        { name: 'C+', students: 80 },
+        { name: 'C/C-', students: 50 },
+        { name: 'D/E', students: 25 },
+    ],
+    'term2-2024': [
+        { name: 'A', students: 130 },
+        { name: 'A-', students: 105 },
+        { name: 'B+', students: 140 },
+        { name: 'B', students: 170 },
+        { name: 'B-', students: 100 },
+        { name: 'C+', students: 75 },
+        { name: 'C/C-', students: 45 },
+        { name: 'D/E', students: 20 },
+    ],
+};
 
 const distributionChartConfig = {
   students: {
@@ -56,15 +68,15 @@ const subjectPerformanceData = [
     { subject: 'Physics', avg: 79, trend: 'up' },
 ];
 
-const subjectChartConfig = {
-  avg: {
-    label: 'Avg. Score',
-    color: 'hsl(var(--chart-2))',
-  },
-};
-
-
 export function GradeAnalysisCharts() {
+  const [selectedTerm, setSelectedTerm] = React.useState('term1-2024');
+  const [distributionData, setDistributionData] = React.useState(allDistributionData[selectedTerm as keyof typeof allDistributionData]);
+
+  React.useEffect(() => {
+    // Simulate fetching data for the selected term
+    setDistributionData(allDistributionData[selectedTerm as keyof typeof allDistributionData]);
+  }, [selectedTerm]);
+  
   return (
      <div className="grid gap-6">
         <Card>
@@ -72,10 +84,10 @@ export function GradeAnalysisCharts() {
                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                         <CardTitle>School-Wide Performance Analysis</CardTitle>
-                        <CardDescription>Overall grade distribution for Term 1 Final Exams.</CardDescription>
+                        <CardDescription>Overall grade distribution for the selected exam period.</CardDescription>
                     </div>
                      <div className="flex w-full md:w-auto items-center gap-2">
-                         <Select defaultValue="term1-2024">
+                         <Select value={selectedTerm} onValueChange={setSelectedTerm}>
                             <SelectTrigger className="w-full md:w-auto">
                                 <SelectValue placeholder="Select term" />
                             </SelectTrigger>
@@ -119,8 +131,8 @@ export function GradeAnalysisCharts() {
             </CardContent>
         </Card>
         <div className="grid gap-6 md:grid-cols-3">
-             <Link href="/admin/grades" className="md:col-span-2">
-                <Card className="h-full hover:bg-muted/50 transition-colors">
+             <Card asChild className="md:col-span-2 h-full hover:bg-muted/50 transition-colors">
+                <Link href="/admin/grades">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><BookCopy className="h-5 w-5 text-primary"/>Subject Performance</CardTitle>
                         <CardDescription>Average scores by subject and trend from previous exam.</CardDescription>
@@ -139,25 +151,25 @@ export function GradeAnalysisCharts() {
                             ))}
                         </div>
                     </CardContent>
-                </Card>
-             </Link>
+                </Link>
+             </Card>
              <div className="space-y-6">
-                <Link href="/admin/grades">
-                    <Card className="hover:bg-muted/50 transition-colors">
+                <Card asChild className="hover:bg-muted/50 transition-colors">
+                    <Link href="/admin/grades">
                         <CardHeader>
                             <CardTitle>Top Performing Class</CardTitle>
                             <CardDescription>Form 4 (Avg. 82%)</CardDescription>
                         </CardHeader>
-                    </Card>
-                </Link>
-                 <Link href="/admin/grades">
-                    <Card className="hover:bg-muted/50 transition-colors">
+                    </Link>
+                 </Card>
+                 <Card asChild className="hover:bg-muted/50 transition-colors">
+                    <Link href="/admin/grades">
                         <CardHeader>
                             <CardTitle>Lowest Performing Class</CardTitle>
                             <CardDescription>Form 1 (Avg. 68%)</CardDescription>
                         </CardHeader>
-                    </Card>
-                 </Link>
+                    </Link>
+                 </Card>
                  <Button asChild variant="outline" className="w-full">
                     <Link href="/admin/grades">
                         Generate Full Report
