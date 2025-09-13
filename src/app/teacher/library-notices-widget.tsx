@@ -6,21 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Library, ArrowRight, AlertTriangle, Gift } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { borrowedItems } from '@/app/teacher/my-library/page';
+import { mockResources } from '@/app/teacher/library/page';
+import { differenceInDays, parseISO } from 'date-fns';
 
-const overdueItems = [
-  {
-    title: 'The River and The Source Novel',
-    dueDate: '2 days ago',
-    href: '/teacher/my-library'
-  },
-];
+// Filter for overdue items from the central source
+const overdueItems = borrowedItems.filter(item => {
+    const dueDate = parseISO(item.dueDate);
+    return differenceInDays(new Date(), dueDate) > 0;
+});
 
-const newArrivals = [
-    {
-        title: 'New KCSE Chemistry Revision Papers (2024 Edition)',
-        href: '/teacher/library'
-    }
-]
+// Get the latest 2 resources as "new arrivals"
+const newArrivals = mockResources.slice(0, 2);
+
 
 export function LibraryNoticesWidget() {
   return (
@@ -42,11 +40,11 @@ export function LibraryNoticesWidget() {
                                 <p className="font-semibold text-sm">{item.title}</p>
                                 <div className="flex items-center gap-2 text-xs text-red-600">
                                     <AlertTriangle className="h-4 w-4" />
-                                    <span>Overdue - Due {item.dueDate}</span>
+                                    <span>Due: {new Date(item.dueDate).toLocaleDateString()}</span>
                                 </div>
                             </div>
                             <Button asChild size="sm" variant="secondary">
-                                <Link href={item.href}>Return</Link>
+                                <Link href="/teacher/my-library">Return</Link>
                             </Button>
                         </div>
                      </div>
@@ -59,7 +57,7 @@ export function LibraryNoticesWidget() {
              <div key={index} className="flex items-center gap-3">
                 <Gift className="h-5 w-5 text-blue-500" />
                 <div className="flex-1">
-                    <p className="text-sm font-medium text-muted-foreground">New Arrival: <span className="font-semibold text-foreground">{item.title}</span></p>
+                    <p className="text-sm text-muted-foreground">New Arrival: <span className="font-semibold text-foreground">{item.title}</span></p>
                 </div>
              </div>
           ))}

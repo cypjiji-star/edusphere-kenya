@@ -22,7 +22,7 @@ type BorrowedItem = {
     dueDate: string;
 };
 
-const borrowedItems: BorrowedItem[] = [
+export const borrowedItems: BorrowedItem[] = [
     { id: 'borrow-1', title: 'The River and The Source Novel', borrowedDate: '2024-07-16', dueDate: '2024-07-30' },
 ];
 

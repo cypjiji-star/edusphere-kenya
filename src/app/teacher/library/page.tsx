@@ -34,7 +34,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 
 
-const mockResources: Resource[] = [
+export const mockResources: Resource[] = [
   { id: 'res-1', title: 'Form 4 Chemistry Textbook', type: 'Textbook', subject: 'Chemistry', grade: 'Form 4', status: 'Available', author: 'Kenya Literature Bureau', description: 'The official KCSE curriculum chemistry textbook for form 4 students, covering all topics for the final year.', recommended: true },
   { id: 'res-2', title: '2023 KCSE Mathematics Paper 1', type: 'Past Paper', subject: 'Mathematics', grade: 'Form 4', status: 'Digital', author: 'KNEC', description: 'The official 2023 Kenya Certificate of Secondary Education (KCSE) Mathematics Paper 1 for revision.', recommended: true },
   { id: 'res-3', title: 'History & Government Curriculum', type: 'Curriculum Guide', subject: 'History', grade: 'All Grades', status: 'Digital', author: 'KICD', description: 'The complete curriculum guide for History & Government for all secondary school levels.' },
