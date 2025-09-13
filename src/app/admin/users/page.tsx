@@ -115,6 +115,7 @@ export default function UserManagementPage() {
     const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
+    const [isBulkImportOpen, setIsBulkImportOpen] = React.useState(false);
     
     React.useEffect(() => {
         setClientReady(true);
@@ -143,6 +144,19 @@ export default function UserManagementPage() {
             });
         }, 1500);
     }
+    
+    const handleImportUsers = () => {
+        setIsBulkImportOpen(false); // Close the dialog
+        toast({
+            title: 'Import Successful',
+            description: 'The users have been added to the system and invitations will be sent shortly.',
+        });
+        // Reset dialog state after closing
+        setTimeout(() => {
+            setBulkImportFile(null);
+            setIsFileProcessed(false);
+        }, 300);
+    };
 
     const handleCreateUser = () => {
         toast({
@@ -468,7 +482,7 @@ export default function UserManagementPage() {
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
-                             <Dialog>
+                             <Dialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen}>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="outline">
@@ -552,10 +566,10 @@ export default function UserManagementPage() {
                                         </div>
                                     </div>
                                     <DialogFooter>
-                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <Button variant="outline" onClick={() => setIsBulkImportOpen(false)}>Cancel</Button>
                                         {isFileProcessed ? (
-                                            <Button disabled>
-                                                Import Users
+                                            <Button onClick={handleImportUsers}>
+                                                <CheckCircle className="mr-2 h-4 w-4" /> Import Users
                                             </Button>
                                         ) : (
                                             <Button onClick={handleProcessFile} disabled={!bulkImportFile || isProcessingFile}>
