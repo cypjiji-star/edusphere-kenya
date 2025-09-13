@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw, Type, History } from 'lucide-react';
+import { Palette, Upload, Eye, Save, Moon, Sun, Image as ImageIcon, RefreshCw, Type, History, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 
 
 const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
@@ -57,9 +58,11 @@ const versionHistory = [
 ];
 
 export default function BrandingPage() {
-    const [primaryColor, setPrimaryColor] = React.useState('#008080');
-    const [accentColor, setAccentColor] = React.useState('#B8860B');
-    const [backgroundColor, setBackgroundColor] = React.useState('#1e293b');
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [primaryColor, setPrimaryColor] = React.useState('#2563eb');
+    const [accentColor, setAccentColor] = React.useState('#f59e0b');
+    const [backgroundColor, setBackgroundColor] = React.useState('#0f172a');
     const [headlineFont, setHeadlineFont] = React.useState(googleFonts[1].family);
     const [bodyFont, setBodyFont] = React.useState(googleFonts[4].family);
 
@@ -70,12 +73,31 @@ export default function BrandingPage() {
         '--preview-accent': accentColor,
         '--preview-background': backgroundColor,
         '--preview-foreground': '#f8fafc',
-        '--preview-card': '#293548',
+        '--preview-card': '#1e293b', // A slightly lighter shade for the card
         '--preview-muted': '#334155',
         '--preview-muted-foreground': '#94a3b8',
         '--preview-font-headline': headlineFont,
         '--preview-font-body': bodyFont,
     } as React.CSSProperties;
+
+    const handleSaveTheme = () => {
+        setIsLoading(true);
+        // This is a mock save. In a real application, you would make an API call
+        // to a backend service that would modify the globals.css file or update
+        // a database record with the new theme values.
+        setTimeout(() => {
+            setIsLoading(false);
+            toast({
+                title: 'Theme Saved!',
+                description: 'Your new branding colors have been applied. The page will now reload.',
+            });
+
+            // In a real app, you might not need to reload, but for this demo, it ensures
+            // that if we were changing CSS variables, they would be applied everywhere.
+            setTimeout(() => window.location.reload(), 1500);
+
+        }, 1500);
+    };
 
 
   return (
@@ -203,9 +225,9 @@ export default function BrandingPage() {
                         <CardTitle>Save Changes</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-col items-stretch space-y-2">
-                        <Button className="w-full" disabled>
-                            <Save className="mr-2 h-4 w-4" />
-                            Apply & Save Theme
+                        <Button className="w-full" onClick={handleSaveTheme} disabled={isLoading}>
+                           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
+                            Apply &amp; Save Theme
                         </Button>
                         <Button variant="outline" className="w-full" disabled>
                             <RefreshCw className="mr-2 h-4 w-4" />
@@ -282,3 +304,4 @@ export default function BrandingPage() {
     </div>
   );
 }
+
