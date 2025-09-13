@@ -24,7 +24,7 @@ const childrenData = [
         class: 'Form 4',
         avatarUrl: 'https://picsum.photos/seed/f4-student4/100',
         school: 'EduSphere High School',
-        overallGrade: 'B+',
+        overallGrade: '88',
         attendance: 96,
         feeStatus: {
             total: 105000,
@@ -43,7 +43,7 @@ const childrenData = [
         class: 'Form 1',
         avatarUrl: 'https://picsum.photos/seed/f1-student10/100',
         school: 'EduSphere High School',
-        overallGrade: 'A-',
+        overallGrade: '92',
         attendance: 99,
         feeStatus: {
             total: 105000,
@@ -118,7 +118,6 @@ const eventTypeColors: Record<EventType, string> = {
     Event: 'bg-blue-500',
 };
 
-
 const getFeeStatusBadge = (status: 'Paid' | 'Partial' | 'Overdue') => {
     switch(status) {
         case 'Paid': return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
@@ -131,6 +130,11 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
 };
 
+const getAttendanceColor = (attendance: number) => {
+    if (attendance >= 90) return 'text-green-600';
+    if (attendance >= 70) return 'text-orange-500';
+    return 'text-red-600';
+}
 
 function AnnouncementsWidget() {
     return (
@@ -224,6 +228,60 @@ export default function ParentDashboard() {
         <p className="text-muted-foreground">Welcome! Here's a summary of your child's progress.</p>
       </div>
 
+       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <ClipboardCheck className="h-4 w-4 text-muted-foreground"/>
+                        Attendance
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className={`text-2xl font-bold ${getAttendanceColor(selectedChild.attendance)}`}>{selectedChild.attendance}%</div>
+                    <p className="text-xs text-muted-foreground">Current term average</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                         <Percent className="h-4 w-4 text-muted-foreground"/>
+                        Overall Grade
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{selectedChild.overallGrade}%</div>
+                    <p className="text-xs text-muted-foreground">Term 2 Average</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <CircleDollarSign className="h-4 w-4 text-muted-foreground"/>
+                        Fee Balance
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-destructive">{formatCurrency(selectedChild.feeStatus.balance)}</div>
+                    <p className="text-xs text-muted-foreground">Due: Aug 15, 2024</p>
+                </CardContent>
+                <CardFooter>
+                    <Button size="sm" className="w-full" disabled>Pay Now</Button>
+                </CardFooter>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground"/>
+                        Next Event
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-lg font-bold">PTA Meeting</div>
+                    <p className="text-xs text-muted-foreground">July 25, 2024</p>
+                </CardContent>
+            </Card>
+      </div>
+
        <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-1 space-y-8">
             <Card>
@@ -255,7 +313,6 @@ export default function ParentDashboard() {
                     ))}
                 </CardContent>
             </Card>
-             <CalendarWidget />
              <AnnouncementsWidget />
         </div>
 
@@ -274,19 +331,6 @@ export default function ParentDashboard() {
                     <CardDescription>An overview of {selectedChild.name}'s academic performance.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="p-4 rounded-lg bg-muted/50 text-center">
-                            <Percent className="h-8 w-8 text-primary mx-auto mb-2" />
-                            <p className="text-3xl font-bold">{selectedChild.overallGrade}</p>
-                            <p className="text-sm text-muted-foreground">Overall Grade</p>
-                        </div>
-                         <div className="p-4 rounded-lg bg-muted/50 text-center">
-                            <ClipboardCheck className="h-8 w-8 text-primary mx-auto mb-2" />
-                            <p className="text-3xl font-bold">{selectedChild.attendance}%</p>
-                            <p className="text-sm text-muted-foreground">Attendance</p>
-                        </div>
-                    </div>
-                    <Separator className="my-6"/>
                     <div>
                         <h4 className="font-semibold mb-4 flex items-center gap-2">
                             <FileText className="h-5 w-5 text-primary/80"/>
@@ -303,47 +347,9 @@ export default function ParentDashboard() {
                     </div>
                 </CardContent>
             </Card>
-
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                        <span>Fee Status</span>
-                        <Button asChild variant="secondary" size="sm" disabled>
-                            <Link href="#">
-                                Make Payment
-                                <ArrowRight className="ml-2 h-4 w-4"/>
-                            </Link>
-                         </Button>
-                    </CardTitle>
-                    <CardDescription>Summary of school fee payments for {selectedChild.name}.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex justify-between items-center mb-4">
-                        {getFeeStatusBadge(selectedChild.feeStatus.status)}
-                        <p className="text-sm text-muted-foreground">Term 2, 2024</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                        <div className="p-2 rounded-lg">
-                            <p className="text-sm text-muted-foreground">Total Billed</p>
-                            <p className="font-bold text-lg">{formatCurrency(selectedChild.feeStatus.total)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg">
-                            <p className="text-sm text-muted-foreground">Total Paid</p>
-                            <p className="font-bold text-lg text-green-600">{formatCurrency(selectedChild.feeStatus.paid)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg">
-                            <p className="text-sm text-muted-foreground">Balance</p>
-                            <p className={`font-bold text-lg ${selectedChild.feeStatus.balance > 0 ? 'text-destructive' : ''}`}>
-                                {formatCurrency(selectedChild.feeStatus.balance)}
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-             </Card>
+             <CalendarWidget />
         </div>
        </div>
     </div>
   );
 }
-
-    
