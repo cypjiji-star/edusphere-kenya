@@ -16,10 +16,11 @@ import {
   eachWeekOfInterval,
   isToday,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Filter, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type CalendarView = 'month' | 'week' | 'day';
 
@@ -27,7 +28,7 @@ type CalendarEvent = {
   id: string;
   date: Date;
   title: string;
-  type: 'event' | 'holiday' | 'exam' | 'meeting';
+  type: 'event' | 'holiday' | 'exam' | 'meeting' | 'sports' | 'trip';
 };
 
 const eventColors: Record<CalendarEvent['type'], string> = {
@@ -35,15 +36,24 @@ const eventColors: Record<CalendarEvent['type'], string> = {
   holiday: 'bg-green-500 hover:bg-green-600',
   exam: 'bg-red-500 hover:bg-red-600',
   meeting: 'bg-purple-500 hover:bg-purple-600',
+  sports: 'bg-orange-500 hover:bg-orange-600',
+  trip: 'bg-pink-500 hover:bg-pink-600',
 };
 
 const MOCK_EVENTS: CalendarEvent[] = [
   { id: '1', date: new Date(), title: "Form 4 Exams Begin", type: 'exam' },
   { id: '2', date: add(new Date(), { days: 1 }), title: "PTA Meeting", type: 'meeting' },
   { id: '3', date: sub(new Date(), { days: 5 }), title: "Staff Briefing", type: 'meeting' },
-  { id: '4', date: add(new Date(), { days: 12 }), title: "Annual Sports Day", type: 'event' },
+  { id: '4', date: add(new Date(), { days: 12 }), title: "Annual Sports Day", type: 'sports' },
   { id: '5', date: add(new Date(), { days: 20 }), title: "Moi Day", type: 'holiday' },
 ];
+
+const childrenData = [
+  { id: 'child-1', name: 'John Doe', class: 'Form 4' },
+  { id: 'child-2', name: 'Jane Doe', class: 'Form 1' },
+];
+
+const eventTypes: CalendarEvent['type'][] = ['exam', 'meeting', 'trip', 'sports', 'holiday', 'event'];
 
 
 export function FullCalendar() {
@@ -65,34 +75,61 @@ export function FullCalendar() {
   }
 
   const renderHeader = () => (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-      <div className="flex items-center gap-2 mb-4 md:mb-0">
-        <Button variant="outline" size="icon" onClick={handlePrev}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleToday}>Today</Button>
-        <Button variant="outline" size="icon" onClick={handleNext}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <h2 className="text-xl font-semibold ml-4 font-headline">
-          {format(currentDate, 'MMMM yyyy')}
-        </h2>
-      </div>
-       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
-            {(['month', 'week', 'day'] as CalendarView[]).map(v => (
-            <Button
-                key={v}
-                variant={view === v ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setView(v)}
-                className="capitalize"
-            >
-                {v}
+    <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between mb-4">
+        <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handlePrev}>
+            <ChevronLeft className="h-4 w-4" />
             </Button>
-            ))}
+            <Button variant="outline" size="sm" onClick={handleToday}>Today</Button>
+            <Button variant="outline" size="icon" onClick={handleNext}>
+            <ChevronRight className="h-4 w-4" />
+            </Button>
+            <h2 className="text-xl font-semibold ml-4 font-headline">
+            {format(currentDate, 'MMMM yyyy')}
+            </h2>
         </div>
-      </div>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary"/>
+                <Select defaultValue={childrenData[0].id}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectValue placeholder="Select a child" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {childrenData.map((child) => (
+                            <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+             <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-primary"/>
+                <Select>
+                    <SelectTrigger className="w-full md:w-[150px]">
+                        <SelectValue placeholder="Filter by Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Events</SelectItem>
+                        {eventTypes.map(type => (
+                             <SelectItem key={type} value={type} className="capitalize">{type}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5 text-primary"/>
+                <Select defaultValue="month">
+                    <SelectTrigger className="w-full md:w-[150px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="week">This Week</SelectItem>
+                        <SelectItem value="month">This Month</SelectItem>
+                        <SelectItem value="custom">Custom Range</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+        </div>
     </div>
   );
 
@@ -165,5 +202,3 @@ export function FullCalendar() {
     </div>
   );
 }
-
-    
