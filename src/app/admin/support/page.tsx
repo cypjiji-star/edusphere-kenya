@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User, Star, TrendingUp, Clock, Smile, X } from 'lucide-react';
+import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User, Star, TrendingUp, Clock, Smile, X, XCircle, CheckCircle } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -442,20 +442,20 @@ export default function SupportPage() {
                             <CardDescription>For urgent issues, please contact us directly.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center gap-3">
+                            <a href="tel:+254201234567" className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
                                 <Phone className="h-5 w-5 text-muted-foreground"/>
                                 <div className="text-sm">
                                     <p className="font-semibold">+254 20 123 4567</p>
                                     <p className="text-xs text-muted-foreground">Mon-Fri, 8am-5pm</p>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-3">
+                            </a>
+                            <a href="mailto:support@edusphere.co.ke" className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
                                 <Mail className="h-5 w-5 text-muted-foreground"/>
                                 <div className="text-sm">
                                     <p className="font-semibold">support@edusphere.co.ke</p>
                                     <p className="text-xs text-muted-foreground">24/7 Email Support</p>
                                 </div>
-                            </div>
+                            </a>
                         </CardContent>
                     </Card>
                     <Card>
@@ -575,5 +575,5 @@ export default function SupportPage() {
         )}
         </div>
     </Dialog>
-  );
-}
+    
+    
