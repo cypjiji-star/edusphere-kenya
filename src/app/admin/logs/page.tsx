@@ -67,10 +67,10 @@ type AuditLog = {
 };
 
 const mockLogs: AuditLog[] = [
+    { id: 'log-4', actionType: 'Security', description: 'User login failed (3 attempts)', user: { name: 'System', avatarUrl: 'https://picsum.photos/seed/system/100' }, timestamp: '2024-07-27T12:00:00Z', details: 'User: unknown@example.com', ipAddress: '203.0.113.1', userAgent: 'Firefox on Windows' },
     { id: 'log-1', actionType: 'Settings', description: 'Updated school phone number', user: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' }, timestamp: '2024-07-28T11:00:00Z', details: { oldValue: '+254 722 000 000', newValue: '+254 722 123 456'}, ipAddress: '192.168.1.1', userAgent: 'Chrome on macOS' },
     { id: 'log-2', actionType: 'User Management', description: 'Created new user account', user: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' }, timestamp: '2024-07-28T10:15:00Z', details: { oldValue: null, newValue: 'User: new.teacher@school.ac.ke, Role: Teacher' }, ipAddress: '192.168.1.1', userAgent: 'Chrome on macOS' },
     { id: 'log-3', actionType: 'Finance', description: 'Generated Term 2 invoices', user: { name: 'Finance Officer', avatarUrl: 'https://picsum.photos/seed/finance-officer/100' }, timestamp: '2024-07-27T14:30:00Z', details: 'Applied to all students', ipAddress: '203.0.113.50', userAgent: 'Safari on iPhone' },
-    { id: 'log-4', actionType: 'Security', description: 'User login failed (3 attempts)', user: { name: 'System', avatarUrl: 'https://picsum.photos/seed/system/100' }, timestamp: '2024-07-27T12:00:00Z', details: 'User: unknown@example.com', ipAddress: '203.0.113.1', userAgent: 'Firefox on Windows' },
     { id: 'log-5', actionType: 'Academics', description: 'Published grades for Form 4 Chemistry', user: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' }, timestamp: '2024-07-26T16:00:00Z', details: 'Exam: Mid-Term Exam', ipAddress: '10.0.0.5', userAgent: 'Chrome on Windows' },
 ];
 
@@ -115,7 +115,7 @@ export default function AuditLogsPage() {
                 <FileClock className="h-8 w-8 text-primary"/>
                 Audit Log
             </h1>
-            <p className="text-muted-foreground">Track important activities and changes within the portal.</p>
+            <p className="text-muted-foreground">Track important activities and changes within the portal. Access is restricted to authorized personnel.</p>
         </div>
 
         <Card>
@@ -184,11 +184,11 @@ export default function AuditLogsPage() {
                                 </Popover>
                                 <Separator orientation="vertical" className="h-10 hidden md:block" />
                                  <div className="flex items-center gap-2">
-                                     <Button variant="outline" size="icon" disabled>
+                                     <Button variant="outline" size="icon">
                                         <RefreshCw className="h-4 w-4" />
                                      </Button>
                                      <div className="flex items-center space-x-2">
-                                        <Switch id="auto-refresh" disabled />
+                                        <Switch id="auto-refresh" />
                                         <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground">Auto-refresh</Label>
                                     </div>
                                 </div>
@@ -235,7 +235,13 @@ export default function AuditLogsPage() {
                                         const Icon = config.icon;
                                         return (
                                              <DialogTrigger key={log.id} asChild>
-                                                <TableRow onClick={() => setSelectedLog(log)} className="cursor-pointer">
+                                                <TableRow 
+                                                  onClick={() => setSelectedLog(log)} 
+                                                  className={cn(
+                                                    "cursor-pointer",
+                                                    log.actionType === 'Security' && 'border-l-4 border-destructive'
+                                                  )}
+                                                >
                                                     <TableCell>
                                                         <div className="flex items-center gap-3">
                                                             <Icon className={cn("h-5 w-5", config.color)} />
