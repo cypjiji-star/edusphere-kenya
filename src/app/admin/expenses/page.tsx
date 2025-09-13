@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip, Loader2, X } from 'lucide-react';
+import { Receipt, Search, Filter, ChevronDown, FileDown, PlusCircle, CalendarIcon, Upload, Briefcase, TrendingDown, Hourglass, Columns, Repeat, CheckCircle, XCircle, Paperclip, Loader2, X, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,7 +49,7 @@ import { Switch } from '@/components/ui/switch';
 import { Form, FormDescription } from '@/components/ui/form';
 import { firestore, storage } from '@/lib/firebase';
 import { collection, query, onSnapshot, Timestamp, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -67,6 +67,7 @@ type Expense = {
     amount: number;
     status: ExpenseStatus;
     submittedBy: string;
+    vendor?: string;
     hasAttachment?: boolean;
     attachmentUrl?: string;
 };
@@ -88,6 +89,183 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
 };
 
+
+function EditExpenseDialog({ expense, open, onOpenChange, onExpenseUpdated }: { expense: Expense | null, open: boolean, onOpenChange: (open: boolean) => void, onExpenseUpdated: () => void }) {
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [category, setCategory] = React.useState<ExpenseCategory | undefined>();
+    const [amount, setAmount] = React.useState('');
+    const [date, setDate] = React.useState<Date | undefined>();
+    const [vendor, setVendor] = React.useState('');
+    const [description, setDescription] = React.useState('');
+    const [attachment, setAttachment] = React.useState<File | null>(null);
+    const [existingAttachmentUrl, setExistingAttachmentUrl] = React.useState<string | undefined>('');
+    
+    const { toast } = useToast();
+
+    React.useEffect(() => {
+        if (expense) {
+            setCategory(expense.category);
+            setAmount(String(expense.amount));
+            setDate(expense.date.toDate());
+            setVendor(expense.vendor || '');
+            setDescription(expense.description);
+            setAttachment(null);
+            setExistingAttachmentUrl(expense.attachmentUrl);
+        }
+    }, [expense]);
+
+    if (!expense) return null;
+    
+    const handleUpdate = async () => {
+        if (!category || !amount || !date || !description) {
+            toast({ title: "Missing Information", description: "Please fill out all required fields.", variant: "destructive" });
+            return;
+        }
+
+        setIsSubmitting(true);
+        let updatedAttachmentUrl = existingAttachmentUrl;
+        let updatedHasAttachment = !!existingAttachmentUrl;
+
+        try {
+            // Handle file update: delete old one if a new one is provided
+            if (attachment) {
+                if (existingAttachmentUrl) {
+                    const oldFileRef = ref(storage, existingAttachmentUrl);
+                    try {
+                        await deleteObject(oldFileRef);
+                    } catch (e) {
+                        console.warn("Could not delete old attachment, it might not exist:", e);
+                    }
+                }
+                const newFileRef = ref(storage, `expense-receipts/${attachment.name}_${Date.now()}`);
+                const snapshot = await uploadBytes(newFileRef, attachment);
+                updatedAttachmentUrl = await getDownloadURL(snapshot.ref);
+                updatedHasAttachment = true;
+            }
+
+            const expenseRef = doc(firestore, 'expenses', expense.id);
+            const updatedData: Partial<Expense> = {
+                category,
+                amount: Number(amount),
+                date: Timestamp.fromDate(date),
+                vendor,
+                description,
+                attachmentUrl: updatedAttachmentUrl,
+                hasAttachment: updatedHasAttachment,
+            };
+
+            await updateDoc(expenseRef, updatedData);
+            
+            toast({ title: "Expense Updated", description: "The expense details have been saved." });
+            onExpenseUpdated();
+            onOpenChange(false);
+        } catch (error) {
+            console.error("Error updating expense:", error);
+            toast({ title: "Error", description: "Could not update the expense.", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
+    return (
+         <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Edit Expense</DialogTitle>
+                    <DialogDescription>
+                        Update the details for this expenditure.
+                    </DialogDescription>
+                </DialogHeader>
+                 <div className="grid gap-6 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="exp-category-edit">Category</Label>
+                            <Select value={category} onValueChange={(v: ExpenseCategory) => setCategory(v)}>
+                                <SelectTrigger id="exp-category-edit">
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="exp-amount-edit">Amount (KES)</Label>
+                            <Input id="exp-amount-edit" type="number" placeholder="e.g., 5000" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="exp-date-edit">Date of Expense</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="exp-vendor-edit">Vendor / Payee</Label>
+                            <Input id="exp-vendor-edit" placeholder="e.g., KPLC, Text Book Centre" value={vendor} onChange={(e) => setVendor(e.target.value)}/>
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="exp-desc-edit">Description (Notes)</Label>
+                        <Textarea id="exp-desc-edit" placeholder="Provide a brief description of the expense..." value={description} onChange={(e) => setDescription(e.target.value)} />
+                    </div>
+                     <Separator/>
+                     <div className="space-y-2">
+                        <Label>Attach Receipt / Invoice</Label>
+                         {attachment ? (
+                             <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-sm font-medium">
+                                    <Paperclip className="h-5 w-5 text-primary" />
+                                    <span className="truncate">{attachment.name}</span>
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => setAttachment(null)} className="h-6 w-6">
+                                    <X className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </div>
+                         ) : existingAttachmentUrl ? (
+                             <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                <a href={existingAttachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                                    <Paperclip className="h-5 w-5" />
+                                    <span className="truncate">View current attachment</span>
+                                </a>
+                                <Button variant="ghost" size="icon" onClick={() => setExistingAttachmentUrl(undefined)} className="h-6 w-6">
+                                    <X className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </div>
+                         ) : (
+                            <Label htmlFor="dropzone-file-edit" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                    <p className="mb-2 text-sm text-muted-foreground">Upload a new receipt</p>
+                                </div>
+                                <Input id="dropzone-file-edit" type="file" className="hidden" onChange={(e) => setAttachment(e.target.files?.[0] || null)} />
+                            </Label>
+                        )}
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleUpdate} disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Save Changes
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function ExpensesPage() {
     const [expenses, setExpenses] = React.useState<Expense[]>([]);
@@ -111,6 +289,9 @@ export default function ExpensesPage() {
     const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
+    
+    // State for editing
+    const [editingExpense, setEditingExpense] = React.useState<Expense | null>(null);
 
     const { toast } = useToast();
     const form = useForm();
@@ -640,7 +821,10 @@ export default function ExpensesPage() {
                                                     </Button>
                                                 </>
                                             ) : (
-                                                <Button variant="ghost" size="sm">View Details</Button>
+                                                <Button variant="ghost" size="sm" onClick={() => setEditingExpense(expense)}>
+                                                    <Edit className="mr-2 h-4 w-4" />
+                                                    Edit
+                                                </Button>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -655,8 +839,18 @@ export default function ExpensesPage() {
                     </div>
                 </CardFooter>
             </Card>
+             <EditExpenseDialog 
+                expense={editingExpense} 
+                open={!!editingExpense} 
+                onOpenChange={(open) => !open && setEditingExpense(null)} 
+                onExpenseUpdated={() => {
+                    // This could be a place to re-fetch data if not using realtime listeners
+                }}
+            />
         </div>
     );
 }
 
       
+
+    
