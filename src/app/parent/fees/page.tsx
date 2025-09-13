@@ -38,7 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { differenceInDays, isFuture } from 'date-fns';
+import { differenceInDays, isPast } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -134,7 +134,7 @@ export default function ParentFeesPage() {
     }, [selectedChild, data.summary.balance]);
 
     const daysUntilDue = clientReady ? differenceInDays(new Date(data.summary.dueDate), new Date()) : 0;
-    const isOverdue = clientReady ? !isFuture(new Date(data.summary.dueDate)) : false;
+    const isOverdue = clientReady ? !isFuture(new Date(data.summary.dueDate)) && data.summary.balance > 0 : false;
 
     const handleCardPayment = () => {
         toast({
@@ -154,6 +154,8 @@ export default function ParentFeesPage() {
             });
         }, 2500);
     };
+    
+    const finalStatus = isOverdue ? 'Overdue' : data.summary.status;
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -234,7 +236,7 @@ export default function ParentFeesPage() {
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardDescription>Payment Status</CardDescription>
-                                <CardTitle className="text-2xl">{getFeeStatusBadge(data.summary.status)}</CardTitle>
+                                <CardTitle className="text-2xl">{getFeeStatusBadge(finalStatus)}</CardTitle>
                             </CardHeader>
                         </Card>
                     </div>
@@ -246,15 +248,15 @@ export default function ParentFeesPage() {
                                     <CardTitle>Fee Statement (Term 2, 2024)</CardTitle>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" className="w-full sm:w-auto" disabled>
+                                            <Button variant="outline" className="w-full sm:w-auto">
                                                 <FileDown className="mr-2 h-4 w-4" />
                                                 Export
                                                 <ChevronDown className="ml-2 h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent>
-                                            <DropdownMenuItem disabled><Printer className="mr-2"/> Print Statement</DropdownMenuItem>
-                                            <DropdownMenuItem disabled><FileDown className="mr-2"/> Export as PDF</DropdownMenuItem>
+                                            <DropdownMenuItem><Printer className="mr-2"/> Print Statement</DropdownMenuItem>
+                                            <DropdownMenuItem><FileDown className="mr-2"/> Export as PDF</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
@@ -287,7 +289,7 @@ export default function ParentFeesPage() {
                                                     <TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell>
                                                     <TableCell className="text-right">
                                                         {item.type === 'Payment' && (
-                                                            <Button variant="outline" size="sm" disabled>
+                                                            <Button variant="outline" size="sm">
                                                                 <FileDown className="mr-2 h-3 w-3" />
                                                                 Receipt
                                                             </Button>
@@ -308,7 +310,7 @@ export default function ParentFeesPage() {
                             <CardContent className="space-y-6">
                                 <Dialog open={isMpesaDialogOpen} onOpenChange={setIsMpesaDialogOpen}>
                                     <DialogTrigger asChild>
-                                         <Button className="w-full">
+                                         <Button className="w-full" disabled={data.summary.balance <= 0}>
                                             <div className="h-5 w-5 bg-contain bg-no-repeat bg-center mr-2" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg')" }}/>
                                             Pay with M-Pesa
                                         </Button>
@@ -349,7 +351,7 @@ export default function ParentFeesPage() {
                                 <Separator />
                                 <div className="space-y-4">
                                     <h4 className="font-semibold text-sm">Pay with Card</h4>
-                                    <Button className="w-full" variant="outline" onClick={handleCardPayment}>
+                                    <Button className="w-full" variant="outline" onClick={handleCardPayment} disabled={data.summary.balance <= 0}>
                                         <CreditCard className="mr-2 h-4 w-4"/>
                                         Visa / Mastercard
                                     </Button>
