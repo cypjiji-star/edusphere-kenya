@@ -132,7 +132,7 @@ export function ReportGenerator() {
     return grade ? grade.score : '—';
   };
 
-  const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
+  const isGenerateDisabled = isGenerating || (reportType === 'individual' && !selectedStudent);
   
   const comingSoonReports: ReportType[] = ['summary', 'ranking'];
   
@@ -332,5 +332,3 @@ export function ReportGenerator() {
     </div>
   );
 }
-
-    
