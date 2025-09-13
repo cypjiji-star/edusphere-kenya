@@ -26,6 +26,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuBadge,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -39,7 +40,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const navItems = [
-    { href: '/parent/announcements', label: 'Announcements', icon: Megaphone },
+    { href: '/parent/announcements', label: 'Announcements', icon: Megaphone, unread: 2 },
     { href: '/parent/attendance', label: 'Attendance', icon: ClipboardCheck },
     { href: '/parent/grades', label: 'Grades & Exams', icon: FileText },
     { href: '/parent/timetable', label: 'Timetable', icon: Calendar },
@@ -79,11 +80,11 @@ export function ParentSidebar() {
                     asChild
                     isActive={isActive(item.href)}
                     tooltip={{ children: item.label }}
-                    disabled={item.href !== '/parent/calendar' && item.href !== '/parent/announcements'}
                 >
                     <Link href={item.href}>
                         <item.icon />
                         <span>{item.label}</span>
+                         {item.unread && item.unread > 0 && <SidebarMenuBadge>{item.unread}</SidebarMenuBadge>}
                     </Link>
                 </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -131,5 +132,3 @@ export function ParentSidebar() {
     </>
   );
 }
-
-    
