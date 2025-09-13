@@ -4,36 +4,36 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ClipboardList, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { allAssignments } from '@/app/teacher/assignments/page';
+import { differenceInDays, parseISO } from 'date-fns';
 
-const tasks = [
-  { 
-    type: 'assignment',
-    title: 'Form 4 Chemistry - Acid-Base Titration Lab',
-    dueDate: '2 days ago',
-    status: 'Ungraded',
-    count: 15,
-    href: '/teacher/assignments/1',
-  },
-  {
-    type: 'reminder',
-    title: 'Mid-Term Exam Grades Due',
-    dueDate: 'in 3 days',
-    status: 'Upcoming Deadline',
-  },
-  { 
-    type: 'assignment',
-    title: 'Form 3 English - The River and The Source Essay',
-    dueDate: '4 days ago',
-    status: 'Ungraded',
-    count: 22,
-    href: '/teacher/assignments/2',
-  },
-];
+const tasks = allAssignments
+    .filter(a => a.submissions < a.totalStudents)
+    .map(a => ({
+        type: 'assignment' as const,
+        id: a.id,
+        title: a.title,
+        dueDate: a.dueDate,
+        status: 'Ungraded',
+        count: a.totalStudents - a.submissions,
+        href: `/teacher/assignments/${a.id}`,
+    }))
+    .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
 
 export function PendingTasksWidget() {
+
+  const getDueDateText = (dueDate: string) => {
+    const days = differenceInDays(parseISO(dueDate), new Date());
+    if (days < -1) return `${Math.abs(days)} days ago`;
+    if (days === -1) return 'Yesterday';
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    return `in ${days} days`;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -68,7 +68,7 @@ export function PendingTasksWidget() {
                   )}
                   <span>{task.status}</span>
                   <Separator orientation="vertical" className="h-4" />
-                  <span>Due {task.dueDate}</span>
+                  <span>Due {getDueDateText(task.dueDate)}</span>
                 </div>
               </div>
               {index < tasks.length - 1 && <Separator className="my-4" />}
