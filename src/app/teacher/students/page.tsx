@@ -70,7 +70,7 @@ export type Student = {
 
 
 // Mock data for students
-const students: Record<string, Student[]> = {
+const initialStudents: Record<string, Student[]> = {
   'f4-chem': Array.from({ length: 31 }, (_, i) => {
     const random = seededRandom(i+1);
     let attendance: AttendanceStatus = 'present';
@@ -117,32 +117,30 @@ const students: Record<string, Student[]> = {
 
 // Mock data for teacher's classes
 export const teacherClasses = [
-  { id: 'f4-chem', name: 'Form 4 - Chemistry', students: students['f4-chem'] },
-  { id: 'f3-math', name: 'Form 3 - Mathematics', students: students['f3-math'] },
-  { id: 'f2-phys', name: 'Form 2 - Physics', students: students['f2-phys'] },
+  { id: 'f4-chem', name: 'Form 4 - Chemistry', students: initialStudents['f4-chem'] },
+  { id: 'f3-math', name: 'Form 3 - Mathematics', students: initialStudents['f3-math'] },
+  { id: 'f2-phys', name: 'Form 2 - Physics', students: initialStudents['f2-phys'] },
 ];
 
 export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [activeTab, setActiveTab] = React.useState(teacherClasses[0].id);
   const { toast } = useToast();
+  
+  const [allClassStudents, setAllClassStudents] = React.useState(initialStudents);
 
-  const [classStudents, setClassStudents] = React.useState<Student[]>(
-    teacherClasses[0].students || []
-  );
-
-  React.useEffect(() => {
-    const newStudents = teacherClasses.find(c => c.id === activeTab)?.students || [];
-    setClassStudents(newStudents);
-  }, [activeTab]);
-
+  const studentsForCurrentTab = allClassStudents[activeTab] || [];
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
-    setClassStudents(prevStudents =>
-        prevStudents.map(s =>
-          s.id === studentId ? { ...s, attendance: status } : s
-        )
+    setAllClassStudents(prevAllStudents => {
+      const newStudentsForClass = (prevAllStudents[activeTab] || []).map(s =>
+        s.id === studentId ? { ...s, attendance: status } : s
       );
+      return {
+        ...prevAllStudents,
+        [activeTab]: newStudentsForClass,
+      };
+    });
   };
   
   const handleSaveAttendance = () => {
@@ -168,7 +166,7 @@ export default function StudentsPage() {
   }
 
   const filteredStudents = 
-    classStudents.filter(student =>
+    studentsForCurrentTab.filter(student =>
       student.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -189,7 +187,7 @@ export default function StudentsPage() {
 
         {teacherClasses.map((cls) => (
           <TabsContent key={cls.id} value={cls.id}>
-             <ClassAnalytics students={classStudents} />
+             <ClassAnalytics students={studentsForCurrentTab} />
             <Card className="mt-6">
               <CardHeader>
                 <div className="md:flex-row md:items-start md:justify-between">
