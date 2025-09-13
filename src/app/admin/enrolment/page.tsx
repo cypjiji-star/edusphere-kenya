@@ -131,6 +131,8 @@ const getStatusBadge = (status: RecentEnrolment['status']) => {
 export default function StudentEnrolmentPage() {
     const { toast } = useToast();
     const [bulkEnrolmentFile, setBulkEnrolmentFile] = React.useState<File | null>(null);
+    const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
+    const [admissionDocs, setAdmissionDocs] = React.useState<File[]>([]);
 
     const form = useForm<EnrolmentFormValues>({
         resolver: zodResolver(enrolmentSchema),
@@ -140,14 +142,31 @@ export default function StudentEnrolmentPage() {
         },
     });
     
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
             setBulkEnrolmentFile(event.target.files[0]);
         }
     };
     
-    const handleRemoveFile = () => {
+    const handleRemoveBulkFile = () => {
         setBulkEnrolmentFile(null);
+    };
+
+    const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            const file = event.target.files[0];
+            setProfilePhoto(URL.createObjectURL(file));
+        }
+    };
+
+    const handleDocsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) {
+            setAdmissionDocs(prev => [...prev, ...Array.from(event.target.files!)]);
+        }
+    };
+
+    const removeAdmissionDoc = (index: number) => {
+        setAdmissionDocs(prev => prev.filter((_, i) => i !== index));
     };
 
     function onSubmit(values: EnrolmentFormValues) {
@@ -157,6 +176,8 @@ export default function StudentEnrolmentPage() {
             description: `${values.studentFirstName} ${values.studentLastName} has been successfully submitted for enrolment.`,
         });
         form.reset();
+        setProfilePhoto(null);
+        setAdmissionDocs([]);
     }
     
     const currentYear = new Date().getFullYear();
@@ -196,18 +217,18 @@ export default function StudentEnrolmentPage() {
                                       <FileText className="h-5 w-5 text-primary" />
                                       <span className="truncate">{bulkEnrolmentFile.name}</span>
                                   </div>
-                                  <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
+                                  <Button variant="ghost" size="icon" onClick={handleRemoveBulkFile} className="h-6 w-6">
                                       <X className="h-4 w-4 text-destructive" />
                                   </Button>
                               </div>
                           ) : (
-                              <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                              <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
                                   <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                                       <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
                                       <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
                                       <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
                                   </div>
-                                  <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} />
+                                  <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} />
                               </Label>
                           )}
                       </div>
@@ -332,30 +353,61 @@ export default function StudentEnrolmentPage() {
                             <div className="space-y-2">
                                 <Label>Student Profile Photo</Label>
                                 <div className="flex items-center gap-4">
-                                     <Avatar className="h-16 w-16">
-                                        <AvatarImage src="" />
+                                    <Avatar className="h-16 w-16">
+                                        <AvatarImage src={profilePhoto || ''} />
                                         <AvatarFallback><UserPlus/></AvatarFallback>
                                     </Avatar>
-                                    <Button variant="outline" className="w-full" disabled>
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        Upload Photo
-                                    </Button>
+                                    {profilePhoto ? (
+                                        <Button variant="destructive" className="w-full" onClick={() => setProfilePhoto(null)}>
+                                            <X className="mr-2 h-4 w-4" />
+                                            Remove Photo
+                                        </Button>
+                                    ) : (
+                                        <Label htmlFor="photo-upload" className="w-full">
+                                            <Button variant="outline" asChild className="w-full">
+                                                <span>
+                                                    <Upload className="mr-2 h-4 w-4" />
+                                                    Upload Photo
+                                                </span>
+                                            </Button>
+                                            <Input id="photo-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
+                                        </Label>
+                                    )}
                                 </div>
                                 <FormDescription>Recommended: 400x400px.</FormDescription>
                             </div>
                              <div className="space-y-2">
                                 <Label>Admission Documents</Label>
-                                <div className="flex items-center justify-center w-full">
+                                {admissionDocs.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {admissionDocs.map((file, index) => (
+                                            <div key={index} className="flex items-center justify-between p-2 rounded-md border text-sm">
+                                                <span className="truncate">{file.name}</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeAdmissionDoc(index)}>
+                                                    <X className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        <Label htmlFor="dropzone-file-docs-more" className="w-full">
+                                            <Button variant="outline" asChild className="w-full">
+                                                <span>
+                                                    <Upload className="mr-2 h-4 w-4" />
+                                                    Add More Files
+                                                </span>
+                                            </Button>
+                                            <Input id="dropzone-file-docs-more" type="file" className="hidden" multiple onChange={handleDocsChange} />
+                                        </Label>
+                                    </div>
+                                ) : (
                                     <Label htmlFor="dropzone-file-docs" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
                                         <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                                             <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
                                             <p className="mb-2 text-sm text-muted-foreground">Upload Birth Cert, Report Cards</p>
                                             <p className="text-xs text-muted-foreground">(PDF, JPG, PNG)</p>
                                         </div>
-                                        <Input id="dropzone-file-docs" type="file" className="hidden" disabled />
+                                        <Input id="dropzone-file-docs" type="file" className="hidden" multiple onChange={handleDocsChange} />
                                     </Label>
-                                </div>
-                                <FormDescription>This feature is coming soon.</FormDescription>
+                                )}
                             </div>
                             <Separator />
                              <FormField control={form.control} name="generateInvoice" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Generate Pro-forma Invoice</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
