@@ -25,18 +25,51 @@ import { Separator } from '@/components/ui/separator';
 
 const faqs = [
   {
-    question: "How do I reset a parent's password?",
-    answer: "Navigate to User Management, find the user, click 'Edit', and use the 'Send Password Reset' option. An email with a reset link will be sent to them.",
+    category: 'User Management',
+    questions: [
+      {
+        question: "How do I reset a parent's or student's password?",
+        answer: "Navigate to User Management, find the user, click 'Edit', and use the 'Send Password Reset' option. An email with a reset link will be sent to their registered email address.",
+      },
+      {
+        question: "How do I add a new student or teacher?",
+        answer: "From the User Management page, click the 'Create User' button. You can also use the 'Bulk Actions' dropdown to import multiple users from a CSV file.",
+      },
+    ]
   },
   {
-    question: 'Can I undo a bulk invoice generation?',
-    answer: 'Bulk actions like invoice generation cannot be undone automatically. You would need to manually adjust each student\'s ledger. Please be careful when performing bulk actions.',
+    category: 'Finance',
+    questions: [
+      {
+        question: 'How do I manage the school fee structure?',
+        answer: 'Navigate to Fees & Payments > Fee Structure tab. Here you can add, edit, or remove fee categories for different terms and student groups.',
+      },
+      {
+        question: 'Can I undo a bulk invoice generation?',
+        answer: 'Bulk actions like invoice generation cannot be undone automatically. You would need to manually adjust each student\'s ledger or contact support for assistance with a bulk reversal. Please be careful when performing bulk actions.',
+      },
+    ]
   },
-    {
-    question: 'How do I update the school logo and branding?',
-    answer: 'You can manage all branding options, including the logo, colors, and fonts, under the "Branding" tab in the School Settings section.',
+  {
+    category: 'Academics',
+     questions: [
+        {
+            question: 'How do I update the school timetable?',
+            answer: 'You can manage all timetable options, including defining periods and assigning lessons, under the "Timetable" section in the Academics navigation group.',
+        },
+     ]
+  },
+  {
+    category: 'General',
+    questions: [
+      {
+        question: 'How do I update the school logo and branding?',
+        answer: 'You can manage all branding options, including the logo, colors, and fonts, under the "Branding" tab in the School Settings section.',
+      },
+    ]
   },
 ];
+
 
 type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
 type TicketPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
@@ -84,6 +117,19 @@ const getPriorityBadge = (priority: TicketPriority) => {
 
 export default function SupportPage() {
     const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
+    const [faqSearchTerm, setFaqSearchTerm] = React.useState('');
+
+    const filteredFaqs = React.useMemo(() => {
+        if (!faqSearchTerm) return faqs;
+        const lowercasedTerm = faqSearchTerm.toLowerCase();
+        
+        return faqs.map(category => {
+            const filteredQuestions = category.questions.filter(
+                q => q.question.toLowerCase().includes(lowercasedTerm) || q.answer.toLowerCase().includes(lowercasedTerm)
+            );
+            return { ...category, questions: filteredQuestions };
+        }).filter(category => category.questions.length > 0);
+    }, [faqSearchTerm]);
 
     return (
     <Dialog onOpenChange={(open) => !open && setSelectedTicket(null)}>
@@ -271,20 +317,40 @@ export default function SupportPage() {
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Book className="h-5 w-5 text-primary"/>FAQs</CardTitle>
-                            <CardDescription>Frequently Asked Questions</CardDescription>
+                            <CardTitle className="flex items-center gap-2"><Book className="h-5 w-5 text-primary"/>Knowledge Base & FAQs</CardTitle>
+                            <CardDescription>Find answers to common questions.</CardDescription>
+                            <div className="relative mt-4">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search articles..."
+                                    className="w-full bg-background pl-8"
+                                    value={faqSearchTerm}
+                                    onChange={(e) => setFaqSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </CardHeader>
                         <CardContent>
-                            <Accordion type="single" collapsible>
-                                {faqs.map((faq, index) => (
-                                    <AccordionItem key={index} value={`item-${index}`}>
-                                        <AccordionTrigger>{faq.question}</AccordionTrigger>
-                                        <AccordionContent>
-                                            {faq.answer}
-                                        </AccordionContent>
-                                    </AccordionItem>
+                            {filteredFaqs.length > 0 ? (
+                                <Accordion type="single" collapsible className="w-full">
+                                {filteredFaqs.map((category) => (
+                                    <div key={category.category} className="mb-4">
+                                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">{category.category}</h4>
+                                        {category.questions.map((faq, index) => (
+                                            <AccordionItem key={index} value={`${category.category}-${index}`}>
+                                                <AccordionTrigger>{faq.question}</AccordionTrigger>
+                                                <AccordionContent>
+                                                    {faq.answer}
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        ))}
+                                    </div>
                                 ))}
-                            </Accordion>
+                                </Accordion>
+                            ) : (
+                                <div className="text-center text-muted-foreground py-8">
+                                    <p>No articles found matching your search.</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
