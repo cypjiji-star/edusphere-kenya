@@ -43,38 +43,43 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import * as React from 'react';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { allAssignments } from './assignments/page';
+
 
 const navGroups = [
   {
     title: 'Core Modules',
     items: [
-      { href: '/teacher/students', label: 'Class Management', icon: Users },
-      { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck },
-      { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked, badge: '3' },
-      { href: '/teacher/grades', label: 'Grades/Reports', icon: FileText },
-      { href: '/teacher/sports', label: 'Sports', icon: Trophy },
-      { href: '/teacher/health', label: 'Health & Incidents', icon: HeartPulse },
+      { href: '/teacher/students', label: 'Class Management', icon: Users, badgeKey: null },
+      { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck, badgeKey: null },
+      { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked, badgeKey: 'ungradedAssignments' },
+      { href: '/teacher/grades', label: 'Grades/Reports', icon: FileText, badgeKey: null },
+      { href: '/teacher/sports', label: 'Sports', icon: Trophy, badgeKey: null },
+      { href: '/teacher/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },
     ],
   },
   {
     title: 'Instructional Tools',
     items: [
-      { href: '/teacher/lesson-plans', label: 'Lesson Plans', icon: BookOpen, disabled: false },
+      { href: '/teacher/lesson-plans', label: 'Lesson Plans', icon: BookOpen, disabled: false, badgeKey: null },
     ],
   },
   {
     title: 'Communication',
     items: [
-      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false, badge: '1' },
-      { href: '/teacher/announcements', label: 'Announcements', icon: Megaphone, disabled: false },
-      { href: '/teacher/calendar', label: 'Events Calendar', icon: Calendar, disabled: false },
+      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false, badgeKey: 'unreadMessages' },
+      { href: '/teacher/announcements', label: 'Announcements', icon: Megaphone, disabled: false, badgeKey: null },
+      { href: '/teacher/calendar', label: 'Events Calendar', icon: Calendar, disabled: false, badgeKey: null },
     ],
   },
   {
     title: 'Tools & Resources',
     items: [
-        { href: '/teacher/library', label: 'Library Access', icon: Library, disabled: false },
-        { href: '/teacher/my-library', label: 'My Library', icon: User, disabled: false },
+        { href: '/teacher/library', label: 'Library Access', icon: Library, disabled: false, badgeKey: null },
+        { href: '/teacher/my-library', label: 'My Library', icon: User, disabled: false, badgeKey: null },
     ],
   },
 ];
@@ -83,6 +88,22 @@ const navGroups = [
 export function TeacherSidebar() {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || (href !== '/teacher' && pathname.startsWith(href));
+  const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    // Unread messages count
+    const unreadMessagesQuery = query(collection(firestore, 'conversations'), where('unread', '==', true));
+    const unsubscribeMessages = onSnapshot(unreadMessagesQuery, (snapshot) => {
+        setDynamicBadges(prev => ({...prev, unreadMessages: snapshot.size}));
+    });
+
+    // Ungraded assignments count
+    const ungradedCount = allAssignments.filter(a => a.submissions < a.totalStudents).length;
+    setDynamicBadges(prev => ({...prev, ungradedAssignments: ungradedCount}));
+
+    // Cleanup listener on component unmount
+    return () => unsubscribeMessages();
+  }, []);
 
   return (
     <>
@@ -112,7 +133,9 @@ export function TeacherSidebar() {
             </CollapsibleTrigger>
             <CollapsibleContent>
                 <SidebarMenu>
-                    {group.items.map((item) => (
+                    {group.items.map((item) => {
+                        const badgeCount = item.badgeKey ? dynamicBadges[item.badgeKey] : 0;
+                        return (
                         <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
                             asChild
@@ -123,11 +146,11 @@ export function TeacherSidebar() {
                             <Link href={item.href}>
                                 <item.icon />
                                 <span>{item.label}</span>
-                                {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
+                                {badgeCount > 0 && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
                             </Link>
                         </SidebarMenuButton>
                         </SidebarMenuItem>
-                    ))}
+                    )})}
                 </SidebarMenu>
             </CollapsibleContent>
           </Collapsible>

@@ -53,7 +53,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, limit, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, updateDoc, doc, where } from 'firebase/firestore';
 
 type Notification = {
     id: string;
@@ -69,7 +69,7 @@ const navGroups = [
     title: 'Academics',
     items: [
       { href: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
-      { href: '/admin/grades', label: 'Grades & Exams', icon: FileText, badge: 'New' },
+      { href: '/admin/grades', label: 'Grades & Exams', icon: FileText, badge: null, collection: '' },
       { href: '/admin/timetable', label: 'Timetable', icon: Calendar },
       { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
       { href: '/admin/health', label: 'Health & Incidents', icon: HeartPulse },
@@ -78,7 +78,7 @@ const navGroups = [
    {
     title: 'Users',
     items: [
-      { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus, badge: '2' },
+      { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus, badge: '0', collection: 'students', field: 'status', value: 'Pending' },
       { href: '/admin/users', label: 'User Management', icon: Users },
       { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
@@ -86,7 +86,7 @@ const navGroups = [
   {
     title: 'Communication',
     items: [
-      { href: '/admin/announcements', label: 'Announcements', icon: Megaphone, badge: '1' },
+      { href: '/admin/announcements', label: 'Announcements', icon: Megaphone, badge: null, collection: '' },
       { href: '/admin/messaging', label: 'Messaging', icon: MessageCircle },
       { href: '/admin/calendar', label: 'Events Calendar', icon: Calendar },
     ],
@@ -191,6 +191,21 @@ function NotificationsPopover() {
 export function AdminSidebar() {
   const pathname = usePathname();
   const isActive = (href: string) => pathname.startsWith(href);
+  const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    const unsubscribes = navGroups
+      .flatMap(g => g.items)
+      .filter(item => item.collection && item.field && item.value)
+      .map(item => {
+        const q = query(collection(firestore, item.collection!), where(item.field!, '==', item.value!));
+        return onSnapshot(q, (snapshot) => {
+          setDynamicBadges(prev => ({ ...prev, [item.label]: snapshot.size }));
+        });
+      });
+
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, []);
 
   return (
     <>
@@ -225,7 +240,9 @@ export function AdminSidebar() {
               </SidebarMenuItem>
             <CollapsibleContent>
                 <SidebarMenu>
-                    {group.items.map((item) => (
+                    {group.items.map((item) => {
+                        const badgeCount = dynamicBadges[item.label];
+                        return (
                         <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
                             asChild
@@ -235,11 +252,12 @@ export function AdminSidebar() {
                             <Link href={item.href}>
                                 <item.icon />
                                 <span>{item.label}</span>
-                                {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
+                                {badgeCount !== undefined && badgeCount > 0 && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
+                                {item.badge && !badgeCount && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
                             </Link>
                         </SidebarMenuButton>
                         </SidebarMenuItem>
-                    ))}
+                    )})}
                 </SidebarMenu>
             </CollapsibleContent>
           </Collapsible>

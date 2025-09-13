@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   GraduationCap,
   LayoutDashboard,
-  Users,
   LogOut,
   ChevronDown,
   Settings,
@@ -38,22 +37,47 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import * as React from 'react';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+
 
 const navItems = [
-    { href: '/parent/announcements', label: 'Announcements', icon: Megaphone, unread: 2, badge: null },
-    { href: '/parent/attendance', label: 'Attendance', icon: ClipboardCheck, unread: 0, badge: null },
-    { href: '/parent/grades', label: 'Grades & Exams', icon: FileText, unread: 0, badge: 'New' },
-    { href: '/parent/timetable', label: 'Timetable', icon: Calendar, unread: 0, badge: null },
-    { href: '/parent/fees', label: 'Fees & Payments', icon: CircleDollarSign, unread: 0, badge: null },
-    { href: '/parent/health', label: 'Health & Incidents', icon: HeartPulse, unread: 0, badge: null },
-    { href: '/parent/messaging', label: 'Messages', icon: MessageCircle, unread: 1, badge: null },
-    { href: '/parent/calendar', label: 'Events Calendar', icon: Calendar, unread: 0, badge: null },
+    { href: '/parent/announcements', label: 'Announcements', icon: Megaphone, badgeKey: 'unreadAnnouncements' },
+    { href: '/parent/attendance', label: 'Attendance', icon: ClipboardCheck, badgeKey: null },
+    { href: '/parent/grades', label: 'Grades & Exams', icon: FileText, badgeKey: null },
+    { href: '/parent/timetable', label: 'Timetable', icon: Calendar, badgeKey: null },
+    { href: '/parent/fees', label: 'Fees & Payments', icon: CircleDollarSign, badgeKey: null },
+    { href: '/parent/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },
+    { href: '/parent/messaging', label: 'Messages', icon: MessageCircle, badgeKey: 'unreadMessages' },
+    { href: '/parent/calendar', label: 'Events Calendar', icon: Calendar, badgeKey: null },
 ];
 
 
 export function ParentSidebar() {
   const pathname = usePathname();
   const isActive = (href: string) => pathname.startsWith(href);
+  const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    // Unread announcements
+    const unreadAnnouncementsQuery = query(collection(firestore, 'announcements'), where('read', '==', false));
+    const unsubscribeAnnouncements = onSnapshot(unreadAnnouncementsQuery, (snapshot) => {
+        setDynamicBadges(prev => ({...prev, unreadAnnouncements: snapshot.size}));
+    });
+
+    // Unread messages
+    const unreadMessagesQuery = query(collection(firestore, 'conversations'), where('unread', '==', true));
+    const unsubscribeMessages = onSnapshot(unreadMessagesQuery, (snapshot) => {
+        setDynamicBadges(prev => ({...prev, unreadMessages: snapshot.size}));
+    });
+
+    // Cleanup listeners on component unmount
+    return () => {
+        unsubscribeAnnouncements();
+        unsubscribeMessages();
+    };
+  }, []);
 
   return (
     <>
@@ -74,7 +98,9 @@ export function ParentSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-            {navItems.map((item) => (
+            {navItems.map((item) => {
+                const badgeCount = item.badgeKey ? dynamicBadges[item.badgeKey] : 0;
+                return (
                 <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                     asChild
@@ -84,12 +110,11 @@ export function ParentSidebar() {
                     <Link href={item.href}>
                         <item.icon />
                         <span>{item.label}</span>
-                         {item.unread && item.unread > 0 && <SidebarMenuBadge>{item.unread}</SidebarMenuBadge>}
-                         {item.badge && <SidebarMenuBadge className="bg-destructive">{item.badge}</SidebarMenuBadge>}
+                         {badgeCount > 0 && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
                     </Link>
                 </SidebarMenuButton>
                 </SidebarMenuItem>
-            ))}
+            )})}
         </SidebarMenu>
       </SidebarContent>
 
