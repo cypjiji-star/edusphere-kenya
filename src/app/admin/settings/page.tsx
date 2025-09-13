@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw, LayoutDashboard, Brush } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw, LayoutDashboard, Brush, AlertCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -171,7 +171,7 @@ export default function SettingsPage() {
                             <Label htmlFor="self-registration" className="font-semibold">Enable Self-Registration</Label>
                             <p className="text-xs text-muted-foreground">Allow new parents and students to create their own accounts.</p>
                         </div>
-                        <Switch id="self-registration" checked disabled />
+                        <Switch id="self-registration" disabled />
                     </div>
                      <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
@@ -240,36 +240,41 @@ export default function SettingsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Communication Settings</CardTitle>
-                    <CardDescription>Manage how the portal sends notifications and messages.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Notifications & Alerts</CardTitle>
+                    <CardDescription>Manage automated notifications for key system events.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
-                            <Label htmlFor="sms-gateway" className="font-semibold">SMS Gateway</Label>
-                            <p className="text-xs text-muted-foreground">Connect a provider like Africa's Talking for bulk SMS.</p>
+                            <Label htmlFor="fee-alerts" className="font-semibold">Overdue Fee Reminders</Label>
+                            <p className="text-xs text-muted-foreground">Automatically notify parents about outstanding fee balances.</p>
+                        </div>
+                        <Switch id="fee-alerts" checked disabled />
+                    </div>
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="attendance-alerts" className="font-semibold">Low Attendance Alerts</Label>
+                            <p className="text-xs text-muted-foreground">Notify administration when a class has low attendance.</p>
+                        </div>
+                        <Switch id="attendance-alerts" checked disabled />
+                    </div>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="system-alerts" className="font-semibold">Critical System Notifications</Label>
+                            <p className="text-xs text-muted-foreground">Alerts for storage limits, failed payments, etc.</p>
+                        </div>
+                        <Switch id="system-alerts" checked disabled />
+                    </div>
+                    <Separator/>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label className="font-semibold">Communication Channels</Label>
+                            <p className="text-xs text-muted-foreground">Configure SMS, Email, and Push Notifications.</p>
                         </div>
                         <Button variant="secondary" disabled>
                             <LinkIcon className="mr-2 h-4 w-4"/>
-                            Connect
+                            Manage
                         </Button>
-                    </div>
-                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                        <div>
-                            <Label htmlFor="email-config" className="font-semibold">Email Configuration</Label>
-                            <p className="text-xs text-muted-foreground">Set the sender name and logo for outgoing emails.</p>
-                        </div>
-                        <Button variant="secondary" disabled>
-                            <Mail className="mr-2 h-4 w-4"/>
-                            Configure
-                        </Button>
-                    </div>
-                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
-                        <div>
-                            <Label htmlFor="push-notifications" className="font-semibold">Enable Push Notifications</Label>
-                            <p className="text-xs text-muted-foreground">Allow the portal to send real-time push notifications.</p>
-                        </div>
-                        <Switch id="push-notifications" disabled />
                     </div>
                 </CardContent>
             </Card>
