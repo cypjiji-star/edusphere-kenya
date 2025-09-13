@@ -14,6 +14,12 @@ import { Button } from '@/components/ui/button';
 import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 type BorrowedItem = {
     id: string;
@@ -31,17 +37,77 @@ const historyItems: any[] = [
      { id: 'hist-1', title: 'Physics for Secondary Schools F1', borrowedDate: '2024-06-10', returnedDate: '2024-06-24' },
 ];
 
-const requestItems = [
+const initialRequestItems = [
     { id: 'req-1', title: 'A Brief History of Time by Stephen Hawking', status: 'Approved' },
     { id: 'req-2', title: 'Updated KCSE Revision Guides (2024)', status: 'Pending' },
 ]
 
 export default function MyLibraryPage() {
     const [clientReady, setClientReady] = React.useState(false);
+    const [requestItems, setRequestItems] = React.useState(initialRequestItems);
+    const [newRequestTitle, setNewRequestTitle] = React.useState('');
+    const { toast } = useToast();
 
     React.useEffect(() => {
         setClientReady(true);
     }, []);
+
+    const handleRenew = (title: string) => {
+        toast({
+            title: 'Renewal Request Sent',
+            description: `A request to renew "${title}" has been sent to the librarian.`,
+        });
+    };
+
+    const handlePrintHistory = () => {
+        const doc = new jsPDF();
+        doc.text("My Library Borrowing History", 14, 16);
+
+        const tableData = historyItems.map(item => [
+            item.title,
+            new Date(item.borrowedDate).toLocaleDateString(),
+            new Date(item.returnedDate).toLocaleDateString(),
+        ]);
+
+        (doc as any).autoTable({
+            startY: 22,
+            head: [['Title', 'Borrowed Date', 'Returned Date']],
+            body: tableData,
+        });
+
+        doc.save("my-library-history.pdf");
+
+        toast({
+            title: 'History Exported',
+            description: 'Your borrowing history has been downloaded as a PDF.',
+        });
+    };
+    
+    const handleNewRequest = () => {
+        if (!newRequestTitle.trim()) {
+            toast({
+                title: 'Request is empty',
+                description: 'Please enter a title for the resource you want to request.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        const newRequest = {
+            id: `req-${Date.now()}`,
+            title: newRequestTitle,
+            status: 'Pending',
+        };
+
+        setRequestItems(prev => [newRequest, ...prev]);
+        setNewRequestTitle('');
+
+        toast({
+            title: 'Request Submitted',
+            description: 'Your request has been sent to the librarian for review.',
+        });
+    };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
@@ -76,7 +142,7 @@ export default function MyLibraryPage() {
                                                 <p className="font-semibold">{item.title}</p>
                                                 {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {new Date(item.borrowedDate).toLocaleDateString()} | Due: {new Date(item.dueDate).toLocaleDateString()}</p>}
                                             </div>
-                                            <Button variant="outline" size="sm" disabled>
+                                            <Button variant="outline" size="sm" onClick={() => handleRenew(item.title)}>
                                                 <RotateCw className="mr-2 h-4 w-4" />
                                                 Renew
                                             </Button>
@@ -128,7 +194,7 @@ export default function MyLibraryPage() {
                             <CardTitle>Borrowing History</CardTitle>
                             <CardDescription>A log of all the items you have previously borrowed.</CardDescription>
                         </div>
-                        <Button variant="outline" disabled>
+                        <Button variant="outline" onClick={handlePrintHistory}>
                             <Printer className="mr-2 h-4 w-4" />
                             Print History
                         </Button>
@@ -165,10 +231,32 @@ export default function MyLibraryPage() {
                             <CardTitle>My Resource Requests</CardTitle>
                             <CardDescription>Request new books or materials for the library.</CardDescription>
                         </div>
-                        <Button disabled>
-                            <PlusCircle className="mr-2 h-4 w-4"/>
-                            Make New Request
-                        </Button>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4"/>
+                                    Make New Request
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Request New Library Resource</DialogTitle>
+                                    <DialogDescription>
+                                        Enter the title of the book or resource you would like to request for the library.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="request-title">Title & Author/Publisher</Label>
+                                        <Input id="request-title" placeholder="e.g., Sapiens by Yuval Noah Harari" value={newRequestTitle} onChange={(e) => setNewRequestTitle(e.target.value)} />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <DialogClose asChild><Button onClick={handleNewRequest}>Submit Request</Button></DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </CardHeader>
                     <CardContent>
                          {requestItems.length > 0 ? (
@@ -177,7 +265,7 @@ export default function MyLibraryPage() {
                                      <Card key={item.id}>
                                         <CardContent className="p-4 flex items-center justify-between">
                                             <p className="font-semibold">{item.title}</p>
-                                            <Badge variant={item.status === 'Approved' ? 'default' : 'secondary'}>
+                                            <Badge variant={item.status === 'Approved' ? 'default' : 'secondary'} className={item.status === 'Approved' ? 'bg-green-600' : ''}>
                                                 {item.status === 'Approved' ? <CheckCircle className="mr-2 h-4 w-4"/> : <HelpCircle className="mr-2 h-4 w-4"/>}
                                                 {item.status}
                                             </Badge>
