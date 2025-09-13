@@ -33,6 +33,7 @@ const announcementCategories: Record<AnnouncementCategory, { label: string; colo
 const mockAnnouncements = [
     {
         id: 'ann-1',
+        title: 'PTA Meeting Reminder',
         sender: { name: 'Principal\'s Office', avatarUrl: 'https://picsum.photos/seed/principal/100' },
         content: 'This is a reminder about the Parent-Teacher Association meeting this Saturday at 10 AM in the main hall. Your participation is highly encouraged.',
         audience: 'All Parents',
@@ -42,6 +43,7 @@ const mockAnnouncements = [
     },
     {
         id: 'ann-2',
+        title: 'School Closure for Public Holiday',
         sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
         content: 'The school will be closed on Friday for the public holiday. Classes will resume on Monday. We wish you a restful weekend.',
         audience: 'All Students, All Parents, All Staff',
@@ -51,8 +53,9 @@ const mockAnnouncements = [
     },
     {
         id: 'ann-3',
+        title: 'Urgent: Fee Payment Deadline',
         sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
-        content: 'URGENT: The fee payment deadline for Term 2 is this Friday. Please ensure all outstanding balances are cleared to avoid any inconveniences.',
+        content: 'The fee payment deadline for Term 2 is this Friday. Please ensure all outstanding balances are cleared to avoid any inconveniences.',
         audience: 'All Parents',
         sentAt: '2024-07-26 11:00 AM',
         category: 'Urgent' as AnnouncementCategory,
@@ -60,6 +63,7 @@ const mockAnnouncements = [
     },
      {
         id: 'ann-4',
+        title: 'Career Guidance Session for Form 4s',
         sender: { name: 'Form 4 Teachers', avatarUrl: 'https://picsum.photos/seed/teachers/100' },
         content: 'A special career guidance session for all Form 4 students and their parents will be held next Wednesday in the auditorium. More details to follow.',
         audience: 'Form 4 Parents, Form 4 Students',
@@ -84,7 +88,7 @@ export default function ParentAnnouncementsPage() {
   
   const filteredAnnouncements = announcements.filter(ann => {
       const matchesFilter = filter === 'All' || (filter === 'Read' && ann.read) || (filter === 'Unread' && !ann.read);
-      const matchesSearch = searchTerm === '' || ann.content.toLowerCase().includes(searchTerm.toLowerCase()) || ann.sender.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = searchTerm === '' || ann.content.toLowerCase().includes(searchTerm.toLowerCase()) || ann.sender.name.toLowerCase().includes(searchTerm.toLowerCase()) || ann.title.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesFilter && matchesSearch;
   });
 
@@ -132,27 +136,31 @@ export default function ParentAnnouncementsPage() {
                                     <CheckCircle className="h-5 w-5 text-green-500" />
                                 ) : (
                                     <div className="h-5 w-5 flex items-center justify-center">
-                                        <div className="h-2.5 w-2.5 rounded-full bg-primary"></div>
+                                        <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse"></div>
                                     </div>
                                 )}
                            </div>
                            <div className="flex-1 space-y-4">
                                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-9 w-9">
-                                            <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
-                                            <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="text-sm font-semibold">{ann.sender.name}</p>
-                                            <p className="text-xs text-muted-foreground">Sent: {ann.sentAt}</p>
-                                        </div>
+                                    <div>
+                                        <h2 className="font-semibold text-lg">{ann.title}</h2>
+                                        <p className="text-xs text-muted-foreground">Posted: {ann.sentAt}</p>
                                     </div>
-                                    <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category].color, 'ml-auto')}>
+                                    <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category].color)}>
                                         {announcementCategories[ann.category].label}
                                     </Badge>
                                 </div>
                                 <p className="text-sm leading-relaxed">{ann.content}</p>
+                                <Separator />
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
+                                        <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="text-xs font-semibold">Sent by {ann.sender.name}</p>
+                                    </div>
+                                </div>
                            </div>
                         </div>
                         <div className="flex justify-end mt-4">
