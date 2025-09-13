@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -11,6 +12,8 @@ import {
   HelpCircle,
   Building,
   PlusCircle,
+  ShieldCheck,
+  FileClock,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -51,6 +54,22 @@ export function DeveloperSidebar() {
               <Link href="/developer">
                 <LayoutDashboard />
                 <span>Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/developer/roles')} tooltip={{ children: 'Roles & Permissions' }}>
+              <Link href="/developer/roles">
+                <ShieldCheck />
+                <span>Roles & Permissions</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/developer/logs')} tooltip={{ children: 'Audit Logs' }}>
+              <Link href="/developer/logs">
+                <FileClock />
+                <span>Audit Logs</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
