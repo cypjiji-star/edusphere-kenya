@@ -487,7 +487,9 @@ export default function ClassesAndSubjectsPage() {
                                     </div>
                                      <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button>Save Subject</Button>
+                                        <DialogClose asChild>
+                                            <Button onClick={() => handleSaveChanges('A new subject has been created.')}>Save Subject</Button>
+                                        </DialogClose>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
@@ -640,5 +642,3 @@ export default function ClassesAndSubjectsPage() {
     </div>
   );
 }
-
-    
