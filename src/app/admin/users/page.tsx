@@ -160,14 +160,7 @@ export default function UserManagementPage() {
                                         <TableCell>{user.email}</TableCell>
                                         <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
                                         <TableCell>
-                                            <Select defaultValue={user.status}>
-                                                <SelectTrigger className="w-[150px] h-8 text-xs [&>span]:flex [&>span]:items-center [&>span]:gap-1">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {statuses.filter(s => s !== 'All Statuses').map(status => <SelectItem key={status} value={status} className="text-xs">{getStatusBadge(status as UserStatus)}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                            {getStatusBadge(user.status)}
                                         </TableCell>
                                         <TableCell>
                                             {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
