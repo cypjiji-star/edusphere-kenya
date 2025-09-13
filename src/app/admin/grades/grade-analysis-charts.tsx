@@ -119,39 +119,45 @@ export function GradeAnalysisCharts() {
             </CardContent>
         </Card>
         <div className="grid gap-6 md:grid-cols-3">
-             <Card className="md:col-span-2">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><BookCopy className="h-5 w-5 text-primary"/>Subject Performance</CardTitle>
-                    <CardDescription>Average scores by subject and trend from previous exam.</CardDescription>
-                </CardHeader>
-                <CardContent className="w-full overflow-auto">
-                    <div className="grid grid-cols-3 gap-y-4 gap-x-8 text-sm min-w-[400px]">
-                        {subjectPerformanceData.map(item => (
-                            <div key={item.subject} className="flex items-center justify-between border-b pb-2">
-                                <span className="font-medium">{item.subject}</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold">{item.avg}%</span>
-                                    {item.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
-                                    {item.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+             <Link href="/admin/grades" className="md:col-span-2">
+                <Card className="h-full hover:bg-muted/50 transition-colors">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><BookCopy className="h-5 w-5 text-primary"/>Subject Performance</CardTitle>
+                        <CardDescription>Average scores by subject and trend from previous exam.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="w-full overflow-auto">
+                        <div className="grid grid-cols-3 gap-y-4 gap-x-8 text-sm min-w-[400px]">
+                            {subjectPerformanceData.map(item => (
+                                <div key={item.subject} className="flex items-center justify-between border-b pb-2">
+                                    <span className="font-medium">{item.subject}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold">{item.avg}%</span>
+                                        {item.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                                        {item.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-             </Card>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+             </Link>
              <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Top Performing Class</CardTitle>
-                        <CardDescription>Form 4 (Avg. 82%)</CardDescription>
-                    </CardHeader>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Lowest Performing Class</CardTitle>
-                        <CardDescription>Form 1 (Avg. 68%)</CardDescription>
-                    </CardHeader>
-                </Card>
+                <Link href="/admin/grades">
+                    <Card className="hover:bg-muted/50 transition-colors">
+                        <CardHeader>
+                            <CardTitle>Top Performing Class</CardTitle>
+                            <CardDescription>Form 4 (Avg. 82%)</CardDescription>
+                        </CardHeader>
+                    </Card>
+                </Link>
+                 <Link href="/admin/grades">
+                    <Card className="hover:bg-muted/50 transition-colors">
+                        <CardHeader>
+                            <CardTitle>Lowest Performing Class</CardTitle>
+                            <CardDescription>Form 1 (Avg. 68%)</CardDescription>
+                        </CardHeader>
+                    </Card>
+                 </Link>
                  <Button asChild variant="outline" className="w-full">
                     <Link href="/admin/grades">
                         Generate Full Report
