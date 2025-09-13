@@ -19,7 +19,7 @@ export function CalendarWidget() {
             <Calendar className="h-5 w-5 text-primary" />
             Upcoming Events
             </CardTitle>
-            <Button variant="ghost" size="sm" disabled>
+            <Button variant="ghost" size="sm">
                 <PlusCircle className="mr-2 h-4 w-4"/>
                 Quick Add
             </Button>
@@ -50,7 +50,7 @@ export function CalendarWidget() {
         </div>
       </CardContent>
       <CardFooter>
-        <Button asChild variant="outline" size="sm" className="w-full" disabled>
+        <Button asChild variant="outline" size="sm" className="w-full">
             <Link href="/admin/calendar">
                 View Full Calendar
                 <ArrowRight className="ml-2 h-4 w-4" />

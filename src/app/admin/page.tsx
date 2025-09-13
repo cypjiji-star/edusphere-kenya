@@ -30,6 +30,15 @@ const quickStatLinks: Record<string, string> = {
     "Upcoming Events": "/admin/calendar",
 }
 
+const activityCategoryLinks: Record<string, string> = {
+    Urgent: '/admin/health',
+    Registration: '/admin/enrolment',
+    Grades: '/admin/grades',
+    Attendance: '/admin/attendance',
+    Academics: '/admin/lesson-plans',
+    Comms: '/admin/announcements',
+}
+
 
 export default function AdminDashboard() {
   return (
@@ -113,16 +122,18 @@ export default function AdminDashboard() {
                 <CardContent>
                     <div className="space-y-6">
                         {recentActivities.map((activity, index) => (
-                            <div key={index} className="flex items-start gap-4">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                    {activity.icon}
+                            <Link key={index} href={activityCategoryLinks[activity.category] || '#'} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
+                                <div className="flex items-start gap-4">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                                        {activity.icon}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium">{activity.title}</p>
+                                        <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                    </div>
+                                    <Badge variant={activity.category === 'Urgent' ? 'destructive' : 'outline'}>{activity.category}</Badge>
                                 </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium">{activity.title}</p>
-                                    <p className="text-xs text-muted-foreground">{activity.time}</p>
-                                </div>
-                                <Badge variant={activity.category === 'Urgent' ? 'destructive' : 'outline'}>{activity.category}</Badge>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 </CardContent>
