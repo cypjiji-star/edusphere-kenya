@@ -64,6 +64,12 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Bar, BarChart, CartesianGrid, XAxis, LabelList } from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -144,6 +150,29 @@ const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
         case 'Low': return 'bg-blue-500 text-white';
     }
 }
+
+const incidentsByTypeData = [
+  { name: 'Health', count: 8 },
+  { name: 'Accident', count: 12 },
+  { name: 'Discipline', count: 3 },
+  { name: 'Bullying', count: 1 },
+  { name: 'Safety', count: 2 },
+];
+
+const incidentsByLocationData = [
+  { name: 'Playground', count: 7 },
+  { name: 'Classroom', count: 9 },
+  { name: 'Cafeteria', count: 4 },
+  { name: 'Hallways', count: 5 },
+  { name: 'Sports Field', count: 1 },
+];
+
+const chartConfig = {
+  count: {
+    label: 'Incidents',
+    color: 'hsl(var(--primary))',
+  },
+} satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
 export default function AdminHealthPage() {
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<keyof typeof studentHealthRecords | null>(null);
@@ -288,10 +317,17 @@ export default function AdminHealthPage() {
                                             <CardTitle>Incidents by Type (Term 2)</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            {/* Placeholder for chart */}
-                                            <div className="h-[250px] w-full flex items-center justify-center bg-muted rounded-md">
-                                                <p className="text-muted-foreground">Chart: Incidents by Type</p>
-                                            </div>
+                                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                                                <BarChart data={incidentsByTypeData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                                                    <CartesianGrid horizontal={false} />
+                                                    <XAxis type="number" hide />
+                                                    <XAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} reversed={true} />
+                                                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                                    <Bar dataKey="count" fill="var(--color-count)" radius={4}>
+                                                        <LabelList dataKey="count" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                                    </Bar>
+                                                </BarChart>
+                                            </ChartContainer>
                                         </CardContent>
                                     </Card>
                                     <Card>
@@ -299,10 +335,17 @@ export default function AdminHealthPage() {
                                             <CardTitle>Incidents by Location (Term 2)</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            {/* Placeholder for chart */}
-                                            <div className="h-[250px] w-full flex items-center justify-center bg-muted rounded-md">
-                                                <p className="text-muted-foreground">Chart: Incidents by Location</p>
-                                            </div>
+                                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                                                <BarChart data={incidentsByLocationData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                                                    <CartesianGrid horizontal={false} />
+                                                    <XAxis type="number" hide />
+                                                    <XAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} reversed={true} />
+                                                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                                                    <Bar dataKey="count" fill="var(--color-count)" radius={4}>
+                                                        <LabelList dataKey="count" position="right" offset={8} className="fill-foreground" fontSize={12} />
+                                                    </Bar>
+                                                </BarChart>
+                                            </ChartContainer>
                                         </CardContent>
                                     </Card>
                                 </div>
@@ -762,3 +805,4 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
+
