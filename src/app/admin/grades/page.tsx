@@ -26,6 +26,7 @@ import {
   Clock,
   Send,
   BookCheck,
+  CalendarIcon,
 } from 'lucide-react';
 import {
   Table,
@@ -56,6 +57,22 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { GradeAnalysisCharts } from './grade-analysis-charts';
 import { ReportGenerator } from './report-generator';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -129,6 +146,7 @@ const gradingScale = [
 
 export default function AdminGradesPage() {
     const [clientReady, setClientReady] = React.useState(false);
+    const [date, setDate] = React.useState<DateRange | undefined>();
 
     React.useEffect(() => {
         setClientReady(true);
@@ -162,10 +180,80 @@ export default function AdminGradesPage() {
                                     <CardDescription>A log of all major examination periods.</CardDescription>
                                 </div>
                                 <div className="flex w-full md:w-auto items-center gap-2">
-                                     <Button>
-                                        <PlusCircle className="mr-2 h-4 w-4"/>
-                                        Create Exam
-                                    </Button>
+                                     <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button>
+                                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                                Create Exam
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-xl">
+                                            <DialogHeader>
+                                                <DialogTitle>Create New Exam</DialogTitle>
+                                                <DialogDescription>Define a new examination schedule for a term.</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="grid gap-6 py-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="exam-title">Exam Title</Label>
+                                                    <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="exam-term">Academic Term</Label>
+                                                        <Select defaultValue="term2-2024">
+                                                            <SelectTrigger id="exam-term">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                                                <SelectItem value="term3-2024">Term 3, 2024</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                     <div className="space-y-2">
+                                                        <Label>Classes Involved</Label>
+                                                        <Select defaultValue="all">
+                                                            <SelectTrigger>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">All Classes</SelectItem>
+                                                                <SelectItem value="f4">Form 4 Only</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="date-range">Date Range</Label>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                        <Button
+                                                            id="date-range"
+                                                            variant="outline"
+                                                            className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}
+                                                        >
+                                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                                            {date?.from ? (
+                                                            date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
+                                                            ) : <span>Pick a date range</span>}
+                                                        </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="start">
+                                                        <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="exam-notes">Notes (Optional)</Label>
+                                                    <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers."/>
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                <Button>Save Exam</Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="outline">
@@ -399,4 +487,3 @@ export default function AdminGradesPage() {
             </Tabs>
         </div>
     );
-}
