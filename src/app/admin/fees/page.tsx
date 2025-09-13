@@ -129,8 +129,24 @@ const chartConfig = {
 type TransactionType = 'payment' | 'charge' | 'waiver' | 'refund';
 
 function NewTransactionDialog() {
+    const { toast } = useToast();
     const [transactionType, setTransactionType] = React.useState<TransactionType>('payment');
     const [date, setDate] = React.useState<Date | undefined>(new Date());
+    const [studentId, setStudentId] = React.useState<string | undefined>();
+    const [amount, setAmount] = React.useState('');
+    const [description, setDescription] = React.useState('');
+
+    const handleSaveTransaction = () => {
+        toast({
+            title: 'Transaction Recorded',
+            description: `A new ${transactionType} of ${formatCurrency(Number(amount))} for the selected student has been saved.`,
+        });
+        // Here you would typically call a server action to save the data
+        // and then re-fetch the student list to update the UI.
+        setStudentId(undefined);
+        setAmount('');
+        setDescription('');
+    };
 
     return (
          <DialogContent className="sm:max-w-xl">
@@ -141,7 +157,7 @@ function NewTransactionDialog() {
             <div className="grid gap-6 py-4">
                 <div className="space-y-2">
                     <Label htmlFor="student-select">Student</Label>
-                    <Select>
+                    <Select value={studentId} onValueChange={setStudentId}>
                         <SelectTrigger id="student-select">
                             <SelectValue placeholder="Select a student" />
                         </SelectTrigger>
@@ -170,7 +186,7 @@ function NewTransactionDialog() {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="transaction-amount">Amount (KES)</Label>
-                        <Input id="transaction-amount" type="number" placeholder="e.g., 10000" />
+                        <Input id="transaction-amount" type="number" placeholder="e.g., 10000" value={amount} onChange={e => setAmount(e.target.value)} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="transaction-date">Transaction Date</Label>
@@ -214,12 +230,14 @@ function NewTransactionDialog() {
                 )}
                  <div className="space-y-2">
                     <Label htmlFor="transaction-description">Description / Notes</Label>
-                    <Textarea id="transaction-description" placeholder="e.g., 'Term 2 Fee Payment', 'Charge for lost textbook'" />
+                    <Textarea id="transaction-description" placeholder="e.g., 'Term 2 Fee Payment', 'Charge for lost textbook'" value={description} onChange={e => setDescription(e.target.value)} />
                 </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button>Save Transaction</Button>
+                <DialogClose asChild>
+                    <Button onClick={handleSaveTransaction}>Save Transaction</Button>
+                </DialogClose>
             </DialogFooter>
         </DialogContent>
     )
@@ -777,3 +795,4 @@ export default function FeesPage() {
         </Dialog>
     );
 }
+
