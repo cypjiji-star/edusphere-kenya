@@ -47,6 +47,8 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormDescription } from '@/components/ui/form';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
 
 type ExpenseStatus = 'Paid' | 'Pending Approval' | 'Reimbursed' | 'Declined';
 
@@ -54,7 +56,7 @@ type ExpenseCategory = 'Utilities' | 'Supplies' | 'Maintenance' | 'Salaries' | '
 
 type Expense = {
     id: string;
-    date: string;
+    date: Timestamp;
     category: ExpenseCategory;
     description: string;
     amount: number;
@@ -62,16 +64,6 @@ type Expense = {
     submittedBy: string;
     hasAttachment?: boolean;
 };
-
-const mockExpenses: Expense[] = [
-    { id: 'exp-1', date: '2024-07-15', category: 'Utilities', description: 'KPLC Electricity Bill', amount: 25000, status: 'Paid', submittedBy: 'Admin Office', hasAttachment: true },
-    { id: 'exp-2', date: '2024-07-12', category: 'Supplies', description: 'Purchase of lab chemicals', amount: 15000, status: 'Pending Approval', submittedBy: 'Ms. Wanjiku' },
-    { id: 'exp-3', date: '2024-07-10', category: 'Maintenance', description: 'Repair of school gate', amount: 8000, status: 'Reimbursed', submittedBy: 'Mr. Kamau' },
-    { id: 'exp-4', date: '2024-07-05', category: 'Salaries', description: 'July Teacher Salaries', amount: 1200000, status: 'Paid', submittedBy: 'Admin Office' },
-    { id: 'exp-5', date: '2024-07-02', category: 'Marketing', description: 'Newspaper Ad for admissions', amount: 30000, status: 'Declined', submittedBy: 'Admin Office' },
-    { id: 'exp-6', date: '2024-07-01', category: 'Transport', description: 'Bus fuel for the month', amount: 50000, status: 'Paid', submittedBy: 'Transport Dept.' },
-    { id: 'exp-7', date: '2024-06-28', category: 'Stationery', description: 'Bulk purchase of printing paper', amount: 12000, status: 'Paid', submittedBy: 'Admin Office' },
-];
 
 const categories: ExpenseCategory[] = ['Utilities', 'Supplies', 'Maintenance', 'Salaries', 'Marketing', 'Transport', 'Stationery'];
 const statuses: ExpenseStatus[] = ['Paid', 'Pending Approval', 'Reimbursed', 'Declined'];
@@ -92,14 +84,59 @@ const formatCurrency = (amount: number) => {
 
 
 export default function ExpensesPage() {
+    const [expenses, setExpenses] = React.useState<Expense[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
+    const [categoryFilter, setCategoryFilter] = React.useState('All Categories');
+    const [statusFilter, setStatusFilter] = React.useState('All Statuses');
     const [date, setDate] = React.useState<Date | undefined>(new Date());
     const [clientReady, setClientReady] = React.useState(false);
     const form = useForm();
 
-    React.useEffect(() => {
+     React.useEffect(() => {
         setClientReady(true);
+        const q = query(collection(firestore, 'expenses'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            setExpenses(fetchedExpenses);
+        });
+        return () => unsubscribe();
     }, []);
+    
+    const filteredExpenses = expenses.filter(expense => {
+        const matchesSearch = expense.description.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = categoryFilter === 'All Categories' || expense.category === categoryFilter;
+        const matchesStatus = statusFilter === 'All Statuses' || expense.status === statusFilter;
+        return matchesSearch && matchesCategory && matchesStatus;
+    });
+
+    const dashboardStats = React.useMemo(() => {
+        const thisMonth = new Date().getMonth();
+        const thisYear = new Date().getFullYear();
+
+        const monthlyExpenses = expenses.filter(exp => {
+            const expDate = exp.date.toDate();
+            return expDate.getMonth() === thisMonth && expDate.getFullYear() === thisYear;
+        });
+
+        const total = monthlyExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+        const pending = expenses
+            .filter(exp => exp.status === 'Pending Approval')
+            .reduce((sum, exp) => sum + exp.amount, 0);
+        
+        const categorySpending = monthlyExpenses.reduce((acc, exp) => {
+            acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+            return acc;
+        }, {} as Record<ExpenseCategory, number>);
+
+        const topCategory = Object.entries(categorySpending).sort(([,a],[,b]) => b-a)[0];
+
+        return {
+            total,
+            pending,
+            topCategoryName: topCategory ? topCategory[0] : 'N/A',
+            topCategoryPercentage: topCategory && total > 0 ? Math.round((topCategory[1] / total) * 100) : 0,
+        };
+    }, [expenses]);
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -118,7 +155,7 @@ export default function ExpensesPage() {
                         <Receipt className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">KES 1,278,000</div>
+                        <div className="text-2xl font-bold">{formatCurrency(dashboardStats.total)}</div>
                         <p className="text-xs text-muted-foreground">+5.2% from last month</p>
                     </CardContent>
                 </Card>
@@ -128,8 +165,8 @@ export default function ExpensesPage() {
                         <Hourglass className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">KES 15,000</div>
-                        <p className="text-xs text-muted-foreground">1 pending request</p>
+                        <div className="text-2xl font-bold">{formatCurrency(dashboardStats.pending)}</div>
+                        <p className="text-xs text-muted-foreground">{expenses.filter(e => e.status === 'Pending Approval').length} pending requests</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -148,8 +185,8 @@ export default function ExpensesPage() {
                         <Briefcase className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">Salaries</div>
-                        <p className="text-xs text-muted-foreground">93.9% of total spending</p>
+                        <div className="text-2xl font-bold">{dashboardStats.topCategoryName}</div>
+                        <p className="text-xs text-muted-foreground">{dashboardStats.topCategoryPercentage}% of total spending</p>
                     </CardContent>
                 </Card>
             </div>
@@ -353,21 +390,21 @@ export default function ExpensesPage() {
                             />
                         </div>
                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-                            <Select>
+                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                                 <SelectTrigger className="w-full md:w-[180px]">
                                     <SelectValue placeholder="Filter by category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Categories</SelectItem>
+                                    <SelectItem value="All Categories">All Categories</SelectItem>
                                     {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Select>
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
                                 <SelectTrigger className="w-full md:w-[180px]">
                                     <SelectValue placeholder="Filter by status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                     <SelectItem value="all">All Statuses</SelectItem>
+                                     <SelectItem value="All Statuses">All Statuses</SelectItem>
                                     {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -389,9 +426,9 @@ export default function ExpensesPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {mockExpenses.map(expense => (
+                                {filteredExpenses.map(expense => (
                                     <TableRow key={expense.id}>
-                                        <TableCell>{clientReady ? new Date(expense.date).toLocaleDateString() : ''}</TableCell>
+                                        <TableCell>{clientReady ? expense.date.toDate().toLocaleDateString() : ''}</TableCell>
                                         <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
                                         <TableCell className="font-medium flex items-center gap-2">
                                             {expense.description}
@@ -424,7 +461,7 @@ export default function ExpensesPage() {
                 </CardContent>
                 <CardFooter>
                     <div className="text-xs text-muted-foreground">
-                        Showing <strong>{mockExpenses.length}</strong> expense records.
+                        Showing <strong>{filteredExpenses.length}</strong> of <strong>{expenses.length}</strong> expense records.
                     </div>
                 </CardFooter>
             </Card>
