@@ -64,7 +64,7 @@ const healthData = {
         emergencyContact: { name: 'Mr. Omondi', relationship: 'Father', phone: '0712 345 678' },
         lastHealthCheck: '2024-01-20',
         incidents: [
-            { id: 'inc-2', date: '2024-06-20', time: '12:45 PM', location: 'Cafeteria', type: 'Health' as const, description: 'Complained of a stomach ache after lunch.', reportedBy: 'Ms. Njeri', status: 'Resolved' as const, actionsTaken: 'Student rested at the nurse\'s office for 30 minutes. Parent was notified via phone call.', followUpNeeded: 'Monitor at home' },
+            { id: 'inc-2', date: '2024-07-28', time: '12:45 PM', location: 'Cafeteria', type: 'Health' as const, description: 'Complained of a stomach ache after lunch. Seems to have resolved after a short rest.', reportedBy: 'Ms. Njeri', status: 'Reported' as const, actionsTaken: 'Student rested at the nurse\'s office for 30 minutes. Parent was notified via phone call.', followUpNeeded: 'Monitor at home' },
         ],
         medications: []
     }
@@ -91,6 +91,8 @@ export default function ParentHealthPage() {
             description: "The school has been notified of your child's absence.",
         });
     }
+
+    const hasNewIncident = data.incidents.some(inc => inc.status === 'Reported');
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
@@ -164,6 +166,16 @@ export default function ParentHealthPage() {
                         </div>
                     </CardHeader>
                 </Card>
+
+                {hasNewIncident && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>New Incident Report</AlertTitle>
+                        <AlertDescription>
+                            A new incident has been logged for {childrenData.find(c => c.id === selectedChild)?.name}. Please review the details in the Incident Log below.
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 <div className="grid gap-8 lg:grid-cols-3">
                     <div className="lg:col-span-1 space-y-8">
