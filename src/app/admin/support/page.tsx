@@ -1,6 +1,7 @@
 
 'use client';
 
+import * as React from 'react';
 import {
   Card,
   CardContent,
@@ -13,11 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search } from 'lucide-react';
+import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 const faqs = [
   {
@@ -38,11 +42,26 @@ type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
 type TicketPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 type TicketCategory = 'Technical Issue' | 'Billing' | 'Feature Request' | 'Other';
 
-const mockTickets = [
-    { id: 'TKT-001', subject: 'Unable to export student list to PDF', category: 'Technical Issue' as TicketCategory, priority: 'High' as TicketPriority, status: 'In Progress' as TicketStatus, lastUpdate: '2024-07-28' },
-    { id: 'TKT-002', subject: 'Feature Request: Add SMS notifications for library books', category: 'Feature Request' as TicketCategory, priority: 'Medium' as TicketPriority, status: 'Open' as TicketStatus, lastUpdate: '2024-07-27' },
-    { id: 'TKT-003', subject: 'Question about billing for Term 2', category: 'Billing' as TicketCategory, priority: 'Low' as TicketPriority, status: 'Resolved' as TicketStatus, lastUpdate: '2024-07-26' },
+type Ticket = { 
+    id: string; 
+    subject: string; 
+    category: TicketCategory; 
+    priority: TicketPriority; 
+    status: TicketStatus; 
+    lastUpdate: string 
+};
+
+const mockTickets: Ticket[] = [
+    { id: 'TKT-001', subject: 'Unable to export student list to PDF', category: 'Technical Issue', priority: 'High', status: 'In Progress', lastUpdate: '2024-07-28' },
+    { id: 'TKT-002', subject: 'Feature Request: Add SMS notifications for library books', category: 'Feature Request', priority: 'Medium', status: 'Open', lastUpdate: '2024-07-27' },
+    { id: 'TKT-003', subject: 'Question about billing for Term 2', category: 'Billing', priority: 'Low', status: 'Resolved', lastUpdate: '2024-07-26' },
 ];
+
+const mockConversation = [
+    { user: 'Admin User', text: 'I am unable to export the student list for Form 4 to PDF. The button is disabled.', time: 'Jul 28, 10:00 AM' },
+    { user: 'Support Team', text: 'Thank you for reporting this. We are looking into the issue and will provide an update shortly.', time: 'Jul 28, 10:05 AM' },
+];
+
 
 const getStatusBadge = (status: TicketStatus) => {
     switch (status) {
@@ -64,207 +83,265 @@ const getPriorityBadge = (priority: TicketPriority) => {
 
 
 export default function SupportPage() {
-  return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
-      <div className="mb-0">
-        <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-            <HelpCircle className="h-8 w-8 text-primary"/>
-            Support & Feedback
-        </h1>
-        <p className="text-muted-foreground">Get help, report issues, or share your ideas for improving the portal.</p>
-      </div>
+    const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
 
-       <div className="grid gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-8">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-primary"/>Submit a Ticket</CardTitle>
-                        <CardDescription>Use this form to report a technical issue, ask a question, or provide feedback.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    return (
+    <Dialog onOpenChange={(open) => !open && setSelectedTicket(null)}>
+        <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+        <div className="mb-0">
+            <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+                <HelpCircle className="h-8 w-8 text-primary"/>
+                Support & Feedback
+            </h1>
+            <p className="text-muted-foreground">Get help, report issues, or share your ideas for improving the portal.</p>
+        </div>
+
+        <div className="grid gap-8 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-primary"/>Submit a Ticket</CardTitle>
+                            <CardDescription>Use this form to report a technical issue, ask a question, or provide feedback.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="ticket-category">Category</Label>
+                                    <Select>
+                                        <SelectTrigger id="ticket-category">
+                                            <SelectValue placeholder="Select a category..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="technical">Technical Issue</SelectItem>
+                                            <SelectItem value="billing">Billing Question</SelectItem>
+                                            <SelectItem value="feature">Feature Request</SelectItem>
+                                            <SelectItem value="other">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="ticket-priority">Priority</Label>
+                                    <Select>
+                                        <SelectTrigger id="ticket-priority">
+                                            <SelectValue placeholder="Set a priority level..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low">Low</SelectItem>
+                                            <SelectItem value="medium">Medium</SelectItem>
+                                            <SelectItem value="high">High</SelectItem>
+                                            <SelectItem value="urgent">Urgent</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                             <div className="space-y-2">
-                                <Label htmlFor="ticket-category">Category</Label>
-                                <Select>
-                                    <SelectTrigger id="ticket-category">
-                                        <SelectValue placeholder="Select a category..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="technical">Technical Issue</SelectItem>
-                                        <SelectItem value="billing">Billing Question</SelectItem>
-                                        <SelectItem value="feature">Feature Request</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="ticket-subject">Subject</Label>
+                                <Input id="ticket-subject" placeholder="e.g., Unable to export student list" />
                             </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="ticket-priority">Priority</Label>
-                                <Select>
-                                    <SelectTrigger id="ticket-priority">
-                                        <SelectValue placeholder="Set a priority level..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="low">Low</SelectItem>
-                                        <SelectItem value="medium">Medium</SelectItem>
-                                        <SelectItem value="high">High</SelectItem>
-                                        <SelectItem value="urgent">Urgent</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="space-y-2">
+                                <Label htmlFor="ticket-description">Description</Label>
+                                <Textarea id="ticket-description" placeholder="Please provide as much detail as possible..." className="min-h-[150px]" />
                             </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="ticket-subject">Subject</Label>
-                            <Input id="ticket-subject" placeholder="e.g., Unable to export student list" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="ticket-description">Description</Label>
-                            <Textarea id="ticket-description" placeholder="Please provide as much detail as possible..." className="min-h-[150px]" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Attach Screenshot/File</Label>
-                             <div className="flex items-center justify-center w-full">
-                                <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                        <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                                        <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                                        <p className="text-xs text-muted-foreground">(Feature coming soon)</p>
-                                    </div>
-                                    <Input id="dropzone-file" type="file" className="hidden" disabled />
-                                </Label>
+                            <div className="space-y-2">
+                                <Label>Attach Screenshot/File</Label>
+                                <div className="flex items-center justify-center w-full">
+                                    <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                            <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                            <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                            <p className="text-xs text-muted-foreground">(Feature coming soon)</p>
+                                        </div>
+                                        <Input id="dropzone-file" type="file" className="hidden" disabled />
+                                    </Label>
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                        <Button disabled>Submit Ticket</Button>
-                    </CardFooter>
-                 </Card>
-                 
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Ticket Dashboard</CardTitle>
-                        <CardDescription>Track the status of all submitted support tickets.</CardDescription>
-                        <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                            <div className="relative w-full md:max-w-sm">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="search"
-                                    placeholder="Search by keyword or ID..."
-                                    className="w-full bg-background pl-8"
-                                />
+                        </CardContent>
+                        <CardFooter>
+                            <Button disabled>Submit Ticket</Button>
+                        </CardFooter>
+                    </Card>
+                    
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Ticket Dashboard</CardTitle>
+                            <CardDescription>Track the status of all submitted support tickets.</CardDescription>
+                            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div className="relative w-full md:max-w-sm">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="search"
+                                        placeholder="Search by keyword or ID..."
+                                        className="w-full bg-background pl-8"
+                                    />
+                                </div>
+                                <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+                                    <Select>
+                                        <SelectTrigger className="w-full md:w-[150px]">
+                                            <SelectValue placeholder="Filter by status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Statuses</SelectItem>
+                                            <SelectItem value="Open">Open</SelectItem>
+                                            <SelectItem value="In Progress">In Progress</SelectItem>
+                                            <SelectItem value="Resolved">Resolved</SelectItem>
+                                            <SelectItem value="Closed">Closed</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Select>
+                                        <SelectTrigger className="w-full md:w-[150px]">
+                                            <SelectValue placeholder="Filter by priority" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Priorities</SelectItem>
+                                            <SelectItem value="Urgent">Urgent</SelectItem>
+                                            <SelectItem value="High">High</SelectItem>
+                                            <SelectItem value="Medium">Medium</SelectItem>
+                                            <SelectItem value="Low">Low</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Select>
+                                        <SelectTrigger className="w-full md:w-[150px]">
+                                            <SelectValue placeholder="Filter by category" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Categories</SelectItem>
+                                            <SelectItem value="Technical Issue">Technical Issue</SelectItem>
+                                            <SelectItem value="Billing">Billing</SelectItem>
+                                            <SelectItem value="Feature Request">Feature Request</SelectItem>
+                                            <SelectItem value="Other">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                                <Select>
-                                    <SelectTrigger className="w-full md:w-[150px]">
-                                        <SelectValue placeholder="Filter by status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Statuses</SelectItem>
-                                        <SelectItem value="Open">Open</SelectItem>
-                                        <SelectItem value="In Progress">In Progress</SelectItem>
-                                        <SelectItem value="Resolved">Resolved</SelectItem>
-                                        <SelectItem value="Closed">Closed</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select>
-                                    <SelectTrigger className="w-full md:w-[150px]">
-                                        <SelectValue placeholder="Filter by priority" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Priorities</SelectItem>
-                                        <SelectItem value="Urgent">Urgent</SelectItem>
-                                        <SelectItem value="High">High</SelectItem>
-                                        <SelectItem value="Medium">Medium</SelectItem>
-                                        <SelectItem value="Low">Low</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                 <Select>
-                                    <SelectTrigger className="w-full md:w-[150px]">
-                                        <SelectValue placeholder="Filter by category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Categories</SelectItem>
-                                        <SelectItem value="Technical Issue">Technical Issue</SelectItem>
-                                        <SelectItem value="Billing">Billing</SelectItem>
-                                        <SelectItem value="Feature Request">Feature Request</SelectItem>
-                                        <SelectItem value="Other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Ticket ID</TableHead>
-                                        <TableHead>Subject</TableHead>
-                                        <TableHead>Category</TableHead>
-                                        <TableHead>Priority</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Last Updated</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {mockTickets.map(ticket => (
-                                        <TableRow key={ticket.id}>
-                                            <TableCell className="font-medium">{ticket.id}</TableCell>
-                                            <TableCell>{ticket.subject}</TableCell>
-                                            <TableCell><Badge variant="outline">{ticket.category}</Badge></TableCell>
-                                            <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
-                                            <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                                            <TableCell>{ticket.lastUpdate}</TableCell>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Ticket ID</TableHead>
+                                            <TableHead>Subject</TableHead>
+                                            <TableHead>Category</TableHead>
+                                            <TableHead>Priority</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Last Updated</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="lg:col-span-1 space-y-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><LifeBuoy className="h-5 w-5 text-primary"/>Direct Support</CardTitle>
-                        <CardDescription>For urgent issues, please contact us directly.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <Phone className="h-5 w-5 text-muted-foreground"/>
-                            <div className="text-sm">
-                                <p className="font-semibold">+254 20 123 4567</p>
-                                <p className="text-xs text-muted-foreground">Mon-Fri, 8am-5pm</p>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {mockTickets.map(ticket => (
+                                            <DialogTrigger asChild key={ticket.id}>
+                                                <TableRow className="cursor-pointer" onClick={() => setSelectedTicket(ticket)}>
+                                                    <TableCell className="font-medium">{ticket.id}</TableCell>
+                                                    <TableCell>{ticket.subject}</TableCell>
+                                                    <TableCell><Badge variant="outline">{ticket.category}</Badge></TableCell>
+                                                    <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
+                                                    <TableCell>{getStatusBadge(ticket.status)}</TableCell>
+                                                    <TableCell>{ticket.lastUpdate}</TableCell>
+                                                </TableRow>
+                                            </DialogTrigger>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </div>
-                        </div>
-                         <div className="flex items-center gap-3">
-                            <Mail className="h-5 w-5 text-muted-foreground"/>
-                            <div className="text-sm">
-                                <p className="font-semibold">support@edusphere.co.ke</p>
-                                <p className="text-xs text-muted-foreground">24/7 Email Support</p>
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="lg:col-span-1 space-y-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><LifeBuoy className="h-5 w-5 text-primary"/>Direct Support</CardTitle>
+                            <CardDescription>For urgent issues, please contact us directly.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <Phone className="h-5 w-5 text-muted-foreground"/>
+                                <div className="text-sm">
+                                    <p className="font-semibold">+254 20 123 4567</p>
+                                    <p className="text-xs text-muted-foreground">Mon-Fri, 8am-5pm</p>
+                                </div>
                             </div>
+                            <div className="flex items-center gap-3">
+                                <Mail className="h-5 w-5 text-muted-foreground"/>
+                                <div className="text-sm">
+                                    <p className="font-semibold">support@edusphere.co.ke</p>
+                                    <p className="text-xs text-muted-foreground">24/7 Email Support</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Book className="h-5 w-5 text-primary"/>FAQs</CardTitle>
+                            <CardDescription>Frequently Asked Questions</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Accordion type="single" collapsible>
+                                {faqs.map((faq, index) => (
+                                    <AccordionItem key={index} value={`item-${index}`}>
+                                        <AccordionTrigger>{faq.question}</AccordionTrigger>
+                                        <AccordionContent>
+                                            {faq.answer}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        </CardContent>
+                    </Card>
+                </div>
+        </div>
+        {selectedTicket && (
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <DialogTitle className="text-xl">Ticket: {selectedTicket.id}</DialogTitle>
+                            <DialogDescription>{selectedTicket.subject}</DialogDescription>
                         </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Book className="h-5 w-5 text-primary"/>FAQs</CardTitle>
-                        <CardDescription>Frequently Asked Questions</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Accordion type="single" collapsible>
-                            {faqs.map((faq, index) => (
-                                <AccordionItem key={index} value={`item-${index}`}>
-                                    <AccordionTrigger>{faq.question}</AccordionTrigger>
-                                    <AccordionContent>
-                                        {faq.answer}
-                                    </AccordionContent>
-                                </AccordionItem>
-                            ))}
-                        </Accordion>
-                    </CardContent>
-                </Card>
-            </div>
-       </div>
-    </div>
+                        <div className="flex items-center gap-2">
+                             {getPriorityBadge(selectedTicket.priority)}
+                             {getStatusBadge(selectedTicket.status)}
+                        </div>
+                    </div>
+                </DialogHeader>
+                <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto">
+                    <div className="space-y-4 pr-4">
+                        {mockConversation.map((msg, index) => (
+                            <div key={index} className="flex items-start gap-3">
+                                <Avatar>
+                                    <AvatarImage />
+                                    <AvatarFallback>
+                                        {msg.user === 'Support Team' ? <HelpCircle/> : <User/>}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="w-full rounded-md border bg-muted/50 p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="font-semibold text-sm">{msg.user}</p>
+                                        <p className="text-xs text-muted-foreground">{msg.time}</p>
+                                    </div>
+                                    <p className="text-sm">{msg.text}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                     <Separator />
+                     <div className="space-y-4">
+                        <Label htmlFor="reply-textarea" className="font-semibold">Your Reply</Label>
+                        <Textarea id="reply-textarea" placeholder="Type your response here..." className="min-h-[120px]" />
+                        <div className="flex justify-between items-center">
+                            <Button variant="outline" size="sm" disabled>
+                                <Paperclip className="mr-2 h-4 w-4"/>
+                                Attach File
+                            </Button>
+                             <Button disabled>
+                                <Send className="mr-2 h-4 w-4"/>
+                                Send Reply
+                            </Button>
+                        </div>
+                     </div>
+                </div>
+            </DialogContent>
+        )}
+        </div>
+    </Dialog>
   );
 }
