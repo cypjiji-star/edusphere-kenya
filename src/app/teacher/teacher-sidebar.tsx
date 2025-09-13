@@ -165,7 +165,12 @@ export function TeacherSidebar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem><Settings className="mr-2" />Profile &amp; Settings</DropdownMenuItem>
-            <DropdownMenuItem><HelpCircle className="mr-2" />Support &amp; Feedback</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+                <Link href="/teacher/support">
+                    <HelpCircle className="mr-2" />
+                    Support &amp; Feedback
+                </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
                 <Link href="/">

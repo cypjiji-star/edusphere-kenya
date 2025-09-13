@@ -273,7 +273,7 @@ export default function SupportPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Ticket Dashboard</CardTitle>
-                            <CardDescription>Track the status of all submitted support tickets.</CardDescription>
+                            <CardDescription>Track the status of all support tickets submitted across the system.</CardDescription>
                             <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                 <div className="relative w-full md:max-w-sm">
                                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -498,4 +498,3 @@ export default function SupportPage() {
   );
 }
 
-    
