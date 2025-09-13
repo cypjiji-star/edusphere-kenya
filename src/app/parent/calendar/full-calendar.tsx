@@ -21,12 +21,27 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MOCK_EVENTS, CalendarEvent } from './mock-events';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
+
 
 type CalendarView = 'month' | 'week' | 'day';
+
+export type CalendarEvent = {
+  id: string;
+  date: Date;
+  title: string;
+  type: 'event' | 'holiday' | 'exam' | 'meeting' | 'sports' | 'trip';
+  description: string;
+  location?: string;
+  startTime?: string;
+  endTime?: string;
+  attachments?: { name: string; size: string }[];
+};
+
 
 const eventColors: Record<CalendarEvent['type'], string> = {
   event: 'bg-blue-500 hover:bg-blue-600',
@@ -50,6 +65,7 @@ export function FullCalendar() {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [clientReady, setClientReady] = React.useState(false);
+  const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
   const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
   const [eventTypeFilter, setEventTypeFilter] = React.useState('all');
@@ -57,6 +73,19 @@ export function FullCalendar() {
 
   React.useEffect(() => {
     setClientReady(true);
+    const q = query(collection(firestore, 'calendar-events'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const fetchedEvents = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                date: (data.date as Timestamp).toDate(),
+            } as CalendarEvent;
+        });
+        setEvents(fetchedEvents);
+    });
+    return () => unsubscribe();
   }, []);
 
   const handlePrev = () => {
@@ -78,13 +107,13 @@ export function FullCalendar() {
   }
 
   const filteredEvents = React.useMemo(() => {
-    return MOCK_EVENTS.filter(event => {
+    return events.filter(event => {
         const matchesType = eventTypeFilter === 'all' || event.type === eventTypeFilter;
         // In a real app, you would add logic to filter by child's class, etc.
         const matchesChild = selectedChild ? true : false;
         return matchesType && matchesChild;
     });
-  }, [eventTypeFilter, selectedChild]);
+  }, [events, eventTypeFilter, selectedChild]);
 
 
   const renderHeader = () => (
