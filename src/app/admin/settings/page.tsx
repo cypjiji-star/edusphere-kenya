@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -260,18 +260,41 @@ export default function SettingsPage() {
                          <p className="text-xs text-muted-foreground">Set how long logs and attendance data are kept.</p>
                     </div>
                     <Separator/>
+                    <div className="space-y-4">
+                        <Label className="font-semibold">Backup &amp; Restore</Label>
+                        <div className="space-y-2">
+                             <Button variant="outline" className="w-full justify-start" disabled>
+                                <Download className="mr-2"/>
+                                Create Manual Backup
+                            </Button>
+                        </div>
+                        <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                            <div>
+                                <Label htmlFor="auto-backup" className="font-medium">Automatic Backups</Label>
+                                <p className="text-xs text-muted-foreground">Schedule daily or weekly backups.</p>
+                            </div>
+                             <Select defaultValue="daily" disabled>
+                                <SelectTrigger className="w-28">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="daily">Daily</SelectItem>
+                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <Button variant="destructive" className="w-full justify-start" disabled>
+                            <RefreshCcw className="mr-2"/>
+                            Restore from Backup
+                        </Button>
+                    </div>
+                    <Separator/>
                      <div className="space-y-3">
+                        <Label className="font-semibold">Archiving</Label>
                         <Button variant="outline" className="w-full justify-start" disabled>
                             <Archive className="mr-2"/>
                             Archive Old Records
-                        </Button>
-                        <Button variant="outline" className="w-full justify-start" disabled>
-                            <Download className="mr-2"/>
-                            Export All School Data
-                        </Button>
-                         <Button variant="outline" className="w-full justify-start" disabled>
-                            <Database className="mr-2"/>
-                            Download System Backup
                         </Button>
                     </div>
                 </CardContent>
