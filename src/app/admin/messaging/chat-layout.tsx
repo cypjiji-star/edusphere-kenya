@@ -17,6 +17,8 @@ import {
   Loader2,
   X,
 } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -146,16 +148,33 @@ export function AdminChatLayout() {
   const [messages, setMessages] = React.useState(initialMessages);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isTranslating, setIsTranslating] = React.useState(false);
+  const [isSending, setIsSending] = React.useState(false);
   const [attachment, setAttachment] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if ((message.trim() === '' && !attachment) || !selectedConvo) return;
     
+    setIsSending(true);
     let messageText = message;
+    
     if (attachment) {
-        messageText += `\n\n📎 Attached: ${attachment.name}`;
+      try {
+        const storageRef = ref(storage, `chat-attachments/${attachment.name}`);
+        const snapshot = await uploadBytes(storageRef, attachment);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        messageText += `\n\n📎 [Attachment](${downloadURL})`;
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        toast({
+          variant: "destructive",
+          title: "Upload Failed",
+          description: "Could not upload your file. Please try again.",
+        });
+        setIsSending(false);
+        return;
+      }
     }
 
     const newMessage: Message = {
@@ -179,6 +198,7 @@ export function AdminChatLayout() {
 
     setMessage('');
     setAttachment(null);
+    setIsSending(false);
   };
 
    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -521,10 +541,10 @@ export function AdminChatLayout() {
                     </TooltipProvider>
                     <Button
                         size="icon"
-                        disabled={!message.trim() && !attachment}
+                        disabled={(!message.trim() && !attachment) || isSending}
                         onClick={handleSendMessage}
                     >
-                        <Send className="h-5 w-5" />
+                        {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                     </Button>
                   </div>
                 </div>
