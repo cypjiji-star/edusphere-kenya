@@ -128,18 +128,12 @@ export default function StudentsPage() {
   const { toast } = useToast();
 
   const [classStudents, setClassStudents] = React.useState<Student[]>(
-    teacherClasses.find(c => c.id === activeTab)?.students || []
+    teacherClasses[0].students || []
   );
 
   React.useEffect(() => {
     const newStudents = teacherClasses.find(c => c.id === activeTab)?.students || [];
-    setClassStudents(newStudents.map(s => {
-        const random = seededRandom(s.id.split('-').reduce((acc, val) => acc + (parseInt(val) || val.charCodeAt(0)), 0));
-        let attendance: AttendanceStatus = 'present';
-        if (random < 0.1) attendance = 'absent';
-        else if (random < 0.2) attendance = 'late';
-        return { ...s, attendance };
-    }));
+    setClassStudents(newStudents);
   }, [activeTab]);
 
 
