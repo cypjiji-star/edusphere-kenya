@@ -71,7 +71,7 @@ const eventColors: Record<CalendarEvent['type'], string> = {
 const MOCK_EVENTS: CalendarEvent[] = [
   { id: '1', date: new Date(), title: "Form 4 Exams Begin", type: 'exam', startTime: '08:00', endTime: '16:00', description: 'The official start of the Form 4 final examinations for Term 2.', location: 'Main Hall' },
   { id: '2', date: add(new Date(), { days: 1 }), title: "PTA Meeting", type: 'meeting', startTime: '14:00', endTime: '15:00', description: 'A general meeting for all parents and teachers to discuss the term\'s progress.', location: 'Auditorium' },
-  { id: '3', date: sub(new Date(), { days: 5 }), title: "Staff Briefing", type: 'meeting', description: 'Weekly staff briefing session.' },
+  { id: '3', date: sub(new Date(), { days: 5 }), title: "Staff Briefing", type: 'meeting', description: 'Weekly staff briefing session.', location: 'Staff Room' },
   { id: '4', date: add(new Date(), { days: 12 }), title: "Annual Sports Day", type: 'event', description: 'Annual school-wide sports day event. All are welcome.', location: 'School Sports Field' },
   { id: '5', date: add(new Date(), { days: 20 }), title: "Moi Day", type: 'holiday', description: 'School closed for the public holiday.' },
 ];
@@ -135,6 +135,13 @@ export function FullCalendar() {
     setIsAddEventPopoverOpen(false);
   };
 
+  const handleExport = (type: 'PDF' | 'iCal') => {
+    toast({
+      title: `Exporting Calendar as ${type}`,
+      description: `Your calendar is being prepared for export.`,
+    });
+  };
+
   const renderHeader = () => (
     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
       <div className="flex items-center gap-2 mb-4 md:mb-0">
@@ -168,9 +175,9 @@ export function FullCalendar() {
                 <Button variant="outline">Export <ChevronDown className="ml-2 h-4 w-4" /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-                <DropdownMenuItem disabled><Printer className="mr-2 h-4 w-4" /> Print View</DropdownMenuItem>
-                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
-                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" /> Export as iCal (.ics)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Print View</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('iCal')}><FileDown className="mr-2 h-4 w-4" /> Export as iCal (.ics)</DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
         <Popover open={isAddEventPopoverOpen} onOpenChange={setIsAddEventPopoverOpen}>
