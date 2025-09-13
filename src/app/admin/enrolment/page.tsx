@@ -54,6 +54,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
   UserPlus,
   CalendarIcon,
   Upload,
@@ -65,6 +75,7 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
+  Columns,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -135,12 +146,100 @@ export default function StudentEnrolmentPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6">
-        <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-          <UserPlus className="h-8 w-8 text-primary" />
-          Student Enrolment
-        </h1>
-        <p className="text-muted-foreground">Register a new student and link them to their parent or guardian.</p>
+      <div className="mb-6 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex-1">
+          <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+            <UserPlus className="h-8 w-8 text-primary" />
+            Student Enrolment
+          </h1>
+          <p className="text-muted-foreground">Register new students individually or in bulk.</p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Bulk Enroll Students
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                  <DialogTitle>Import Students from CSV/Excel</DialogTitle>
+                  <DialogDescription>
+                      Upload a file to bulk register new students.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-6 py-4">
+                  <div className="space-y-2">
+                      <Label>Step 1: Upload File</Label>
+                      <div className="flex items-center justify-center w-full">
+                          <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                              <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                  <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                  <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                  <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
+                              </div>
+                              <Input id="dropzone-file" type="file" className="hidden" />
+                          </Label>
+                      </div>
+                  </div>
+                  <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                          <Columns className="h-5 w-5 text-primary" />
+                          <h4 className="font-medium">Step 2: Map Columns</h4>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                              <Label>Full Name</Label>
+                              <Select defaultValue="col1">
+                                  <SelectTrigger><SelectValue/></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="col1">Column A</SelectItem>
+                                      <SelectItem value="col2">Column B</SelectItem>
+                                      <SelectItem value="col3">Column C</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                          <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                              <Label>Admission No.</Label>
+                               <Select defaultValue="col2">
+                                  <SelectTrigger><SelectValue/></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="col1">Column A</SelectItem>
+                                      <SelectItem value="col2">Column B</SelectItem>
+                                      <SelectItem value="col3">Column C</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                          <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                              <Label>Class</Label>
+                               <Select defaultValue="col3">
+                                  <SelectTrigger><SelectValue/></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="col1">Column A</SelectItem>
+                                      <SelectItem value="col2">Column B</SelectItem>
+                                      <SelectItem value="col3">Column C</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                           <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                              <Label>Parent Name</Label>
+                               <Select>
+                                  <SelectTrigger><SelectValue placeholder="Select column..."/></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="col4">Column D</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                  <Button disabled>Process File</Button>
+              </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       
       <Form {...form}>
