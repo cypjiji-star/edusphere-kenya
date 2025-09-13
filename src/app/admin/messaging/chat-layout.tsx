@@ -103,7 +103,14 @@ const initialConversations = [
   },
 ];
 
-type Message = { sender: 'me' | 'other'; text: string; timestamp: string; read?: boolean; senderName?: string; };
+type Message = { 
+  sender: 'me' | 'other'; 
+  text: string; 
+  timestamp: string; 
+  read?: boolean; 
+  senderName?: string;
+  translatedText?: string;
+};
 
 const initialMessages: Record<string, Message[]> = {
     'msg-1': [
@@ -246,6 +253,36 @@ export function AdminChatLayout() {
         setIsTranslating(false);
     }
   };
+
+  const handleTranslateIncomingMessage = async (messageIndex: number, text: string) => {
+    if (!selectedConvo) return;
+    try {
+        const result = await translateText({ text, targetLanguage: 'Swahili' });
+        if (result && result.translatedText) {
+            setMessages(prev => {
+                const currentConvoMessages = prev[selectedConvo.id] || [];
+                const updatedMessages = [...currentConvoMessages];
+                updatedMessages[messageIndex] = {
+                    ...updatedMessages[messageIndex],
+                    translatedText: result.translatedText,
+                };
+                return {
+                    ...prev,
+                    [selectedConvo.id]: updatedMessages,
+                };
+            });
+        } else {
+            throw new Error('AI did not return translated text.');
+        }
+    } catch (e) {
+        console.error(e);
+        toast({
+            variant: 'destructive',
+            title: 'Translation Failed',
+            description: 'The AI could not translate the message.',
+        });
+    }
+};
 
   const handleArchive = () => {
     if (!selectedConvo) return;
@@ -402,11 +439,26 @@ export function AdminChatLayout() {
                               msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-secondary rounded-bl-none'
                           )}>
                               <p>{msg.text}</p>
+                              {msg.translatedText && (
+                                  <p className="mt-2 pt-2 border-t border-secondary-foreground/20 italic text-secondary-foreground/80">
+                                      {msg.translatedText}
+                                  </p>
+                              )}
                               <div className={cn("text-xs mt-2 flex items-center gap-2", msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
                                   <span>{msg.timestamp}</span>
                                   {msg.sender === 'me' && msg.read && <CheckCircle2 className="h-4 w-4" />}
                               </div>
                           </div>
+                          {msg.sender === 'other' && (
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="absolute -top-2 -right-10 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => handleTranslateIncomingMessage(index, msg.text)}
+                              >
+                                  <Languages className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                          )}
                         </div>
                          {msg.sender === 'me' && <Avatar className="h-8 w-8"><AvatarImage src="https://picsum.photos/seed/admin-avatar/100" /><AvatarFallback>A</AvatarFallback></Avatar>}
                     </div>
@@ -490,4 +542,3 @@ export function AdminChatLayout() {
     </div>
   );
 }
-
