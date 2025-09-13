@@ -130,6 +130,18 @@ export default function UserManagementPage() {
             description: `The user list is being exported as a ${type} file.`,
         });
     };
+    
+    const handleSaveChanges = () => {
+        toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
+    };
+
+    const handleSendPasswordReset = () => {
+        toast({ title: 'Password Reset Sent', description: 'A password reset link has been sent to the user\'s email.' });
+    };
+
+    const handleDeleteUser = () => {
+        toast({ title: 'User Deleted', description: 'The user account has been deleted.', variant: 'destructive' });
+    };
 
     const renderUserTable = (roleFilter: UserRole | 'All') => {
         const filteredUsers = mockUsers.filter(user => {
@@ -316,20 +328,24 @@ export default function UserManagementPage() {
                                                         <div className="space-y-4">
                                                             <h4 className="font-semibold text-base">Administrative Actions</h4>
                                                             <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
-                                                                <Button variant="outline" disabled>
+                                                                <Button variant="outline" onClick={handleSendPasswordReset}>
                                                                     <KeyRound className="mr-2 h-4 w-4" />
                                                                     Send Password Reset
                                                                 </Button>
-                                                                <Button variant="destructive">
-                                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                                    Delete User
-                                                                </Button>
+                                                                <DialogClose asChild>
+                                                                    <Button variant="destructive" onClick={handleDeleteUser}>
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                        Delete User
+                                                                    </Button>
+                                                                </DialogClose>
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <DialogFooter>
                                                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                                                        <Button>Save Changes</Button>
+                                                        <DialogClose asChild>
+                                                            <Button onClick={handleSaveChanges}>Save Changes</Button>
+                                                        </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
