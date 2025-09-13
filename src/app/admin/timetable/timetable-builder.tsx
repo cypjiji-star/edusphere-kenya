@@ -173,6 +173,13 @@ export function TimetableBuilder() {
         description: `The timetable for ${selectedItem} is now live and visible to relevant users.`,
     })
   }
+  
+  const handleSavePeriods = () => {
+    toast({
+        title: 'Periods Saved',
+        description: 'The school day periods have been updated for all timetables.',
+    });
+  };
 
   if (!clientReady) {
     return (
@@ -274,7 +281,9 @@ export function TimetableBuilder() {
                                             <DialogClose asChild>
                                                 <Button variant="secondary" className="w-full sm:w-auto">Cancel</Button>
                                             </DialogClose>
-                                            <Button className="w-full sm:w-auto">Save Periods</Button>
+                                            <DialogClose asChild>
+                                                <Button className="w-full sm:w-auto" onClick={handleSavePeriods}>Save Periods</Button>
+                                            </DialogClose>
                                         </DialogFooter>
                                     </DialogContent>
                                 </Dialog>

@@ -88,7 +88,9 @@ export default function TimetablePage() {
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button>Create Timetable</Button>
+                    <DialogClose asChild>
+                        <Button>Create Timetable</Button>
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
