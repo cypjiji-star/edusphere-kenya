@@ -2,6 +2,10 @@
 'use client';
 
 import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { format } from 'date-fns';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Card,
   CardContent,
@@ -11,6 +15,15 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import {
   Table,
   TableBody,
@@ -26,6 +39,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { HeartPulse, User, Phone, Stethoscope, ShieldAlert, FileText, CalendarIcon, AlertCircle, Lock, Clock, MapPin, CheckCircle, FileDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -35,7 +49,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
