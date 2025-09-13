@@ -85,6 +85,11 @@ export default function LoginPage() {
                                     <Link href="/admin">Login as Admin</Link>
                                 </Button>
                             </div>
+                             <div className="grid grid-cols-1">
+                                <Button type="submit" asChild variant="secondary">
+                                    <Link href="/parent">Login as Parent</Link>
+                                </Button>
+                            </div>
                         </form>
                     </CardContent>
                 </Card>
