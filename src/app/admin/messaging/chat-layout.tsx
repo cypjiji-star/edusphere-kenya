@@ -15,6 +15,7 @@ import {
   Users,
   User,
   Loader2,
+  X,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -138,14 +139,21 @@ export function AdminChatLayout() {
   const [messages, setMessages] = React.useState(initialMessages);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isTranslating, setIsTranslating] = React.useState(false);
+  const [attachment, setAttachment] = React.useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleSendMessage = () => {
-    if (message.trim() === '' || !selectedConvo) return;
+    if ((message.trim() === '' && !attachment) || !selectedConvo) return;
     
+    let messageText = message;
+    if (attachment) {
+        messageText += `\n\n📎 Attached: ${attachment.name}`;
+    }
+
     const newMessage: Message = {
       sender: 'me',
-      text: message,
+      text: messageText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       read: false,
     };
@@ -163,6 +171,17 @@ export function AdminChatLayout() {
     ));
 
     setMessage('');
+    setAttachment(null);
+  };
+
+   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setAttachment(event.target.files[0]);
+    }
+  };
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
   };
   
   const handleCreateConversation = (contactId: string) => {
@@ -394,6 +413,20 @@ export function AdminChatLayout() {
                 ))}
               </div>
               <div className="flex-shrink-0 p-4 border-t space-y-2">
+                 {attachment && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-muted text-sm text-muted-foreground">
+                    <Paperclip className="h-4 w-4" />
+                    <span className="flex-1 truncate">{attachment.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setAttachment(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="relative">
                   <Textarea
                     placeholder="Type a message..."
@@ -407,14 +440,36 @@ export function AdminChatLayout() {
                       }
                     }}
                   />
+                   <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
                   <div className="absolute top-3 right-3 flex items-center gap-1">
                      <Button type="button" variant="outline" size="sm" onClick={handleTranslate} disabled={isTranslating}>
                         {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
                         Translate
                     </Button>
+                    <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                             <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={handleAttachmentClick}
+                            >
+                                <Paperclip className="h-5 w-5" />
+                            </Button>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Attach file</p>
+                         </TooltipContent>
+                       </Tooltip>
+                    </TooltipProvider>
                     <Button
                         size="icon"
-                        disabled={!message.trim()}
+                        disabled={!message.trim() && !attachment}
                         onClick={handleSendMessage}
                     >
                         <Send className="h-5 w-5" />
@@ -435,3 +490,4 @@ export function AdminChatLayout() {
     </div>
   );
 }
+
