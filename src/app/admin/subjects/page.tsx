@@ -388,10 +388,12 @@ export default function ClassesAndSubjectsPage() {
                                                         </div>
                                                     </div>
                                                     <DialogFooter className="justify-between">
-                                                         <Button variant="destructive">
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Archive Class
-                                                        </Button>
+                                                         <DialogClose asChild>
+                                                            <Button variant="destructive" onClick={() => handleDelete(`${schoolClass.name} ${schoolClass.stream || ''}`, 'class')}>
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Archive Class
+                                                            </Button>
+                                                        </DialogClose>
                                                         <div className="flex gap-2">
                                                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                                             <DialogClose asChild>
