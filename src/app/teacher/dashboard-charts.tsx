@@ -17,14 +17,9 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
+import { mockTimetableData, days } from './timetable/timetable-data';
+import { allAssignments } from './assignments/page';
 
-const scheduleData = [
-  { day: 'Mon', classes: 4 },
-  { day: 'Tue', classes: 3 },
-  { day: 'Wed', classes: 5 },
-  { day: 'Thu', classes: 2 },
-  { day: 'Fri', classes: 4 },
-];
 
 const scheduleChartConfig = {
   classes: {
@@ -33,19 +28,40 @@ const scheduleChartConfig = {
   },
 };
 
-const assignmentData = [
-    { status: 'Ungraded', value: 5, fill: 'hsl(var(--chart-2))' },
-    { status: 'Graded', value: 2, fill: 'hsl(var(--chart-1))' },
-    { status: 'Due Soon', value: 3, fill: 'hsl(var(--chart-3))' },
-];
-
 const assignmentChartConfig = {
     Ungraded: { label: 'Ungraded', color: 'hsl(var(--chart-2))' },
     Graded: { label: 'Graded', color: 'hsl(var(--chart-1))' },
-    'Due Soon': { label: 'Due Soon', color: 'hsl(var(--chart-3))' },
+    'Not Handed In': { label: 'Not Handed In', color: 'hsl(var(--destructive))' },
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
 export function DashboardCharts() {
+  const scheduleData = React.useMemo(() => {
+    const teacherName = 'Ms. Wanjiku';
+    return days.map(day => {
+      const daySchedule = mockTimetableData[day];
+      if (!daySchedule) return { day: day.substring(0, 3), classes: 0 };
+      
+      const classCount = Object.values(daySchedule).filter(
+        entry => entry.subject.teacher === teacherName
+      ).length;
+
+      return { day: day.substring(0, 3), classes: classCount };
+    });
+  }, []);
+
+  const assignmentData = React.useMemo(() => {
+    const graded = allAssignments.filter(a => a.submissions === a.totalStudents).length;
+    const ungraded = allAssignments.filter(a => a.submissions < a.totalStudents && a.submissions > 0).length;
+    const notHandedIn = allAssignments.filter(a => a.submissions === 0).length;
+
+    return [
+        { status: 'Ungraded', value: ungraded, fill: 'hsl(var(--chart-2))' },
+        { status: 'Graded', value: graded, fill: 'hsl(var(--chart-1))' },
+        { status: 'Not Handed In', value: notHandedIn, fill: 'hsl(var(--destructive))' },
+    ].filter(item => item.value > 0);
+  }, []);
+
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <Card>
