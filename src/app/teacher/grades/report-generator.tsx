@@ -28,7 +28,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Loader2, Printer, GraduationCap, BarChart, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList, Send, History, Bell, Calendar as CalendarIcon } from 'lucide-react';
+import { FileText, Loader2, Printer, GraduationCap, BarChart as BarChartIcon, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList, Send, History, Bell, Calendar as CalendarIcon, TrendingUp, TrendingDown, UserCheck, UserX } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -36,22 +36,53 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, LabelList } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+
 
 type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns' | 'participation-records' | 'performance-stats' | 'team-rosters' | 'message-delivery' | 'interaction-logs' | 'notification-history';
+
+type ClassSummary = {
+    average: number;
+    highest: number;
+    lowest: number;
+    passRate: number;
+    distribution: { name: string; students: number }[];
+    topPerformers: StudentGrades[];
+    needsAttention: StudentGrades[];
+}
+
+const gradeDistributionRanges = [
+  { range: 'A (80-100)', min: 80, max: 100, count: 0 },
+  { range: 'B (65-79)', min: 65, max: 79, count: 0 },
+  { range: 'C (50-64)', min: 50, max: 64, count: 0 },
+  { range: 'D (35-49)', min: 35, max: 49, count: 0 },
+  { range: 'E (0-34)', min: 0, max: 34, count: 0 },
+];
+
+const summaryChartConfig = {
+  students: {
+    label: 'Students',
+    color: 'hsl(var(--primary))',
+  },
+};
+
 
 export function ReportGenerator() {
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
   const [selectedStudent, setSelectedStudent] = React.useState<string | null>(null);
   const [reportType, setReportType] = React.useState<ReportType>('individual');
   const [isGenerating, setIsGenerating] = React.useState(false);
-  const [report, setReport] = React.useState<{ student: StudentGrades, assessments: Assessment[] } | null>(null);
+  const [individualReport, setIndividualReport] = React.useState<{ student: StudentGrades, assessments: Assessment[] } | null>(null);
+  const [summaryReport, setSummaryReport] = React.useState<ClassSummary | null>(null);
   const [date, setDate] = React.useState<DateRange | undefined>();
 
   const studentsInClass = gradesByClass[selectedClass] || [];
 
   React.useEffect(() => {
     setSelectedStudent(null);
-    setReport(null);
+    setIndividualReport(null);
+    setSummaryReport(null);
   }, [selectedClass, reportType]);
 
   const handleGenerateReport = () => {
@@ -64,8 +95,27 @@ export function ReportGenerator() {
         const studentData = studentsInClass.find(s => s.studentId === selectedStudent);
         const assessmentData = assessmentsByClass[selectedClass] || [];
         if (studentData) {
-          setReport({ student: studentData, assessments: assessmentData });
+          setIndividualReport({ student: studentData, assessments: assessmentData });
         }
+      } else if (reportType === 'summary') {
+        const grades = studentsInClass.map(s => s.overall);
+        const average = grades.reduce((acc, grade) => acc + grade, 0) / grades.length;
+        const distribution = [...gradeDistributionRanges.map(r => ({ ...r, count: 0 }))];
+        studentsInClass.forEach(student => {
+            const range = distribution.find(r => student.overall >= r.min && student.overall <= r.max);
+            if (range) range.count++;
+        });
+
+        const newSummary: ClassSummary = {
+            average: Math.round(average),
+            highest: Math.max(...grades),
+            lowest: Math.min(...grades),
+            passRate: Math.round((studentsInClass.filter(s => s.overall >= 50).length / studentsInClass.length) * 100),
+            distribution: distribution.map(d => ({ name: d.range.split(' ')[0], students: d.count })),
+            topPerformers: [...studentsInClass].sort((a,b) => b.overall - a.overall).slice(0, 3),
+            needsAttention: [...studentsInClass].filter(s => s.overall < average - 15).sort((a,b) => a.overall - b.overall).slice(0, 3),
+        };
+        setSummaryReport(newSummary);
       }
       setIsGenerating(false);
     }, 1000);
@@ -77,8 +127,9 @@ export function ReportGenerator() {
   };
 
   const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
+  const showReport = (reportType === 'individual' && individualReport) || (reportType === 'summary' && summaryReport);
   
-  const comingSoonReports: ReportType[] = ['summary', 'ranking', 'assignment-completion', 'daily-log', 'absentee-patterns', 'participation-records', 'performance-stats', 'team-rosters', 'message-delivery', 'interaction-logs', 'notification-history'];
+  const comingSoonReports: ReportType[] = ['ranking', 'assignment-completion', 'daily-log', 'absentee-patterns', 'participation-records', 'performance-stats', 'team-rosters', 'message-delivery', 'interaction-logs', 'notification-history'];
   
   const reportTitles: Record<ReportType, string> = {
     'individual': 'Individual Student Report',
@@ -250,7 +301,7 @@ export function ReportGenerator() {
                         <CardTitle>Report Preview</CardTitle>
                         <CardDescription>A preview of the generated report will appear below.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" disabled={!report || isGenerating}>
+                    <Button variant="outline" size="sm" disabled={!showReport || isGenerating}>
                         <Printer className="mr-2 h-4 w-4" />
                         Print
                     </Button>
@@ -262,14 +313,14 @@ export function ReportGenerator() {
                             <p className="font-semibold">Compiling data...</p>
                         </div>
                     )}
-                    {!isGenerating && reportType === 'individual' && !report && (
-                        <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32">
+                    {!isGenerating && !showReport && (
+                         <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32">
                             <FileText className="h-12 w-12 text-primary/50" />
                             <p className="font-semibold">Your generated report will appear here.</p>
-                            <p className="text-sm">Select a student and click "Generate Report".</p>
+                            <p className="text-sm">Select a report type and click "Generate Report".</p>
                         </div>
                     )}
-                    {!isGenerating && reportType === 'individual' && report && (
+                    {!isGenerating && reportType === 'individual' && individualReport && (
                         <div className="border rounded-lg p-6 bg-background shadow-none">
                             <header className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">
@@ -288,14 +339,14 @@ export function ReportGenerator() {
 
                             <div className="flex items-center gap-6 mb-6">
                                 <Avatar className="h-20 w-20">
-                                    <AvatarImage src={report.student.studentAvatar} />
-                                    <AvatarFallback>{report.student.studentName.charAt(0)}</AvatarFallback>
+                                    <AvatarImage src={individualReport.student.studentAvatar} />
+                                    <AvatarFallback>{individualReport.student.studentName.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Name:</span> <p>{report.student.studentName}</p></div>
+                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Name:</span> <p>{individualReport.student.studentName}</p></div>
                                     <div className="flex gap-2"><span className="font-medium text-muted-foreground">Class:</span> <p>{teacherClasses.find(c => c.id === selectedClass)?.name}</p></div>
-                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Roll No:</span> <p>{report.student.rollNumber}</p></div>
-                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Overall:</span> <Badge>{report.student.overall}%</Badge></div>
+                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Roll No:</span> <p>{individualReport.student.rollNumber}</p></div>
+                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Overall:</span> <Badge>{individualReport.student.overall}%</Badge></div>
                                 </div>
                             </div>
                             
@@ -310,11 +361,11 @@ export function ReportGenerator() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {report.assessments.map(assessment => (
+                                        {individualReport.assessments.map(assessment => (
                                             <TableRow key={assessment.id}>
                                                 <TableCell className="font-medium">{assessment.title}</TableCell>
                                                 <TableCell>{assessment.type}</TableCell>
-                                                <TableCell className="text-right font-medium">{getGradeForStudent(report.student, assessment.id)}</TableCell>
+                                                <TableCell className="text-right font-medium">{getGradeForStudent(individualReport.student, assessment.id)}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -333,9 +384,75 @@ export function ReportGenerator() {
                              </footer>
                         </div>
                     )}
+                    {!isGenerating && reportType === 'summary' && summaryReport && (
+                        <div className="border rounded-lg p-6 bg-background shadow-none">
+                            <header className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <BarChartIcon className="h-10 w-10 text-primary" />
+                                    <div>
+                                        <h2 className="text-xl font-bold font-headline text-primary">Class Performance Summary</h2>
+                                        <p className="text-sm text-muted-foreground">{teacherClasses.find(c=>c.id === selectedClass)?.name} - Term 2, 2024</p>
+                                    </div>
+                                </div>
+                            </header>
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                                <Card>
+                                    <CardHeader className="pb-2"><CardDescription>Class Average</CardDescription></CardHeader>
+                                    <CardContent><p className="text-2xl font-bold">{summaryReport.average}%</p></CardContent>
+                                </Card>
+                                 <Card>
+                                    <CardHeader className="pb-2"><CardDescription>Pass Rate</CardDescription></CardHeader>
+                                    <CardContent><p className="text-2xl font-bold">{summaryReport.passRate}%</p></CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader className="pb-2"><CardDescription>Highest Score</CardDescription></CardHeader>
+                                    <CardContent><p className="text-2xl font-bold">{summaryReport.highest}%</p></CardContent>
+                                </Card>
+                                 <Card>
+                                    <CardHeader className="pb-2"><CardDescription>Lowest Score</CardDescription></CardHeader>
+                                    <CardContent><p className="text-2xl font-bold">{summaryReport.lowest}%</p></CardContent>
+                                </Card>
+                            </div>
+                            <h3 className="font-semibold mb-2">Grade Distribution</h3>
+                             <ChartContainer config={summaryChartConfig} className="h-[200px] w-full">
+                                <BarChart accessibilityLayer data={summaryReport.distribution} margin={{ top: 20 }}>
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                                    <YAxis />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                    <Bar dataKey="students" fill="var(--color-students)" radius={8}>
+                                        <LabelList position="top" offset={8} className="fill-foreground" fontSize={12} />
+                                    </Bar>
+                                </BarChart>
+                            </ChartContainer>
+                            <Separator className="my-6"/>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingUp className="text-green-500" />Top Performers</h3>
+                                    <div className="space-y-2">
+                                        {summaryReport.topPerformers.map(s => (
+                                            <div key={s.studentId} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
+                                                <p>{s.studentName}</p><Badge>{s.overall}%</Badge>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                 <div>
+                                    <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingDown className="text-red-500" />Needs Attention</h3>
+                                    <div className="space-y-2">
+                                       {summaryReport.needsAttention.map(s => (
+                                            <div key={s.studentId} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
+                                                <p>{s.studentName}</p><Badge variant="destructive">{s.overall}%</Badge>
+                                            </div>
+                                        ))}
+                                         {summaryReport.needsAttention.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No students are significantly below average.</p>}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     {!isGenerating && comingSoonReports.includes(reportType) && (
                         <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32 opacity-60">
-                            {reportType === 'summary' && <BarChart className="h-12 w-12 text-primary/50" />}
                             {reportType === 'ranking' && <Crown className="h-12 w-12 text-primary/50" />}
                             {reportType === 'assignment-completion' && <BookCheck className="h-12 w-12 text-primary/50" />}
                             {(reportType === 'daily-log' || reportType === 'absentee-patterns') && <AlertCircle className="h-12 w-12 text-primary/50" />}
@@ -359,3 +476,5 @@ export function ReportGenerator() {
     </div>
   );
 }
+
+    
