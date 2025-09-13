@@ -45,6 +45,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 const childrenData = [
   { id: 'child-1', name: 'John Doe', class: 'Form 4' },
@@ -94,8 +95,16 @@ const chartConfig = {
 
 export default function ParentGradesPage() {
   const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
+  const { toast } = useToast();
   const data = gradeData[selectedChild as keyof typeof gradeData];
   const chartData = data.subjects.map(s => ({ name: s.name.substring(0, 3).toUpperCase(), average: s.average }));
+
+  const handleDownload = () => {
+    toast({
+      title: 'Generating Report Card',
+      description: 'Your official report card is being prepared for download.',
+    });
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -250,7 +259,7 @@ export default function ParentGradesPage() {
                 </div>
             </CardContent>
              <CardFooter>
-                 <Button disabled>
+                 <Button onClick={handleDownload}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Download Official Report Card
                 </Button>
