@@ -7,12 +7,13 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, CircleDollarSign } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function SettingsPage() {
   return (
@@ -45,6 +46,45 @@ export default function SettingsPage() {
                             <p className="text-xs text-muted-foreground">Allow new parents and students to register.</p>
                         </div>
                         <Switch id="registration-status" checked disabled />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><CircleDollarSign className="h-5 w-5 text-primary"/>Finance Settings</CardTitle>
+                    <CardDescription>Set global defaults for financial operations.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="default-currency" className="font-semibold">Default Currency</Label>
+                            <p className="text-xs text-muted-foreground">This will be used for all financial transactions and reports.</p>
+                        </div>
+                        <Select defaultValue="KES" disabled>
+                            <SelectTrigger className="w-32">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="KES">KES</SelectItem>
+                                <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="EUR">EUR</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label className="font-semibold">Payment Due Dates</Label>
+                            <p className="text-xs text-muted-foreground">Set default payment deadlines for each term.</p>
+                        </div>
+                        <Button variant="secondary" disabled>Manage Due Dates</Button>
+                    </div>
+                     <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label className="font-semibold">Invoice Numbering</Label>
+                            <p className="text-xs text-muted-foreground">Define the format for auto-generated invoice numbers.</p>
+                        </div>
+                        <Button variant="secondary" disabled>Define Pattern</Button>
                     </div>
                 </CardContent>
             </Card>
