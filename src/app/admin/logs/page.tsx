@@ -44,9 +44,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
-import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText } from 'lucide-react';
+import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security';
 
@@ -132,7 +134,7 @@ export default function AuditLogsPage() {
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
-                            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                            <div className="flex w-full flex-wrap gap-2 md:w-auto md:flex-row md:items-center">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                     <Button variant="outline" className="w-full md:w-auto">
@@ -143,7 +145,7 @@ export default function AuditLogsPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="p-4 space-y-4 w-64">
                                         <div>
-                                            <label className="text-sm font-medium">User</label>
+                                            <Label className="text-sm font-medium">User</Label>
                                             <Select value={userFilter} onValueChange={setUserFilter}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
@@ -152,7 +154,7 @@ export default function AuditLogsPage() {
                                             </Select>
                                         </div>
                                         <div>
-                                            <label className="text-sm font-medium">Action Type</label>
+                                            <Label className="text-sm font-medium">Action Type</Label>
                                             <Select value={actionFilter} onValueChange={(v: ActionType | 'All Types') => setActionFilter(v)}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
@@ -168,7 +170,7 @@ export default function AuditLogsPage() {
                                     <Button
                                         id="date"
                                         variant="outline"
-                                        className={cn('w-full justify-start text-left font-normal md:w-[300px]', !date && 'text-muted-foreground')}
+                                        className={cn('w-full justify-start text-left font-normal md:w-auto lg:min-w-[250px]', !date && 'text-muted-foreground')}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {date?.from ? (
@@ -180,7 +182,16 @@ export default function AuditLogsPage() {
                                     <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
                                     </PopoverContent>
                                 </Popover>
-
+                                <Separator orientation="vertical" className="h-10 hidden md:block" />
+                                 <div className="flex items-center gap-2">
+                                     <Button variant="outline" size="icon" disabled>
+                                        <RefreshCw className="h-4 w-4" />
+                                     </Button>
+                                     <div className="flex items-center space-x-2">
+                                        <Switch id="auto-refresh" disabled />
+                                        <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground">Auto-refresh</Label>
+                                    </div>
+                                </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="secondary" className="w-full md:w-auto">
@@ -189,8 +200,12 @@ export default function AuditLogsPage() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
-                                        <DropdownMenuItem><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
+                                        <DropdownMenuItem>
+                                            <FileDown className="mr-2" />Export as PDF
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem>
+                                            <FileDown className="mr-2" />Export as CSV
+                                        </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
