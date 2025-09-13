@@ -13,13 +13,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GraduationCap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { firestore } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-export default function LoginPage() {
+async function getSchoolProfile() {
+    try {
+        const profileRef = doc(firestore, 'schoolProfile', 'main');
+        const profileSnap = await getDoc(profileRef);
+
+        if (profileSnap.exists()) {
+            return profileSnap.data();
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching school profile:", error);
+        return null;
+    }
+}
+
+export default async function LoginPage() {
+    const profile = await getSchoolProfile();
+
+    const coverImageUrl = profile?.coverImageUrl || "https://picsum.photos/seed/login-bg/1200/1800";
+    const schoolName = profile?.name || "EduSphere High School";
+    const schoolMotto = profile?.motto || "Excellence and Integrity";
+    const logoUrl = profile?.logoUrl || "https://picsum.photos/seed/school-logo/200";
+    
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
         <div className="relative hidden lg:flex flex-col items-center justify-between bg-muted p-8 text-white">
             <Image
-                src="https://picsum.photos/seed/login-bg/1200/1800"
+                src={coverImageUrl}
                 alt="School campus"
                 fill
                 className="absolute inset-0 h-full w-full object-cover"
@@ -38,12 +62,12 @@ export default function LoginPage() {
             <div className="relative z-20 mt-auto text-center">
                  <div className="flex items-center justify-center mb-4">
                     <Avatar className="h-20 w-20 border-4 border-white/50">
-                        <AvatarImage src="https://picsum.photos/seed/school-logo/200" alt="School Logo" />
+                        <AvatarImage src={logoUrl} alt="School Logo" />
                         <AvatarFallback>SH</AvatarFallback>
                     </Avatar>
                 </div>
-                <h1 className="text-3xl font-bold font-headline">Welcome to EduSphere High School</h1>
-                <p className="mt-2 text-lg italic">"Excellence and Integrity"</p>
+                <h1 className="text-3xl font-bold font-headline">{schoolName}</h1>
+                <p className="mt-2 text-lg italic">"{schoolMotto}"</p>
                  <p className="text-sm mt-8 text-white/70">© {new Date().getFullYear()} EduSphere. All rights reserved.</p>
             </div>
         </div>
