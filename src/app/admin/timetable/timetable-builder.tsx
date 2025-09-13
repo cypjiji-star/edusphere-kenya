@@ -31,6 +31,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 
 
 const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
@@ -150,10 +162,59 @@ export function TimetableBuilder() {
                                 </SelectContent>
                              </Select>
                             {renderFilterDropdown()}
-                             <Button variant="outline" disabled>
-                                <Settings className="mr-2 h-4 w-4" />
-                                Define Periods
-                             </Button>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline">
+                                        <Settings className="mr-2 h-4 w-4" />
+                                        Define Periods
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Manage School Day Periods</DialogTitle>
+                                        <DialogDescription>Define the time slots for lessons, breaks, and other activities. These will apply to all timetables.</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="py-4 max-h-[60vh] overflow-y-auto pr-4 space-y-4">
+                                        {periods.map(period => (
+                                            <div key={period.id} className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 border-b pb-4">
+                                                <div className="space-y-1.5">
+                                                    <Label htmlFor={`start-time-${period.id}`}>Start Time</Label>
+                                                    <Input id={`start-time-${period.id}`} type="time" defaultValue={period.time.split(' - ')[0]} />
+                                                </div>
+                                                 <div className="space-y-1.5">
+                                                    <Label htmlFor={`end-time-${period.id}`}>End Time</Label>
+                                                    <Input id={`end-time-${period.id}`} type="time" defaultValue={period.time.split(' - ')[1]} />
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="self-end text-destructive hover:text-destructive">
+                                                    <Trash2 className="h-4 w-4"/>
+                                                </Button>
+                                                {period.isBreak && (
+                                                    <div className="col-span-full grid grid-cols-[1fr_auto] items-center gap-4 pt-2">
+                                                        <div className="space-y-1.5">
+                                                            <Label htmlFor={`break-title-${period.id}`}>Break Title</Label>
+                                                            <Input id={`break-title-${period.id}`} defaultValue={period.title} />
+                                                        </div>
+                                                        <div className="flex items-center space-x-2 self-end pb-1">
+                                                            <Switch id={`is-break-${period.id}`} checked={period.isBreak} />
+                                                            <Label htmlFor={`is-break-${period.id}`}>Is a Break</Label>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2">
+                                        <Button variant="outline" className="w-full sm:w-auto" disabled>
+                                            <Plus className="mr-2 h-4 w-4"/>
+                                            Add New Period
+                                        </Button>
+                                        <DialogClose asChild>
+                                            <Button variant="secondary" className="w-full sm:w-auto">Cancel</Button>
+                                        </DialogClose>
+                                        <Button className="w-full sm:w-auto">Save Periods</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline">
