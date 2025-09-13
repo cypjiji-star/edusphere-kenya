@@ -79,6 +79,7 @@ export type Student = {
     avatarUrl: string;
     overallGrade: string;
     attendance: AttendanceStatus;
+    notes?: string;
 };
 
 
@@ -96,6 +97,7 @@ const initialStudents: Record<string, Student[]> = {
       avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100`,
       overallGrade: `${Math.floor(seededRandom(i + 1) * (85 - 60 + 1)) + 60}%`,
       attendance,
+      notes: '',
     };
   }),
   'f3-math': Array.from({ length: 28 }, (_, i) => {
@@ -110,6 +112,7 @@ const initialStudents: Record<string, Student[]> = {
       avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100`,
       overallGrade: `${Math.floor(seededRandom(i + 32) * (90 - 65 + 1)) + 65}%`,
       attendance: 'present',
+      notes: '',
     };
   }),
   'f2-phys': Array.from({ length: 35 }, (_, i) => {
@@ -124,6 +127,7 @@ const initialStudents: Record<string, Student[]> = {
       avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100`,
       overallGrade: `${Math.floor(seededRandom(i + 60) * (80 - 55 + 1)) + 55}%`,
       attendance: 'present',
+      notes: '',
     };
   }),
 };
@@ -155,7 +159,19 @@ export default function StudentsPage() {
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setAllClassStudents(prevAllStudents => {
       const newStudentsForClass = (prevAllStudents[activeTab] || []).map(s =>
-        s.id === studentId ? { ...s, attendance: status } : s
+        s.id === studentId ? { ...s, status } : s
+      );
+      return {
+        ...prevAllStudents,
+        [activeTab]: newStudentsForClass,
+      };
+    });
+  };
+
+  const handleNotesChange = (studentId: string, notes: string) => {
+    setAllClassStudents(prevAllStudents => {
+      const newStudentsForClass = (prevAllStudents[activeTab] || []).map(s =>
+        s.id === studentId ? { ...s, notes } : s
       );
       return {
         ...prevAllStudents,
@@ -392,6 +408,7 @@ export default function StudentsPage() {
                         <TableHead className="hidden md:table-cell">Roll Number</TableHead>
                         <TableHead className="hidden sm:table-cell">Overall Grade</TableHead>
                         <TableHead>Today's Status</TableHead>
+                        <TableHead>Notes</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -427,34 +444,23 @@ export default function StudentsPage() {
                                     </SelectContent>
                                 </Select>
                             </TableCell>
+                            <TableCell>
+                                {(student.attendance === 'absent' || student.attendance === 'late') && (
+                                    <Input
+                                        placeholder="Add note..."
+                                        value={student.notes}
+                                        onChange={(e) => handleNotesChange(student.id, e.target.value)}
+                                        className="w-full"
+                                    />
+                                )}
+                            </TableCell>
                             <TableCell className="text-right">
-                                <Dialog>
+                                <Dialog onOpenChange={(open) => !open && setEditingStudent(null)}>
                                     <DialogTrigger asChild>
-                                        <Button variant="ghost" size="sm">
+                                        <Button variant="ghost" size="sm" onClick={() => setEditingStudent(student)}>
                                             <Edit className="mr-2 h-4 w-4"/>Edit
                                         </Button>
                                     </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Edit Student Details</DialogTitle>
-                                        </DialogHeader>
-                                        <form onSubmit={handleUpdateStudent}>
-                                            <div className="grid gap-4 py-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="edit-name">Name</Label>
-                                                    <Input id="edit-name" name="name" defaultValue={student.name} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="edit-rollNumber">Roll Number</Label>
-                                                    <Input id="edit-rollNumber" name="rollNumber" defaultValue={student.rollNumber} />
-                                                </div>
-                                            </div>
-                                            <DialogFooter>
-                                                <DialogClose asChild><Button variant="outline" type="button">Cancel</Button></DialogClose>
-                                                <Button type="submit">Save Changes</Button>
-                                            </DialogFooter>
-                                        </form>
-                                    </DialogContent>
                                 </Dialog>
                                 <Button asChild variant="ghost" size="sm">
                                     <Link href={`/teacher/students/${student.id}`}>
@@ -467,7 +473,7 @@ export default function StudentsPage() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
+                          <TableCell colSpan={7} className="h-24 text-center">
                             No students found matching your search.
                           </TableCell>
                         </TableRow>
@@ -487,7 +493,7 @@ export default function StudentsPage() {
         ))}
       </Tabs>
 
-      <Dialog onOpenChange={(open) => !open && setEditingStudent(null)}>
+      <Dialog onOpenChange={(open) => !open && setEditingStudent(null)} open={!!editingStudent}>
         {editingStudent && (
              <DialogContent>
                 <DialogHeader>
@@ -508,7 +514,7 @@ export default function StudentsPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                        <Button type="button" variant="outline" onClick={() => setEditingStudent(null)}>Cancel</Button>
                         <Button type="submit">Save Changes</Button>
                     </DialogFooter>
                 </form>
