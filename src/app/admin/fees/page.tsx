@@ -93,7 +93,7 @@ type Transaction = {
     id: string;
     date: string | Timestamp;
     description: string;
-    type: 'Charge' | 'Payment';
+    type: 'Charge' | 'Payment' | 'Waiver' | 'Refund';
     amount: number;
     balance: number;
     recordedBy: string;
@@ -142,17 +142,40 @@ function NewTransactionDialog({ students }: { students: StudentFee[] }) {
             return;
         }
 
+        const isCredit = transactionType === 'payment' || transactionType === 'waiver';
+        const transactionAmount = isCredit ? -Math.abs(Number(amount)) : Math.abs(Number(amount));
+
+        const transactionTypeLabels: Record<TransactionType, Transaction['type']> = {
+            payment: 'Payment',
+            charge: 'Charge',
+            waiver: 'Waiver',
+            refund: 'Refund',
+        };
+
         const transactionData = {
             date: Timestamp.fromDate(date || new Date()),
             description,
-            type: transactionType === 'payment' ? 'Payment' : 'Charge',
-            amount: transactionType === 'payment' ? -Math.abs(Number(amount)) : Math.abs(Number(amount)),
+            type: transactionTypeLabels[transactionType],
+            amount: transactionAmount,
             recordedBy: 'Admin User', // In real app, get current user
         };
 
         try {
+            const studentRef = doc(firestore, 'students', studentId);
+            const studentDoc = students.find(s => s.id === studentId);
+            if (!studentDoc) throw new Error("Student not found");
+
             await addDoc(collection(firestore, `students/${studentId}/transactions`), transactionData);
+
+            const newBalance = studentDoc.balance + transactionAmount;
+            const newAmountPaid = isCredit && transactionType !== 'waiver' ? studentDoc.amountPaid + Math.abs(transactionAmount) : studentDoc.amountPaid;
             
+            await updateDoc(studentRef, {
+                balance: newBalance,
+                amountPaid: newAmountPaid,
+                feeStatus: newBalance <= 0 ? 'Paid' : 'Partial'
+            });
+
             toast({
                 title: 'Transaction Recorded',
                 description: `A new ${transactionType} of ${formatCurrency(Number(amount))} for the selected student has been saved.`,
@@ -280,12 +303,14 @@ function StudentLedgerDialog({ student, open, onOpenChange }: { student: Student
                 });
 
                 let runningBalance = student.totalFee;
-                const calculatedLedger = transactions.map(t => {
-                    runningBalance += t.amount;
-                    return { ...t, balance: runningBalance };
-                })
+                 const calculatedLedger = transactions
+                    .sort((a, b) => new Date(a.date as string).getTime() - new Date(b.date as string).getTime())
+                    .map(t => {
+                        runningBalance += t.amount;
+                        return { ...t, balance: runningBalance };
+                    });
 
-                setLedger(calculatedLedger);
+                setLedger(calculatedLedger.reverse());
             });
             return () => unsubscribe();
         }
@@ -344,7 +369,7 @@ function StudentLedgerDialog({ student, open, onOpenChange }: { student: Student
                                             </Badge>
                                         </TableCell>
                                         <TableCell>{item.recordedBy}</TableCell>
-                                        <TableCell className={`text-right ${item.type === 'Payment' ? 'text-green-600' : 'text-destructive'}`}>
+                                        <TableCell className={`text-right ${item.amount < 0 ? 'text-green-600' : 'text-destructive'}`}>
                                             {formatCurrency(item.amount)}
                                         </TableCell>
                                         <TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell>
