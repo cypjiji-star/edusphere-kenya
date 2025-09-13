@@ -38,7 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { differenceInDays, isPast } from 'date-fns';
+import { differenceInDays, isPast, isFuture } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -134,7 +134,7 @@ export default function ParentFeesPage() {
     }, [selectedChild, data.summary.balance]);
 
     const daysUntilDue = clientReady ? differenceInDays(new Date(data.summary.dueDate), new Date()) : 0;
-    const isOverdue = clientReady ? !isFuture(new Date(data.summary.dueDate)) && data.summary.balance > 0 : false;
+    const isOverdue = clientReady ? isPast(new Date(data.summary.dueDate)) && data.summary.balance > 0 : false;
 
     const handleCardPayment = () => {
         toast({
