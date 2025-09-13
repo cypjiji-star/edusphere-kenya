@@ -55,6 +55,8 @@ export default function SettingsPage() {
     const [twoFactorAuth, setTwoFactorAuth] = React.useState(false);
     const [maintenanceMode, setMaintenanceMode] = React.useState(false);
     const [aiChatbot, setAiChatbot] = React.useState(false);
+    const [attendanceAlerts, setAttendanceAlerts] = React.useState(true);
+    const [systemAlerts, setSystemAlerts] = React.useState(true);
 
 
     const handleSaveSettings = () => {
@@ -345,14 +347,14 @@ export default function SettingsPage() {
                             <Label htmlFor="attendance-alerts" className="font-semibold">Low Attendance Alerts</Label>
                             <p className="text-xs text-muted-foreground">Notify administration when a class has low attendance.</p>
                         </div>
-                        <Switch id="attendance-alerts" checked disabled />
+                        <Switch id="attendance-alerts" checked={attendanceAlerts} onCheckedChange={(checked) => { setAttendanceAlerts(checked); toast({ title: "Setting Saved" })}}/>
                     </div>
                      <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
                             <Label htmlFor="system-alerts" className="font-semibold">Critical System Notifications</Label>
                             <p className="text-xs text-muted-foreground">Alerts for storage limits, failed payments, etc.</p>
                         </div>
-                        <Switch id="system-alerts" checked disabled />
+                        <Switch id="system-alerts" checked={systemAlerts} onCheckedChange={(checked) => { setSystemAlerts(checked); toast({ title: "Setting Saved" })}}/>
                     </div>
                     <Separator/>
                      <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
@@ -360,10 +362,68 @@ export default function SettingsPage() {
                             <Label className="font-semibold">Communication Channels</Label>
                             <p className="text-xs text-muted-foreground">Configure SMS, Email, and Push Notifications.</p>
                         </div>
-                        <Button variant="secondary" disabled>
-                            <LinkIcon className="mr-2 h-4 w-4"/>
-                            Manage
-                        </Button>
+                         <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="secondary">
+                                    <LinkIcon className="mr-2 h-4 w-4"/>
+                                    Manage
+                                </Button>
+                            </DialogTrigger>
+                             <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Communication Channels</DialogTitle>
+                                    <DialogDescription>Manage gateways for sending SMS and email.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-4">
+                                     <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">SMS Gateway</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label>Provider</Label>
+                                                <Select defaultValue="africastalking">
+                                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="africastalking">Africa's Talking</SelectItem>
+                                                        <SelectItem value="twilio">Twilio</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>API Key</Label>
+                                                <Input type="password" defaultValue="xxxxxxxxxxxx" />
+                                            </div>
+                                        </CardContent>
+                                     </Card>
+                                      <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Email Gateway</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label>Provider</Label>
+                                                <Select defaultValue="sendgrid">
+                                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="sendgrid">SendGrid</SelectItem>
+                                                        <SelectItem value="mailgun">Mailgun</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </CardContent>
+                                     </Card>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild>
+                                        <Button variant="outline">Cancel</Button>
+                                    </DialogClose>
+                                    <DialogClose asChild>
+                                        <Button onClick={() => toast({title: 'Gateways Saved'})}>Save Gateways</Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </CardContent>
             </Card>
