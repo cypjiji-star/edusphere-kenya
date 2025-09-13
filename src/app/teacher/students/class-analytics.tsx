@@ -28,9 +28,9 @@ const gradeRanges = [
 ];
 
 const ATTENDANCE_COLORS = {
-  present: 'hsl(var(--chart-1))',
-  late: 'hsl(var(--chart-2))',
-  absent: 'hsl(var(--destructive))',
+  present: 'hsl(142.1 76.2% 42.2%)', // A vibrant green
+  late: 'hsl(47.9 95.8% 53.1%)',   // A bright yellow
+  absent: 'hsl(0 84.2% 60.2%)',    // A clear red
 };
 
 const performanceChartConfig = {
