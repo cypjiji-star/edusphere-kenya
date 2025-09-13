@@ -201,6 +201,62 @@ export default function ParentGradesPage() {
             </CardContent>
         </Card>
 
+        <Card>
+            <CardHeader>
+                <CardTitle>Detailed Grade Report</CardTitle>
+                <CardDescription>A breakdown of scores for each subject in the current term.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="w-full overflow-auto rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Subject</TableHead>
+                                <TableHead className="text-center">CAT 1</TableHead>
+                                <TableHead className="text-center">Mid-Term</TableHead>
+                                <TableHead className="text-center">CAT 2</TableHead>
+                                <TableHead className="text-center">Final Exam</TableHead>
+                                <TableHead className="text-center font-bold">Average</TableHead>
+                                <TableHead className="text-center font-bold">Grade</TableHead>
+                                <TableHead>Teacher's Comment</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {data.subjects.map(subject => (
+                                <TableRow key={subject.name}>
+                                    <TableCell className="font-medium">{subject.name}</TableCell>
+                                    <TableCell className="text-center">{subject.cat1}</TableCell>
+                                    <TableCell className="text-center">{subject.midTerm}</TableCell>
+                                    <TableCell className="text-center">{subject.cat2}</TableCell>
+                                    <TableCell className="text-center">{subject.final}</TableCell>
+                                    <TableCell className="text-center font-bold">
+                                        <Badge variant="secondary">{subject.average}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-center font-bold">
+                                         <Badge>{subject.grade}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <span>{subject.comment}</span>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled>
+                                                <MessageCircle className="h-4 w-4"/>
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+             <CardFooter>
+                 <Button disabled>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Download Official Report Card
+                </Button>
+            </CardFooter>
+        </Card>
+
     </div>
   );
 }
