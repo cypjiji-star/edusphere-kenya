@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { classes, teachers, rooms, periods, subjects, mockTimetableData, views, days } from './timetable-data';
+import { classes, teachers, rooms, periods as initialPeriods, subjects, mockTimetableData, views, days } from './timetable-data';
 import type { Subject } from './timetable-data';
 import { useToast } from '@/hooks/use-toast';
 
@@ -97,6 +97,21 @@ export function TimetableBuilder() {
   const [timetable, setTimetable] = React.useState(mockTimetableData);
   const [clientReady, setClientReady] = React.useState(false);
   const { toast } = useToast();
+  const [periods, setPeriods] = React.useState(initialPeriods);
+
+  const addPeriod = () => {
+    const newId = periods.length > 0 ? Math.max(...periods.map(p => p.id)) + 1 : 1;
+    setPeriods([...periods, { id: newId, time: '00:00 - 00:00' }]);
+  };
+
+  const removePeriod = (id: number) => {
+    setPeriods(periods.filter(p => p.id !== id));
+  };
+  
+  const updatePeriod = (id: number, field: string, value: string | boolean) => {
+    setPeriods(periods.map(p => p.id === id ? { ...p, [field]: value } : p));
+  }
+
 
   React.useEffect(() => {
     setClientReady(true);
@@ -252,36 +267,38 @@ export function TimetableBuilder() {
                                             <DialogDescription>Define the time slots for lessons, breaks, and other activities. These will apply to all timetables.</DialogDescription>
                                         </DialogHeader>
                                         <div className="py-4 max-h-[60vh] overflow-y-auto pr-4 space-y-4">
-                                            {periods.map(period => (
+                                            {periods.map((period, index) => {
+                                                const [startTime, endTime] = period.time.split(' - ');
+                                                return (
                                                 <div key={period.id} className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 border-b pb-4">
                                                     <div className="space-y-1.5">
                                                         <Label htmlFor={`start-time-${period.id}`}>Start Time</Label>
-                                                        <Input id={`start-time-${period.id}`} type="time" defaultValue={period.time.split(' - ')[0]} />
+                                                        <Input id={`start-time-${period.id}`} type="time" value={startTime} onChange={(e) => updatePeriod(period.id, 'time', `${e.target.value} - ${endTime}`)} />
                                                     </div>
                                                     <div className="space-y-1.5">
                                                         <Label htmlFor={`end-time-${period.id}`}>End Time</Label>
-                                                        <Input id={`end-time-${period.id}`} type="time" defaultValue={period.time.split(' - ')[1]} />
+                                                        <Input id={`end-time-${period.id}`} type="time" value={endTime} onChange={(e) => updatePeriod(period.id, 'time', `${startTime} - ${e.target.value}`)} />
                                                     </div>
-                                                    <Button variant="ghost" size="icon" className="self-end text-destructive hover:text-destructive">
+                                                    <Button variant="ghost" size="icon" className="self-end text-destructive hover:text-destructive" onClick={() => removePeriod(period.id)}>
                                                         <Trash2 className="h-4 w-4"/>
                                                     </Button>
                                                     {period.isBreak && (
                                                         <div className="col-span-full grid grid-cols-[1fr_auto] items-center gap-4 pt-2">
                                                             <div className="space-y-1.5">
                                                                 <Label htmlFor={`break-title-${period.id}`}>Break Title</Label>
-                                                                <Input id={`break-title-${period.id}`} defaultValue={period.title} />
+                                                                <Input id={`break-title-${period.id}`} value={period.title} onChange={(e) => updatePeriod(period.id, 'title', e.target.value)} />
                                                             </div>
                                                             <div className="flex items-center space-x-2 self-end pb-1">
-                                                                <Switch id={`is-break-${period.id}`} checked={period.isBreak} />
+                                                                <Switch id={`is-break-${period.id}`} checked={period.isBreak} onCheckedChange={(checked) => updatePeriod(period.id, 'isBreak', checked)} />
                                                                 <Label htmlFor={`is-break-${period.id}`}>Is a Break</Label>
                                                             </div>
                                                         </div>
                                                     )}
                                                 </div>
-                                            ))}
+                                            )})}
                                         </div>
                                         <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2">
-                                            <Button variant="outline" className="w-full sm:w-auto">
+                                            <Button variant="outline" className="w-full sm:w-auto" onClick={addPeriod}>
                                                 <Plus className="mr-2 h-4 w-4"/>
                                                 Add New Period
                                             </Button>
