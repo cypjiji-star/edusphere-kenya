@@ -76,8 +76,10 @@ import {
   CheckCircle,
   AlertCircle,
   Columns,
+  HeartPulse,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 
 const enrolmentSchema = z.object({
   studentFirstName: z.string().min(2, 'First name is required.'),
@@ -92,6 +94,10 @@ const enrolmentSchema = z.object({
   parentRelationship: z.string({ required_error: 'Relationship is required.' }),
   parentEmail: z.string().email('Invalid email address.'),
   parentPhone: z.string().min(10, 'A valid phone number is required.'),
+  allergies: z.string().optional(),
+  medicalConditions: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
   generateInvoice: z.boolean().default(true),
   sendInvite: z.boolean().default(true),
 });
@@ -274,6 +280,21 @@ export default function StudentEnrolmentPage() {
                             </div>
                         </CardContent>
                     </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><HeartPulse className="h-5 w-5 text-primary"/>Health Information</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <FormField control={form.control} name="allergies" render={({ field }) => ( <FormItem><FormLabel>Known Allergies</FormLabel><FormControl><Textarea placeholder="e.g., Peanuts, Pollen, Lactose Intolerance. If none, write 'None'." {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                            <FormField control={form.control} name="medicalConditions" render={({ field }) => ( <FormItem><FormLabel>Ongoing Medical Conditions</FormLabel><FormControl><Textarea placeholder="e.g., Asthma, Diabetes. If none, write 'None'." {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                            <Separator />
+                            <h4 className="font-medium text-sm">Emergency Contact</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField control={form.control} name="emergencyContactName" render={({ field }) => ( <FormItem><FormLabel>Contact Name</FormLabel><FormControl><Input placeholder="e.g., Jane Doe" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="emergencyContactPhone" render={({ field }) => ( <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
                 <div className="lg:col-span-1 space-y-6">
                      <Card>
@@ -297,6 +318,20 @@ export default function StudentEnrolmentPage() {
                                     </Button>
                                 </div>
                                 <FormDescription>Recommended: 400x400px.</FormDescription>
+                            </div>
+                             <div className="space-y-2">
+                                <Label>Admission Documents</Label>
+                                <div className="flex items-center justify-center w-full">
+                                    <Label htmlFor="dropzone-file-docs" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                            <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                            <p className="mb-2 text-sm text-muted-foreground">Upload Birth Cert, Report Cards</p>
+                                            <p className="text-xs text-muted-foreground">(PDF, JPG, PNG)</p>
+                                        </div>
+                                        <Input id="dropzone-file-docs" type="file" className="hidden" disabled />
+                                    </Label>
+                                </div>
+                                <FormDescription>This feature is coming soon.</FormDescription>
                             </div>
                             <Separator />
                              <FormField control={form.control} name="generateInvoice" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Generate Pro-forma Invoice</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
@@ -347,5 +382,4 @@ export default function StudentEnrolmentPage() {
       </Form>
     </div>
   );
-
-    
+}
