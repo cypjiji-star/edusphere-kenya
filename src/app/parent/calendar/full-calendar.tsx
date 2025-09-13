@@ -16,12 +16,14 @@ import {
   eachWeekOfInterval,
   isToday,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, User, Filter, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Filter, Calendar as CalendarIcon, Clock, MapPin, Paperclip, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MOCK_EVENTS, CalendarEvent } from './mock-events';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 
 type CalendarView = 'month' | 'week' | 'day';
 
@@ -47,6 +49,7 @@ export function FullCalendar() {
   const [currentDate, setCurrentDate] = React.useState(MOCK_EVENTS[0].date);
   const [view, setView] = React.useState<CalendarView>('month');
   const [clientReady, setClientReady] = React.useState(false);
+  const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
 
   React.useEffect(() => {
     setClientReady(true);
@@ -156,9 +159,13 @@ export function FullCalendar() {
                   <span className={cn('font-medium text-xs md:text-sm', isTodayFlag && 'text-primary')}>{format(day, 'd')}</span>
                    <div className="mt-1 space-y-1 overflow-y-auto">
                         {eventsForDay.map(event => (
-                            <Badge key={event.id} className={cn('w-full truncate text-white text-[10px] md:text-xs', eventColors[event.type])}>
+                          <DialogTrigger key={event.id} asChild>
+                            <Badge 
+                                onClick={() => setSelectedEvent(event)}
+                                className={cn('w-full truncate text-white text-[10px] md:text-xs cursor-pointer', eventColors[event.type])}>
                                 {event.title}
                             </Badge>
+                           </DialogTrigger>
                         ))}
                    </div>
                 </div>
@@ -188,11 +195,71 @@ export function FullCalendar() {
   
 
   return (
-    <div>
+    <Dialog onOpenChange={(open) => !open && setSelectedEvent(null)}>
       {renderHeader()}
       {view === 'month' && renderMonthView()}
       {view === 'week' && renderWeekView()}
       {view === 'day' && renderDayView()}
-    </div>
+      
+      {selectedEvent && (
+        <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+                <Badge className={cn("w-fit text-white", eventColors[selectedEvent.type])}>{selectedEvent.type.charAt(0).toUpperCase() + selectedEvent.type.slice(1)}</Badge>
+                <DialogTitle className="font-headline text-2xl">{selectedEvent.title}</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                        <span>{format(selectedEvent.date, 'PPP')}</span>
+                    </div>
+                    {selectedEvent.startTime && (
+                        <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span>{selectedEvent.startTime} - {selectedEvent.endTime}</span>
+                        </div>
+                    )}
+                </div>
+                {selectedEvent.location && (
+                     <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span>{selectedEvent.location}</span>
+                    </div>
+                )}
+                <Separator />
+                <div>
+                    <h4 className="font-semibold text-primary mb-2">Details</h4>
+                    <p className="text-sm text-muted-foreground">{selectedEvent.description}</p>
+                </div>
+                 {selectedEvent.attachments && selectedEvent.attachments.length > 0 && (
+                    <>
+                        <Separator />
+                        <div>
+                            <h4 className="font-semibold text-primary mb-2">Attachments</h4>
+                            <div className="space-y-2">
+                                {selectedEvent.attachments.map((file, index) => (
+                                    <Button key={index} variant="outline" size="sm" className="w-full justify-start" disabled>
+                                        <Paperclip className="mr-2 h-4 w-4"/>
+                                        {file.name} ({file.size})
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                 )}
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="secondary" disabled>
+                    <Check className="mr-2 h-4 w-4" />
+                    RSVP
+                </Button>
+                 <Button variant="outline" disabled>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    Add to my Calendar
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
   );
 }
