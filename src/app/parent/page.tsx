@@ -152,14 +152,16 @@ function AnnouncementsWidget() {
             <CardContent className="space-y-4">
                 {announcements.map((ann, index) => (
                      <div key={ann.id}>
-                        <div className="flex items-start gap-3">
-                            {!ann.read && <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
-                            <div className="flex-1 space-y-1">
-                                <p className="font-semibold text-sm">{ann.title}</p>
-                                <p className="text-sm text-muted-foreground truncate">{ann.content}</p>
+                        <Link href="/parent/announcements" className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
+                            <div className="flex items-start gap-3">
+                                {!ann.read && <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
+                                <div className="flex-1 space-y-1">
+                                    <p className="font-semibold text-sm">{ann.title}</p>
+                                    <p className="text-sm text-muted-foreground truncate">{ann.content}</p>
+                                </div>
+                                <p className="text-xs text-muted-foreground whitespace-nowrap">{ann.date}</p>
                             </div>
-                            <p className="text-xs text-muted-foreground whitespace-nowrap">{ann.date}</p>
-                        </div>
+                        </Link>
                         {index < announcements.length - 1 && <Separator className="mt-4" />}
                     </div>
                 ))}
