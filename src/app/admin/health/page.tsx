@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -174,6 +175,11 @@ const chartConfig = {
   },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
+const medicationLog = [
+    { id: 'med-1', studentName: 'Student 1', medication: 'Asthma Inhaler', dosage: '2 puffs', time: '2024-07-15 10:30 AM', givenBy: 'Nurse Joy' },
+    { id: 'med-2', studentName: 'Student 32', medication: 'Paracetamol', dosage: '1 tablet', time: '2024-07-14 09:00 AM', givenBy: 'Admin User' },
+];
+
 export default function AdminHealthPage() {
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<keyof typeof studentHealthRecords | null>(null);
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
@@ -242,6 +248,13 @@ export default function AdminHealthPage() {
 
     const handleRemoveFile = () => {
         setAttachedFile(null);
+    };
+
+    const handleSaveMedication = () => {
+        toast({
+            title: "Medication Logged",
+            description: "The medication administration has been saved."
+        });
     };
 
     const filteredIncidents = mockIncidents.filter(incident => {
@@ -332,7 +345,7 @@ export default function AdminHealthPage() {
                                                 <BarChart data={incidentsByTypeData} layout="vertical" margin={{ left: 10, right: 30 }}>
                                                     <CartesianGrid horizontal={false} />
                                                     <XAxis type="number" hide />
-                                                    <XAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} reversed={true} />
+                                                    <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
                                                     <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                                                     <Bar dataKey="count" fill="var(--color-count)" radius={4}>
                                                         <LabelList dataKey="count" position="right" offset={8} className="fill-foreground" fontSize={12} />
@@ -350,7 +363,7 @@ export default function AdminHealthPage() {
                                                 <BarChart data={incidentsByLocationData} layout="vertical" margin={{ left: 10, right: 30 }}>
                                                     <CartesianGrid horizontal={false} />
                                                     <XAxis type="number" hide />
-                                                    <XAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} reversed={true} />
+                                                    <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
                                                     <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                                                     <Bar dataKey="count" fill="var(--color-count)" radius={4}>
                                                         <LabelList dataKey="count" position="right" offset={8} className="fill-foreground" fontSize={12} />
@@ -767,13 +780,73 @@ export default function AdminHealthPage() {
                                 <CardDescription>A log of all medication administered at school. Access is restricted.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Alert variant="destructive">
-                                    <Lock className="h-4 w-4"/>
-                                    <AlertTitle>Access Restricted</AlertTitle>
-                                    <AlertDescription>
-                                       Access to the centralized medication log is restricted to the School Nurse and authorized health staff.
-                                    </AlertDescription>
-                                </Alert>
+                                <div className="grid gap-8 md:grid-cols-2">
+                                    <div className="space-y-6">
+                                        <h3 className="font-semibold text-lg">Log New Administration</h3>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label>Student</Label>
+                                                <Select>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a student" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {students.map((s) => (
+                                                            <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="med-name">Medication Name</Label>
+                                                <Input id="med-name" placeholder="e.g., Paracetamol" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="med-dosage">Dosage</Label>
+                                                    <Input id="med-dosage" placeholder="e.g., 1 tablet, 5ml" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="med-time">Time Given</Label>
+                                                    <Input id="med-time" type="time" defaultValue={format(new Date(), 'HH:mm')} />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center space-x-2 pt-4">
+                                                <Switch id="med-reminder" disabled />
+                                                <Label htmlFor="med-reminder">Set reminder for next dose</Label>
+                                            </div>
+                                            <Button onClick={handleSaveMedication}>Save Log</Button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-6">
+                                        <h3 className="font-semibold text-lg">Recent Log</h3>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Student</TableHead>
+                                                        <TableHead>Medication</TableHead>
+                                                        <TableHead>Time</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {medicationLog.map(log => (
+                                                        <TableRow key={log.id}>
+                                                            <TableCell className="font-medium">{log.studentName}</TableCell>
+                                                            <TableCell>{log.medication}</TableCell>
+                                                            <TableCell>{log.time}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                     {medicationLog.length === 0 && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={3} className="h-24 text-center">No records for today.</TableCell>
+                                                        </TableRow>
+                                                     )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                </div>
                             </CardContent>
                           </Card>
                     </TabsContent>
@@ -828,3 +901,4 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
+
