@@ -158,9 +158,9 @@ export default function GradesPage() {
     const handleExport = (type: 'PDF' | 'CSV') => {
         const doc = new jsPDF();
         const tableData = filteredStudents.map(student => [
-            student.name,
+            student.studentName,
             student.rollNumber,
-            student.overallGrade,
+            student.overall,
         ]);
     
         if (type === 'CSV') {
@@ -198,7 +198,7 @@ export default function GradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <Tabs defaultValue="gradebook">
+      <Tabs defaultValue="reports" onValueChange={setActiveTab} className="w-full">
         <CardHeader className="px-0">
           <div className="md:flex md:items-start md:justify-between">
             <div>
