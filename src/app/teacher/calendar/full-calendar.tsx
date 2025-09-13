@@ -214,7 +214,6 @@ export function FullCalendar() {
     };
 
     const renderDayView = () => {
-         const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8am to 7pm
          const eventsForDay = MOCK_EVENTS.filter(e => isSameDay(e.date, currentDate));
 
         return (
