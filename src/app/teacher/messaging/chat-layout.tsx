@@ -15,7 +15,23 @@ import {
   Languages,
   Users,
   User,
+  Loader2,
+  X,
 } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage, firestore } from '@/lib/firebase';
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  serverTimestamp,
+  Timestamp,
+  doc,
+  deleteDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -31,75 +47,54 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { translateText } from '@/ai/flows/translate-text';
 
-export const conversations = [
-  {
-    id: 'msg-1',
-    name: 'Mr. Omondi (Parent)',
-    avatar: 'https://picsum.photos/seed/parent1/100',
-    icon: 'User',
-    lastMessage: "Good morning, I wanted to check on John's progress...",
-    timestamp: '9:15 AM',
-    unread: true,
-  },
-  {
-    id: 'msg-2',
-    name: 'Jane Achieng (Student)',
-    avatar: 'https://picsum.photos/seed/student3/100',
-    icon: 'User',
-    lastMessage: 'Hello Ms. Wanjiku, I have a question about the assignment.',
-    timestamp: 'Yesterday',
-    unread: true,
-  },
-    {
-    id: 'msg-5',
-    name: 'Form 4 Chemistry Announcements',
-    avatar: 'https://picsum.photos/seed/group2/100',
-    icon: 'Users',
-    lastMessage: 'Reminder: The lab report is due this Friday.',
-    timestamp: 'Yesterday',
-    unread: false,
-  },
-  {
-    id: 'msg-3',
-    name: 'Admin Office',
-    avatar: 'https://picsum.photos/seed/admin/100',
-    icon: 'Users',
-    lastMessage: 'Reminder: Staff meeting today at 3:00 PM.',
-    timestamp: 'Yesterday',
-    unread: false,
-  },
-  {
-    id: 'msg-4',
-    name: 'Form 4 Parents Group',
-    avatar: 'https://picsum.photos/seed/group1/100',
-    icon: 'Users',
-    lastMessage: 'Mr. Kamau: Is the trip confirmed for next week?',
-    timestamp: '2 days ago',
-    unread: false,
-  },
+type Conversation = {
+  id: string;
+  name: string;
+  avatar: string;
+  icon: string;
+  lastMessage: string;
+  timestamp: Timestamp;
+  unread: boolean;
+};
+
+type Message = { 
+  id?: string;
+  sender: 'me' | 'other'; 
+  text: string; 
+  timestamp: Timestamp | null;
+  read?: boolean; 
+  senderName?: string;
+  translatedText?: string;
+};
+
+const newContactOptions = [
+    { id: 'contact-1', name: 'Mr. Omondi (Parent)', avatar: 'https://picsum.photos/seed/parent1/100', icon: User },
+    { id: 'contact-2', name: 'Jane Achieng (Student)', avatar: 'https://picsum.photos/seed/student3/100', icon: User },
+    { id: 'contact-3', name: 'Admin Office', avatar: 'https://picsum.photos/seed/admin/100', icon: Users },
+    { id: 'contact-4', name: 'Form 4 Parents Group', avatar: 'https://picsum.photos/seed/group1/100', icon: Users },
 ];
-
-const messages = {
-    'msg-1': [
-        { sender: 'other', text: "Good morning, I wanted to check on John's progress in Chemistry. He mentioned he was finding it a bit challenging.", timestamp: '9:15 AM' },
-        { sender: 'me', text: "Good morning Mr. Omondi. John is a bright student and is picking up the concepts. I'll be sure to give him some extra attention during our next practical.", timestamp: '9:17 AM', read: true },
-    ],
-    'msg-2': [
-        { sender: 'other', text: "Hello Ms. Wanjiku, I have a question about the assignment deadline.", timestamp: 'Yesterday' },
-    ],
-    'msg-3': [
-        { sender: 'other', text: "Reminder: Staff meeting today at 3:00 PM in the staff room.", timestamp: 'Yesterday' },
-    ],
-    'msg-4': [
-         { sender: 'other', text: "Mr. Kamau: Is the trip confirmed for next week?", timestamp: '2 days ago' },
-    ],
-    'msg-5': [
-        { sender: 'me', text: "Hello everyone, just a reminder that the Acid-Base Titration lab report is due this Friday. Please make sure to submit it on time.", timestamp: 'Yesterday', read: true },
-    ]
-}
 
 const getIconComponent = (iconName: string) => {
     if (iconName === 'User') return User;
@@ -107,10 +102,221 @@ const getIconComponent = (iconName: string) => {
     return MessageCircle;
 }
 
-
 export function ChatLayout() {
-  const [selectedConvo, setSelectedConvo] = React.useState(conversations[0]);
+  const [conversations, setConversations] = React.useState<Conversation[]>([]);
+  const [messages, setMessages] = React.useState<Record<string, Message[]>>({});
+  const [selectedConvo, setSelectedConvo] = React.useState<Conversation | null>(null);
   const [message, setMessage] = React.useState("");
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [isTranslating, setIsTranslating] = React.useState(false);
+  const [isSending, setIsSending] = React.useState(false);
+  const [attachment, setAttachment] = React.useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  React.useEffect(() => {
+    const q = query(collection(firestore, 'conversations'), orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const convos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
+        setConversations(convos);
+        if (!selectedConvo && convos.length > 0) {
+            setSelectedConvo(convos[0]);
+        }
+    });
+
+    return () => unsubscribe();
+  }, [selectedConvo]);
+
+  React.useEffect(() => {
+    if (!selectedConvo) return;
+
+    const messagesQuery = query(
+        collection(firestore, 'conversations', selectedConvo.id, 'messages'),
+        orderBy('timestamp', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
+        const convoMessages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+        setMessages(prev => ({
+            ...prev,
+            [selectedConvo.id]: convoMessages,
+        }));
+    });
+
+    return () => unsubscribe();
+  }, [selectedConvo]);
+
+  const handleSendMessage = async () => {
+    if ((message.trim() === '' && !attachment) || !selectedConvo) return;
+    
+    setIsSending(true);
+    let messageText = message;
+    
+    if (attachment) {
+      try {
+        const storageRef = ref(storage, `chat-attachments/${attachment.name}_${Date.now()}`);
+        const snapshot = await uploadBytes(storageRef, attachment);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        messageText += `\n\n📎 [Attachment](${downloadURL})`;
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        toast({
+          variant: "destructive",
+          title: "Upload Failed",
+          description: "Could not upload your file. Please try again.",
+        });
+        setIsSending(false);
+        return;
+      }
+    }
+
+    const newMessage: Omit<Message, 'id' | 'timestamp'> & { timestamp: any } = {
+      sender: 'me',
+      text: messageText,
+      timestamp: serverTimestamp(),
+      read: false,
+      senderName: 'Ms. Wanjiku'
+    };
+    
+    await addDoc(collection(firestore, 'conversations', selectedConvo.id, 'messages'), newMessage);
+
+    // Update last message in conversation
+    const convoRef = doc(firestore, 'conversations', selectedConvo.id);
+    await updateDoc(convoRef, {
+        lastMessage: messageText,
+        timestamp: serverTimestamp(),
+    });
+
+    setMessage('');
+    setAttachment(null);
+    setIsSending(false);
+  };
+
+   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setAttachment(event.target.files[0]);
+    }
+  };
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleCreateConversation = async (contactId: string) => {
+    const contact = newContactOptions.find(c => c.id === contactId);
+    if (!contact) return;
+    
+    const existingConvo = conversations.find(c => c.name === contact.name);
+    if (existingConvo) {
+        setSelectedConvo(existingConvo);
+        return;
+    }
+
+    const newConvoData = {
+        name: contact.name,
+        avatar: contact.avatar,
+        icon: contact.icon === User ? 'User' : 'Users', // Storing string instead of component
+        lastMessage: 'New conversation started.',
+        timestamp: serverTimestamp(),
+        unread: false,
+    };
+
+    const docRef = await addDoc(collection(firestore, 'conversations'), newConvoData);
+    
+    toast({
+        title: 'Conversation Started',
+        description: `You can now chat with ${contact.name}.`
+    });
+  }
+
+  const handleTranslate = async () => {
+    if (!message) {
+      toast({
+        variant: 'destructive',
+        title: 'No Message to Translate',
+        description: 'Please type a message before using AI translation.',
+      });
+      return;
+    }
+    
+    setIsTranslating(true);
+    try {
+      const result = await translateText({ text: message, targetLanguage: 'Swahili' });
+      if (result && result.translatedText) {
+        setMessage(result.translatedText);
+        toast({
+          title: 'Translation Complete',
+          description: 'The message has been translated to Swahili.',
+        });
+      } else {
+         throw new Error('AI did not return translated text.');
+      }
+    } catch(e) {
+      console.error(e);
+      toast({
+        variant: 'destructive',
+        title: 'Translation Failed',
+        description: 'The AI could not translate the message.',
+      });
+    } finally {
+        setIsTranslating(false);
+    }
+  };
+
+  const handleTranslateIncomingMessage = async (messageIndex: number, text: string) => {
+    if (!selectedConvo) return;
+    try {
+        const result = await translateText({ text, targetLanguage: 'English' });
+        if (result && result.translatedText) {
+            setMessages(prev => {
+                const currentConvoMessages = prev[selectedConvo.id] || [];
+                const updatedMessages = [...currentConvoMessages];
+                updatedMessages[messageIndex] = {
+                    ...updatedMessages[messageIndex],
+                    translatedText: result.translatedText,
+                };
+                return {
+                    ...prev,
+                    [selectedConvo.id]: updatedMessages,
+                };
+            });
+        } else {
+            throw new Error('AI did not return translated text.');
+        }
+    } catch (e) {
+        console.error(e);
+        toast({
+            variant: 'destructive',
+            title: 'Translation Failed',
+            description: 'The AI could not translate the message.',
+        });
+    }
+};
+
+  const handleDelete = async () => {
+    if (!selectedConvo) return;
+    if (!window.confirm(`Are you sure you want to delete your conversation with ${selectedConvo.name}? This action cannot be undone.`)) return;
+    
+    await deleteDoc(doc(firestore, 'conversations', selectedConvo.id));
+    
+    setMessages(prev => {
+        const newMessages = { ...prev };
+        delete newMessages[selectedConvo.id];
+        return newMessages;
+    });
+
+    setSelectedConvo(null);
+
+     toast({
+        title: 'Conversation Deleted',
+        variant: 'destructive',
+    });
+  }
+
+  const filteredConversations = conversations.filter(convo => 
+    convo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden">
@@ -119,18 +325,59 @@ export function ChatLayout() {
           <div className="flex-shrink-0 p-4 border-b">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold font-headline">Inbox</h2>
-                <Button variant="ghost" size="icon" disabled>
-                    <PlusCircle className="h-5 w-5" />
-                </Button>
+                 <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <PlusCircle className="h-5 w-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>New Conversation</DialogTitle>
+                            <DialogDescription>Select a user to start a new chat.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                           <Label htmlFor="new-chat-recipient">Recipient</Label>
+                           <Select onValueChange={handleCreateConversation}>
+                                <SelectTrigger id="new-chat-recipient">
+                                    <SelectValue placeholder="Select a parent, student, or group..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {newContactOptions.map(contact => (
+                                        <SelectItem key={contact.id} value={contact.id}>
+                                            <div className="flex items-center gap-2">
+                                                <Avatar className="h-6 w-6">
+                                                    <AvatarImage src={contact.avatar} />
+                                                    <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span>{contact.name}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                           </Select>
+                        </div>
+                         <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
             <div className="relative mt-4">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search messages..." className="pl-8" />
+              <Input 
+                placeholder="Search messages..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="p-2 space-y-1">
-            {conversations.map((convo) => {
+            {filteredConversations.map((convo) => {
                 const IconComponent = getIconComponent(convo.icon);
                 return (
                 <button
@@ -148,7 +395,7 @@ export function ChatLayout() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold truncate">{convo.name}</p>
-                    <p className="text-xs text-muted-foreground">{convo.timestamp}</p>
+                    <p className="text-xs text-muted-foreground">{convo.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                   <p className="text-sm text-muted-foreground truncate">{convo.lastMessage}</p>
                 </div>
@@ -171,45 +418,66 @@ export function ChatLayout() {
                     <p className="font-semibold">{selectedConvo.name}</p>
                 </div>
                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" disabled>
-                        <Archive className="h-5 w-5 text-muted-foreground" />
-                    </Button>
-                    <Button variant="ghost" size="icon" disabled>
-                        <Trash2 className="h-5 w-5 text-muted-foreground" />
+                    <Button variant="ghost" size="icon" onClick={handleDelete}>
+                        <Trash2 className="h-5 w-5 text-destructive" />
                     </Button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {(messages[selectedConvo.id as keyof typeof messages] || []).map((msg, index) => {
-                    const IconComponent = getIconComponent(selectedConvo.icon);
+                {(messages[selectedConvo.id] || []).map((msg, index) => {
+                    const IconComponent = getIconComponent(selectedConvo.icon as unknown as string);
                     return (
-                    <div key={index} className={cn(
+                    <div key={msg.id || index} className={cn(
                         "flex items-end gap-2",
                         msg.sender === 'me' ? 'justify-end' : 'justify-start'
                     )}>
-                        {msg.sender === 'other' && <Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback><IconComponent /></AvatarFallback></Avatar>}
+                        {msg.sender === 'other' && <Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback><IconComponent/></AvatarFallback></Avatar>}
                         <div className="group relative">
                           <div className={cn(
                               "max-w-xs lg:max-w-md rounded-2xl p-3 text-sm shadow-sm",
                               msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-secondary rounded-bl-none'
                           )}>
-                              <p>{msg.text}</p>
+                              <p className="whitespace-pre-wrap">{msg.text}</p>
+                              {msg.translatedText && (
+                                  <p className="mt-2 pt-2 border-t border-secondary-foreground/20 italic text-secondary-foreground/80">
+                                      {msg.translatedText}
+                                  </p>
+                              )}
                               <div className={cn("text-xs mt-2 flex items-center gap-2", msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                                  <span>{msg.timestamp}</span>
+                                  <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                   {msg.sender === 'me' && msg.read && <CheckCircle2 className="h-4 w-4" />}
                               </div>
                           </div>
-                          {msg.sender === 'other' && (
-                             <Button variant="ghost" size="icon" className="absolute -top-2 -right-10 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" disabled>
-                               <Languages className="h-4 w-4 text-muted-foreground"/>
-                             </Button>
-                          )}
+                           {msg.sender === 'other' && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute -top-2 -right-10 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => handleTranslateIncomingMessage(index, msg.text)}
+                                >
+                                    <Languages className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                            )}
                         </div>
                          {msg.sender === 'me' && <Avatar className="h-8 w-8"><AvatarImage src="https://picsum.photos/seed/teacher-avatar/100" /><AvatarFallback>T</AvatarFallback></Avatar>}
                     </div>
                 )})}
               </div>
               <div className="flex-shrink-0 p-4 border-t space-y-2">
+                {attachment && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-muted text-sm text-muted-foreground">
+                    <Paperclip className="h-4 w-4" />
+                    <span className="flex-1 truncate">{attachment.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setAttachment(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="relative">
                   <Textarea
                     placeholder="Type your message..."
@@ -219,9 +487,15 @@ export function ChatLayout() {
                      onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        // handle send message
+                        handleSendMessage();
                       }
                     }}
+                  />
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
                   />
                   <div className="absolute top-3 right-3 flex items-center gap-2">
                     <TooltipProvider>
@@ -230,27 +504,28 @@ export function ChatLayout() {
                           <Button
                               size="icon"
                               variant="ghost"
-                              disabled
+                              onClick={handleAttachmentClick}
                           >
                               <Paperclip className="h-5 w-5 text-muted-foreground" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Attach file (coming soon)</p>
+                          <p>Attach file</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     <Button
                         size="icon"
-                        disabled={!message}
+                        disabled={(!message.trim() && !attachment) || isSending}
+                        onClick={handleSendMessage}
                     >
-                        <Send className="h-5 w-5" />
+                       {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                     </Button>
                   </div>
                 </div>
                  <div className="flex items-center justify-end">
-                    <Button variant="ghost" size="sm" disabled>
-                        <Languages className="mr-2 h-4 w-4 text-accent"/>
+                    <Button variant="ghost" size="sm" onClick={handleTranslate} disabled={isTranslating}>
+                         {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
                         Translate with AI
                     </Button>
                  </div>
@@ -268,3 +543,5 @@ export function ChatLayout() {
     </div>
   );
 }
+
+    
