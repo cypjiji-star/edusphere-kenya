@@ -112,10 +112,21 @@ export default function UserManagementPage() {
     const [yearFilter, setYearFilter] = React.useState('All Years');
     const [clientReady, setClientReady] = React.useState(false);
     const { toast } = useToast();
+    const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
     
     React.useEffect(() => {
         setClientReady(true);
     }, []);
+
+    const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setBulkImportFile(event.target.files[0]);
+        }
+    };
+    
+    const handleRemoveBulkFile = () => {
+        setBulkImportFile(null);
+    };
 
     const handleCreateUser = () => {
         toast({
@@ -480,14 +491,26 @@ export default function UserManagementPage() {
                                         <div className="space-y-2">
                                             <Label>Step 1: Upload File</Label>
                                             <div className="flex items-center justify-center w-full">
-                                                <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                                        <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                                        <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                                                        <p className="text-xs text-muted-foreground">CSV or Excel (up to 2MB)</p>
+                                                {bulkImportFile ? (
+                                                    <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 text-sm font-medium">
+                                                            <FileText className="h-5 w-5 text-primary" />
+                                                            <span className="truncate">{bulkImportFile.name}</span>
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" onClick={handleRemoveBulkFile} className="h-6 w-6">
+                                                            <XCircle className="h-4 w-4 text-destructive" />
+                                                        </Button>
                                                     </div>
-                                                    <Input id="dropzone-file-bulk" type="file" className="hidden" />
-                                                </Label>
+                                                ) : (
+                                                    <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                            <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                            <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                                            <p className="text-xs text-muted-foreground">CSV or Excel (up to 2MB)</p>
+                                                        </div>
+                                                        <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+                                                    </Label>
+                                                )}
                                             </div>
                                         </div>
                                          <div className="space-y-4">
@@ -499,22 +522,22 @@ export default function UserManagementPage() {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                                                     <Label>Full Name</Label>
-                                                    <Select><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                    <Select disabled><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
                                                 </div>
                                                 <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                                                     <Label>Email</Label>
-                                                    <Select><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                    <Select disabled><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
                                                 </div>
                                                 <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                                                     <Label>Role</Label>
-                                                    <Select><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
+                                                    <Select disabled><SelectTrigger><SelectValue placeholder="Column..."/></SelectTrigger><SelectContent></SelectContent></Select>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button disabled>Process File</Button>
+                                        <Button disabled={!bulkImportFile}>Process File</Button>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
