@@ -39,6 +39,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { differenceInDays, isFuture } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 
 const childrenData = [
@@ -110,6 +111,8 @@ export default function ParentFeesPage() {
     const data = feeData[selectedChild as keyof typeof feeData];
     const paymentHistory = historyData[selectedChild as keyof typeof historyData];
     const [clientReady, setClientReady] = React.useState(false);
+    const { toast } = useToast();
+
 
     React.useEffect(() => {
         setClientReady(true);
@@ -117,6 +120,13 @@ export default function ParentFeesPage() {
 
     const daysUntilDue = clientReady ? differenceInDays(new Date(data.summary.dueDate), new Date()) : 0;
     const isOverdue = clientReady ? !isFuture(new Date(data.summary.dueDate)) : false;
+
+    const handlePayment = (method: 'M-Pesa' | 'Card') => {
+        toast({
+            title: 'Simulating Payment',
+            description: `Initiating ${method} payment process...`,
+        });
+    };
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -275,7 +285,7 @@ export default function ParentFeesPage() {
                                         <Phone className="h-5 w-5 text-muted-foreground" />
                                         <Input defaultValue="0722123456" disabled />
                                     </div>
-                                    <Button className="w-full" disabled>
+                                    <Button className="w-full" onClick={() => handlePayment('M-Pesa')}>
                                         <div className="h-5 w-5 bg-contain bg-no-repeat bg-center mr-2" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg')" }}/>
                                         Pay with M-Pesa
                                     </Button>
@@ -283,7 +293,7 @@ export default function ParentFeesPage() {
                                 <Separator />
                                 <div className="space-y-4">
                                     <h4 className="font-semibold text-sm">Pay with Card</h4>
-                                    <Button className="w-full" variant="outline" disabled>
+                                    <Button className="w-full" variant="outline" onClick={() => handlePayment('Card')}>
                                         <CreditCard className="mr-2 h-4 w-4"/>
                                         Visa / Mastercard
                                     </Button>
@@ -355,5 +365,3 @@ export default function ParentFeesPage() {
         </div>
     );
 }
-
-    
