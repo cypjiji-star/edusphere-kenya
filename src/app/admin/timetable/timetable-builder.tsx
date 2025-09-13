@@ -94,6 +94,11 @@ export function TimetableBuilder() {
   const [view, setView] = React.useState(views[0]);
   const [selectedItem, setSelectedItem] = React.useState(classes[0]);
   const [timetable, setTimetable] = React.useState(mockTimetableData);
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   const renderFilterDropdown = () => {
     let items: string[] = [];
@@ -151,6 +156,22 @@ export function TimetableBuilder() {
         }
         return newTimetable;
     });
+  }
+
+  if (!clientReady) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Loading Timetable...</CardTitle>
+                <CardDescription>Please wait while the timetable builder is being prepared.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center justify-center h-96">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+                </div>
+            </CardContent>
+        </Card>
+    );
   }
 
   return (
