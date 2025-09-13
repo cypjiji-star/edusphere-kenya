@@ -51,13 +51,11 @@ export function DashboardCharts() {
 
   const assignmentData = React.useMemo(() => {
     const graded = allAssignments.filter(a => a.submissions === a.totalStudents).length;
-    const ungraded = allAssignments.filter(a => a.submissions < a.totalStudents && a.submissions > 0).length;
-    const notHandedIn = allAssignments.filter(a => a.submissions === 0).length;
+    const ungraded = allAssignments.length - graded;
 
     return [
-        { status: 'Ungraded', value: ungraded, fill: 'hsl(var(--chart-2))' },
         { status: 'Graded', value: graded, fill: 'hsl(var(--chart-1))' },
-        { status: 'Not Handed In', value: notHandedIn, fill: 'hsl(var(--destructive))' },
+        { status: 'Ungraded', value: ungraded, fill: 'hsl(var(--chart-2))' },
     ].filter(item => item.value > 0);
   }, []);
 
