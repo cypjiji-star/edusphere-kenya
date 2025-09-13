@@ -106,7 +106,7 @@ const mockExams: Exam[] = [
     { id: 'ex-3', title: 'Term 1 Final Exams', term: 'Term 1, 2024', classes: 'All Classes', startDate: '2024-04-15', endDate: '2024-04-19', status: 'Completed' },
 ];
 
-const mockSubmissions: Submission[] = [
+const mockSubmissionsData: Submission[] = [
     { id: 'sub-1', examId: 'ex-1', subject: 'Mathematics', teacher: 'Mr. Otieno', class: 'Form 4', status: 'Submitted', lastUpdated: '2024-08-03' },
     { id: 'sub-2', examId: 'ex-1', subject: 'English', teacher: 'Ms. Njeri', class: 'Form 4', status: 'Submitted', lastUpdated: '2024-08-04' },
     { id: 'sub-3', examId: 'ex-1', subject: 'Chemistry', teacher: 'Ms. Wanjiku', class: 'Form 4', status: 'Pending', lastUpdated: 'N/A' },
@@ -154,6 +154,7 @@ export default function AdminGradesPage() {
     const [submissionExamFilter, setSubmissionExamFilter] = React.useState('ex-1');
     const [submissionClassFilter, setSubmissionClassFilter] = React.useState('Form 4');
     const [gradingScale, setGradingScale] = React.useState(initialGradingScale);
+    const [mockSubmissions, setMockSubmissions] = React.useState(mockSubmissionsData);
     const { toast } = useToast();
 
     React.useEffect(() => {
@@ -184,6 +185,25 @@ export default function AdminGradesPage() {
             description: 'The new grading scale has been applied school-wide.',
         });
     }
+
+    const handleApproveAll = () => {
+        setMockSubmissions(prev => 
+            prev.map(s => 
+                s.examId === submissionExamFilter && s.class === submissionClassFilter && s.status === 'Submitted'
+                ? { ...s, status: 'Approved' }
+                : s
+            )
+        );
+        toast({ title: 'Grades Approved', description: 'All submitted grades for the selected view have been approved.' });
+    };
+
+    const handlePublishAll = () => {
+        toast({ title: 'Grades Published (Simulation)', description: 'In a real app, this would make all approved grades visible to students and parents.' });
+    };
+
+    const handleSendReminders = () => {
+        toast({ title: 'Reminders Sent (Simulation)', description: 'Reminder notifications have been sent to teachers with pending submissions.' });
+    };
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedExam(null)}>
@@ -378,16 +398,16 @@ export default function AdminGradesPage() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handleApproveAll}>
                                             <CheckCircle className="mr-2 h-4 w-4" />
                                             Approve All Submitted
                                         </DropdownMenuItem>
-                                         <DropdownMenuItem>
+                                         <DropdownMenuItem onClick={handlePublishAll}>
                                             <BookCheck className="mr-2 h-4 w-4" />
                                             Publish All Approved Grades
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handleSendReminders}>
                                             <Send className="mr-2 h-4 w-4" />
                                             Send Submission Reminders
                                         </DropdownMenuItem>
@@ -470,9 +490,9 @@ export default function AdminGradesPage() {
                                 {gradingScale.map((item, index) => (
                                     <div key={index} className="flex items-center gap-2">
                                         <Input defaultValue={item.grade} className="w-16 font-bold" />
-                                        <Input type="number" defaultValue={item.min} onChange={(e) => handleGradingScaleChange(index, 'min', parseInt(e.target.value, 10) || 0)} className="w-20" />
+                                        <Input type="number" value={item.min} onChange={(e) => handleGradingScaleChange(index, 'min', parseInt(e.target.value, 10) || 0)} className="w-20" />
                                         <span>-</span>
-                                        <Input type="number" defaultValue={item.max} onChange={(e) => handleGradingScaleChange(index, 'max', parseInt(e.target.value, 10) || 0)} className="w-20" />
+                                        <Input type="number" value={item.max} onChange={(e) => handleGradingScaleChange(index, 'max', parseInt(e.target.value, 10) || 0)} className="w-20" />
                                         <Button variant="ghost" size="icon" onClick={() => removeGradingRow(index)}>
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>
@@ -501,7 +521,7 @@ export default function AdminGradesPage() {
                                      <div className="flex flex-col h-[150px] w-full items-center justify-center rounded-lg border-2 border-dashed border-muted">
                                         <div className="text-center text-muted-foreground p-4">
                                             <p className="mb-4">This feature is in development.</p>
-                                            <Button variant="secondary" disabled>Manage Templates</Button>
+                                            <Button variant="secondary">Manage Templates</Button>
                                         </div>
                                     </div>
                                 </CardContent>
