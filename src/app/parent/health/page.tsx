@@ -27,7 +27,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { HeartPulse, User, Phone, Stethoscope, ShieldAlert, FileText, CalendarIcon, AlertCircle, Lock, Clock, MapPin, CheckCircle } from 'lucide-react';
+import { HeartPulse, User, Phone, Stethoscope, ShieldAlert, FileText, CalendarIcon, AlertCircle, Lock, Clock, MapPin, CheckCircle, FileDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
@@ -121,48 +121,54 @@ export default function ParentHealthPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" className="w-full md:w-auto">Report an Absence</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Report Child's Absence</DialogTitle>
-                                        <DialogDescription>
-                                            Notify the school about your child's absence. This will be sent to the school office and class teacher.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="grid gap-4 py-4">
-                                        <div className="space-y-2">
-                                            <Label>Date of Absence</Label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn("w-full justify-start text-left font-normal", !absenceDate && "text-muted-foreground")}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {absenceDate ? format(absenceDate, "PPP") : <span>Pick a date</span>}
-                                                </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0">
-                                                    <Calendar mode="single" selected={absenceDate} onSelect={setAbsenceDate} initialFocus />
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
+                             <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" className="w-full md:w-auto">Report an Absence</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Report Child's Absence</DialogTitle>
+                                            <DialogDescription>
+                                                Notify the school about your child's absence. This will be sent to the school office and class teacher.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="grid gap-4 py-4">
                                             <div className="space-y-2">
-                                            <Label htmlFor="absence-reason">Reason for Absence</Label>
-                                            <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." />
+                                                <Label>Date of Absence</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn("w-full justify-start text-left font-normal", !absenceDate && "text-muted-foreground")}
+                                                    >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {absenceDate ? format(absenceDate, "PPP") : <span>Pick a date</span>}
+                                                    </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar mode="single" selected={absenceDate} onSelect={setAbsenceDate} initialFocus />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                                <div className="space-y-2">
+                                                <Label htmlFor="absence-reason">Reason for Absence</Label>
+                                                <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." />
+                                            </div>
                                         </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <DialogClose asChild>
-                                            <Button onClick={handleReportAbsence}>Send Notification</Button>
-                                        </DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
+                                        <DialogFooter>
+                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                            <DialogClose asChild>
+                                                <Button onClick={handleReportAbsence}>Send Notification</Button>
+                                            </DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button variant="secondary" className="w-full md:w-auto" disabled>
+                                    <FileDown className="mr-2 h-4 w-4"/>
+                                    Download Report
+                                </Button>
+                            </div>
                         </div>
                     </CardHeader>
                 </Card>
