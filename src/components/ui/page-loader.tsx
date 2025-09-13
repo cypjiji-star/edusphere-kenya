@@ -8,24 +8,23 @@ import { usePathname } from "next/navigation";
 export function PageLoader() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // On the initial load, we don't want to show the loader.
-    // The loader should only appear for subsequent page navigations.
+    setIsClient(true);
+  }, []);
+  
+  useEffect(() => {
     const handleStart = (url: string) => {
-      // Only show loader if the path is different
       if (url !== window.location.pathname) {
         setLoading(true);
       }
     };
-    
-    // We can't perfectly detect when a page *starts* loading with App Router hooks alone.
-    // So, we'll listen to link clicks as a trigger.
+
     const handleLinkClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const link = target.closest('a');
 
-      // Check if it's a link, has an href, isn't a new tab, and is an internal navigation
       if (link && link.href && link.target !== '_blank' && new URL(link.href).origin === window.location.origin) {
         if (new URL(link.href).pathname !== window.location.pathname) {
           handleStart(link.href);
@@ -33,19 +32,24 @@ export function PageLoader() {
       }
     };
 
-    document.addEventListener("click", handleLinkClick);
+    if (isClient) {
+      document.addEventListener("click", handleLinkClick);
+    }
     
     return () => {
-      document.removeEventListener("click", handleLinkClick);
+      if (isClient) {
+        document.removeEventListener("click", handleLinkClick);
+      }
     };
+  }, [isClient]);
 
-  }, []);
-  
   useEffect(() => {
-    // When the pathname changes, it means the new page has rendered.
-    // So, we hide the loader.
     setLoading(false);
   }, [pathname]);
+
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -58,7 +62,6 @@ export function PageLoader() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
-          {/* Premium Spinner */}
           <motion.div
             className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"
             initial={{ scale: 0.8, opacity: 0 }}
