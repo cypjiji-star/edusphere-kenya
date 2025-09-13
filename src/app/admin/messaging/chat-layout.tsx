@@ -118,7 +118,7 @@ const initialMessages: Record<string, Message[]> = {
          { sender: 'me', text: 'Thank you, I will assign them for review this afternoon.', timestamp: 'Yesterday', read: true },
     ],
     'msg-5': [
-        { sender: 'other', text: 'Good morning, I have a question about the fee structure for next term.', timestamp: '2 days ago' },
+        { sender: 'other', text: 'Good morning, I have a question about the fee structure.', timestamp: '2 days ago' },
     ]
 };
 
@@ -134,6 +134,7 @@ export function AdminChatLayout() {
   const [selectedConvo, setSelectedConvo] = React.useState(conversations[0]);
   const [message, setMessage] = React.useState("");
   const [messages, setMessages] = React.useState(initialMessages);
+  const [searchTerm, setSearchTerm] = React.useState('');
   const { toast } = useToast();
 
   const handleSendMessage = () => {
@@ -191,6 +192,11 @@ export function AdminChatLayout() {
     });
   }
 
+  const filteredConversations = conversations.filter(convo => 
+    convo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden">
       <div className="flex h-full">
@@ -240,12 +246,17 @@ export function AdminChatLayout() {
             </div>
             <div className="relative mt-4">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search messages or users..." className="pl-8" />
+              <Input 
+                placeholder="Search messages or users..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="p-2 space-y-1">
-            {conversations.map((convo) => (
+            {filteredConversations.map((convo) => (
                 <button
                 key={convo.id}
                 className={cn(
