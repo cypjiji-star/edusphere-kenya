@@ -14,6 +14,7 @@ import {
   Languages,
   Users,
   User,
+  Mic,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -176,7 +177,7 @@ export function AdminChatLayout() {
                 <div className="relative">
                   <Textarea
                     placeholder="Type your message..."
-                    className="pr-32"
+                    className="pr-12"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                      onKeyDown={(e) => {
@@ -186,29 +187,47 @@ export function AdminChatLayout() {
                       }
                     }}
                   />
-                  <div className="absolute top-3 right-3 flex items-center gap-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                              size="icon"
-                              variant="ghost"
-                              disabled
-                          >
-                              <Paperclip className="h-5 w-5 text-muted-foreground" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Attach file (coming soon)</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                  <div className="absolute bottom-2 right-3">
                     <Button
                         size="icon"
                         disabled={!message}
                     >
                         <Send className="h-5 w-5" />
                     </Button>
+                  </div>
+                </div>
+                 <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                     <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  disabled
+                              >
+                                  <Paperclip className="h-5 w-5 text-muted-foreground" />
+                              </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Attach file (coming soon)</p>
+                          </TooltipContent>
+                        </Tooltip>
+                         <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  disabled
+                              >
+                                  <Mic className="h-5 w-5 text-muted-foreground" />
+                              </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Record voice note (premium)</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                   </div>
                 </div>
               </div>
