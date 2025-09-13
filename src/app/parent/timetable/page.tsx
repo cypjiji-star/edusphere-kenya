@@ -102,11 +102,14 @@ export default function ParentTimetablePage() {
         ? Object.entries(mockTimetable[todayDayName]).map(([time, lesson]) => ({ time, ...lesson }))
         : [];
     
-    const handleExport = () => {
+    const handleExport = (type: 'PDF' | 'Print') => {
         toast({
-            title: "Exporting Timetable",
-            description: "Your timetable is being prepared for download.",
+            title: `Exporting Timetable as ${type}`,
+            description: "Your timetable is being prepared.",
         });
+        if (type === 'Print') {
+            setTimeout(() => window.print(), 1000);
+        }
     }
 
 
@@ -146,14 +149,14 @@ export default function ParentTimetablePage() {
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" onClick={handleExport}>
+                                <Button variant="outline">
                                     Export
                                     <ChevronDown className="ml-2 h-4 w-4"/>
                                 </Button>
                             </DropdownMenuTrigger>
                              <DropdownMenuContent>
-                                <DropdownMenuItem><Printer className="mr-2 h-4 w-4" /> Print Timetable</DropdownMenuItem>
-                                <DropdownMenuItem><FileDown className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('Print')}><Printer className="mr-2 h-4 w-4" /> Print Timetable</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
