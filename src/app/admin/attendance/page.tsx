@@ -161,14 +161,18 @@ function LowAttendanceAlerts() {
 }
 
 export default function AdminAttendancePage() {
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(),
-  });
+  const [date, setDate] = React.useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [classFilter, setClassFilter] = React.useState('All Classes');
   const [teacherFilter, setTeacherFilter] = React.useState('All Teachers');
   const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'All Statuses'>('All Statuses');
+
+  React.useEffect(() => {
+    setDate({
+        from: new Date(),
+        to: new Date()
+    })
+  }, [])
 
   const filteredRecords = MOCK_RECORDS.filter(record => {
       const recordDate = new Date(record.date);
