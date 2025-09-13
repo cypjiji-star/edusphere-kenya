@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User, Star, TrendingUp, Clock, Smile } from 'lucide-react';
+import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User, Star, TrendingUp, Clock, Smile, X } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
 
 const faqs = [
   {
@@ -86,7 +87,7 @@ type Ticket = {
     lastUpdate: string 
 };
 
-const mockTickets: Ticket[] = [
+const initialMockTickets: Ticket[] = [
     { id: 'TKT-001', subject: 'Unable to export student list to PDF', category: 'Technical Issue', priority: 'High', status: 'In Progress', lastUpdate: '2024-07-28' },
     { id: 'TKT-002', subject: 'Feature Request: Add SMS notifications for library books', category: 'Feature Request', priority: 'Medium', status: 'Open', lastUpdate: '2024-07-27' },
     { id: 'TKT-003', subject: 'Question about billing for Term 2', category: 'Billing', priority: 'Low', status: 'Resolved', lastUpdate: '2024-07-26' },
@@ -137,6 +138,13 @@ export default function SupportPage() {
     const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
     const [faqSearchTerm, setFaqSearchTerm] = React.useState('');
     const [feedbackRating, setFeedbackRating] = React.useState(0);
+    const [mockTickets, setMockTickets] = React.useState(initialMockTickets);
+    const [category, setCategory] = React.useState<TicketCategory | undefined>();
+    const [priority, setPriority] = React.useState<TicketPriority | undefined>();
+    const [subject, setSubject] = React.useState('');
+    const [description, setDescription] = React.useState('');
+    const [attachment, setAttachment] = React.useState<File | null>(null);
+    const { toast } = useToast();
 
     const filteredFaqs = React.useMemo(() => {
         if (!faqSearchTerm) return faqs;
@@ -149,6 +157,50 @@ export default function SupportPage() {
             return { ...category, questions: filteredQuestions };
         }).filter(category => category.questions.length > 0);
     }, [faqSearchTerm]);
+    
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+          setAttachment(event.target.files[0]);
+        }
+    };
+    
+    const handleRemoveFile = () => {
+        setAttachment(null);
+    };
+
+    const handleSubmitTicket = () => {
+        if (!subject || !description || !category || !priority) {
+            toast({
+                variant: 'destructive',
+                title: 'Missing Information',
+                description: 'Please fill out all required fields before submitting.',
+            });
+            return;
+        }
+
+        const newTicket: Ticket = {
+            id: `TKT-00${mockTickets.length + 4}`,
+            subject,
+            category,
+            priority,
+            status: 'Open',
+            lastUpdate: new Date().toISOString().split('T')[0],
+        };
+
+        setMockTickets(prev => [newTicket, ...prev]);
+        
+        // Reset form
+        setSubject('');
+        setDescription('');
+        setCategory(undefined);
+        setPriority(undefined);
+        setAttachment(null);
+
+        toast({
+            title: 'Ticket Submitted!',
+            description: 'Our support team will get back to you shortly.',
+        });
+    };
 
     return (
     <Dialog onOpenChange={(open) => !open && setSelectedTicket(null)}>
@@ -216,57 +268,68 @@ export default function SupportPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="ticket-category">Category</Label>
-                                    <Select>
+                                    <Select value={category} onValueChange={(v: TicketCategory) => setCategory(v)}>
                                         <SelectTrigger id="ticket-category">
                                             <SelectValue placeholder="Select a category..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="technical">Technical Issue</SelectItem>
-                                            <SelectItem value="billing">Billing Question</SelectItem>
-                                            <SelectItem value="feature">Feature Request</SelectItem>
-                                            <SelectItem value="other">Other</SelectItem>
+                                            <SelectItem value="Technical Issue">Technical Issue</SelectItem>
+                                            <SelectItem value="Billing">Billing Question</SelectItem>
+                                            <SelectItem value="Feature Request">Feature Request</SelectItem>
+                                            <SelectItem value="Other">Other</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="ticket-priority">Priority</Label>
-                                    <Select>
+                                    <Select value={priority} onValueChange={(v: TicketPriority) => setPriority(v)}>
                                         <SelectTrigger id="ticket-priority">
                                             <SelectValue placeholder="Set a priority level..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="low">Low</SelectItem>
-                                            <SelectItem value="medium">Medium</SelectItem>
-                                            <SelectItem value="high">High</SelectItem>
-                                            <SelectItem value="urgent">Urgent</SelectItem>
+                                            <SelectItem value="Low">Low</SelectItem>
+                                            <SelectItem value="Medium">Medium</SelectItem>
+                                            <SelectItem value="High">High</SelectItem>
+                                            <SelectItem value="Urgent">Urgent</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="ticket-subject">Subject</Label>
-                                <Input id="ticket-subject" placeholder="e.g., Unable to export student list" />
+                                <Input id="ticket-subject" placeholder="e.g., Unable to export student list" value={subject} onChange={(e) => setSubject(e.target.value)} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="ticket-description">Description</Label>
-                                <Textarea id="ticket-description" placeholder="Please provide as much detail as possible..." className="min-h-[150px]" />
+                                <Textarea id="ticket-description" placeholder="Please provide as much detail as possible..." className="min-h-[150px]" value={description} onChange={(e) => setDescription(e.target.value)} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Attach Screenshot/File</Label>
-                                <div className="flex items-center justify-center w-full">
-                                    <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                            <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                                            <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                                            <p className="text-xs text-muted-foreground">(Feature coming soon)</p>
+                                {attachment ? (
+                                    <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-sm font-medium">
+                                            <Paperclip className="h-5 w-5 text-primary" />
+                                            <span className="truncate">{attachment.name}</span>
                                         </div>
-                                        <Input id="dropzone-file" type="file" className="hidden" disabled />
-                                    </Label>
-                                </div>
+                                        <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
+                                            <X className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center w-full">
+                                        <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                            </div>
+                                            <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} />
+                                        </Label>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                         <CardFooter>
-                            <Button disabled>Submit Ticket</Button>
+                            <Button onClick={handleSubmitTicket}>Submit Ticket</Button>
                         </CardFooter>
                     </Card>
                     
@@ -497,4 +560,3 @@ export default function SupportPage() {
     </Dialog>
   );
 }
-
