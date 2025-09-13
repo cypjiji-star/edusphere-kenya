@@ -11,6 +11,7 @@ import Link from 'next/link';
 import * as React from 'react';
 import { mockTimetableData, periods, days } from '@/app/admin/timetable/timetable-data';
 import type { Subject } from '@/app/admin/timetable/timetable-data';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 type TimetableEntry = {
   startTime: string; // HH:MM
@@ -60,7 +61,6 @@ export function TimetableWidget() {
             }
             // Return a placeholder for empty slots if needed, or filter them out
             // For this implementation, we will assume empty slots are just empty.
-            // A "Free Period" could be an alternative.
             return {
                 startTime,
                 endTime,
@@ -103,33 +103,37 @@ export function TimetableWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {todaySchedule.map((event, index) => {
-            const isCurrent = clientReady && isCurrentClass(event);
-            return (
-              <div
-                key={index}
-                className={cn(
-                  'flex items-start gap-4 p-3 rounded-lg transition-all',
-                  isCurrent && !event.isBreak && 'bg-primary/10 ring-2 ring-primary/50'
-                )}
-              >
-                <div className="text-sm font-bold text-primary w-24">
-                  {event.startTime} - {event.endTime}
+        <ScrollArea className="w-full">
+            <div className="flex space-x-4 pb-4">
+            {todaySchedule.map((event, index) => {
+                const isCurrent = clientReady && isCurrentClass(event);
+                return (
+                <div
+                    key={index}
+                    className={cn(
+                    'flex flex-col items-center justify-center p-3 rounded-lg transition-all w-32 shrink-0 h-32',
+                    isCurrent && !event.isBreak ? 'bg-primary/10 ring-2 ring-primary/50' : 'bg-muted/50',
+                    event.isBreak && 'bg-muted/20'
+                    )}
+                >
+                    <div className="text-xs font-bold text-primary">
+                    {event.startTime}
+                    </div>
+                    <div className="flex-1 flex flex-col items-center justify-center text-center">
+                    <p className="font-semibold text-sm leading-tight">{event.title}</p>
+                    {!event.isBreak && <p className="text-xs text-muted-foreground">{event.location}</p>}
+                    </div>
+                    {isCurrent && !event.isBreak && (
+                    <Badge variant="default" className="mt-auto">
+                        Ongoing
+                    </Badge>
+                    )}
                 </div>
-                <div className="flex-1 space-y-1">
-                  <p className="font-semibold text-sm">{event.title}</p>
-                  <p className="text-xs text-muted-foreground">{event.location}</p>
-                </div>
-                {isCurrent && !event.isBreak && (
-                  <Badge variant="default" className="h-6">
-                    Ongoing
-                  </Badge>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                );
+            })}
+            </div>
+            <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">

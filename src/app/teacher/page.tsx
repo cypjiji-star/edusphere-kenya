@@ -72,13 +72,13 @@ export default function TeacherDashboard() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
+            <TimetableWidget />
             <DashboardCharts />
             <MessagesWidget />
         </div>
         <div className="lg:col-span-1 space-y-8">
             <PendingTasksWidget />
             <AbsentStudentsWidget />
-            <TimetableWidget />
             <LibraryNoticesWidget />
         </div>
       </div>
