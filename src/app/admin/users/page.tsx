@@ -51,6 +51,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent';
@@ -110,10 +111,18 @@ export default function UserManagementPage() {
     const [classFilter, setClassFilter] = React.useState('All Classes');
     const [yearFilter, setYearFilter] = React.useState('All Years');
     const [clientReady, setClientReady] = React.useState(false);
+    const { toast } = useToast();
     
     React.useEffect(() => {
         setClientReady(true);
     }, []);
+
+    const handleCreateUser = () => {
+        toast({
+            title: 'User Created',
+            description: 'A new user account has been created and an invitation has been sent.',
+        });
+    };
 
     const renderUserTable = (roleFilter: UserRole | 'All') => {
         const filteredUsers = mockUsers.filter(user => {
@@ -403,7 +412,9 @@ export default function UserManagementPage() {
                                     </div>
                                     <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <Button>Create & Send Invite</Button>
+                                        <DialogClose asChild>
+                                            <Button onClick={handleCreateUser}>Create & Send Invite</Button>
+                                        </DialogClose>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
