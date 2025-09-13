@@ -238,7 +238,7 @@ export default function ParentGradesPage() {
                                     <TableCell className="text-muted-foreground text-sm">
                                         <div className="flex items-center justify-between">
                                             <span>{subject.comment}</span>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                                                 <MessageCircle className="h-4 w-4"/>
                                             </Button>
                                         </div>
