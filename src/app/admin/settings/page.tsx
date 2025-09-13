@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw, LayoutDashboard, Brush, AlertCircle, History } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail, RefreshCcw, LayoutDashboard, Brush, AlertCircle, History, Wand2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -301,6 +301,22 @@ export default function SettingsPage() {
                             <LinkIcon className="mr-2 h-4 w-4"/>
                             Manage
                         </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Wand2 className="h-5 w-5 text-primary"/>AI & Automation</CardTitle>
+                    <CardDescription>Manage AI-powered features and integrations.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="ai-chatbot" className="font-semibold">Enable AI Support Chatbot</Label>
+                            <p className="text-xs text-muted-foreground">Provide instant assistance to users via an AI-powered chatbot.</p>
+                        </div>
+                        <Switch id="ai-chatbot" disabled />
                     </div>
                 </CardContent>
             </Card>
