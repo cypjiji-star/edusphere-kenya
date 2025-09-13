@@ -57,6 +57,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ClassAnalytics } from './class-analytics';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 // A simple deterministic "random" number generator based on a seed
 const seededRandom = (seed: number) => {
@@ -143,6 +145,11 @@ export default function StudentsPage() {
   const [isAddStudentOpen, setIsAddStudentOpen] = React.useState(false);
 
   const studentsForCurrentTab = allClassStudents[activeTab] || [];
+  
+  const filteredStudents = 
+    studentsForCurrentTab.filter(student =>
+      student.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setAllClassStudents(prevAllStudents => {
@@ -196,6 +203,43 @@ export default function StudentsPage() {
     setNewStudentName('');
     setIsAddStudentOpen(false);
   };
+  
+  const handleExport = (type: 'PDF' | 'CSV') => {
+    const doc = new jsPDF();
+    const tableData = filteredStudents.map(student => [
+        student.name,
+        student.rollNumber,
+        student.overallGrade,
+        student.attendance.charAt(0).toUpperCase() + student.attendance.slice(1),
+    ]);
+
+    if (type === 'CSV') {
+        const headers = ['Name', 'Roll Number', 'Overall Grade', 'Attendance Status'];
+        const csvContent = [
+            headers.join(','),
+            ...tableData.map(row => row.join(','))
+        ].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `${activeTab}-roster.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    } else {
+         doc.text(`${teacherClasses.find(c => c.id === activeTab)?.name} Roster`, 14, 16);
+         (doc as any).autoTable({
+            startY: 22,
+            head: [['Name', 'Roll Number', 'Overall Grade', 'Attendance Status']],
+            body: tableData,
+         });
+         doc.save(`${activeTab}-roster.pdf`);
+    }
+  };
 
   const getAttendanceBadge = (status: AttendanceStatus, isTrigger: boolean = false) => {
     switch (status) {
@@ -207,11 +251,6 @@ export default function StudentsPage() {
             return <Badge variant="secondary" className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"><Clock className="mr-2 h-4 w-4"/>Late</Badge>;
     }
   }
-
-  const filteredStudents = 
-    studentsForCurrentTab.filter(student =>
-      student.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -300,13 +339,13 @@ export default function StudentsPage() {
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                             <DropdownMenuItem>
+                             <DropdownMenuItem onClick={() => handleExport('PDF')}>
                                 <FileDown className="mr-2" />
                                 Download as PDF
                             </DropdownMenuItem>
-                             <DropdownMenuItem>
+                             <DropdownMenuItem onClick={() => handleExport('CSV')}>
                                 <FileDown className="mr-2" />
-                                Download as Excel
+                                Download as CSV
                             </DropdownMenuItem>
                              <DropdownMenuItem>
                                 <Printer className="mr-2" />
