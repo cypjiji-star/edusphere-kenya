@@ -10,7 +10,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive } from 'lucide-react';
+import { Settings, Save, Bell, Shield, Book, Clock, Link as LinkIcon, Download, KeyRound, Globe, Languages, Edit, ArrowRight, Database, Archive, Mail } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -179,6 +179,42 @@ export default function SettingsPage() {
                             <p className="text-xs text-muted-foreground">Require a second verification step for admins and teachers.</p>
                         </div>
                         <Switch id="2fa" disabled />
+                    </div>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Communication Settings</CardTitle>
+                    <CardDescription>Manage how the portal sends notifications and messages.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="sms-gateway" className="font-semibold">SMS Gateway</Label>
+                            <p className="text-xs text-muted-foreground">Connect a provider like Africa's Talking for bulk SMS.</p>
+                        </div>
+                        <Button variant="secondary" disabled>
+                            <LinkIcon className="mr-2 h-4 w-4"/>
+                            Connect
+                        </Button>
+                    </div>
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="email-config" className="font-semibold">Email Configuration</Label>
+                            <p className="text-xs text-muted-foreground">Set the sender name and logo for outgoing emails.</p>
+                        </div>
+                        <Button variant="secondary" disabled>
+                            <Mail className="mr-2 h-4 w-4"/>
+                            Configure
+                        </Button>
+                    </div>
+                    <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
+                        <div>
+                            <Label htmlFor="push-notifications" className="font-semibold">Enable Push Notifications</Label>
+                            <p className="text-xs text-muted-foreground">Allow the portal to send real-time push notifications.</p>
+                        </div>
+                        <Switch id="push-notifications" disabled />
                     </div>
                 </CardContent>
             </Card>
