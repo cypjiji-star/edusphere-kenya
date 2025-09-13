@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -54,7 +54,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent';
-type UserStatus = 'Active' | 'Pending' | 'Suspended';
+type UserStatus = 'Active' | 'Pending' | 'Suspended' | 'Transferred' | 'Graduated';
 type ParentRelationship = 'Father' | 'Mother' | 'Guardian';
 
 type ParentLink = {
@@ -84,9 +84,11 @@ const mockUsers: User[] = [
     { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z', createdAt: '2024-02-01T10:00:00Z', class: 'Form 4', parents: [{ id: 'usr-5', name: 'Joseph Kariuki', relationship: 'Father', contact: '0722123456' }] },
     { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never', createdAt: '2024-02-01T10:01:00Z' },
     { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Suspended', lastLogin: '2024-06-10T08:00:00Z', createdAt: '2024-02-05T14:00:00Z', class: 'Form 3' },
+    { id: 'usr-7', name: 'Alumni Student', email: 'alumni.student@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/alumni1/100', role: 'Student', status: 'Graduated', lastLogin: '2023-11-20T08:00:00Z', createdAt: '2020-02-01T10:00:00Z', class: 'Alumni' },
+    { id: 'usr-8', name: 'Transferred Student', email: 'transfer.student@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/transfer1/100', role: 'Student', status: 'Transferred', lastLogin: '2024-05-10T08:00:00Z', createdAt: '2022-02-01T10:00:00Z', class: 'Form 2' },
 ];
 
-const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended'];
+const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended', 'Transferred', 'Graduated'];
 const roles: UserRole[] = ['Admin', 'Teacher', 'Student', 'Parent'];
 const classes = ['Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const relationships: ParentRelationship[] = ['Father', 'Mother', 'Guardian'];
@@ -96,6 +98,8 @@ const getStatusBadge = (status: UserStatus) => {
         case 'Active': return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white"><CheckCircle className="mr-1 h-3 w-3"/>Active</Badge>;
         case 'Pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600"><Clock className="mr-1 h-3 w-3"/>Pending</Badge>;
         case 'Suspended': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Suspended</Badge>;
+        case 'Transferred': return <Badge variant="outline"><ArrowRight className="mr-1 h-3 w-3"/>Transferred</Badge>;
+        case 'Graduated': return <Badge variant="outline" className="border-purple-500 text-purple-500"><GraduationCap className="mr-1 h-3 w-3"/>Graduated</Badge>;
     }
 }
 
@@ -150,7 +154,16 @@ export default function UserManagementPage() {
                                         </TableCell>
                                         <TableCell>{user.email}</TableCell>
                                         <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
-                                        <TableCell>{getStatusBadge(user.status)}</TableCell>
+                                        <TableCell>
+                                            <Select defaultValue={user.status}>
+                                                <SelectTrigger className="w-[150px] h-8 text-xs [&>span]:flex [&>span]:items-center [&>span]:gap-1">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {statuses.filter(s => s !== 'All Statuses').map(status => <SelectItem key={status} value={status} className="text-xs">{getStatusBadge(status as UserStatus)}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
                                         <TableCell>
                                             {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
                                         </TableCell>
@@ -469,3 +482,5 @@ export default function UserManagementPage() {
         </div>
     );
 }
+
+    
