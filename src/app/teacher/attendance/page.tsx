@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { addDays, format, eachDayOfInterval, isBefore, startOfToday, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock, Bell } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock, Bell, UserCheck, UserX } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
@@ -170,10 +170,17 @@ export default function AttendancePage() {
 
   const attendanceSummary = React.useMemo(() => {
     const totalStudents = students.length;
-    if (totalStudents === 0) return { present: 0 };
+    if (totalStudents === 0) return { present: 0, presentCount: 0, absentCount: 0, lateCount: 0 };
+    
     const presentCount = students.filter(s => s.status === 'present').length;
+    const absentCount = students.filter(s => s.status === 'absent').length;
+    const lateCount = students.filter(s => s.status === 'late').length;
+
     return {
-      present: Math.round((presentCount / totalStudents) * 100),
+      present: Math.round(((presentCount + lateCount) / totalStudents) * 100),
+      presentCount,
+      absentCount,
+      lateCount
     };
   }, [students]);
 
@@ -272,26 +279,45 @@ export default function AttendancePage() {
                 </DropdownMenu>
               </div>
             </div>
-            {!isRange && (
-                 <Card className="mt-4 bg-muted/50">
-                    <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Percent className="h-5 w-5 text-primary"/>
-                            Today's Summary
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex items-center gap-6">
-                        <div>
-                            <p className="text-2xl font-bold">{attendanceSummary.present}%</p>
-                            <p className="text-sm text-muted-foreground">Present Today</p>
-                        </div>
-                        <Separator orientation="vertical" className="h-10"/>
-                         <div>
-                            <p className="text-2xl font-bold text-muted-foreground/70">88%</p>
-                            <p className="text-sm text-muted-foreground">Class Average</p>
-                        </div>
-                    </CardContent>
-                </Card>
+             {!isRange && (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-4">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Overall Attendance</CardTitle>
+                            <Percent className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{attendanceSummary.present}%</div>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Present</CardTitle>
+                            <UserCheck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{attendanceSummary.presentCount}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Absent</CardTitle>
+                            <UserX className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-destructive">{attendanceSummary.absentCount}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Late</CardTitle>
+                            <UserCheck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-yellow-600">{attendanceSummary.lateCount}</div>
+                        </CardContent>
+                    </Card>
+                </div>
             )}
         </CardHeader>
         <CardContent>
@@ -459,5 +485,7 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
 
     
