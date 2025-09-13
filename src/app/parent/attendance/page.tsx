@@ -27,6 +27,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Table,
@@ -45,6 +51,8 @@ import {
   UserCheck,
   UserX,
   AlertTriangle,
+  ChevronDown,
+  FileDown,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -140,17 +148,7 @@ export default function ParentAttendancePage() {
                             </SelectContent>
                         </Select>
                     </div>
-                     <div className="flex w-full md:w-auto items-center gap-2">
-                         <Select defaultValue="this-week" disabled>
-                            <SelectTrigger className="w-full md:w-auto">
-                                <SelectValue placeholder="Select period" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="this-week">This Week</SelectItem>
-                                <SelectItem value="this-month">This Month</SelectItem>
-                                <SelectItem value="custom">Custom Range</SelectItem>
-                            </SelectContent>
-                         </Select>
+                     <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2">
                         <Popover>
                             <PopoverTrigger asChild>
                             <Button
@@ -168,16 +166,18 @@ export default function ParentAttendancePage() {
                             <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
                             </PopoverContent>
                         </Popover>
-                         <Select defaultValue="daily">
-                            <SelectTrigger className="w-full md:w-auto">
-                                <SelectValue placeholder="Select view" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="daily">Daily View</SelectItem>
-                                <SelectItem value="weekly" disabled>Weekly View</SelectItem>
-                                <SelectItem value="monthly" disabled>Monthly View</SelectItem>
-                            </SelectContent>
-                         </Select>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full sm:w-auto" disabled>
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    Export
+                                    <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem disabled>Export as PDF</DropdownMenuItem>
+                            </DropdownMenuContent>
+                         </DropdownMenu>
                     </div>
                 </div>
             </CardHeader>
