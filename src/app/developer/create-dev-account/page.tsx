@@ -74,9 +74,30 @@ export default function CreateDeveloperAccountPage() {
 
     } catch (error: any) {
       console.error('Error creating developer account:', error);
+      
+      let title = 'Registration Failed';
+      let description = 'An unknown error occurred. Please check the console for details.';
+
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          title = 'Email Already Registered';
+          description = 'This email address is already in use by another account.';
+          break;
+        case 'auth/invalid-email':
+          title = 'Invalid Email';
+          description = 'Please enter a valid email address.';
+          break;
+        case 'auth/weak-password':
+          title = 'Weak Password';
+          description = 'Your password is too weak. Please use a stronger password (at least 8 characters).';
+          break;
+        default:
+          description = error.message;
+      }
+      
       toast({
-        title: 'Registration Failed',
-        description: error.message || 'An unknown error occurred.',
+        title: title,
+        description: description,
         variant: 'destructive',
       });
     } finally {
