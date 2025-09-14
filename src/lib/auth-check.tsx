@@ -8,7 +8,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, firestore } from './firebase';
 
 type AllowedRole = 'admin' | 'teacher' | 'parent' | 'developer';
@@ -34,11 +34,11 @@ export function AuthCheck({
         
         try {
             if (requiredRole === 'developer') {
-                // For developers, check the global `roles` collection using their UID.
-                const roleDocRef = doc(firestore, 'roles', authUser.uid);
-                const roleDocSnap = await getDoc(roleDocRef);
-                if (roleDocSnap.exists()) {
-                    fetchedRole = roleDocSnap.data().role;
+                // For developers, check the global `developers` collection.
+                const q = query(collection(firestore, 'developers'), where('uid', '==', authUser.uid));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    fetchedRole = querySnapshot.docs[0].data().role;
                 }
             } else {
                 // For all other roles, require a schoolId and check within that school's `users` collection.
