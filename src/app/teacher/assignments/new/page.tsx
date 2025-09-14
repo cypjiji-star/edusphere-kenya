@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   Card,
   CardContent,
@@ -10,13 +12,16 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { AssignmentForm } from './assignment-form';
+import { useSearchParams } from 'next/navigation';
 
 export default function NewAssignmentPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   return (
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
         <Button asChild variant="outline" size="sm">
-            <Link href="/teacher/assignments">
+            <Link href={`/teacher/assignments?schoolId=${schoolId}`}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Assignments
             </Link>

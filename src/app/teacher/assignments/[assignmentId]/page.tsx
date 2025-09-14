@@ -45,6 +45,7 @@ import { Separator } from '@/components/ui/separator';
 import { firestore } from '@/lib/firebase';
 import { doc, getDoc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 const getStatusBadge = (status: Submission['status']) => {
@@ -59,6 +60,8 @@ const getStatusBadge = (status: Submission['status']) => {
 export default function AssignmentSubmissionsPage({ params }: { params: { assignmentId: string } }) {
   const { assignmentId } = params;
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
 
   const [assignmentDetails, setAssignmentDetails] = React.useState<DocumentData | null>(null);
   const [submissions, setSubmissions] = React.useState<Submission[]>([]);
@@ -71,10 +74,12 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
 
 
   React.useEffect(() => {
+    if (!assignmentId || !schoolId) return;
+
     setClientReady(true);
     setIsLoading(true);
 
-    const assignmentRef = doc(firestore, 'assignments', assignmentId);
+    const assignmentRef = doc(firestore, `schools/${schoolId}/assignments`, assignmentId);
     const unsubAssignment = onSnapshot(assignmentRef, (docSnap) => {
         if (docSnap.exists()) {
             setAssignmentDetails(docSnap.data());
@@ -83,7 +88,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
         }
     });
 
-    const submissionsQuery = query(collection(firestore, 'assignments', assignmentId, 'submissions'));
+    const submissionsQuery = query(collection(firestore, `schools/${schoolId}/assignments`, assignmentId, 'submissions'));
     const unsubSubmissions = onSnapshot(submissionsQuery, async (snapshot) => {
         const subs: Submission[] = await Promise.all(snapshot.docs.map(async (doc) => {
             const data = doc.data();
@@ -106,7 +111,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
         unsubAssignment();
         unsubSubmissions();
     }
-  }, [assignmentId, toast]);
+  }, [assignmentId, schoolId, toast]);
 
   const handleGradeSave = (studentId: string, grade: string) => {
     setSubmissions(prev => 
@@ -153,7 +158,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
 
        <div className="mb-6">
         <Button asChild variant="outline" size="sm">
-            <Link href="/teacher/assignments">
+            <Link href={`/teacher/assignments?schoolId=${schoolId}`}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to All Assignments
             </Link>

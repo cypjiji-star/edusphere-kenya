@@ -25,6 +25,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 export type Assignment = {
   id: string;
@@ -44,16 +45,20 @@ const teacherClasses = [
 
 
 export default function AssignmentsPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [allAssignments, setAllAssignments] = React.useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [filteredClass, setFilteredClass] = React.useState('All Classes');
   const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     setClientReady(true);
     const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
     
-    const q = query(collection(firestore, 'assignments'), where('teacherId', '==', teacherId));
+    const q = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedAssignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assignment));
@@ -65,7 +70,7 @@ export default function AssignmentsPage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const assignments = allAssignments.filter(assignment => 
     filteredClass === 'All Classes' || assignment.className === filteredClass
@@ -79,7 +84,7 @@ export default function AssignmentsPage() {
             <p className="text-muted-foreground">Create, view, and grade offline student assignments.</p>
           </div>
           <Button asChild className="w-full md:w-auto">
-            <Link href="/teacher/assignments/new">
+            <Link href={`/teacher/assignments/new?schoolId=${schoolId}`}>
               <PlusCircle className="mr-2" />
               Create Assignment
             </Link>
@@ -133,7 +138,7 @@ export default function AssignmentsPage() {
               </CardContent>
               <CardFooter>
                  <Button asChild variant="outline" className="w-full">
-                    <Link href={`/teacher/assignments/${assignment.id}`}>
+                    <Link href={`/teacher/assignments/${assignment.id}?schoolId=${schoolId}`}>
                         Track & Grade
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
@@ -150,7 +155,7 @@ export default function AssignmentsPage() {
                 <h3 className="mt-4 text-xl font-semibold">No Assignments Found</h3>
                 <p className="mt-2 text-sm text-muted-foreground">No assignments match your current filter. Why not create one?</p>
                   <Button asChild className="mt-6">
-                    <Link href="/teacher/assignments/new">
+                    <Link href={`/teacher/assignments/new?schoolId=${schoolId}`}>
                       <PlusCircle className="mr-2" />
                       Create a New Assignment
                     </Link>
