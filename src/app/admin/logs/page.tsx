@@ -95,25 +95,19 @@ export default function AuditLogsPage() {
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+        setIsLoading(false);
+        return;
+    };
 
     setIsLoading(true);
-    const q = query(collection(firestore, 'schools', schoolId, 'notifications'), orderBy('createdAt', 'desc'));
+    const q = query(collection(firestore, `schools/${schoolId}/audit_logs`), orderBy('timestamp', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedLogs = snapshot.docs.map(doc => {
-            const data = doc.data();
-            const category = data.href?.split('/')[2]?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()).split(' ')[0] || 'General';
-            
-            return { 
-                id: doc.id,
-                description: data.title,
-                details: data.description,
-                actionType: category,
-                user: { name: 'System', avatarUrl: '' },
-                timestamp: data.createdAt,
-            } as AuditLog;
-        });
+        const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
         setLogs(fetchedLogs);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching audit logs: ", error);
         setIsLoading(false);
     });
 

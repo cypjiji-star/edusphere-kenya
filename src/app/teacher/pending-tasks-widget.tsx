@@ -28,11 +28,15 @@ export function PendingTasksWidget() {
     const schoolId = searchParams.get('schoolId');
     const [tasks, setTasks] = React.useState<AssignmentTask[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId) {
+            setIsLoading(false);
+            return;
+        };
 
-        const teacherId = 'teacher-wanjiku'; // This should be dynamic
+        setIsLoading(true);
         const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
 
         const unsubscribe = onSnapshot(assignmentsQuery, (snapshot) => {
@@ -52,6 +56,9 @@ export function PendingTasksWidget() {
                 }
             });
             setTasks(fetchedTasks.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()));
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching tasks: ", error);
             setIsLoading(false);
         });
 

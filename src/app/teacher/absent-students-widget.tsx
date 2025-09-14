@@ -9,7 +9,7 @@ import { UserX, ArrowRight, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, getDocs, Timestamp, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, Timestamp, onSnapshot, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -26,64 +26,48 @@ export function AbsentStudentsWidget() {
     const schoolId = searchParams.get('schoolId');
     const [absentStudents, setAbsentStudents] = React.useState<AbsentStudent[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const teacherId = 'teacher-wanjiku'; // Placeholder for dynamic teacher ID
 
     React.useEffect(() => {
         if (!schoolId) return;
 
-        const fetchAbsentStudents = async () => {
-            setIsLoading(true);
-            const today = new Date();
-            const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-            const teacherId = 'teacher-wanjiku'; // Replace with actual logged-in teacher ID
+        setIsLoading(true);
+        const today = new Date();
+        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
 
-            try {
-                // First get all classes taught by this teacher
-                const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
-                const classesSnapshot = await getDocs(classesQuery);
-                const classIds = classesSnapshot.docs.map(doc => doc.id);
+        const attendanceQuery = query(
+            collection(firestore, `schools/${schoolId}/attendance`),
+            where('date', '>=', Timestamp.fromDate(startOfToday)),
+            where('status', 'in', ['absent', 'late']),
+            where('teacherId', '==', teacherId)
+        );
 
-                if (classIds.length === 0) {
-                    setIsLoading(false);
-                    return;
-                }
-
-                // Query attendance subcollections for all students who belong to this teacher's classes
-                const attendanceQuery = query(
-                    collection(firestore, `schools/${schoolId}/attendance`),
-                    where('date', '>=', Timestamp.fromDate(startOfToday)),
-                    where('status', 'in', ['absent', 'late'])
-                );
-
-                const attendanceSnapshot = await getDocs(attendanceQuery);
-                const absentStudentData: AbsentStudent[] = [];
-
-                for (const doc of attendanceSnapshot.docs) {
-                    const attendance = doc.data();
-                    const studentDoc = await getDocs(query(collection(firestore, `schools/${schoolId}/students`), where('id', '==', attendance.studentId)));
-
-                    if (!studentDoc.empty) {
-                        const studentData = studentDoc.docs[0].data();
-                        if (classIds.includes(studentData.classId)) {
-                             absentStudentData.push({
-                                id: studentData.id,
-                                name: studentData.name,
-                                avatarUrl: studentData.avatarUrl,
-                                className: studentData.class,
-                                attendance: attendance.status as 'absent' | 'late',
-                            });
-                        }
+        const unsubscribe = onSnapshot(attendanceQuery, async (snapshot) => {
+            const absentStudentData: AbsentStudent[] = [];
+            for (const doc of snapshot.docs) {
+                const attendance = doc.data();
+                const studentRef = attendance.studentRef; // Assuming studentRef is a DocumentReference
+                
+                // Assuming studentRef is not directly on attendance, but studentId is.
+                if (attendance.studentId) {
+                    const studentDocSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, attendance.studentId));
+                    if (studentDocSnap.exists()) {
+                         const studentData = studentDocSnap.data();
+                         absentStudentData.push({
+                            id: studentData.id,
+                            name: studentData.name,
+                            avatarUrl: studentData.avatarUrl,
+                            className: studentData.class,
+                            attendance: attendance.status as 'absent' | 'late',
+                        });
                     }
                 }
-
-                setAbsentStudents(absentStudentData);
-            } catch (error) {
-                console.error("Error fetching absent students:", error);
-            } finally {
-                setIsLoading(false);
             }
-        };
+            setAbsentStudents(absentStudentData);
+            setIsLoading(false);
+        });
 
-        fetchAbsentStudents();
+        return () => unsubscribe();
     }, [schoolId]);
 
   return (

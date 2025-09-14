@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -19,7 +18,7 @@ import { MessagesWidget } from './messages-widget';
 import { DashboardCharts } from './dashboard-charts';
 import { LibraryNoticesWidget } from './library-notices-widget';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 export default function TeacherDashboard() {
@@ -32,6 +31,7 @@ export default function TeacherDashboard() {
     const [avgScore, setAvgScore] = React.useState(0);
     const [isLoading, setIsLoading] = React.useState(true);
     const [user, setUser] = React.useState(auth.currentUser);
+    const teacherId = 'teacher-wanjiku'; // Placeholder for dynamic teacher ID
 
     React.useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -39,7 +39,10 @@ export default function TeacherDashboard() {
     }, []);
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId) {
+            setIsLoading(false);
+            return;
+        }
 
         const schoolRef = doc(firestore, 'schools', schoolId);
         getDoc(schoolRef).then(docSnap => {
@@ -48,56 +51,54 @@ export default function TeacherDashboard() {
             }
         });
 
-        async function fetchDashboardData() {
-            try {
-                const teacherId = 'teacher-wanjiku'; // This should be dynamic
+        // Listener for total students
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId));
+        const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+            setTotalStudents(snapshot.size);
+        });
 
-                // Fetch students to calculate total
-                const studentsSnapshot = await getDocs(query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId)));
-                const studentsCount = studentsSnapshot.size;
-                setTotalStudents(studentsCount);
-
-                // Fetch assignments to calculate ungraded
-                const assignmentsSnapshot = await getDocs(query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId)));
-                let ungradedCount = 0;
-                assignmentsSnapshot.forEach(doc => {
-                    const assignment = doc.data();
-                    if (assignment.submissions < assignment.totalStudents) {
-                        ungradedCount++;
-                    }
-                });
-                setUngradedAssignments(ungradedCount);
-
-                // Fetch attendance for today
-                const today = new Date();
-                const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-                
-                const attendanceQuery = query(
-                    collection(firestore, `schools/${schoolId}/attendance`), 
-                    where('teacherId', '==', teacherId),
-                    where('date', '>=', Timestamp.fromDate(startOfToday))
-                );
-                const attendanceSnapshot = await getDocs(attendanceQuery);
-                const attendanceRecords = attendanceSnapshot.docs.map(d => d.data());
-                if (attendanceRecords.length > 0 && studentsCount > 0) {
-                    const presentCount = attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length;
-                    setAttendancePercentage(Math.round((presentCount / studentsCount) * 100));
-                } else if (studentsCount > 0) {
-                    setAttendancePercentage(100); // Assume 100 if no records for today
+        // Listener for ungraded assignments
+        const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
+        const unsubAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
+            let ungradedCount = 0;
+            snapshot.forEach(doc => {
+                const assignment = doc.data();
+                if (assignment.submissions < assignment.totalStudents) {
+                    ungradedCount++;
                 }
-                
-                // Fetch average score (mocked calculation)
-                setAvgScore(78);
+            });
+            setUngradedAssignments(ungradedCount);
+        });
 
-            } catch (error) {
-                console.error("Error fetching dashboard data:", error);
-            } finally {
-                setIsLoading(false);
+        // Listener for attendance
+        const today = new Date();
+        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+        const attendanceQuery = query(
+            collection(firestore, `schools/${schoolId}/attendance`), 
+            where('teacherId', '==', teacherId),
+            where('date', '>=', Timestamp.fromDate(startOfToday))
+        );
+        const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
+            const attendanceRecords = snapshot.docs.map(d => d.data());
+            if (totalStudents > 0) {
+                 const presentCount = attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length;
+                 setAttendancePercentage(Math.round((presentCount / totalStudents) * 100));
+            } else if (snapshot.size === 0) {
+                 setAttendancePercentage(100);
             }
-        }
+        });
 
-        fetchDashboardData();
-    }, [schoolId]);
+        // Mock average score
+        setAvgScore(78);
+        setIsLoading(false);
+
+        return () => {
+            unsubStudents();
+            unsubAssignments();
+            unsubAttendance();
+        };
+
+    }, [schoolId, totalStudents]);
 
     const quickStats = [
         {

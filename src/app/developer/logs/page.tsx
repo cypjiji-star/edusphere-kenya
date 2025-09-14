@@ -99,6 +99,9 @@ export default function AuditLogsPage() {
         const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
         setLogs(fetchedLogs);
         setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching audit logs: ", error);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();

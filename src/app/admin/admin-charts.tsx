@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { firestore } from '@/lib/firebase';
-import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -142,34 +142,31 @@ export function PerformanceSnapshot() {
 
   React.useEffect(() => {
     if (!schoolId) return;
-    const gradesQuery = query(collection(firestore, `schools/${schoolId}/assessments`));
-    const unsubscribe = onSnapshot(gradesQuery, async (snapshot) => {
-      // This is a simplified aggregation. Real-world scenarios would use a backend function.
-      const subjectScores: Record<string, { total: number, count: number}> = {};
-      
-      for(const doc of snapshot.docs) {
-          const assessment = doc.data();
-          const submissionsSnapshot = await getDocs(collection(firestore, `schools/${schoolId}/assessments`, doc.id, 'submissions'));
-          submissionsSnapshot.forEach(subDoc => {
-              const submission = subDoc.data();
-              const score = parseInt(submission.grade, 10);
-              if (!isNaN(score) && assessment.subject) {
-                  if (!subjectScores[assessment.subject]) {
-                      subjectScores[assessment.subject] = { total: 0, count: 0 };
-                  }
-                  subjectScores[assessment.subject].total += score;
-                  subjectScores[assessment.subject].count++;
-              }
-          });
-      }
 
-      const aggregatedData = Object.entries(subjectScores).map(([subject, data]) => ({
-          subject: subject,
-          avgScore: Math.round(data.total / data.count),
-      }));
+    // Listen to changes in submissions across all assessments
+    const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`));
+    const unsubscribe = onSnapshot(submissionsQuery, (snapshot) => {
+        const subjectScores: Record<string, { total: number, count: number }> = {};
+        
+        snapshot.forEach(subDoc => {
+            const submission = subDoc.data();
+            const score = parseInt(submission.grade, 10);
+            if (!isNaN(score) && submission.subject) {
+                if (!subjectScores[submission.subject]) {
+                    subjectScores[submission.subject] = { total: 0, count: 0 };
+                }
+                subjectScores[submission.subject].total += score;
+                subjectScores[submission.subject].count++;
+            }
+        });
 
-      setPerformanceData(aggregatedData);
-      setIsLoading(false);
+        const aggregatedData = Object.entries(subjectScores).map(([subject, data]) => ({
+            subject: subject,
+            avgScore: Math.round(data.total / data.count),
+        }));
+
+        setPerformanceData(aggregatedData);
+        setIsLoading(false);
     });
 
     return () => unsubscribe();
