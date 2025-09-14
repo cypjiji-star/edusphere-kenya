@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,8 +11,13 @@ import Link from 'next/link';
 
 export function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [role, setRole] = React.useState('admin');
-    const [schoolId, setSchoolId] = React.useState('');
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    
+    // The schoolId is now primarily read from the URL
+    const schoolId = searchParams.get('schoolId');
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,25 +32,12 @@ export function LoginForm() {
             router.push(`${portalPath}?schoolId=${schoolId}&role=${role}`);
         } else {
             // Handle case where schoolId is required but not provided
-            alert('A School ID is required for this role.');
+            alert('A School ID is required. Please access the login page via your school-specific URL (e.g., /login?schoolId=your-school-id).');
         }
     };
 
     return (
         <form className="grid gap-4" onSubmit={handleLogin}>
-             {role !== 'developer' && (
-                <div className="grid gap-2">
-                    <Label htmlFor="schoolId">School ID</Label>
-                    <Input
-                        id="schoolId"
-                        type="text"
-                        placeholder="e.g., edusphere-high"
-                        required={role !== 'developer'}
-                        value={schoolId}
-                        onChange={(e) => setSchoolId(e.target.value)}
-                    />
-                </div>
-            )}
             <div className="grid gap-2">
             <Label htmlFor="email">Email or Login ID</Label>
             <Input
@@ -53,6 +45,8 @@ export function LoginForm() {
                 type="email"
                 placeholder="m@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
             />
             </div>
             <div className="grid gap-2">
@@ -65,7 +59,7 @@ export function LoginForm() {
                 Forgot your password?
                 </Link>
             </div>
-            <Input id="password" type="password" required />
+            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
                 <div className="grid gap-4">
                 <Select value={role} onValueChange={setRole}>
