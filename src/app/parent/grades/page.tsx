@@ -163,7 +163,8 @@ export default function ParentGradesPage() {
   React.useEffect(() => {
     if (!schoolId) return;
     // Fetch children associated with the parent
-    const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
+    const parentId = 'parent-user-id'; // This would be the actual logged-in parent's ID.
+    const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
         setChildrenData(fetchedChildren);
