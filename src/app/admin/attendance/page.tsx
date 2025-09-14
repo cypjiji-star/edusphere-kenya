@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -7,6 +8,7 @@ import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import {
@@ -210,6 +212,8 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
 }
 
 export default function AdminAttendancePage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [classFilter, setClassFilter] = React.useState('All Classes');
@@ -225,14 +229,16 @@ export default function AdminAttendancePage() {
         to: new Date()
     })
     
-    const q = query(collection(firestore, 'attendance'));
+    if (!schoolId) return;
+
+    const q = query(collection(firestore, 'schools', schoolId, 'attendance'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
         setAllRecords(records);
     });
 
     return () => unsubscribe();
-  }, [])
+  }, [schoolId])
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
@@ -295,6 +301,10 @@ export default function AdminAttendancePage() {
   }
   const totalRecords = filteredRecords.length;
   const attendanceRate = totalRecords > 0 ? Math.round(((summaryStats.present + summaryStats.late) / totalRecords) * 100) : 0;
+  
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing from URL.</div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">

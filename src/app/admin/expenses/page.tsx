@@ -54,6 +54,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useSearchParams } from 'next/navigation';
 
 
 type ExpenseStatus = 'Paid' | 'Pending Approval' | 'Reimbursed' | 'Declined';
@@ -91,7 +92,7 @@ const formatCurrency = (amount: number) => {
 };
 
 
-function EditExpenseDialog({ expense, open, onOpenChange, onExpenseUpdated }: { expense: Expense | null, open: boolean, onOpenChange: (open: boolean) => void, onExpenseUpdated: () => void }) {
+function EditExpenseDialog({ expense, open, onOpenChange, onExpenseUpdated, schoolId }: { expense: Expense | null, open: boolean, onOpenChange: (open: boolean) => void, onExpenseUpdated: () => void, schoolId: string }) {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [category, setCategory] = React.useState<ExpenseCategory | undefined>();
     const [amount, setAmount] = React.useState('');
@@ -138,13 +139,13 @@ function EditExpenseDialog({ expense, open, onOpenChange, onExpenseUpdated }: { 
                         console.warn("Could not delete old attachment, it might not exist:", e);
                     }
                 }
-                const newFileRef = ref(storage, `expense-receipts/${attachment.name}_${Date.now()}`);
+                const newFileRef = ref(storage, `schools/${schoolId}/expense-receipts/${attachment.name}_${Date.now()}`);
                 const snapshot = await uploadBytes(newFileRef, attachment);
                 updatedAttachmentUrl = await getDownloadURL(snapshot.ref);
                 updatedHasAttachment = true;
             }
 
-            const expenseRef = doc(firestore, 'expenses', expense.id);
+            const expenseRef = doc(firestore, 'schools', schoolId, 'expenses', expense.id);
             const updatedData: Partial<Expense> = {
                 category,
                 amount: Number(amount),
@@ -269,6 +270,8 @@ function EditExpenseDialog({ expense, open, onOpenChange, onExpenseUpdated }: { 
 }
 
 export default function ExpensesPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [expenses, setExpenses] = React.useState<Expense[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [categoryFilter, setCategoryFilter] = React.useState('All Categories');
@@ -298,14 +301,15 @@ export default function ExpensesPage() {
     const form = useForm();
 
      React.useEffect(() => {
+        if (!schoolId) return;
         setClientReady(true);
-        const q = query(collection(firestore, 'expenses'));
+        const q = query(collection(firestore, 'schools', schoolId, 'expenses'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             setExpenses(fetchedExpenses);
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
     
     const filteredExpenses = expenses.filter(expense => {
         const matchesSearch = expense.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -324,7 +328,7 @@ export default function ExpensesPage() {
     };
 
     const handleSaveExpense = async () => {
-        if (!newExpenseCategory || !newExpenseAmount || !newExpenseDate || !newExpenseDescription) {
+        if (!newExpenseCategory || !newExpenseAmount || !newExpenseDate || !newExpenseDescription || !schoolId) {
             toast({ title: "Missing Information", description: "Please fill out all required fields.", variant: "destructive" });
             return;
         }
@@ -335,7 +339,7 @@ export default function ExpensesPage() {
 
         try {
             if (newExpenseAttachment) {
-                const storageRef = ref(storage, `expense-receipts/${newExpenseAttachment.name}_${Date.now()}`);
+                const storageRef = ref(storage, `schools/${schoolId}/expense-receipts/${newExpenseAttachment.name}_${Date.now()}`);
                 const snapshot = await uploadBytes(storageRef, newExpenseAttachment);
                 attachmentUrl = await getDownloadURL(snapshot.ref);
                 hasAttachment = true;
@@ -354,7 +358,7 @@ export default function ExpensesPage() {
                 attachmentUrl,
             };
 
-            await addDoc(collection(firestore, 'expenses'), expenseData);
+            await addDoc(collection(firestore, 'schools', schoolId, 'expenses'), expenseData);
 
             toast({ title: "Expense Saved", description: "Your new expense has been logged for approval." });
             resetNewExpenseForm();
@@ -369,20 +373,21 @@ export default function ExpensesPage() {
     };
     
     const handleUpdateStatus = async (expenseId: string, status: 'Paid' | 'Declined') => {
+        if (!schoolId) return;
         try {
-            const expenseRef = doc(firestore, 'expenses', expenseId);
+            const expenseRef = doc(firestore, 'schools', schoolId, 'expenses', expenseId);
             await updateDoc(expenseRef, { status });
             toast({
                 title: 'Status Updated',
                 description: `The expense has been marked as ${status}.`
             });
             
-            await addDoc(collection(firestore, 'notifications'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: `Expense ${status}`,
                 description: `Your expense report for ${formatCurrency(expenses.find(e => e.id === expenseId)?.amount || 0)} has been ${status.toLowerCase()}.`,
                 createdAt: serverTimestamp(),
                 read: false,
-                href: `/admin/expenses`,
+                href: `/admin/expenses?schoolId=${schoolId}`,
             });
             
         } catch (error) {
@@ -504,6 +509,10 @@ export default function ExpensesPage() {
             description: `Your expense records are being exported as a ${type} file.`,
         });
     };
+    
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing from URL.</div>
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -868,6 +877,7 @@ export default function ExpensesPage() {
                 onExpenseUpdated={() => {
                     // This could be a place to re-fetch data if not using realtime listeners
                 }}
+                schoolId={schoolId}
             />
         </div>
     );

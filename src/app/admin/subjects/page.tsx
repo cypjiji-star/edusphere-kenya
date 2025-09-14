@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -53,7 +54,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type SchoolClass = {
@@ -90,6 +92,8 @@ type ClassAssignment = {
 const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', 'Technical Subjects', 'Creative Arts'];
 
 export default function ClassesAndSubjectsPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
     const [classes, setClasses] = React.useState<SchoolClass[]>([]);
     const [subjects, setSubjects] = React.useState<Subject[]>([]);
@@ -97,16 +101,18 @@ export default function ClassesAndSubjectsPage() {
     const [classAssignments, setClassAssignments] = React.useState<ClassAssignment>({});
 
     React.useEffect(() => {
-        const unsubClasses = onSnapshot(collection(firestore, 'classes'), (snapshot) => {
+        if (!schoolId) return;
+
+        const unsubClasses = onSnapshot(collection(firestore, 'schools', schoolId, 'classes'), (snapshot) => {
             setClasses(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SchoolClass)));
         });
-        const unsubSubjects = onSnapshot(collection(firestore, 'subjects'), (snapshot) => {
+        const unsubSubjects = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
             setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
         });
-        const unsubTeachers = onSnapshot(query(collection(firestore, 'users'), where => where('role', '==', 'Teacher')), (snapshot) => {
+        const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher')), (snapshot) => {
             setTeachers(snapshot.docs.map(d => ({ id: d.id, name: d.data().name, avatarUrl: d.data().avatarUrl } as Teacher)));
         });
-        const unsubAssignments = onSnapshot(collection(firestore, 'class-assignments'), (snapshot) => {
+        const unsubAssignments = onSnapshot(collection(firestore, 'schools', schoolId, 'class-assignments'), (snapshot) => {
             const assignments: ClassAssignment = {};
             snapshot.forEach(doc => {
                 assignments[doc.id] = doc.data().assignments;
@@ -120,7 +126,7 @@ export default function ClassesAndSubjectsPage() {
             unsubTeachers();
             unsubAssignments();
         };
-    }, []);
+    }, [schoolId]);
     
     const teacherWorkload: Record<string, number> = React.useMemo(() => {
         const load: Record<string, number> = {};
@@ -149,13 +155,14 @@ export default function ClassesAndSubjectsPage() {
     };
 
     const handleAssignTeacher = async (classId: string, subject: string, teacherName: string) => {
+        if (!schoolId) return;
         const currentAssignments = classAssignments[classId] || [];
         const updatedAssignments = currentAssignments.map(a => 
             a.subject === subject ? { ...a, teacher: teacherName } : a
         );
 
         try {
-            await updateDoc(doc(firestore, 'class-assignments', classId), { assignments: updatedAssignments });
+            await updateDoc(doc(firestore, `schools/${schoolId}/class-assignments`, classId), { assignments: updatedAssignments });
             toast({
                 title: 'Teacher Assigned',
                 description: `${teacherName} has been assigned to teach ${subject} in this class.`
@@ -167,11 +174,12 @@ export default function ClassesAndSubjectsPage() {
     };
     
     const handleDelete = async (collectionName: string, id: string, name: string) => {
+        if (!schoolId) return;
          if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
             return;
         }
         try {
-            await deleteDoc(doc(firestore, collectionName, id));
+            await deleteDoc(doc(firestore, `schools/${schoolId}/${collectionName}`, id));
             toast({
                 title: `${collectionName === 'subjects' ? 'Subject' : 'Class'} Deleted`,
                 description: `The ${collectionName === 'subjects' ? 'subject' : 'class'} "${name}" has been deleted.`,
@@ -181,6 +189,10 @@ export default function ClassesAndSubjectsPage() {
              toast({ title: 'Deletion failed', variant: 'destructive' });
         }
     };
+    
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing from URL.</div>
+    }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">

@@ -61,6 +61,7 @@ import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, write
 import { Timestamp } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useSearchParams } from 'next/navigation';
 
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid' | 'Overdue';
@@ -123,7 +124,7 @@ const chartConfig = {
 
 type TransactionType = 'payment' | 'charge' | 'waiver' | 'refund';
 
-function NewTransactionDialog({ students, open, onOpenChange }: { students: StudentFee[], open: boolean, onOpenChange: (open: boolean) => void }) {
+function NewTransactionDialog({ students, open, onOpenChange, schoolId }: { students: StudentFee[], open: boolean, onOpenChange: (open: boolean) => void, schoolId: string }) {
     const { toast } = useToast();
     const [transactionType, setTransactionType] = React.useState<TransactionType>('payment');
     const [date, setDate] = React.useState<Date | undefined>(new Date());
@@ -155,11 +156,11 @@ function NewTransactionDialog({ students, open, onOpenChange }: { students: Stud
         const transactionAmount = Number(amount);
 
         try {
-            const studentRef = doc(firestore, 'students', studentId);
+            const studentRef = doc(firestore, 'schools', schoolId, 'students', studentId);
             const studentDoc = students.find(s => s.id === studentId);
             if (!studentDoc) throw new Error("Student not found");
             
-            const newTransactionRef = doc(collection(firestore, `students/${studentId}/transactions`));
+            const newTransactionRef = doc(collection(firestore, `schools/${schoolId}/students/${studentId}/transactions`));
 
             let newBalance = studentDoc.balance;
             let newAmountPaid = studentDoc.amountPaid;
@@ -273,19 +274,19 @@ function NewTransactionDialog({ students, open, onOpenChange }: { students: Stud
     )
 }
 
-function StudentLedgerDialog({ student, open, onOpenChange }: { student: StudentFee | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+function StudentLedgerDialog({ student, open, onOpenChange, schoolId }: { student: StudentFee | null, open: boolean, onOpenChange: (open: boolean) => void, schoolId: string }) {
     const [ledger, setLedger] = React.useState<Transaction[]>([]);
 
     React.useEffect(() => {
         if (student) {
-            const q = query(collection(firestore, `students/${student.id}/transactions`), orderBy('date', 'desc'));
+            const q = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
                 setLedger(transactions);
             });
             return () => unsubscribe();
         }
-    }, [student]);
+    }, [student, schoolId]);
 
     if (!student) return null;
 
@@ -432,6 +433,8 @@ function EditDiscountDialog({ discount, open, onOpenChange, onSave }: { discount
 }
 
 export default function FeesPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [students, setStudents] = React.useState<StudentFee[]>([]);
     const [feeStructure, setFeeStructure] = React.useState<FeeStructureItem[]>([]);
     const [discounts, setDiscounts] = React.useState<DiscountItem[]>([]);
@@ -447,28 +450,32 @@ export default function FeesPage() {
     const [isAddTransactionOpen, setIsAddTransactionOpen] = React.useState(false);
 
     React.useEffect(() => {
-        const q = query(collection(firestore, 'students'));
+        if (!schoolId) return;
+
+        const q = query(collection(firestore, 'schools', schoolId, 'students'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentFee)));
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
     React.useEffect(() => {
-        const q = query(collection(firestore, 'feeStructure'));
+        if (!schoolId) return;
+        const q = query(collection(firestore, 'schools', schoolId, 'feeStructure'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             setFeeStructure(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeeStructureItem)));
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
     React.useEffect(() => {
-        const q = query(collection(firestore, 'discounts'));
+        if (!schoolId) return;
+        const q = query(collection(firestore, 'schools', schoolId, 'discounts'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             setDiscounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DiscountItem)));
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
     const filteredStudents = students.filter(student => {
         const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -493,6 +500,7 @@ export default function FeesPage() {
     };
 
     const generateInvoices = async () => {
+        if (!schoolId) return;
         toast({ title: 'Generating Invoices...', description: 'This may take a moment.' });
         const studentsToInvoice = students.filter(s => invoiceClass === 'all' || s.class === invoiceClass);
         const standardFee = feeStructure.reduce((total, item) => total + item.amount, 0);
@@ -501,10 +509,10 @@ export default function FeesPage() {
             const batch = writeBatch(firestore);
             for (const student of studentsToInvoice) {
                 const transactionData = { date: Timestamp.fromDate(new Date()), description: `Invoice for ${invoiceTerm.replace('-', ', ')}`, type: 'Charge' as const, amount: standardFee, recordedBy: 'Admin (Bulk)', balance: (student.balance || 0) + standardFee };
-                const transactionRef = doc(collection(firestore, `students/${student.id}/transactions`));
+                const transactionRef = doc(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`));
                 batch.set(transactionRef, transactionData);
 
-                const studentRef = doc(firestore, 'students', student.id);
+                const studentRef = doc(firestore, `schools/${schoolId}/students/${student.id}`);
                 batch.update(studentRef, { totalFee: (student.totalFee || 0) + standardFee, balance: (student.balance || 0) + standardFee });
             }
             await batch.commit();
@@ -516,8 +524,9 @@ export default function FeesPage() {
     };
 
     const handleSaveCategory = async (categoryData: Partial<FeeStructureItem>) => {
+        if (!schoolId) return;
         try {
-            await addDoc(collection(firestore, 'feeStructure'), categoryData);
+            await addDoc(collection(firestore, 'schools', schoolId, 'feeStructure'), categoryData);
             toast({ title: 'Fee Category Saved', description: 'The new fee category has been added.' });
         } catch (error) {
             toast({ title: "Error", description: "Failed to save new category.", variant: "destructive" });
@@ -525,8 +534,9 @@ export default function FeesPage() {
     };
 
     const handleSaveDiscount = async (discountData: Partial<DiscountItem>) => {
+        if (!schoolId) return;
         try {
-            await addDoc(collection(firestore, 'discounts'), discountData);
+            await addDoc(collection(firestore, 'schools', schoolId, 'discounts'), discountData);
             toast({ title: 'Discount Saved', description: 'The new discount has been added.' });
         } catch (error) {
             toast({ title: "Error", description: "Failed to save new discount.", variant: "destructive" });
@@ -534,9 +544,9 @@ export default function FeesPage() {
     };
 
     const handleUpdateCategory = async (data: Partial<FeeStructureItem>) => {
-        if (!editingCategory) return;
+        if (!editingCategory || !schoolId) return;
         try {
-            await updateDoc(doc(firestore, 'feeStructure', editingCategory.id), data);
+            await updateDoc(doc(firestore, `schools/${schoolId}/feeStructure`, editingCategory.id), data);
             toast({ title: "Category Updated" });
             setEditingCategory(null);
         } catch (error) {
@@ -545,9 +555,9 @@ export default function FeesPage() {
     };
 
     const handleUpdateDiscount = async (data: Partial<DiscountItem>) => {
-        if (!editingDiscount) return;
+        if (!editingDiscount || !schoolId) return;
         try {
-            await updateDoc(doc(firestore, 'discounts', editingDiscount.id), data);
+            await updateDoc(doc(firestore, `schools/${schoolId}/discounts`, editingDiscount.id), data);
             toast({ title: "Discount Updated" });
             setEditingDiscount(null);
         } catch (error) {
@@ -556,9 +566,10 @@ export default function FeesPage() {
     };
 
     const handleDeleteItem = async (collectionName: string, id: string, name: string) => {
+        if (!schoolId) return;
         if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
             try {
-                await deleteDoc(doc(firestore, collectionName, id));
+                await deleteDoc(doc(firestore, `schools/${schoolId}/${collectionName}`, id));
                 toast({ title: 'Item Deleted', variant: 'destructive' });
             } catch (error) {
                 toast({ title: "Deletion Failed", variant: "destructive" });
@@ -611,6 +622,10 @@ export default function FeesPage() {
             collectionData: dataByClass,
         };
     }, [students]);
+
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing from URL.</div>
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -681,8 +696,8 @@ export default function FeesPage() {
                 </TabsContent>
             </Tabs>
 
-            <NewTransactionDialog students={students} open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen} />
-            <StudentLedgerDialog student={selectedStudent} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} />
+            <NewTransactionDialog students={students} open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen} schoolId={schoolId} />
+            <StudentLedgerDialog student={selectedStudent} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} schoolId={schoolId}/>
             <EditCategoryDialog category={editingCategory} open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)} onSave={handleUpdateCategory} />
             <EditDiscountDialog discount={editingDiscount} open={!!editingDiscount} onOpenChange={(open) => !open && setEditingDiscount(null)} onSave={handleUpdateDiscount} />
             <Dialog><DialogContent><DialogHeader><DialogTitle>Generate Bulk Invoices</DialogTitle><DialogDescription>This will create new invoices for all students based on their class and the current fee structure for the selected term.</DialogDescription></DialogHeader><div className="py-4 grid gap-4"><div className="space-y-2"><Label htmlFor="invoice-term">Select Term</Label><Select value={invoiceTerm} onValueChange={setInvoiceTerm}><SelectTrigger id="invoice-term"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="term2-2024">Term 2, 2024</SelectItem><SelectItem value="term3-2024">Term 3, 2024 (Upcoming)</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label htmlFor="invoice-classes">Select Classes</Label><Select value={invoiceClass} onValueChange={setInvoiceClass}><SelectTrigger id="invoice-classes"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Classes</SelectItem><SelectItem value="Form 4">Form 4 Only</SelectItem><SelectItem value="Form 3">Form 3 Only</SelectItem></SelectContent></Select></div></div><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><DialogClose asChild><Button onClick={generateInvoices}>Generate Invoices</Button></DialogClose></DialogFooter></DialogContent></Dialog>

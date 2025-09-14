@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -10,9 +11,16 @@ import {
 } from '@/components/ui/card';
 import { Calendar } from 'lucide-react';
 import { FullCalendar } from './full-calendar';
+import { useSearchParams } from 'next/navigation';
 
 
 export default function CalendarPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing from URL.</div>
+    }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">

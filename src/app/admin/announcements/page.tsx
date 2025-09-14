@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -46,6 +47,7 @@ import 'jspdf-autotable';
 import { firestore, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp, getDocs, where, increment, arrayUnion, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useSearchParams } from 'next/navigation';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -138,6 +140,8 @@ function StatsDialog({ announcement, open, onOpenChange }: { announcement: Annou
 }
 
 export default function AdminAnnouncementsPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
   const [pastAnnouncements, setPastAnnouncements] = React.useState<Announcement[]>([]);
@@ -159,13 +163,14 @@ export default function AdminAnnouncementsPage() {
   const { toast } = useToast();
 
    React.useEffect(() => {
-    const q = query(collection(firestore, 'announcements'), orderBy('sentAt', 'desc'));
+    if (!schoolId) return;
+    const q = query(collection(firestore, 'schools', schoolId, 'announcements'), orderBy('sentAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
         setPastAnnouncements(fetchedAnnouncements);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const handleTranslate = async () => {
     const message = form.getValues('message');
@@ -244,12 +249,13 @@ export default function AdminAnnouncementsPage() {
 
 
   async function onSubmit(values: AnnouncementFormValues) {
+    if (!schoolId) return;
     setIsSubmitting(true);
     let attachmentUrl, attachmentName;
 
     try {
         if (attachedFile) {
-            const storageRef = ref(storage, `announcements/${Date.now()}_${attachedFile.name}`);
+            const storageRef = ref(storage, `schools/${schoolId}/announcements/${Date.now()}_${attachedFile.name}`);
             const uploadTask = await uploadBytes(storageRef, attachedFile);
             attachmentUrl = await getDownloadURL(uploadTask.ref);
             attachmentName = attachedFile.name;
@@ -257,8 +263,8 @@ export default function AdminAnnouncementsPage() {
 
         // In a real application, you would calculate totalRecipients based on the audience.
         // For this demo, we'll use a placeholder value.
-        const studentsSnapshot = await getDocs(query(collection(firestore, 'users'), where('role', 'in', ['Student', 'Parent', 'Teacher'])));
-        const totalRecipients = studentsSnapshot.size;
+        const usersSnapshot = await getDocs(query(collection(firestore, 'schools', schoolId, 'users'), where('role', 'in', ['Student', 'Parent', 'Teacher'])));
+        const totalRecipients = usersSnapshot.size;
 
         const newAnnouncement = {
             title: values.title,
@@ -278,7 +284,7 @@ export default function AdminAnnouncementsPage() {
             readBy: [],
         };
         
-        await addDoc(collection(firestore, 'announcements'), newAnnouncement);
+        await addDoc(collection(firestore, 'schools', schoolId, 'announcements'), newAnnouncement);
         
         form.reset();
         setAttachedFile(null);
@@ -303,6 +309,10 @@ export default function AdminAnnouncementsPage() {
     } finally {
         setIsSubmitting(false);
     }
+  }
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing from URL.</div>
   }
 
   return (
@@ -597,4 +607,3 @@ export default function AdminAnnouncementsPage() {
     </>
   );
 }
-

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -52,6 +53,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event';
@@ -72,6 +74,8 @@ type UpcomingEvent = {
 
 
 export function CalendarWidget() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>([]);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>(new Date());
   const { toast } = useToast();
@@ -80,8 +84,10 @@ export function CalendarWidget() {
 
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     const q = query(
-      collection(firestore, 'calendar-events'),
+      collection(firestore, 'schools', schoolId, 'calendar-events'),
       where('date', '>=', Timestamp.now()),
       orderBy('date', 'asc'),
       limit(4)
@@ -91,11 +97,13 @@ export function CalendarWidget() {
       setUpcomingEvents(fetchedEvents);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const handleQuickAdd = async () => {
+    if (!schoolId) return;
+
     try {
-        await addDoc(collection(firestore, 'calendar-events'), {
+        await addDoc(collection(firestore, 'schools', schoolId, 'calendar-events'), {
             title: newEventTitle,
             type: newEventType,
             date: Timestamp.fromDate(scheduledDate || new Date()),
@@ -163,7 +171,7 @@ export function CalendarWidget() {
         </CardContent>
         <CardFooter>
           <Button asChild variant="outline" size="sm" className="w-full">
-            <Link href="/admin/calendar">
+            <Link href={`/admin/calendar?schoolId=${schoolId}`}>
               View Full Calendar
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>

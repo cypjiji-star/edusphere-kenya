@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -51,6 +52,7 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serve
 import { Calendar } from '@/components/ui/calendar';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useSearchParams } from 'next/navigation';
 
 
 type CalendarView = 'month' | 'week' | 'day';
@@ -75,6 +77,8 @@ const eventColors: Record<CalendarEvent['type'], string> = {
 
 
 export function FullCalendar() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
@@ -94,7 +98,8 @@ export function FullCalendar() {
   const [editingEvent, setEditingEvent] = React.useState<CalendarEvent | null>(null);
 
   React.useEffect(() => {
-    const q = query(collection(firestore, 'calendar-events'));
+    if (!schoolId) return;
+    const q = query(collection(firestore, 'schools', schoolId, 'calendar-events'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fetchedEvents = querySnapshot.docs.map(doc => {
             const data = doc.data();
@@ -107,7 +112,7 @@ export function FullCalendar() {
         setEvents(fetchedEvents);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
 
   const handlePrev = () => {
@@ -138,10 +143,10 @@ export function FullCalendar() {
   };
 
   const handleAddOrUpdateEvent = async () => {
-    if (!newEventTitle || !newEventDate) {
+    if (!newEventTitle || !newEventDate || !schoolId) {
       toast({
         title: 'Error',
-        description: 'Event title and date are required.',
+        description: 'Event title, date, and school ID are required.',
         variant: 'destructive',
       });
       return;
@@ -159,7 +164,7 @@ export function FullCalendar() {
 
     if (editingEvent) {
       // Update existing event
-      const eventRef = doc(firestore, 'calendar-events', editingEvent.id);
+      const eventRef = doc(firestore, 'schools', schoolId, 'calendar-events', editingEvent.id);
       await updateDoc(eventRef, eventData);
       toast({
         title: 'Event Updated',
@@ -167,7 +172,7 @@ export function FullCalendar() {
       });
     } else {
       // Add new event
-      await addDoc(collection(firestore, 'calendar-events'), {
+      await addDoc(collection(firestore, 'schools', schoolId, 'calendar-events'), {
           ...eventData,
           createdAt: serverTimestamp(),
       });
@@ -243,7 +248,8 @@ export function FullCalendar() {
   };
 
   const handleDeleteEvent = async (eventId: string) => {
-    await deleteDoc(doc(firestore, 'calendar-events', eventId));
+    if (!schoolId) return;
+    await deleteDoc(doc(firestore, 'schools', schoolId, 'calendar-events', eventId));
     setSelectedEvent(null);
     toast({
         title: "Event Deleted",
