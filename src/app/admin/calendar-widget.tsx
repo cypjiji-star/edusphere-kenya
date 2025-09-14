@@ -75,6 +75,9 @@ export function CalendarWidget() {
   const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>([]);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>(new Date());
   const { toast } = useToast();
+  const [newEventTitle, setNewEventTitle] = React.useState('');
+  const [newEventType, setNewEventType] = React.useState<EventType>('Event');
+
 
   React.useEffect(() => {
     const q = query(
@@ -90,10 +93,11 @@ export function CalendarWidget() {
     return () => unsubscribe();
   }, []);
 
-  const handleQuickAdd = async (values: any) => {
+  const handleQuickAdd = async () => {
     try {
         await addDoc(collection(firestore, 'calendar-events'), {
-            ...values,
+            title: newEventTitle,
+            type: newEventType,
             date: Timestamp.fromDate(scheduledDate || new Date()),
             createdAt: serverTimestamp(),
         });
@@ -101,6 +105,7 @@ export function CalendarWidget() {
             title: 'Event Added',
             description: 'The new event has been successfully added to the calendar.',
         });
+        setNewEventTitle('');
     } catch (e) {
         toast({ title: 'Error adding event', variant: 'destructive' });
         console.error(e);
@@ -176,11 +181,11 @@ export function CalendarWidget() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="event-title">Title</Label>
-                    <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" />
+                    <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="event-type">Event Type</Label>
-                    <Select>
+                    <Select onValueChange={(v: EventType) => setNewEventType(v)}>
                         <SelectTrigger id="event-type">
                             <SelectValue placeholder="Select a type" />
                         </SelectTrigger>
