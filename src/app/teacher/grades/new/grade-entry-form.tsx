@@ -50,6 +50,8 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useSearchParams } from 'next/navigation';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const studentGradeSchema = z.object({
   studentId: z.string(),
@@ -66,12 +68,12 @@ export const gradeEntrySchema = z.object({
 
 export type GradeEntryFormValues = z.infer<typeof gradeEntrySchema>;
 
-// Mock Data
-const studentsByClass: Record<string, { id: string; name: string; avatarUrl: string }[]> = {
-  'f4-chem': Array.from({ length: 31 }, (_, i) => ({ id: `f4-chem-${i + 1}`, name: `Student ${i + 1}`, avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100` })),
-  'f3-math': Array.from({ length: 28 }, (_, i) => ({ id: `f3-math-${i + 1}`, name: `Student ${i + 32}`, avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100` })),
-  'f2-phys': Array.from({ length: 35 }, (_, i) => ({ id: `f2-phys-${i + 1}`, name: `Student ${i + 60}`, avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100` })),
-};
+type Student = {
+    id: string;
+    name: string;
+    avatarUrl: string;
+}
+
 const teacherClasses = [
   { id: 'f4-chem', name: 'Form 4 - Chemistry' },
   { id: 'f3-math', name: 'Form 3 - Mathematics' },
@@ -87,6 +89,21 @@ export function GradeEntryForm() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const [studentsByClass, setStudentsByClass] = React.useState<Record<string, Student[]>>({});
+
+  React.useEffect(() => {
+    if (!schoolId) return;
+
+    teacherClasses.forEach(tc => {
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', tc.id));
+        const unsubscribe = onSnapshot(studentsQuery, snapshot => {
+            const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
+            setStudentsByClass(prev => ({ ...prev, [tc.id]: students }));
+        });
+        return unsubscribe;
+    });
+
+  }, [schoolId]);
 
   const form = useForm<GradeEntryFormValues>({
     resolver: zodResolver(gradeEntrySchema),
@@ -107,7 +124,7 @@ export function GradeEntryForm() {
     const students = studentsByClass[selectedClass] || [];
     replace(students.map(s => ({ studentId: s.id, grade: '' })));
     form.setValue('classId', selectedClass);
-  }, [selectedClass, replace, form]);
+  }, [selectedClass, replace, form, studentsByClass]);
 
   async function onSubmit(values: GradeEntryFormValues) {
     if (!schoolId) {
@@ -324,3 +341,5 @@ export function GradeEntryForm() {
     </Form>
   );
 }
+
+    

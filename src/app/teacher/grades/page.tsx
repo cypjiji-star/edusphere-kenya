@@ -61,8 +61,8 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { GradeEntryForm } from './new/grade-entry-form';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
-
+import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 // --- Data Types ---
 type Grade = {
@@ -94,6 +94,8 @@ export const teacherClasses = [
 
 
 export default function GradesPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
     const [searchTerm, setSearchTerm] = React.useState('');
     const { toast } = useToast();
@@ -106,24 +108,26 @@ export default function GradesPage() {
 
 
     React.useEffect(() => {
+        if (!schoolId) return;
+
         setIsLoading(true);
         const teacherId = 'teacher-wanjiku'; // Placeholder
-        const assessmentsQuery = query(collection(firestore, 'assessments'), where('classId', '==', selectedClass));
+        const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
         const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
             const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
             setCurrentAssessments(assessments);
         });
 
-        const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', selectedClass));
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
         const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
             const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
                 const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
                 
                 const grades: Grade[] = [];
-                const submissionsSnapshot = await getDocs(query(collection(firestore, `assignments`), where('classId', '==', selectedClass)));
+                const submissionsSnapshot = await getDocs(query(collection(firestore, 'schools', schoolId, `assignments`), where('classId', '==', selectedClass)));
 
                 for (const asgDoc of submissionsSnapshot.docs) {
-                    const submissionQuery = query(collection(firestore, `assignments/${asgDoc.id}/submissions`), where('studentRef', '==', doc(firestore, 'students', student.studentId)));
+                    const submissionQuery = query(collection(firestore, 'schools', schoolId, `assignments/${asgDoc.id}/submissions`), where('studentRef', '==', doc(firestore, 'schools', schoolId, 'students', student.studentId)));
                     const submissionSnap = await getDocs(submissionQuery);
                     if (!submissionSnap.empty) {
                         const submissionData = submissionSnap.docs[0].data();
@@ -152,7 +156,7 @@ export default function GradesPage() {
             unsubStudents();
         }
 
-    }, [selectedClass]);
+    }, [selectedClass, schoolId]);
 
     const filteredStudents = currentStudents.filter(s => 
         s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -164,6 +168,7 @@ export default function GradesPage() {
     };
 
     const handleExport = (type: 'PDF' | 'CSV') => {
+        if (!activeTab) return;
         const doc = new jsPDF();
         const tableData = filteredStudents.map(student => [
             student.studentName,
@@ -171,6 +176,8 @@ export default function GradesPage() {
             student.overall,
         ]);
     
+        const className = teacherClasses.find(c => c.id === selectedClass)?.name;
+
         if (type === 'CSV') {
             const headers = ['Name', 'Roll Number', 'Overall Grade'];
             const csvContent = [
@@ -182,20 +189,20 @@ export default function GradesPage() {
             if (link.download !== undefined) {
                 const url = URL.createObjectURL(blob);
                 link.setAttribute("href", url);
-                link.setAttribute("download", `${selectedClass}-grades.csv`);
+                link.setAttribute("download", `${className}-grades.csv`);
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             }
         } else {
-             doc.text(`${teacherClasses.find(c => c.id === selectedClass)?.name} Grades`, 14, 16);
+             doc.text(`${className} Grades`, 14, 16);
              (doc as any).autoTable({
                 startY: 22,
                 head: [['Name', 'Roll Number', 'Overall Grade']],
                 body: tableData,
              });
-             doc.save(`${selectedClass}-grades.pdf`);
+             doc.save(`${className}-grades.pdf`);
         }
 
         toast({
@@ -203,6 +210,10 @@ export default function GradesPage() {
             description: `Your gradebook is being exported as a ${type} file.`
         });
     }
+    
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing.</div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -409,3 +420,5 @@ export default function GradesPage() {
     </div>
   );
 }
+
+    

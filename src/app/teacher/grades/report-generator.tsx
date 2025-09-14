@@ -38,7 +38,8 @@ import { Switch } from '@/components/ui/switch';
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, LabelList } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 // --- Data Types (could be shared in a types file) ---
 type Grade = {
@@ -98,6 +99,8 @@ const teacherClasses = [
 
 
 export function ReportGenerator() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
   const [selectedStudent, setSelectedStudent] = React.useState<string | null>(null);
   const [reportType, setReportType] = React.useState<ReportType>('individual');
@@ -112,11 +115,13 @@ export function ReportGenerator() {
   const [assessmentsForClass, setAssessmentsForClass] = React.useState<Assessment[]>([]);
 
   React.useEffect(() => {
-    const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', selectedClass));
+    if (!schoolId) return;
+
+    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
     const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
         const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
             const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
-            const gradesQuery = query(collection(firestore, 'students', student.studentId, 'grades'));
+            const gradesQuery = query(collection(firestore, 'schools', schoolId, 'students', student.studentId, 'grades'));
             const gradesSnapshot = await getDocs(gradesQuery);
             const grades = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
             const numericScores = grades.map(g => parseInt(String(g.score))).filter(s => !isNaN(s));
@@ -126,7 +131,7 @@ export function ReportGenerator() {
         setStudentsInClass(studentsData);
     });
 
-    const assessmentsQuery = query(collection(firestore, 'assessments'), where('classId', '==', selectedClass));
+    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
     const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
         const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
         setAssessmentsForClass(assessments);
@@ -136,7 +141,7 @@ export function ReportGenerator() {
         unsubStudents();
         unsubAssessments();
     }
-  }, [selectedClass]);
+  }, [selectedClass, schoolId]);
 
   React.useEffect(() => {
     setSelectedStudent(null);
@@ -540,3 +545,5 @@ export function ReportGenerator() {
     </>
   );
 }
+
+    
