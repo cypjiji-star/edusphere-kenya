@@ -60,7 +60,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { GradeEntryForm } from './new/grade-entry-form';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -102,14 +102,19 @@ export default function GradesPage() {
     const [editingStudent, setEditingStudent] = React.useState<StudentGrades | null>(null);
     const [activeTab, setActiveTab] = React.useState('gradebook');
     const [isLoading, setIsLoading] = React.useState(true);
+    const [user, setUser] = React.useState(auth.currentUser);
 
     const [currentAssessments, setCurrentAssessments] = React.useState<Assessment[]>([]);
     const [currentStudents, setCurrentStudents] = React.useState<StudentGrades[]>([]);
-    const teacherId = 'teacher-wanjiku'; // Placeholder
-
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        const unsubscribe = auth.onAuthStateChanged(setUser);
+        return () => unsubscribe();
+    }, []);
+
+    React.useEffect(() => {
+        if (!schoolId || !user) return;
+        const teacherId = user.uid;
 
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
         const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
@@ -121,7 +126,7 @@ export default function GradesPage() {
         });
 
         return () => unsubClasses();
-    }, [schoolId, selectedClass, teacherId]);
+    }, [schoolId, selectedClass, user]);
 
     React.useEffect(() => {
         if (!schoolId || !selectedClass) return;
