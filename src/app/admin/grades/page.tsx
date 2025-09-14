@@ -79,6 +79,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -144,6 +145,8 @@ const mockStudentGrades = [
 
 
 export default function AdminGradesPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [clientReady, setClientReady] = React.useState(false);
     const [date, setDate] = React.useState<DateRange | undefined>();
     const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
@@ -156,8 +159,10 @@ export default function AdminGradesPage() {
     const [submissions, setSubmissions] = React.useState<Submission[]>([]);
 
     React.useEffect(() => {
+        if (!schoolId) return;
+
         setClientReady(true);
-        const examsQuery = query(collection(firestore, 'assessments'), orderBy('startDate', 'desc'));
+        const examsQuery = query(collection(firestore, `schools/${schoolId}/assessments`), orderBy('startDate', 'desc'));
         const unsubExams = onSnapshot(examsQuery, (snapshot) => {
             const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
             setExams(fetchedExams);
@@ -166,7 +171,7 @@ export default function AdminGradesPage() {
             }
         });
 
-        const submissionsQuery = query(collection(firestore, 'submissions'), orderBy('lastUpdated', 'desc'));
+        const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), orderBy('lastUpdated', 'desc'));
         const unsubSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
             const fetchedSubmissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
             setSubmissions(fetchedSubmissions);
@@ -176,7 +181,7 @@ export default function AdminGradesPage() {
             unsubExams();
             unsubSubmissions();
         };
-    }, [submissionExamFilter]);
+    }, [schoolId, submissionExamFilter]);
 
     const filteredSubmissions = submissions.filter(s =>
         (submissionExamFilter === 'all' || s.examId === submissionExamFilter) &&
@@ -205,8 +210,9 @@ export default function AdminGradesPage() {
     }
     
     const handleCreateExam = async (values: any) => {
+        if (!schoolId) return;
         try {
-            await addDoc(collection(firestore, 'assessments'), {
+            await addDoc(collection(firestore, `schools/${schoolId}/assessments`), {
                 ...values,
                 startDate: Timestamp.fromDate(date?.from || new Date()),
                 endDate: Timestamp.fromDate(date?.to || date?.from || new Date()),
@@ -240,9 +246,9 @@ export default function AdminGradesPage() {
     };
 
     const handleApproveGrades = async () => {
-        if (!viewingSubmission) return;
+        if (!viewingSubmission || !schoolId) return;
 
-        const submissionRef = doc(firestore, 'submissions', viewingSubmission.id);
+        const submissionRef = doc(firestore, `schools/${schoolId}/submissions`, viewingSubmission.id);
         try {
             await updateDoc(submissionRef, { status: 'Approved' });
             toast({
