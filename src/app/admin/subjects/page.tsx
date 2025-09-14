@@ -255,12 +255,18 @@ export default function ClassesAndSubjectsPage() {
     
     // State for editing subject
     const [editingSubject, setEditingSubject] = React.useState<Subject | null>(null);
+    const [selectedAssignmentClass, setSelectedAssignmentClass] = React.useState<string>('');
+
 
     React.useEffect(() => {
         if (!schoolId) return;
 
         const unsubClasses = onSnapshot(collection(firestore, 'schools', schoolId, 'classes'), (snapshot) => {
-            setClasses(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SchoolClass)));
+            const fetchedClasses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SchoolClass));
+            setClasses(fetchedClasses);
+            if (!selectedAssignmentClass && fetchedClasses.length > 0) {
+              setSelectedAssignmentClass(fetchedClasses[0].id);
+            }
         });
         const unsubSubjects = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
             setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
@@ -282,7 +288,7 @@ export default function ClassesAndSubjectsPage() {
             unsubTeachers();
             unsubAssignments();
         };
-    }, [schoolId]);
+    }, [schoolId, selectedAssignmentClass]);
     
     const teacherWorkload: Record<string, number> = React.useMemo(() => {
         const load: Record<string, number> = {};
@@ -420,6 +426,10 @@ export default function ClassesAndSubjectsPage() {
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
     }
+
+    const currentClassForAssignment = classes.find(c => c.id === selectedAssignmentClass);
+    const assignmentsForSelectedClass = currentClassForAssignment ? classAssignments[currentClassForAssignment.id] || [] : [];
+
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -728,7 +738,7 @@ export default function ClassesAndSubjectsPage() {
             </Card>
         </TabsContent>
         <TabsContent value="assignments">
-            <Card>
+             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                          <div>
@@ -749,83 +759,97 @@ export default function ClassesAndSubjectsPage() {
                             </DropdownMenuContent>
                          </DropdownMenu>
                     </div>
+                     <div className="mt-4">
+                        <Label htmlFor="class-assignment-filter">Select Class</Label>
+                        <Select value={selectedAssignmentClass} onValueChange={setSelectedAssignmentClass}>
+                            <SelectTrigger id="class-assignment-filter" className="w-full md:w-[280px]">
+                                <SelectValue placeholder="Select a class to view" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {classes.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>{c.name} {c.stream || ''}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {currentClassForAssignment ? (
                     <TooltipProvider>
-                    {classes.map((schoolClass) => {
-                        const assignments = classAssignments[schoolClass.id] || [];
-                        return (
-                            <Card key={schoolClass.id}>
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-lg">{schoolClass.name} {schoolClass.stream || ''}</CardTitle>
-                                        <CardDescription>Class Teacher: {schoolClass.classTeacher.name}</CardDescription>
-                                    </div>
-                                    <ManageClassSubjectsDialog
-                                        schoolClass={schoolClass}
-                                        allSubjects={subjects}
-                                        schoolId={schoolId}
-                                        classAssignments={classAssignments}
-                                        setClassAssignments={setClassAssignments}
-                                    />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2">
-                                        {assignments.length > 0 ? assignments.map(assignment => {
-                                            const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
-                                            const subjectDetails = subjects.find(s => s.name === assignment.subject);
-                                            const availableTeachers = subjectDetails ? (subjectDetails.teachers || []).filter(t => (teacherWorkload[t] || 0) <= OVER_ASSIGNED_THRESHOLD) : [];
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-lg">{currentClassForAssignment.name} {currentClassForAssignment.stream || ''}</CardTitle>
+                                    <CardDescription>Class Teacher: {currentClassForAssignment.classTeacher.name}</CardDescription>
+                                </div>
+                                <ManageClassSubjectsDialog
+                                    schoolClass={currentClassForAssignment}
+                                    allSubjects={subjects}
+                                    schoolId={schoolId}
+                                    classAssignments={classAssignments}
+                                    setClassAssignments={setClassAssignments}
+                                />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2">
+                                    {assignmentsForSelectedClass.length > 0 ? assignmentsForSelectedClass.map(assignment => {
+                                        const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
+                                        const subjectDetails = subjects.find(s => s.name === assignment.subject);
+                                        const availableTeachers = subjectDetails ? (subjectDetails.teachers || []).filter(t => (teacherWorkload[t] || 0) <= OVER_ASSIGNED_THRESHOLD) : [];
 
-                                            return (
-                                            <div key={assignment.subject} className="flex items-center justify-between border-b py-3">
-                                                <span className="font-medium">{assignment.subject}</span>
-                                                {assignment.teacher ? (
-                                                    <div className="flex items-center gap-2">
-                                                         {isOverAssigned && (
-                                                            <Tooltip>
-                                                                <TooltipTrigger>
-                                                                    <AlertCircle className="h-4 w-4 text-destructive"/>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>{assignment.teacher} may be over-assigned.</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        )}
-                                                        <User className="h-4 w-4 text-muted-foreground"/>
-                                                        <span className="text-sm text-muted-foreground">{assignment.teacher}</span>
-                                                    </div>
-                                                ) : (
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Badge variant="destructive" className="cursor-pointer">
-                                                                <AlertCircle className="mr-2 h-4 w-4"/>
-                                                                Unassigned
-                                                            </Badge>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto">
-                                                            <div className="space-y-2">
-                                                                <p className="font-semibold text-sm">Suggested Teachers</p>
-                                                                {availableTeachers.length > 0 ? availableTeachers.map(t => (
-                                                                    <Button key={t} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacher(schoolClass.id, assignment.subject, t)}>
-                                                                        <UserCheck className="mr-2 h-4 w-4" /> {t}
-                                                                    </Button>
-                                                                )) : <p className="text-xs text-muted-foreground">No available teachers found.</p>}
-                                                            </div>
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                )}
-                                            </div>
-                                        )}) : (
-                                            <div className="text-sm text-muted-foreground text-center py-4">
-                                                No subjects assigned to this class yet.
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )
-                    })}
+                                        return (
+                                        <div key={assignment.subject} className="flex items-center justify-between border-b py-3">
+                                            <span className="font-medium">{assignment.subject}</span>
+                                            {assignment.teacher ? (
+                                                <div className="flex items-center gap-2">
+                                                     {isOverAssigned && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger>
+                                                                <AlertCircle className="h-4 w-4 text-destructive"/>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>{assignment.teacher} may be over-assigned.</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                    <User className="h-4 w-4 text-muted-foreground"/>
+                                                    <span className="text-sm text-muted-foreground">{assignment.teacher}</span>
+                                                </div>
+                                            ) : (
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Badge variant="destructive" className="cursor-pointer">
+                                                            <AlertCircle className="mr-2 h-4 w-4"/>
+                                                            Unassigned
+                                                        </Badge>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto">
+                                                        <div className="space-y-2">
+                                                            <p className="font-semibold text-sm">Suggested Teachers</p>
+                                                            {availableTeachers.length > 0 ? availableTeachers.map(t => (
+                                                                <Button key={t} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacher(currentClassForAssignment.id, assignment.subject, t)}>
+                                                                    <UserCheck className="mr-2 h-4 w-4" /> {t}
+                                                                </Button>
+                                                            )) : <p className="text-xs text-muted-foreground">No available teachers found.</p>}
+                                                        </div>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            )}
+                                        </div>
+                                    )}) : (
+                                        <div className="text-sm text-muted-foreground text-center py-4">
+                                            No subjects assigned to this class yet. Click 'Manage Subjects' to begin.
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
                     </TooltipProvider>
+                     ) : (
+                        <div className="text-center text-muted-foreground py-16">
+                            <p>Select a class to view its assignments.</p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </TabsContent>
