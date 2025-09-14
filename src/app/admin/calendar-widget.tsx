@@ -51,7 +51,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
 
 
 type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event';
