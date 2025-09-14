@@ -147,6 +147,21 @@ export default function StudentEnrolmentPage() {
     const form = useForm<EnrolmentFormValues>({
         resolver: zodResolver(enrolmentSchema),
         defaultValues: {
+            studentFirstName: '',
+            studentLastName: '',
+            gender: '',
+            admissionNumber: '',
+            classId: '',
+            admissionYear: '',
+            parentFirstName: '',
+            parentLastName: '',
+            parentRelationship: '',
+            parentEmail: '',
+            parentPassword: '',
+            allergies: '',
+            medicalConditions: '',
+            emergencyContactName: '',
+            emergencyContactPhone: '',
             generateInvoice: true,
         },
     });
