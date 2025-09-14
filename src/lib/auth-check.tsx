@@ -34,14 +34,14 @@ export function AuthCheck({
         
         try {
             if (requiredRole === 'developer') {
-                // For developers, check the global `roles` collection.
+                // For developers, check the global `roles` collection using their UID.
                 const roleDocRef = doc(firestore, 'roles', authUser.uid);
                 const roleDocSnap = await getDoc(roleDocRef);
                 if (roleDocSnap.exists()) {
                     fetchedRole = roleDocSnap.data().role;
                 }
             } else {
-                // For all other roles, check within the specific school's `users` collection.
+                // For all other roles, require a schoolId and check within that school's `users` collection.
                 const schoolId = searchParams.get('schoolId');
                 if (schoolId) {
                     const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
