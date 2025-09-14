@@ -319,9 +319,10 @@ export default function ClassesAndSubjectsPage() {
                 name: newClassName,
                 stream: newClassStream || null,
                 classTeacher: { name: teacher.name, avatarUrl: teacher.avatarUrl },
-                teacherId: newClassTeacherId, // Save the teacher's ID
+                teacherId: newClassTeacherId,
                 capacity: Number(newClassCapacity),
                 studentCount: 0,
+                schoolId: schoolId,
                 createdAt: serverTimestamp(),
             });
 
