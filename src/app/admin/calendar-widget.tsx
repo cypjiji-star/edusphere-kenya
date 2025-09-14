@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { upcomingEvents, eventTypeColors } from './dashboard-data';
 import {
   Dialog,
   DialogContent,
@@ -51,18 +50,61 @@ import { cn } from '@/lib/utils';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { firestore } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+
+
+type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event';
+
+const eventTypeColors: Record<EventType, string> = {
+    Meeting: 'bg-purple-500',
+    Exam: 'bg-red-600',
+    Holiday: 'bg-green-600',
+    Event: 'bg-blue-500',
+};
+
+type UpcomingEvent = {
+  id: string;
+  date: Timestamp;
+  title: string;
+  type: EventType;
+};
+
 
 export function CalendarWidget() {
-  const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>(
-    new Date()
-  );
+  const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>([]);
+  const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>(new Date());
   const { toast } = useToast();
 
-  const handleQuickAdd = () => {
-    toast({
-      title: 'Event Added',
-      description: 'The new event has been successfully added to the calendar.',
+  React.useEffect(() => {
+    const q = query(
+      collection(firestore, 'calendar-events'),
+      where('date', '>=', Timestamp.now()),
+      orderBy('date', 'asc'),
+      limit(4)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UpcomingEvent));
+      setUpcomingEvents(fetchedEvents);
     });
+    return () => unsubscribe();
+  }, []);
+
+  const handleQuickAdd = async (values: any) => {
+    try {
+        await addDoc(collection(firestore, 'calendar-events'), {
+            ...values,
+            date: Timestamp.fromDate(scheduledDate || new Date()),
+            createdAt: serverTimestamp(),
+        });
+        toast({
+            title: 'Event Added',
+            description: 'The new event has been successfully added to the calendar.',
+        });
+    } catch (e) {
+        toast({ title: 'Error adding event', variant: 'destructive' });
+        console.error(e);
+    }
   };
 
   return (
@@ -89,9 +131,9 @@ export function CalendarWidget() {
                 <div className="flex items-center gap-4">
                   <div className="flex flex-col items-center justify-center w-14 text-center bg-muted/50 rounded-md p-2">
                     <span className="text-sm font-bold uppercase text-primary">
-                      {event.day}
+                      {event.date.toDate().toLocaleDateString('en-US', { month: 'short' })}
                     </span>
-                    <span className="text-xl font-bold">{event.date}</span>
+                    <span className="text-xl font-bold">{event.date.toDate().getDate()}</span>
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{event.title}</p>
@@ -143,7 +185,7 @@ export function CalendarWidget() {
                             <SelectValue placeholder="Select a type" />
                         </SelectTrigger>
                         <SelectContent>
-                            {Object.entries(eventTypeColors).map(([type]) => (
+                            {Object.keys(eventTypeColors).map((type) => (
                                 <SelectItem key={type} value={type}>
                                     <div className="flex items-center gap-2">
                                         <div className={cn("w-2 h-2 rounded-full", eventTypeColors[type as keyof typeof eventTypeColors])} />

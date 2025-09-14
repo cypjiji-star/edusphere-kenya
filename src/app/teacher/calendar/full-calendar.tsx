@@ -22,12 +22,9 @@ import { ChevronLeft, ChevronRight, Bell, Clock, Users, Printer, FileDown, Chevr
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
+
 
 type CalendarView = 'month' | 'week' | 'day';
 
@@ -47,25 +44,28 @@ const eventColors: Record<CalendarEvent['type'], string> = {
   reminder: 'bg-yellow-500 hover:bg-yellow-600',
 };
 
-const referenceDate = new Date('2024-07-29T00:00:00');
-
-const MOCK_EVENTS: CalendarEvent[] = [
-  { id: '1', date: referenceDate, title: "Staff Meeting", type: 'event', startTime: '11:00', endTime: '12:00' },
-  { id: '2', date: referenceDate, title: "Form 4 Chem Practical", type: 'exam', startTime: '13:00', endTime: '15:00' },
-  { id: '3', date: sub(referenceDate, { days: 2 }), title: "Grades Due", type: 'reminder' },
-  { id: '4', date: add(referenceDate, { days: 5 }), title: "Sports Day", type: 'event' },
-  { id: '5', date: add(referenceDate, { days: 10 }), title: "Mid-term Break", type: 'holiday' },
-];
-
 
 export function FullCalendar() {
-  const [currentDate, setCurrentDate] = React.useState(MOCK_EVENTS[0].date);
+  const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [clientReady, setClientReady] = React.useState(false);
+  const [events, setEvents] = React.useState<CalendarEvent[]>([]);
 
   React.useEffect(() => {
     setClientReady(true);
-    setCurrentDate(new Date());
+    const q = query(collection(firestore, 'calendar-events'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const fetchedEvents = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                date: (data.date as Timestamp).toDate(),
+            } as CalendarEvent;
+        });
+        setEvents(fetchedEvents);
+    });
+    return () => unsubscribe();
   }, []);
 
   const handlePrev = () => {
@@ -139,7 +139,7 @@ export function FullCalendar() {
         <div className="grid grid-cols-7">
           {weeks.map((weekStart) =>
             eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day) => {
-              const eventsForDay = MOCK_EVENTS.filter(e => isSameDay(e.date, day));
+              const eventsForDay = events.filter(e => isSameDay(e.date, day));
               const isTodayFlag = clientReady && isToday(day);
               return (
                 <div
@@ -198,7 +198,7 @@ export function FullCalendar() {
                                 {hours.map(hour => (
                                      <div key={hour} className="h-16 border-t" />
                                 ))}
-                                {MOCK_EVENTS.filter(e => isSameDay(e.date, day) && e.startTime).map(event => {
+                                {events.filter(e => isSameDay(e.date, day) && e.startTime).map(event => {
                                     const startHour = parseInt(event.startTime!.split(':')[0], 10);
                                     const endHour = parseInt(event.endTime!.split(':')[0], 10);
                                     const top = (startHour - 8) * 4; // 4rem per hour (h-16)
@@ -223,7 +223,7 @@ export function FullCalendar() {
     };
 
     const renderDayView = () => {
-         const eventsForDay = MOCK_EVENTS.filter(e => isSameDay(e.date, currentDate));
+         const eventsForDay = events.filter(e => isSameDay(e.date, currentDate));
 
         return (
              <div className="border rounded-lg p-4">
