@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { FinanceSnapshot, PerformanceSnapshot } from './admin-charts';
 import { CalendarWidget } from './calendar-widget';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDoc, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 const overviewLinks: Record<string, string> = {
@@ -85,97 +85,94 @@ export default function AdminDashboard() {
 
   React.useEffect(() => {
     if (!schoolId) {
-        setIsLoading(false);
-        return;
+      setIsLoading(false);
+      return;
     }
-    
-    // Fetch School Name
+
     const schoolRef = doc(firestore, 'schools', schoolId);
-    getDoc(schoolRef).then(docSnap => {
-        if(docSnap.exists()) {
-            setSchoolName(docSnap.data().name);
-        }
+    const unsubSchool = onSnapshot(schoolRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setSchoolName(docSnap.data().name);
+      }
     });
 
-
-    // --- STATS ---
     const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
-        let students = 0, teachers = 0, parents = 0;
-        snapshot.forEach(doc => {
-            const user = doc.data();
-            if (user.role === 'Student') students++;
-            if (user.role === 'Teacher') teachers++;
-            if (user.role === 'Parent' && user.status === 'Active') parents++;
-        });
-        setStats(prev => ({...prev, totalStudents: students, totalTeachers: teachers, activeParents: parents }));
+      let students = 0, teachers = 0, parents = 0;
+      snapshot.forEach(doc => {
+        const user = doc.data();
+        if (user.role === 'Student') students++;
+        if (user.role === 'Teacher') teachers++;
+        if (user.role === 'Parent' && user.status === 'Active') parents++;
+      });
+      setStats(prev => ({...prev, totalStudents: students, totalTeachers: teachers, activeParents: parents }));
     });
-    
+
     const pendingRegQuery = query(collection(firestore, `schools/${schoolId}/students`), where('status', '==', 'Pending'));
     const unsubPendingReg = onSnapshot(pendingRegQuery, (snapshot) => {
       setStats(prev => ({ ...prev, pendingRegistrations: snapshot.size }));
     });
-    
-    // --- QUICK STATS ---
-    const fetchQuickStats = async () => {
-        if (!schoolId) return;
 
-        // Attendance
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-        const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
-        const attendanceSnapshot = await getDocs(attendanceQuery);
-        const presentCount = attendanceSnapshot.docs.filter(doc => ['Present', 'Late'].includes(doc.data().status)).length;
-        const totalStudentsCount = stats.totalStudents || 1; // Avoid division by zero
-        const attendancePercentage = Math.round((presentCount / totalStudentsCount) * 100);
+    // Real-time attendance
+    const today = new Date();
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+    const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
+    const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
+      if (stats.totalStudents > 0) {
+        const presentCount = snapshot.docs.filter(doc => ['Present', 'Late'].includes(doc.data().status)).length;
+        const attendancePercentage = Math.round((presentCount / stats.totalStudents) * 100);
+        setQuickStatsData(prev => ({...prev, attendance: attendancePercentage}));
+      }
+    });
 
-        // Fees
-        const studentsSnapshot = await getDocs(collection(firestore, `schools/${schoolId}/students`));
-        let totalBilled = 0;
-        let totalPaid = 0;
-        studentsSnapshot.forEach(doc => {
-            totalBilled += doc.data().totalFee || 0;
-            totalPaid += doc.data().amountPaid || 0;
-        });
-        const feesPercentage = totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0;
-        
-        // Events
-        const eventsQuery = query(collection(firestore, `schools/${schoolId}/calendar-events`), where('date', '>=', Timestamp.now()));
-        const eventsSnapshot = await getDocs(eventsQuery);
-        const upcomingEventsCount = eventsSnapshot.size;
+    // Real-time fees
+    const studentsFeeQuery = query(collection(firestore, `schools/${schoolId}/students`));
+    const unsubFees = onSnapshot(studentsFeeQuery, (snapshot) => {
+      let totalBilled = 0;
+      let totalPaid = 0;
+      snapshot.forEach(doc => {
+        totalBilled += doc.data().totalFee || 0;
+        totalPaid += doc.data().amountPaid || 0;
+      });
+      const feesPercentage = totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0;
+      setQuickStatsData(prev => ({...prev, feesCollected: feesPercentage}));
+    });
 
-        setQuickStatsData({ attendance: attendancePercentage, feesCollected: feesPercentage, upcomingEvents: upcomingEventsCount });
-    };
+    // Real-time events
+    const eventsQuery = query(collection(firestore, `schools/${schoolId}/calendar-events`), where('date', '>=', Timestamp.now()));
+    const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
+      setQuickStatsData(prev => ({...prev, upcomingEvents: snapshot.size}));
+    });
 
-    if (stats.totalStudents > 0) { // Fetch only when we have total students to avoid division by zero
-        fetchQuickStats();
-    }
-
-    // --- RECENT ACTIVITIES ---
+    // Real-time recent activities
     const notificationsQuery = query(collection(firestore, `schools/${schoolId}/notifications`), orderBy('createdAt', 'desc'), limit(6));
     const unsubActivities = onSnapshot(notificationsQuery, (snapshot) => {
       const fetchedActivities = snapshot.docs.map(doc => {
-          const data = doc.data();
-          const category = data.href.split('/')[2]?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()).split(' ')[0] || 'General';
-          return {
-            id: doc.id,
-            icon: activityIconMap[category] || BookOpen,
-            title: data.description,
-            time: formatTimeAgo(data.createdAt),
-            category: category,
-          }
+        const data = doc.data();
+        const category = data.href.split('/')[2]?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()).split(' ')[0] || 'General';
+        return {
+          id: doc.id,
+          icon: activityIconMap[category] || BookOpen,
+          title: data.description,
+          time: formatTimeAgo(data.createdAt),
+          category: category,
+        }
       });
       setActivities(fetchedActivities);
-      setIsLoading(false);
+      setIsLoading(false); // Set loading to false after the first fetch of activities
     });
 
     return () => {
-        unsubUsers();
-        unsubPendingReg();
-        unsubActivities();
+      unsubSchool();
+      unsubUsers();
+      unsubPendingReg();
+      unsubAttendance();
+      unsubFees();
+      unsubEvents();
+      unsubActivities();
     };
   }, [schoolId, stats.totalStudents]);
-  
+
   const overviewStats = [
     { title: "Total Students", stat: stats.totalStudents, icon: <Users className="h-6 w-6 text-muted-foreground" />, subtext: "1.2%", subtextIcon: <ArrowUp className="h-4 w-4 text-green-600" />, subtextDescription: "vs last term" },
     { title: "Total Teachers", stat: stats.totalTeachers, icon: <UserCheck className="h-6 w-6 text-muted-foreground" /> },
