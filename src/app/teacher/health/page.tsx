@@ -83,6 +83,7 @@ type Incident = {
   date: Timestamp;
   reportedBy: string;
   status: IncidentStatus;
+  location?: string;
 };
 
 type TeacherStudent = { id: string; name: string; class: string; };
@@ -128,22 +129,6 @@ const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
     }
 }
 
-const incidentsByTypeData = [
-  { name: 'Health', count: 8 },
-  { name: 'Accident', count: 12 },
-  { name: 'Discipline', count: 3 },
-  { name: 'Bullying', count: 1 },
-  { name: 'Safety', count: 2 },
-];
-
-const incidentsByLocationData = [
-  { name: 'Playground', count: 7 },
-  { name: 'Classroom', count: 9 },
-  { name: 'Cafeteria', count: 4 },
-  { name: 'Hallways', count: 5 },
-  { name: 'Sports Field', count: 1 },
-];
-
 const chartConfig = {
   count: {
     label: 'Incidents',
@@ -172,7 +157,7 @@ export default function HealthPage() {
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<string | null>(null);
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const [updatedStatus, setUpdatedStatus] = React.useState<IncidentStatus | undefined>();
-    const [mockIncidents, setMockIncidents] = React.useState<Incident[]>([]);
+    const [incidents, setIncidents] = React.useState<Incident[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [typeFilter, setTypeFilter] = React.useState<IncidentType | 'All Types'>('All Types');
     const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
@@ -188,6 +173,8 @@ export default function HealthPage() {
 
     const [allStudents, setAllStudents] = React.useState<TeacherStudent[]>([]);
     const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
+    
+    const [dashboardClassFilter, setDashboardClassFilter] = React.useState('all');
 
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
@@ -199,21 +186,18 @@ export default function HealthPage() {
     });
 
      React.useEffect(() => {
-        // Fetch all students for the teacher
         const studentsQuery = query(collection(firestore, 'students'), where('teacherId', '==', 'teacher-wanjiku'));
         const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
             setAllStudents(studentsData);
         });
 
-        // Fetch all incidents
         const incidentsQuery = query(collection(firestore, 'incidents'), where('reportedBy', '==', 'Ms. Wanjiku'));
         const unsubscribeIncidents = onSnapshot(incidentsQuery, (snapshot) => {
             const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
-            setMockIncidents(incidentsData);
+            setIncidents(incidentsData);
         });
         
-        // Fetch medication log
         const medsQuery = query(collection(firestore, 'medications'), where('givenBy', '==', 'Ms. Wanjiku'));
         const unsubscribeMeds = onSnapshot(medsQuery, (snapshot) => {
             const medsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Medication));
@@ -255,6 +239,47 @@ export default function HealthPage() {
             setUpdatedStatus(selectedIncident.status);
         }
     }, [selectedIncident]);
+
+    const dashboardData = React.useMemo(() => {
+        const filteredIncidents = dashboardClassFilter === 'all'
+            ? incidents
+            : incidents.filter(i => allStudents.find(s => s.id === i.studentId)?.class === dashboardClassFilter);
+
+        const studentsInFilter = dashboardClassFilter === 'all'
+            ? allStudents
+            : allStudents.filter(s => s.class === dashboardClassFilter);
+
+        const today = new Date().toDateString();
+        const incidentsToday = filteredIncidents.filter(i => i.date.toDate().toDateString() === today).length;
+        
+        let studentsWithAllergies = 0;
+        let studentsWithConditions = 0;
+        // In a real app, this data would be fetched more efficiently
+        // For now, we are simulating this based on what might be loaded.
+        
+        const incidentsByType = filteredIncidents.reduce((acc, incident) => {
+            acc[incident.type] = (acc[incident.type] || 0) + 1;
+            return acc;
+        }, {} as Record<IncidentType, number>);
+
+        const incidentsByLocation = filteredIncidents.reduce((acc, incident) => {
+            if (incident.location) {
+                acc[incident.location] = (acc[incident.location] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+
+        return {
+            incidentsToday,
+            studentsWithAllergies,
+            studentsWithConditions,
+            medicationsDue: 0, // Mock data
+            incidentsByTypeData: Object.entries(incidentsByType).map(([name, count]) => ({ name, count })),
+            incidentsByLocationData: Object.entries(incidentsByLocation).map(([name, count]) => ({ name, count })),
+        }
+
+    }, [incidents, allStudents, dashboardClassFilter]);
 
     async function onSubmit(values: IncidentFormValues) {
         setIsSubmitting(true);
@@ -340,7 +365,6 @@ export default function HealthPage() {
                 description: `Administration of ${newMedName} for ${student.name} has been saved.`
             });
             
-            // Reset form
             setNewMedStudent(undefined);
             setNewMedName('');
             setNewMedDosage('');
@@ -352,7 +376,7 @@ export default function HealthPage() {
         }
     };
 
-    const filteredIncidents = mockIncidents.filter(incident => {
+    const filteredIncidents = incidents.filter(incident => {
         const matchesSearch = incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               incident.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               incident.reportedBy.toLowerCase().includes(searchTerm.toLowerCase());
@@ -391,7 +415,7 @@ export default function HealthPage() {
                                     </div>
                                     <div className="w-full md:w-auto">
                                         <Label htmlFor="class-filter-dashboard">Filter by Class</Label>
-                                        <Select defaultValue="all">
+                                        <Select value={dashboardClassFilter} onValueChange={setDashboardClassFilter}>
                                             <SelectTrigger id="class-filter-dashboard" className="w-full md:w-[240px]">
                                                 <SelectValue placeholder="Select a class" />
                                             </SelectTrigger>
@@ -414,8 +438,8 @@ export default function HealthPage() {
                                             <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">1</div>
-                                            <p className="text-xs text-muted-foreground">1 new report filed</p>
+                                            <div className="text-2xl font-bold">{dashboardData.incidentsToday}</div>
+                                            <p className="text-xs text-muted-foreground">{dashboardData.incidentsToday > 0 ? `${dashboardData.incidentsToday} new report(s) filed` : 'No new reports'}</p>
                                         </CardContent>
                                     </Card>
                                     <Card>
@@ -424,8 +448,8 @@ export default function HealthPage() {
                                             <Users className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">2</div>
-                                            <p className="text-xs text-muted-foreground">in Form 4 - Chemistry</p>
+                                            <div className="text-2xl font-bold">{dashboardData.studentsWithAllergies}</div>
+                                            <p className="text-xs text-muted-foreground">in selected class(es)</p>
                                         </CardContent>
                                     </Card>
                                     <Card>
@@ -434,8 +458,8 @@ export default function HealthPage() {
                                             <Stethoscope className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">1</div>
-                                            <p className="text-xs text-muted-foreground">Asthma case in Form 4</p>
+                                            <div className="text-2xl font-bold">{dashboardData.studentsWithConditions}</div>
+                                            <p className="text-xs text-muted-foreground">e.g., Asthma, Diabetes</p>
                                         </CardContent>
                                     </Card>
                                     <Card>
@@ -444,7 +468,7 @@ export default function HealthPage() {
                                             <Pill className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">0</div>
+                                            <div className="text-2xl font-bold">{dashboardData.medicationsDue}</div>
                                             <p className="text-xs text-muted-foreground">No medications scheduled</p>
                                         </CardContent>
                                     </Card>
@@ -457,7 +481,7 @@ export default function HealthPage() {
                                         </CardHeader>
                                         <CardContent>
                                             <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                                                <BarChart data={incidentsByTypeData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                                                <BarChart data={dashboardData.incidentsByTypeData} layout="vertical" margin={{ left: 10, right: 30 }}>
                                                     <CartesianGrid horizontal={false} />
                                                     <XAxis type="number" hide />
                                                     <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
@@ -475,7 +499,7 @@ export default function HealthPage() {
                                         </CardHeader>
                                         <CardContent>
                                             <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                                                <BarChart data={incidentsByLocationData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                                                <BarChart data={dashboardData.incidentsByLocationData} layout="vertical" margin={{ left: 10, right: 30 }}>
                                                     <CartesianGrid horizontal={false} />
                                                     <XAxis type="number" hide />
                                                     <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
@@ -1050,3 +1074,5 @@ export default function HealthPage() {
         </Dialog>
     );
 }
+
+    
