@@ -173,7 +173,7 @@ export default function GradesPage() {
     }, [selectedClass, schoolId]);
 
     const filteredStudents = currentStudents.filter(s => 
-        s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
+        s.studentName && s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const getGradeForStudent = (student: StudentGrades, assessmentId: string) => {
