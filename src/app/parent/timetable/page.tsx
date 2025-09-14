@@ -39,6 +39,8 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
+
 
 type Child = {
     id: string;
@@ -74,6 +76,8 @@ const subjectDetails: Record<string, { color: string }> = {
 
 
 export default function ParentTimetablePage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [childrenData, setChildrenData] = React.useState<Child[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [timetableData, setTimetableData] = React.useState<TimetableData>({});
@@ -83,9 +87,11 @@ export default function ParentTimetablePage() {
     const { toast } = useToast();
     
     React.useEffect(() => {
+        if (!schoolId) return;
         setClientReady(true);
         // In a real app, filter by parent ID. For now, we fetch a few students.
-        const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+        const parentId = 'parent-user-id'; // Placeholder for logged-in parent
+        const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -94,16 +100,16 @@ export default function ParentTimetablePage() {
             }
         });
         return () => unsubscribe();
-    }, [selectedChild]);
+    }, [schoolId, selectedChild]);
 
     React.useEffect(() => {
-        if (!selectedChild) return;
+        if (!selectedChild || !schoolId) return;
 
         const fetchTimetable = async () => {
             setIsLoading(true);
             const child = childrenData.find(c => c.id === selectedChild);
             if (child?.classId) {
-                const timetableRef = doc(firestore, 'timetables', child.classId);
+                const timetableRef = doc(firestore, 'schools', schoolId, 'timetables', child.classId);
                 const timetableSnap = await getDoc(timetableRef);
                 if (timetableSnap.exists()) {
                     setTimetableData(timetableSnap.data() as TimetableData);
@@ -114,7 +120,7 @@ export default function ParentTimetablePage() {
                 setTimetableData({});
             }
             
-            const periodsRef = doc(firestore, 'timetableSettings', 'periods');
+            const periodsRef = doc(firestore, 'schools', schoolId, 'timetableSettings', 'periods');
             const periodsSnap = await getDoc(periodsRef);
             if(periodsSnap.exists()) {
                 setPeriods(periodsSnap.data().periods);
@@ -124,11 +130,21 @@ export default function ParentTimetablePage() {
         };
 
         fetchTimetable();
-    }, [selectedChild, childrenData]);
+    }, [selectedChild, childrenData, schoolId]);
 
     const todayDayName = clientReady ? format(new Date(), 'EEEE') : 'Monday';
     const todaysLessons = clientReady && timetableData[todayDayName] 
-        ? Object.entries(timetableData[todayDayName]).map(([time, lesson]) => ({ time, ...lesson }))
+        ? Object.entries(timetableData[todayDayName]).map(([time, lessonData]) => {
+            const [startTime, endTime] = time.split(' - ');
+            const lesson = lessonData as any; // Cast to access subject
+            return {
+                startTime,
+                endTime,
+                title: lesson.subject.name,
+                location: lesson.room,
+                teacher: { name: lesson.subject.teacher }
+            };
+        })
         : [];
     
     const handleExport = (type: 'PDF' | 'Print') => {
@@ -139,6 +155,10 @@ export default function ParentTimetablePage() {
         if (type === 'Print') {
             setTimeout(() => window.print(), 1000);
         }
+    }
+
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing.</div>
     }
 
 
@@ -201,7 +221,7 @@ export default function ParentTimetablePage() {
                             <div className="md:hidden space-y-4">
                                 <h2 className="font-bold text-lg">Today's Lessons ({clientReady ? format(new Date(), 'EEEE') : ''})</h2>
                                 {todaysLessons.length > 0 ? todaysLessons.map(lesson => (
-                                    <Card key={lesson.time} className="bg-muted/30">
+                                    <Card key={lesson.startTime} className="bg-muted/30">
                                         <CardContent className="p-4">
                                             <p className="font-bold">{lesson.title}</p>
                                             <p className="text-sm text-muted-foreground">{lesson.startTime} - {lesson.endTime}</p>
