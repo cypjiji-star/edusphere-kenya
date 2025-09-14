@@ -53,7 +53,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -89,6 +89,66 @@ type ClassAssignment = {
 };
 
 const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', 'Technical Subjects', 'Creative Arts'];
+
+function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAssignments, setClassAssignments }: { schoolClass: SchoolClass, allSubjects: Subject[], schoolId: string, classAssignments: ClassAssignment, setClassAssignments: React.Dispatch<React.SetStateAction<ClassAssignment>> }) {
+    const [selectedSubjects, setSelectedSubjects] = React.useState<string[]>(() => {
+        return (classAssignments[schoolClass.id] || []).map(a => a.subject);
+    });
+
+    const handleCheckboxChange = (subjectName: string, checked: boolean) => {
+        setSelectedSubjects(prev => 
+            checked ? [...prev, subjectName] : prev.filter(s => s !== subjectName)
+        );
+    };
+
+    const handleSaveChanges = async () => {
+        const assignments = selectedSubjects.map(subjectName => {
+            const existing = (classAssignments[schoolClass.id] || []).find(a => a.subject === subjectName);
+            return existing || { subject: subjectName, teacher: null };
+        });
+
+        try {
+            const assignmentRef = doc(firestore, 'schools', schoolId, 'class-assignments', schoolClass.id);
+            await setDoc(assignmentRef, { assignments });
+            // Optimistic update
+            setClassAssignments(prev => ({ ...prev, [schoolClass.id]: assignments }));
+        } catch (e) {
+            console.error("Failed to save subject assignments:", e);
+        }
+    };
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="secondary" size="sm">Manage Subjects</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Manage Subjects for {schoolClass.name} {schoolClass.stream}</DialogTitle>
+                    <DialogDescription>Select the subjects taught in this class.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 max-h-[60vh] overflow-y-auto">
+                    <div className="space-y-2">
+                        {allSubjects.map(subject => (
+                            <div key={subject.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted">
+                                <Checkbox
+                                    id={`sub-${schoolClass.id}-${subject.id}`}
+                                    checked={selectedSubjects.includes(subject.name)}
+                                    onCheckedChange={(checked) => handleCheckboxChange(subject.name, !!checked)}
+                                />
+                                <Label htmlFor={`sub-${schoolClass.id}-${subject.id}`} className="font-normal">{subject.name}</Label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <DialogClose asChild><Button onClick={handleSaveChanges}>Save</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 export default function ClassesAndSubjectsPage() {
     const searchParams = useSearchParams();
@@ -205,7 +265,8 @@ export default function ClassesAndSubjectsPage() {
         );
 
         try {
-            await updateDoc(doc(firestore, `schools/${schoolId}/class-assignments`, classId), { assignments: updatedAssignments });
+            const assignmentRef = doc(firestore, `schools/${schoolId}/class-assignments`, classId);
+            await setDoc(assignmentRef, { assignments: updatedAssignments });
             toast({
                 title: 'Teacher Assigned',
                 description: `${teacherName} has been assigned to teach ${subject} in this class.`
@@ -607,19 +668,26 @@ export default function ClassesAndSubjectsPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <TooltipProvider>
-                    {Object.entries(classAssignments).map(([classId, assignments]) => {
-                        const schoolClass = classes.find(c => c.id === classId);
-                        if (!schoolClass) return null;
-                        
+                    {classes.map((schoolClass) => {
+                        const assignments = classAssignments[schoolClass.id] || [];
                         return (
-                            <Card key={classId}>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">{schoolClass.name} {schoolClass.stream || ''}</CardTitle>
-                                    <CardDescription>Class Teacher: {schoolClass.classTeacher.name}</CardDescription>
+                            <Card key={schoolClass.id}>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-lg">{schoolClass.name} {schoolClass.stream || ''}</CardTitle>
+                                        <CardDescription>Class Teacher: {schoolClass.classTeacher.name}</CardDescription>
+                                    </div>
+                                    <ManageClassSubjectsDialog
+                                        schoolClass={schoolClass}
+                                        allSubjects={subjects}
+                                        schoolId={schoolId}
+                                        classAssignments={classAssignments}
+                                        setClassAssignments={setClassAssignments}
+                                    />
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-2">
-                                        {assignments.map(assignment => {
+                                        {assignments.length > 0 ? assignments.map(assignment => {
                                             const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
                                             const subjectDetails = subjects.find(s => s.name === assignment.subject);
                                             const availableTeachers = subjectDetails ? subjectDetails.teachers.filter(t => (teacherWorkload[t] || 0) <= OVER_ASSIGNED_THRESHOLD) : [];
@@ -654,7 +722,7 @@ export default function ClassesAndSubjectsPage() {
                                                             <div className="space-y-2">
                                                                 <p className="font-semibold text-sm">Suggested Teachers</p>
                                                                 {availableTeachers.length > 0 ? availableTeachers.map(t => (
-                                                                    <Button key={t} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacher(classId, assignment.subject, t)}>
+                                                                    <Button key={t} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacher(schoolClass.id, assignment.subject, t)}>
                                                                         <UserCheck className="mr-2 h-4 w-4" /> {t}
                                                                     </Button>
                                                                 )) : <p className="text-xs text-muted-foreground">No available teachers found.</p>}
@@ -663,7 +731,11 @@ export default function ClassesAndSubjectsPage() {
                                                     </Popover>
                                                 )}
                                             </div>
-                                        )})}
+                                        )}) : (
+                                            <div className="text-sm text-muted-foreground text-center py-4">
+                                                No subjects assigned to this class yet.
+                                            </div>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
