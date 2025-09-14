@@ -12,7 +12,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Search, CheckCircle, Clock, FileDown, Filter, ChevronDown, Printer } from 'lucide-react';
+import { ArrowLeft, Search, CheckCircle, Clock, FileDown, Filter, ChevronDown, Printer, Loader2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -42,23 +42,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { firestore } from '@/lib/firebase';
+import { doc, getDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
+import type { DocumentData } from 'firebase/firestore';
 
-// Mock Data
-const assignmentDetails = {
-    id: '1',
-    title: 'Form 4 Chemistry - Acid-Base Titration Lab Report',
-    className: 'Form 4 - Chemistry',
-    dueDate: '2024-07-22',
-};
-
-const initialSubmissions: Submission[] = [
-  { studentId: 'f4-chem-1', studentName: 'Student 1', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', status: 'Graded', submittedDate: '2024-07-21', grade: 'A' },
-  { studentId: 'f4-chem-2', studentName: 'Student 2', avatarUrl: 'https://picsum.photos/seed/f4-student2/100', status: 'Graded', submittedDate: '2024-07-22', grade: 'B+' },
-  { studentId: 'f4-chem-3', studentName: 'Student 3', avatarUrl: 'https://picsum.photos/seed/f4-student3/100', status: 'Not Handed In' },
-  { studentId: 'f4-chem-4', studentName: 'Student 4', avatarUrl: 'https://picsum.photos/seed/f4-student4/100', status: 'Handed In', submittedDate: '2024-07-23', grade: undefined },
-  { studentId: 'f4-chem-5', studentName: 'Student 5', avatarUrl: 'https://picsum.photos/seed/f4-student5/100', status: 'Handed In', submittedDate: '2024-07-22', grade: undefined },
-  { studentId: 'f4-chem-6', studentName: 'Student 6', avatarUrl: 'https://picsum.photos/seed/f4-student6/100', status: 'Not Handed In' },
-];
 
 const getStatusBadge = (status: Submission['status']) => {
     switch(status) {
@@ -71,25 +58,55 @@ const getStatusBadge = (status: Submission['status']) => {
 
 export default function AssignmentSubmissionsPage({ params }: { params: { assignmentId: string } }) {
   const { assignmentId } = React.use(params);
+  const { toast } = useToast();
+
+  const [assignmentDetails, setAssignmentDetails] = React.useState<DocumentData | null>(null);
+  const [submissions, setSubmissions] = React.useState<Submission[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<SubmissionStatus | 'All'>('All');
-  const [submissions, setSubmissions] = React.useState(initialSubmissions);
   const [gradingStudent, setGradingStudent] = React.useState<Submission | null>(null);
-  const [formattedDueDate, setFormattedDueDate] = React.useState('');
-  const { toast } = useToast();
   const [clientReady, setClientReady] = React.useState(false);
 
 
   React.useEffect(() => {
     setClientReady(true);
-    setFormattedDueDate(
-      new Date(assignmentDetails.dueDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    );
-  }, []);
+    setIsLoading(true);
+
+    const assignmentRef = doc(firestore, 'assignments', assignmentId);
+    const unsubAssignment = onSnapshot(assignmentRef, (docSnap) => {
+        if (docSnap.exists()) {
+            setAssignmentDetails(docSnap.data());
+        } else {
+            toast({ variant: 'destructive', title: 'Assignment not found.'});
+        }
+    });
+
+    const submissionsQuery = query(collection(firestore, 'assignments', assignmentId, 'submissions'));
+    const unsubSubmissions = onSnapshot(submissionsQuery, async (snapshot) => {
+        const subs: Submission[] = await Promise.all(snapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            const studentSnap = await getDoc(data.studentRef);
+            return {
+                studentId: studentSnap.id,
+                studentName: studentSnap.data()?.name || 'Unknown',
+                avatarUrl: studentSnap.data()?.avatarUrl || '',
+                status: data.status,
+                submittedDate: data.submittedDate?.toDate().toISOString(),
+                grade: data.grade,
+                feedback: data.feedback,
+            }
+        }));
+        setSubmissions(subs);
+        setIsLoading(false);
+    });
+
+    return () => {
+        unsubAssignment();
+        unsubSubmissions();
+    }
+  }, [assignmentId, toast]);
 
   const handleGradeSave = (studentId: string, grade: string) => {
     setSubmissions(prev => 
@@ -106,6 +123,20 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
     (statusFilter === 'All' || s.status === statusFilter)
   );
   
+  if (isLoading || !assignmentDetails) {
+    return (
+        <div className="flex h-full items-center justify-center p-8">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    )
+  }
+
+  const formattedDueDate = new Date(assignmentDetails.dueDate.toDate()).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <GradingDialog
@@ -289,5 +320,3 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
     </div>
   );
 }
-
-    

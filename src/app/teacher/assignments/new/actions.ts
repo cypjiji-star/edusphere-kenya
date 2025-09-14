@@ -3,6 +3,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { firestore } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 
 export const assignmentSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters.'),
@@ -13,18 +15,27 @@ export const assignmentSchema = z.object({
 
 export type AssignmentFormValues = z.infer<typeof assignmentSchema>;
 
-
-// In a real app, this would save to a database.
 export async function createAssignmentAction(
   data: AssignmentFormValues
 ) {
-  console.log('Creating new assignment:', data);
-  
-  // Here you would:
-  // 1. Create a new assignment record in your database.
-  // 2. Potentially create submission records for each student in the class.
-  // 3. Revalidate the path for the main assignments page to show the new assignment.
-  revalidatePath('/teacher/assignments');
+  try {
+    const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', data.classId));
+    const studentsSnapshot = await getDocs(studentsQuery);
+    const totalStudents = studentsSnapshot.size;
 
-  return { success: true, message: 'Assignment created successfully!' };
+    await addDoc(collection(firestore, 'assignments'), {
+        ...data,
+        teacherId: 'teacher-wanjiku', // Placeholder for logged-in teacher
+        createdAt: serverTimestamp(),
+        submissions: 0,
+        totalStudents,
+    });
+
+    revalidatePath('/teacher/assignments');
+
+    return { success: true, message: 'Assignment created successfully!' };
+  } catch (error) {
+    console.error("Error creating assignment:", error);
+    return { success: false, message: 'Failed to create assignment in the database.' };
+  }
 }

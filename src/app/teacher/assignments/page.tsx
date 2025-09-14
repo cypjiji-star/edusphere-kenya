@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, BookMarked, ArrowRight } from 'lucide-react';
+import { PlusCircle, BookMarked, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export type Assignment = {
   id: string;
@@ -33,42 +35,6 @@ export type Assignment = {
   totalStudents: number;
 };
 
-
-export const allAssignments: Assignment[] = [
-  {
-    id: '1',
-    title: 'Form 4 Chemistry - Acid-Base Titration Lab Report',
-    className: 'Form 4 - Chemistry',
-    dueDate: '2024-07-22',
-    submissions: 15,
-    totalStudents: 31,
-  },
-  {
-    id: '2',
-    title: 'Form 3 English - The River and The Source Character Essay',
-    className: 'Form 3 - English',
-    dueDate: '2024-07-20',
-    submissions: 28,
-    totalStudents: 28,
-  },
-  {
-    id: '3',
-    title: 'Form 2 Physics - Laws of Motion Problem Set',
-    className: 'Form 2 - Physics',
-    dueDate: '2024-07-25',
-    submissions: 5,
-    totalStudents: 35,
-  },
-  {
-    id: '4',
-    title: 'Form 4 Chemistry - Organic Compounds Quiz',
-    className: 'Form 4 - Chemistry',
-    dueDate: '2024-07-28',
-    submissions: 25,
-    totalStudents: 31,
-  },
-];
-
 const teacherClasses = [
     'All Classes',
     'Form 4 - Chemistry',
@@ -78,11 +44,27 @@ const teacherClasses = [
 
 
 export default function AssignmentsPage() {
+  const [allAssignments, setAllAssignments] = React.useState<Assignment[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [filteredClass, setFilteredClass] = React.useState('All Classes');
   const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
     setClientReady(true);
+    const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
+    
+    const q = query(collection(firestore, 'assignments'), where('teacherId', '==', teacherId));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedAssignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assignment));
+        setAllAssignments(fetchedAssignments);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching assignments:", error);
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const assignments = allAssignments.filter(assignment => 
@@ -120,7 +102,11 @@ export default function AssignmentsPage() {
         </Select>
       </div>
 
-      {assignments.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      ) : assignments.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {assignments.map((assignment) => (
             <Card key={assignment.id}>
