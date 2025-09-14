@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import * as React from 'react';
 import { addDays, format, eachDayOfInterval, isBefore, startOfToday, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock, Bell, UserCheck, UserX, Loader2 } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -90,6 +91,7 @@ export default function AttendancePage() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'all'>('all');
   const [isLoading, setIsLoading] = React.useState(true);
+  const user = auth.currentUser;
   
   const isRange = date?.from && date?.to;
   const selectedDate = date?.from && !date.to ? date.from : undefined;
@@ -103,18 +105,18 @@ export default function AttendancePage() {
 
 
   React.useEffect(() => {
-    if (!schoolId) return;
-    const teacherId = 'teacher-wanjiku'; // This should be dynamic based on logged-in user
+    if (!schoolId || !user) return;
+    const teacherId = user.uid;
     const q = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const classesData: TeacherClass[] = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+        const classesData: TeacherClass[] = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
         setTeacherClasses(classesData);
         if (!selectedClass && classesData.length > 0) {
             setSelectedClass(classesData[0].id);
         }
     });
     return () => unsubscribe();
-  }, [schoolId, selectedClass]);
+  }, [schoolId, selectedClass, user]);
 
   React.useEffect(() => {
     if (!selectedClass || !date?.from || !schoolId || isRange) {
@@ -162,7 +164,7 @@ export default function AttendancePage() {
   }, [selectedClass, date, schoolId, isRange, selectedDate]);
 
   const handleSaveAttendance = React.useCallback(async () => {
-    if (!isEditable || !selectedClass || !date?.from || !schoolId) return;
+    if (!isEditable || !selectedClass || !date?.from || !schoolId || !user) return;
 
     const batch = writeBatch(firestore);
     const attendanceDate = startOfToday();
@@ -180,7 +182,7 @@ export default function AttendancePage() {
             date: Timestamp.fromDate(attendanceDate),
             status: student.status,
             notes: student.notes || '',
-            teacherId: 'teacher-wanjiku' // This should be dynamic
+            teacherId: user.uid
         }, { merge: true });
     }
 
@@ -200,7 +202,7 @@ export default function AttendancePage() {
             variant: 'destructive',
         });
     }
-  }, [isEditable, students, selectedClass, date, toast, teacherClasses, schoolId]);
+  }, [isEditable, students, selectedClass, date, toast, teacherClasses, schoolId, user]);
   
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     if (!isEditable) return;
