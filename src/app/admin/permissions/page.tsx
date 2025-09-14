@@ -29,6 +29,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type Permission = {
@@ -91,6 +92,8 @@ const permissionStructure: PermissionCategory[] = [
 
 
 export default function PermissionsPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [rolePermissions, setRolePermissions] = React.useState<Record<string, Role>>({});
   const [isLoading, setIsLoading] = React.useState(true);
   const [newRoleName, setNewRoleName] = React.useState('');
@@ -98,14 +101,19 @@ export default function PermissionsPage() {
   const { toast } = useToast();
 
   React.useEffect(() => {
+    if (!schoolId) {
+        setIsLoading(false);
+        return;
+    };
+
     setIsLoading(true);
-    const rolesUnsub = onSnapshot(collection(firestore, 'roles'), (snapshot) => {
+    const rolesUnsub = onSnapshot(collection(firestore, `schools/${schoolId}/roles`), (snapshot) => {
         const roles: Record<string, Role> = {};
         snapshot.forEach(doc => {
             roles[doc.id] = doc.data() as Role;
         });
         
-        const usersUnsub = onSnapshot(collection(firestore, 'users'), (usersSnapshot) => {
+        const usersUnsub = onSnapshot(collection(firestore, `schools/${schoolId}/users`), (usersSnapshot) => {
             const userCounts: Record<string, number> = {};
             usersSnapshot.forEach(userDoc => {
                 const roleName = userDoc.data().role;
@@ -127,7 +135,7 @@ export default function PermissionsPage() {
     });
 
     return () => rolesUnsub();
-  }, []);
+  }, [schoolId]);
 
   const handlePermissionChange = (role: string, permissionId: string, checked: boolean) => {
     setRolePermissions(prev => {
@@ -143,8 +151,9 @@ export default function PermissionsPage() {
   };
 
   const handleSave = async (role: string) => {
+    if (!schoolId) return;
     try {
-        const roleRef = doc(firestore, 'roles', role);
+        const roleRef = doc(firestore, `schools/${schoolId}/roles`, role);
         await updateDoc(roleRef, { permissions: rolePermissions[role].permissions });
         toast({
             title: 'Permissions Saved',
@@ -159,8 +168,8 @@ export default function PermissionsPage() {
   const handleCreateRole = async () => {
     const trimmedRoleName = newRoleName.trim();
     
-    if (!trimmedRoleName) {
-        toast({ title: 'Error', description: 'Role name cannot be empty.', variant: 'destructive' });
+    if (!trimmedRoleName || !schoolId) {
+        toast({ title: 'Error', description: 'Role name or School ID is missing.', variant: 'destructive' });
         return;
     }
 
@@ -170,7 +179,7 @@ export default function PermissionsPage() {
     }
     
     try {
-        const roleRef = doc(firestore, 'roles', trimmedRoleName);
+        const roleRef = doc(firestore, `schools/${schoolId}/roles`, trimmedRoleName);
         await setDoc(roleRef, { permissions: [], isCore: false });
         setNewRoleName('');
         toast({ title: 'Role Created', description: `The "${trimmedRoleName}" role has been added.` });
@@ -181,9 +190,10 @@ export default function PermissionsPage() {
   };
 
   const handleDeleteRole = async (roleToDelete: string) => {
+      if (!schoolId) return;
       if (window.confirm(`Are you sure you want to delete the "${roleToDelete}" role?`)) {
           try {
-              await deleteDoc(doc(firestore, 'roles', roleToDelete));
+              await deleteDoc(doc(firestore, `schools/${schoolId}/roles`, roleToDelete));
               toast({ title: 'Role Deleted', description: `The "${roleToDelete}" role has been removed.`, variant: 'destructive' });
           } catch(e) {
                toast({ title: 'Deletion Failed', variant: 'destructive' });
@@ -221,6 +231,10 @@ export default function PermissionsPage() {
   const filteredRoles = Object.keys(rolePermissions).filter(role =>
     role.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  if (!schoolId) {
+      return <div className="p-8">Error: School ID is missing from URL.</div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -304,7 +318,7 @@ export default function PermissionsPage() {
                 <CardContent>
                     {renderPermissions(role)}
                 </CardContent>
-                {role !== 'Admin' && (
+                {!roleData.isCore && (
                     <CardFooter>
                         <Button onClick={() => handleSave(role)}>
                             <Save className="mr-2 h-4 w-4"/>
