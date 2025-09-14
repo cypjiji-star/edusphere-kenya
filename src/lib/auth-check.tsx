@@ -1,11 +1,15 @@
 
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, usePathname } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState, type ReactNode } from 'react';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, firestore } from './firebase';
 
 type AllowedRole = 'admin' | 'teacher' | 'parent' | 'developer';
 
@@ -13,15 +17,57 @@ export function AuthCheck({
   children,
   requiredRole,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   requiredRole: AllowedRole;
 }) {
   const searchParams = useSearchParams();
-  // In a real app, you would get the user's role from a secure, server-side session,
-  // not from the URL. This is for demonstration purposes only.
-  const userRole = searchParams.get('role');
+  const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (userRole === requiredRole) {
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+      if (authUser) {
+        setUser(authUser);
+        let fetchedRole: string | null = null;
+        
+        if (requiredRole === 'developer') {
+          const devDocRef = doc(firestore, 'developers', authUser.uid);
+          const devDocSnap = await getDoc(devDocRef);
+          if (devDocSnap.exists()) {
+            fetchedRole = devDocSnap.data().role;
+          }
+        } else {
+          const schoolId = searchParams.get('schoolId');
+          if (schoolId) {
+            const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              fetchedRole = userDocSnap.data().role;
+            }
+          }
+        }
+        setUserRole(fetchedRole);
+      } else {
+        setUser(null);
+        setUserRole(null);
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [requiredRole, searchParams, pathname]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (user && userRole === requiredRole) {
     return <>{children}</>;
   }
 
@@ -36,7 +82,7 @@ export function AuthCheck({
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            You are not authorized to view this page. Your role is listed as "{userRole || 'Not Logged In'}", but this page requires the "{requiredRole}" role.
+            You are not authorized to view this page. This page requires the "{requiredRole}" role.
           </p>
           <Button asChild className="mt-6">
             <Link href="/login">Return to Login</Link>
