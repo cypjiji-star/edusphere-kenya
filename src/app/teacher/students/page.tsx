@@ -98,70 +98,65 @@ export default function StudentsPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
 
+  // Effect to fetch the teacher's classes
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+        setIsLoading(false);
+        return;
+    }
 
-    // First, get the classes assigned to the teacher
     const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
-    const classesUnsub = onSnapshot(classesQuery, (querySnapshot) => {
+    const unsubscribe = onSnapshot(classesQuery, (querySnapshot) => {
       const classesData: TeacherClass[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
         name: `${doc.data().name} ${doc.data().stream || ''}`.trim(),
       }));
-      setTeacherClasses(classesData);
-
-      // Set initial tab only if it hasn't been set yet
-      if (!activeTab && classesData.length > 0) {
-        setActiveTab(classesData[0].id);
-      }
       
-      // If there are no classes, stop loading
-      if (classesData.length === 0) {
+      setTeacherClasses(classesData);
+      if (classesData.length > 0 && !activeTab) {
+        setActiveTab(classesData[0].id);
+      } else if (classesData.length === 0) {
         setIsLoading(false);
       }
     });
 
-    return () => classesUnsub();
-  }, [schoolId]);
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolId, teacherId]);
 
+  // Effect to fetch students for the active class
   React.useEffect(() => {
-    if (!activeTab || !schoolId) {
-        // If activeTab is cleared, ensure loading is false if no classes exist
-        if (teacherClasses.length === 0) {
-            setIsLoading(false);
-        }
-        return;
-    };
+    if (!activeTab || !schoolId) return;
 
     setIsLoading(true);
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', activeTab));
     const unsubscribeStudents = onSnapshot(studentsQuery, async (snapshot) => {
-        const studentsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Student));
-        
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const attendanceDate = Timestamp.fromDate(today);
+      const studentsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Student));
+      
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const attendanceDate = Timestamp.fromDate(today);
 
-        const attendanceQuery = query(
-            collection(firestore, 'schools', schoolId, 'attendance'), 
-            where('classId', '==', activeTab),
-            where('date', '==', attendanceDate)
-        );
-        const attendanceSnapshot = await getDocs(attendanceQuery);
-        const attendanceMap = new Map();
-        attendanceSnapshot.forEach(doc => {
-            const data = doc.data();
-            attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
-        });
+      const attendanceQuery = query(
+          collection(firestore, 'schools', schoolId, 'attendance'), 
+          where('classId', '==', activeTab),
+          where('date', '==', attendanceDate)
+      );
+      const attendanceSnapshot = await getDocs(attendanceQuery);
+      const attendanceMap = new Map();
+      attendanceSnapshot.forEach(doc => {
+          const data = doc.data();
+          attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
+      });
 
-        const studentsWithAttendance = studentsData.map(student => ({
-            ...student,
-            attendance: attendanceMap.get(student.id)?.status || 'unmarked',
-            notes: attendanceMap.get(student.id)?.notes || '',
-        }));
+      const studentsWithAttendance = studentsData.map(student => ({
+          ...student,
+          attendance: attendanceMap.get(student.id)?.status || 'unmarked',
+          notes: attendanceMap.get(student.id)?.notes || '',
+      }));
 
-        setAllClassStudents(prev => ({ ...prev, [activeTab]: studentsWithAttendance }));
-        setIsLoading(false);
+      setAllClassStudents(prev => ({ ...prev, [activeTab]: studentsWithAttendance }));
+      setIsLoading(false);
     });
 
     return () => unsubscribeStudents();
