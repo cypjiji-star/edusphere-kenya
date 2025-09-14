@@ -30,6 +30,8 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  where,
+  getDocs,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -89,11 +91,12 @@ type Message = {
   translatedText?: string;
 };
 
-const newContactOptions = [
-    { id: 'contact-1', name: 'Mr. Otieno (Teacher)', avatar: 'https://picsum.photos/seed/teacher-otieno/100', icon: User },
-    { id: 'contact-2', name: 'Ms. Njeri (Teacher)', avatar: 'https://picsum.photos/seed/teacher-njeri/100', icon: User },
-    { id: 'contact-3', name: 'Mrs. Kamau (Parent)', avatar: 'https://picsum.photos/seed/parent2/100', icon: User },
-];
+type SelectableContact = {
+    id: string;
+    name: string;
+    avatar: string;
+    icon: React.ElementType;
+}
 
 export function AdminChatLayout() {
   const searchParams = useSearchParams();
@@ -107,6 +110,7 @@ export function AdminChatLayout() {
   const [isSending, setIsSending] = React.useState(false);
   const [attachment, setAttachment] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [newContactOptions, setNewContactOptions] = React.useState<SelectableContact[]>([]);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -119,6 +123,22 @@ export function AdminChatLayout() {
             setSelectedConvo(convos[0]);
         }
     });
+
+    const fetchUsers = async () => {
+        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', 'in', ['Teacher', 'Parent']));
+        const usersSnapshot = await getDocs(usersQuery);
+        const users = usersSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: `${data.name} (${data.role})`,
+                avatar: data.avatarUrl,
+                icon: User,
+            }
+        });
+        setNewContactOptions(users);
+    }
+    fetchUsers();
 
     return () => unsubscribe();
   }, [selectedConvo, schoolId]);
