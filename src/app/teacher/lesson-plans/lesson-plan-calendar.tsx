@@ -27,6 +27,13 @@ interface LessonPlanCalendarProps {
     lessonPlans: LessonPlan[];
 }
 
+const statusColors: Record<string, string> = {
+    'Mr. Otieno': 'bg-blue-500',
+    'Ms. Njeri': 'bg-purple-500',
+    'Ms. Wanjiku': 'bg-green-600',
+    'Mr. Kamau': 'bg-yellow-500',
+};
+
 export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
 
@@ -81,13 +88,20 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
                   <div className="mt-1 space-y-1 overflow-y-auto">
                     {plansForDay.map(plan => (
                       <Link key={plan.id} href={`/teacher/lesson-plans/new?id=${plan.id}`}>
-                        <Badge className='w-full truncate text-white bg-primary hover:bg-primary/80 cursor-pointer'>
+                        <Badge 
+                          className={cn(
+                            'w-full truncate text-white cursor-pointer',
+                             statusColors[plan.teacher?.name || 'Ms. Wanjiku'] || 'bg-gray-500'
+                          )}
+                          title={`${plan.topic} - ${plan.teacher?.name || 'Ms. Wanjiku'}`}
+                        >
                           {plan.topic}
                         </Badge>
                       </Link>
                     ))}
+                    {/* Add logic here to highlight days with missing plans */}
                   </div>
-                  <Link href={`/teacher/lesson-plans/new?date=${format(day, 'yyyy-MM-dd')}`} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <Link href={`/teacher/lesson-plans/new?date=${format(day, 'yyyy-MM-dd')}`} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-6 w-6">
                         <PlusCircle className="h-4 w-4 text-muted-foreground" />
                     </Button>

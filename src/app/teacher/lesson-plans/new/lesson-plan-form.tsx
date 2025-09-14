@@ -35,7 +35,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
-import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp } from 'firebase/firestore';
 
 
 export const lessonPlanSchema = z.object({

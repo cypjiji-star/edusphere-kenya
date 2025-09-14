@@ -39,6 +39,7 @@ export type LessonPlan = {
   grade: string;
   date: Timestamp;
   status: LessonPlanStatus;
+  teacher?: { name: string };
 };
 
 const subjects = ['All Subjects', 'Biology', 'Chemistry', 'English', 'History', 'Mathematics', 'Physics'];
