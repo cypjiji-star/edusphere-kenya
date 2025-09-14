@@ -106,6 +106,7 @@ export default function DeveloperDashboard() {
         const adminUserRef = doc(firestore, 'schools', schoolCode, 'users', adminUid);
         batch.set(adminUserRef, {
             id: adminUid,
+            schoolId: schoolCode, // <-- This is the fix
             name: 'School Admin', // Placeholder name
             email: adminEmail,
             role: 'Admin',
