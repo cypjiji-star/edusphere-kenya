@@ -38,7 +38,7 @@ import { Switch } from '@/components/ui/switch';
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, LabelList } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 
 // --- Data Types (could be shared in a types file) ---
 type Grade = {
@@ -209,332 +209,334 @@ export function ReportGenerator() {
   };
 
   return (
-    <div className="grid gap-8 md:grid-cols-3">
-        <Card className="md:col-span-1">
-            <CardHeader>
-                <CardTitle>Generate Report</CardTitle>
-                <CardDescription>Select options to generate academic, attendance, or activity reports.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Label htmlFor="report-type-select">Report Type</Label>
-                    <Select value={reportType} onValueChange={(value: ReportType) => setReportType(value)}>
-                        <SelectTrigger id="report-type-select">
-                            <SelectValue placeholder="Select a report type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectGroup>
-                                <SelectLabel>Academic Reports</SelectLabel>
-                                <SelectItem value="individual">Individual Student Report</SelectItem>
-                                <SelectItem value="summary">Class Performance Summary</SelectItem>
-                                <SelectItem value="ranking">Student Ranking &amp; Percentiles</SelectItem>
-                            </SelectGroup>
-                             <SelectGroup>
-                                <SelectLabel>Assignment Reports</SelectLabel>
-                                <SelectItem value="assignment-completion">Assignment Completion Report</SelectItem>
-                            </SelectGroup>
-                             <SelectGroup>
-                                <SelectLabel>Attendance Reports</SelectLabel>
-                                <SelectItem value="daily-log">Daily/Weekly Attendance Log</SelectItem>
-                                <SelectItem value="absentee-patterns">Absentee Pattern Analysis</SelectItem>
-                            </SelectGroup>
-                            <SelectGroup>
-                                <SelectLabel>Sports &amp; Activities Reports</SelectLabel>
-                                <SelectItem value="participation-records">Participation Records</SelectItem>
-                                <SelectItem value="performance-stats">Performance Stats &amp; Awards</SelectItem>
-                                <SelectItem value="team-rosters">Event Attendance &amp; Rosters</SelectItem>
-                            </SelectGroup>
-                            <SelectGroup>
-                                <SelectLabel>Communication Reports</SelectLabel>
-                                <SelectItem value="message-delivery">Message Delivery &amp; Read Receipts</SelectItem>
-                                <SelectItem value="interaction-logs">Parent-Teacher Interaction Logs</SelectItem>
-                                <SelectItem value="notification-history">Notification History</SelectItem>
-                            </SelectGroup>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="class-select">Select Class</Label>
-                    <Select value={selectedClass} onValueChange={setSelectedClass}>
-                        <SelectTrigger id="class-select">
-                            <SelectValue placeholder="Select a class" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {teacherClasses.map((cls) => (
-                                <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                 {reportType === 'individual' && (
-                    <div className="space-y-2">
-                        <Label htmlFor="student-select">Select Student</Label>
-                        <Select value={selectedStudent || ''} onValueChange={setSelectedStudent} disabled={studentsInClass.length === 0}>
-                            <SelectTrigger id="student-select">
-                                <SelectValue placeholder="Select a student" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {studentsInClass.map((student) => (
-                                    <SelectItem key={student.studentId} value={student.studentId}>{student.studentName}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                 )}
-                 <div className="space-y-2">
-                    <Label htmlFor="date-range-picker">Date Range (Optional)</Label>
-                      <Popover>
-                      <PopoverTrigger asChild>
-                          <Button
-                              id="date-range-picker"
-                              variant={'outline'}
-                              className={cn(
-                                  'w-full justify-start text-left font-normal',
-                                  !date && 'text-muted-foreground'
-                              )}
-                          >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {date?.from ? (
-                            date.to ? (
-                              <>
-                                {format(date.from, 'LLL dd, y')} -{' '}
-                                {format(date.to, 'LLL dd, y')}
-                              </>
+    <>
+      <div className="grid gap-8 md:grid-cols-3">
+          <Card className="md:col-span-1">
+              <CardHeader>
+                  <CardTitle>Generate Report</CardTitle>
+                  <CardDescription>Select options to generate academic, attendance, or activity reports.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                      <Label htmlFor="report-type-select">Report Type</Label>
+                      <Select value={reportType} onValueChange={(value: ReportType) => setReportType(value)}>
+                          <SelectTrigger id="report-type-select">
+                              <SelectValue placeholder="Select a report type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectGroup>
+                                  <SelectLabel>Academic Reports</SelectLabel>
+                                  <SelectItem value="individual">Individual Student Report</SelectItem>
+                                  <SelectItem value="summary">Class Performance Summary</SelectItem>
+                                  <SelectItem value="ranking">Student Ranking &amp; Percentiles</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                  <SelectLabel>Assignment Reports</SelectLabel>
+                                  <SelectItem value="assignment-completion">Assignment Completion Report</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                  <SelectLabel>Attendance Reports</SelectLabel>
+                                  <SelectItem value="daily-log">Daily/Weekly Attendance Log</SelectItem>
+                                  <SelectItem value="absentee-patterns">Absentee Pattern Analysis</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                  <SelectLabel>Sports &amp; Activities Reports</SelectLabel>
+                                  <SelectItem value="participation-records">Participation Records</SelectItem>
+                                  <SelectItem value="performance-stats">Performance Stats &amp; Awards</SelectItem>
+                                  <SelectItem value="team-rosters">Event Attendance &amp; Rosters</SelectItem>
+                              </SelectGroup>
+                              <SelectGroup>
+                                  <SelectLabel>Communication Reports</SelectLabel>
+                                  <SelectItem value="message-delivery">Message Delivery &amp; Read Receipts</SelectItem>
+                                  <SelectItem value="interaction-logs">Parent-Teacher Interaction Logs</SelectItem>
+                                  <SelectItem value="notification-history">Notification History</SelectItem>
+                              </SelectGroup>
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="class-select">Select Class</Label>
+                      <Select value={selectedClass} onValueChange={setSelectedClass}>
+                          <SelectTrigger id="class-select">
+                              <SelectValue placeholder="Select a class" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {teacherClasses.map((cls) => (
+                                  <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  {reportType === 'individual' && (
+                      <div className="space-y-2">
+                          <Label htmlFor="student-select">Select Student</Label>
+                          <Select value={selectedStudent || ''} onValueChange={setSelectedStudent} disabled={studentsInClass.length === 0}>
+                              <SelectTrigger id="student-select">
+                                  <SelectValue placeholder="Select a student" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  {studentsInClass.map((student) => (
+                                      <SelectItem key={student.studentId} value={student.studentId}>{student.studentName}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                          </Select>
+                      </div>
+                  )}
+                  <div className="space-y-2">
+                      <Label htmlFor="date-range-picker">Date Range (Optional)</Label>
+                        <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                id="date-range-picker"
+                                variant={'outline'}
+                                className={cn(
+                                    'w-full justify-start text-left font-normal',
+                                    !date && 'text-muted-foreground'
+                                )}
+                            >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date?.from ? (
+                              date.to ? (
+                                <>
+                                  {format(date.from, 'LLL dd, y')} -{' '}
+                                  {format(date.to, 'LLL dd, y')}
+                                </>
+                              ) : (
+                                format(date.from, 'LLL dd, y')
+                              )
                             ) : (
-                              format(date.from, 'LLL dd, y')
-                            )
-                          ) : (
-                            <span>Pick a date range</span>
-                          )}
-                          </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={date?.from}
-                            selected={date}
-                            onSelect={setDate}
-                            numberOfMonths={2}
-                          />
-                      </PopoverContent>
-                      </Popover>
-                 </div>
-            </CardContent>
-            <CardFooter>
-                 <Button onClick={handleGenerateReport} disabled={isGenerateDisabled} className="w-full">
-                    {isGenerating ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generating...
-                        </>
-                    ) : (
-                        <>
-                            <FileText className="mr-2 h-4 w-4" />
-                            Generate Report
-                        </>
-                    )}
-                </Button>
-            </CardFooter>
-             <Separator className="my-4" />
-             <div className="p-4 space-y-4">
-                <h4 className="font-semibold flex items-center gap-2 text-base">
-                    <Bell className="h-5 w-5 text-primary" />
-                    Automated Alerts
-                </h4>
-                <p className="text-xs text-muted-foreground">Set up automated reports for specific triggers.</p>
-                 <div className="space-y-3">
-                    <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
-                        <Label htmlFor="alert-low-perf" className="text-sm">Low performance alert</Label>
-                        <Switch id="alert-low-perf" checked={alertLowPerf} onCheckedChange={setAlertLowPerf} />
-                    </div>
-                    <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
-                        <Label htmlFor="alert-absenteeism" className="text-sm">High absenteeism alert</Label>
-                        <Switch id="alert-absenteeism" checked={alertAbsent} onCheckedChange={setAlertAbsent} />
-                    </div>
-                 </div>
-             </div>
-        </Card>
-        
-        <div className="md:col-span-2">
-            <Card className="min-h-[600px]">
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Report Preview</CardTitle>
-                        <CardDescription>A preview of the generated report will appear below.</CardDescription>
-                    </div>
-                    <Button variant="outline" size="sm" disabled={!showReport || isGenerating} onClick={() => window.print()}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    {isGenerating && (
-                        <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32">
-                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                            <p className="font-semibold">Compiling data...</p>
-                        </div>
-                    )}
-                    {!isGenerating && !showReport && (
-                         <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32">
-                            <FileText className="h-12 w-12 text-primary/50" />
-                            <p className="font-semibold">Your generated report will appear here.</p>
-                            <p className="text-sm">Select a report type and click "Generate Report".</p>
-                        </div>
-                    )}
-                    {!isGenerating && reportType === 'individual' && individualReport && (
-                        <div className="border rounded-lg p-6 bg-background shadow-none">
-                            <header className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <GraduationCap className="h-10 w-10 text-primary" />
-                                    <div>
-                                        <h2 className="text-xl font-bold font-headline text-primary">EduSphere High School</h2>
-                                        <p className="text-sm text-muted-foreground">End of Term Report</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-semibold">Date: {new Date().toLocaleDateString()}</p>
-                                </div>
-                            </header>
+                              <span>Pick a date range</span>
+                            )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              initialFocus
+                              mode="range"
+                              defaultMonth={date?.from}
+                              selected={date}
+                              onSelect={setDate}
+                              numberOfMonths={2}
+                            />
+                        </PopoverContent>
+                        </Popover>
+                  </div>
+              </CardContent>
+              <CardFooter>
+                  <Button onClick={handleGenerateReport} disabled={isGenerateDisabled} className="w-full">
+                      {isGenerating ? (
+                          <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Generating...
+                          </>
+                      ) : (
+                          <>
+                              <FileText className="mr-2 h-4 w-4" />
+                              Generate Report
+                          </>
+                      )}
+                  </Button>
+              </CardFooter>
+              <Separator className="my-4" />
+              <div className="p-4 space-y-4">
+                  <h4 className="font-semibold flex items-center gap-2 text-base">
+                      <Bell className="h-5 w-5 text-primary" />
+                      Automated Alerts
+                  </h4>
+                  <p className="text-xs text-muted-foreground">Set up automated reports for specific triggers.</p>
+                  <div className="space-y-3">
+                      <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
+                          <Label htmlFor="alert-low-perf" className="text-sm">Low performance alert</Label>
+                          <Switch id="alert-low-perf" checked={alertLowPerf} onCheckedChange={setAlertLowPerf} />
+                      </div>
+                      <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
+                          <Label htmlFor="alert-absenteeism" className="text-sm">High absenteeism alert</Label>
+                          <Switch id="alert-absenteeism" checked={alertAbsent} onCheckedChange={setAlertAbsent} />
+                      </div>
+                  </div>
+              </div>
+          </Card>
+          
+          <div className="md:col-span-2">
+              <Card className="min-h-[600px]">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                      <div>
+                          <CardTitle>Report Preview</CardTitle>
+                          <CardDescription>A preview of the generated report will appear below.</CardDescription>
+                      </div>
+                      <Button variant="outline" size="sm" disabled={!showReport || isGenerating} onClick={() => window.print()}>
+                          <Printer className="mr-2 h-4 w-4" />
+                          Print
+                      </Button>
+                  </CardHeader>
+                  <CardContent>
+                      {isGenerating && (
+                          <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32">
+                              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                              <p className="font-semibold">Compiling data...</p>
+                          </div>
+                      )}
+                      {!isGenerating && !showReport && (
+                          <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32">
+                              <FileText className="h-12 w-12 text-primary/50" />
+                              <p className="font-semibold">Your generated report will appear here.</p>
+                              <p className="text-sm">Select a report type and click "Generate Report".</p>
+                          </div>
+                      )}
+                      {!isGenerating && reportType === 'individual' && individualReport && (
+                          <div className="border rounded-lg p-6 bg-background shadow-none">
+                              <header className="flex items-center justify-between mb-6">
+                                  <div className="flex items-center gap-3">
+                                      <GraduationCap className="h-10 w-10 text-primary" />
+                                      <div>
+                                          <h2 className="text-xl font-bold font-headline text-primary">EduSphere High School</h2>
+                                          <p className="text-sm text-muted-foreground">End of Term Report</p>
+                                      </div>
+                                  </div>
+                                  <div className="text-right">
+                                      <p className="font-semibold">Date: {new Date().toLocaleDateString()}</p>
+                                  </div>
+                              </header>
 
-                            <Separator className="my-6"/>
+                              <Separator className="my-6"/>
 
-                            <div className="flex items-center gap-6 mb-6">
-                                <Avatar className="h-20 w-20">
-                                    <AvatarImage src={individualReport.student.studentAvatar} />
-                                    <AvatarFallback>{individualReport.student.studentName.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Name:</span> <p>{individualReport.student.studentName}</p></div>
-                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Class:</span> <p>{teacherClasses.find(c => c.id === selectedClass)?.name}</p></div>
-                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Roll No:</span> <p>{individualReport.student.rollNumber}</p></div>
-                                    <div className="flex gap-2"><span className="font-medium text-muted-foreground">Overall:</span> <Badge>{individualReport.student.overall}%</Badge></div>
-                                </div>
-                            </div>
-                            
-                            <h3 className="font-semibold mb-2">Term Performance</h3>
-                            <div className="border rounded-md">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Assessment</TableHead>
-                                            <TableHead>Type</TableHead>
-                                            <TableHead className="text-right">Score</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {individualReport.assessments.map(assessment => (
-                                            <TableRow key={assessment.id}>
-                                                <TableCell className="font-medium">{assessment.title}</TableCell>
-                                                <TableCell>{assessment.type}</TableCell>
-                                                <TableCell className="text-right font-medium">{getGradeForStudent(individualReport.student, assessment.id)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                              <div className="flex items-center gap-6 mb-6">
+                                  <Avatar className="h-20 w-20">
+                                      <AvatarImage src={individualReport.student.studentAvatar} />
+                                      <AvatarFallback>{individualReport.student.studentName.charAt(0)}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                                      <div className="flex gap-2"><span className="font-medium text-muted-foreground">Name:</span> <p>{individualReport.student.studentName}</p></div>
+                                      <div className="flex gap-2"><span className="font-medium text-muted-foreground">Class:</span> <p>{teacherClasses.find(c => c.id === selectedClass)?.name}</p></div>
+                                      <div className="flex gap-2"><span className="font-medium text-muted-foreground">Roll No:</span> <p>{individualReport.student.rollNumber}</p></div>
+                                      <div className="flex gap-2"><span className="font-medium text-muted-foreground">Overall:</span> <Badge>{individualReport.student.overall}%</Badge></div>
+                                  </div>
+                              </div>
+                              
+                              <h3 className="font-semibold mb-2">Term Performance</h3>
+                              <div className="border rounded-md">
+                                  <Table>
+                                      <TableHeader>
+                                          <TableRow>
+                                              <TableHead>Assessment</TableHead>
+                                              <TableHead>Type</TableHead>
+                                              <TableHead className="text-right">Score</TableHead>
+                                          </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                          {individualReport.assessments.map(assessment => (
+                                              <TableRow key={assessment.id}>
+                                                  <TableCell className="font-medium">{assessment.title}</TableCell>
+                                                  <TableCell>{assessment.type}</TableCell>
+                                                  <TableCell className="text-right font-medium">{getGradeForStudent(individualReport.student, assessment.id)}</TableCell>
+                                              </TableRow>
+                                          ))}
+                                      </TableBody>
+                                  </Table>
+                              </div>
 
-                             <div className="mt-6">
-                                <h3 className="font-semibold mb-2">Teacher's Comments</h3>
-                                <Textarea readOnly value="An excellent term for this student, showing great improvement in all areas. Keep up the fantastic work and continue to participate actively in class discussions." className="bg-muted/50" />
-                            </div>
+                              <div className="mt-6">
+                                  <h3 className="font-semibold mb-2">Teacher's Comments</h3>
+                                  <Textarea readOnly value="An excellent term for this student, showing great improvement in all areas. Keep up the fantastic work and continue to participate actively in class discussions." className="bg-muted/50" />
+                              </div>
 
-                             <Separator className="my-6"/>
-                             
-                             <footer className="text-center text-xs text-muted-foreground">
-                                <p>This is an official school document. &copy; {new Date().getFullYear()} EduSphere High School</p>
-                             </footer>
-                        </div>
-                    )}
-                    {!isGenerating && reportType === 'summary' && summaryReport && (
-                        <div className="border rounded-lg p-6 bg-background shadow-none">
-                            <header className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <BarChartIcon className="h-10 w-10 text-primary" />
-                                    <div>
-                                        <h2 className="text-xl font-bold font-headline text-primary">Class Performance Summary</h2>
-                                        <p className="text-sm text-muted-foreground">{teacherClasses.find(c=>c.id === selectedClass)?.name} - Term 2, 2024</p>
-                                    </div>
-                                </div>
-                            </header>
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                                <Card>
-                                    <CardHeader className="pb-2"><CardDescription>Class Average</CardDescription></CardHeader>
-                                    <CardContent><p className="text-2xl font-bold">{summaryReport.average}%</p></CardContent>
-                                </Card>
-                                 <Card>
-                                    <CardHeader className="pb-2"><CardDescription>Pass Rate</CardDescription></CardHeader>
-                                    <CardContent><p className="text-2xl font-bold">{summaryReport.passRate}%</p></CardContent>
-                                </Card>
-                                <Card>
-                                    <CardHeader className="pb-2"><CardDescription>Highest Score</CardDescription></CardHeader>
-                                    <CardContent><p className="text-2xl font-bold">{summaryReport.highest}%</p></CardContent>
-                                </Card>
-                                 <Card>
-                                    <CardHeader className="pb-2"><CardDescription>Lowest Score</CardDescription></CardHeader>
-                                    <CardContent><p className="text-2xl font-bold">{summaryReport.lowest}%</p></CardContent>
-                                </Card>
-                            </div>
-                            <h3 className="font-semibold mb-2">Grade Distribution</h3>
-                             <ChartContainer config={summaryChartConfig} className="h-[200px] w-full">
-                                <BarChart accessibilityLayer data={summaryReport.distribution} margin={{ top: 20 }}>
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                                    <YAxis />
-                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                    <Bar key="students" dataKey="students" fill="var(--color-students)" radius={8}>
-                                        <LabelList position="top" offset={8} className="fill-foreground" fontSize={12} />
-                                    </Bar>
-                                </ChartContainer>
-                            </ChartContainer>
-                            <Separator className="my-6"/>
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div>
-                                    <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingUp className="text-green-500" />Top Performers</h3>
-                                    <div className="space-y-2">
-                                        {summaryReport.topPerformers.map(s => (
-                                            <div key={s.studentId} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
-                                                <p>{s.studentName}</p><Badge>{s.overall}%</Badge>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                 <div>
-                                    <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingDown className="text-red-500" />Needs Attention</h3>
-                                    <div className="space-y-2">
-                                       {summaryReport.needsAttention.map(s => (
-                                            <div key={s.studentId} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
-                                                <p>{s.studentName}</p><Badge variant="destructive">{s.overall}%</Badge>
-                                            </div>
-                                        ))}
-                                         {summaryReport.needsAttention.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No students are significantly below average.</p>}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    {!isGenerating && comingSoonReports.includes(reportType) && (
-                        <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32 opacity-60">
-                            {reportType === 'ranking' && <Crown className="h-12 w-12 text-primary/50" />}
-                            {reportType === 'assignment-completion' && <BookCheck className="h-12 w-12 text-primary/50" />}
-                            {(reportType === 'daily-log' || reportType === 'absentee-patterns') && <AlertCircle className="h-12 w-12 text-primary/50" />}
-                            {reportType === 'participation-records' && <Users className="h-12 w-12 text-primary/50" />}
-                            {reportType === 'performance-stats' && <Trophy className="h-12 w-12 text-primary/50" />}
-                            {reportType === 'team-rosters' && <ClipboardList className="h-12 w-12 text-primary/50" />}
-                            {reportType === 'message-delivery' && <Send className="h-12 w-12 text-primary/50" />}
-                            {reportType === 'interaction-logs' && <History className="h-12 w-12 text-primary/50" />}
-                            {reportType === 'notification-history' && <Bell className="h-12 w-12 text-primary/50" />}
-                             <Alert variant="default" className="text-left">
-                                <AlertTitle>Feature Coming Soon</AlertTitle>
-                                <AlertDescription>
-                                   The "{reportTitles[reportType]}" report is currently in development. This preview shows the intended layout.
-                                </AlertDescription>
-                            </Alert>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-    </div>
+                              <Separator className="my-6"/>
+                              
+                              <footer className="text-center text-xs text-muted-foreground">
+                                  <p>This is an official school document. &copy; {new Date().getFullYear()} EduSphere High School</p>
+                              </footer>
+                          </div>
+                      )}
+                      {!isGenerating && reportType === 'summary' && summaryReport && (
+                          <div className="border rounded-lg p-6 bg-background shadow-none">
+                              <header className="flex items-center justify-between mb-6">
+                                  <div className="flex items-center gap-3">
+                                      <BarChartIcon className="h-10 w-10 text-primary" />
+                                      <div>
+                                          <h2 className="text-xl font-bold font-headline text-primary">Class Performance Summary</h2>
+                                          <p className="text-sm text-muted-foreground">{teacherClasses.find(c=>c.id === selectedClass)?.name} - Term 2, 2024</p>
+                                      </div>
+                                  </div>
+                              </header>
+                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                                  <Card>
+                                      <CardHeader className="pb-2"><CardDescription>Class Average</CardDescription></CardHeader>
+                                      <CardContent><p className="text-2xl font-bold">{summaryReport.average}%</p></CardContent>
+                                  </Card>
+                                  <Card>
+                                      <CardHeader className="pb-2"><CardDescription>Pass Rate</CardDescription></CardHeader>
+                                      <CardContent><p className="text-2xl font-bold">{summaryReport.passRate}%</p></CardContent>
+                                  </Card>
+                                  <Card>
+                                      <CardHeader className="pb-2"><CardDescription>Highest Score</CardDescription></CardHeader>
+                                      <CardContent><p className="text-2xl font-bold">{summaryReport.highest}%</p></CardContent>
+                                  </Card>
+                                  <Card>
+                                      <CardHeader className="pb-2"><CardDescription>Lowest Score</CardDescription></CardHeader>
+                                      <CardContent><p className="text-2xl font-bold">{summaryReport.lowest}%</p></CardContent>
+                                  </Card>
+                              </div>
+                              <h3 className="font-semibold mb-2">Grade Distribution</h3>
+                              <ChartContainer config={summaryChartConfig} className="h-[200px] w-full">
+                                  <BarChart accessibilityLayer data={summaryReport.distribution} margin={{ top: 20 }}>
+                                      <CartesianGrid vertical={false} />
+                                      <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                                      <YAxis />
+                                      <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                      <Bar key="students" dataKey="students" fill="var(--color-students)" radius={8}>
+                                          <LabelList position="top" offset={8} className="fill-foreground" fontSize={12} />
+                                      </Bar>
+                                  </BarChart>
+                              </ChartContainer>
+                              <Separator className="my-6"/>
+                              <div className="grid md:grid-cols-2 gap-6">
+                                  <div>
+                                      <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingUp className="text-green-500" />Top Performers</h3>
+                                      <div className="space-y-2">
+                                          {summaryReport.topPerformers.map(s => (
+                                              <div key={s.studentId} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
+                                                  <p>{s.studentName}</p><Badge>{s.overall}%</Badge>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingDown className="text-red-500" />Needs Attention</h3>
+                                      <div className="space-y-2">
+                                        {summaryReport.needsAttention.map(s => (
+                                              <div key={s.studentId} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50">
+                                                  <p>{s.studentName}</p><Badge variant="destructive">{s.overall}%</Badge>
+                                              </div>
+                                          ))}
+                                          {summaryReport.needsAttention.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No students are significantly below average.</p>}
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
+                      {!isGenerating && comingSoonReports.includes(reportType) && (
+                          <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-32 opacity-60">
+                              {reportType === 'ranking' && <Crown className="h-12 w-12 text-primary/50" />}
+                              {reportType === 'assignment-completion' && <BookCheck className="h-12 w-12 text-primary/50" />}
+                              {(reportType === 'daily-log' || reportType === 'absentee-patterns') && <AlertCircle className="h-12 w-12 text-primary/50" />}
+                              {reportType === 'participation-records' && <Users className="h-12 w-12 text-primary/50" />}
+                              {reportType === 'performance-stats' && <Trophy className="h-12 w-12 text-primary/50" />}
+                              {reportType === 'team-rosters' && <ClipboardList className="h-12 w-12 text-primary/50" />}
+                              {reportType === 'message-delivery' && <Send className="h-12 w-12 text-primary/50" />}
+                              {reportType === 'interaction-logs' && <History className="h-12 w-12 text-primary/50" />}
+                              {reportType === 'notification-history' && <Bell className="h-12 w-12 text-primary/50" />}
+                              <Alert variant="default" className="text-left">
+                                  <AlertTitle>Feature Coming Soon</AlertTitle>
+                                  <AlertDescription>
+                                    The "{reportTitles[reportType]}" report is currently in development. This preview shows the intended layout.
+                                  </AlertDescription>
+                              </Alert>
+                          </div>
+                      )}
+                  </CardContent>
+              </Card>
+          </div>
+      </div>
+    </>
   );
 }
