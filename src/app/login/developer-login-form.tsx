@@ -11,6 +11,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 export function DeveloperLoginForm() {
   const router = useRouter();
@@ -73,6 +74,12 @@ export function DeveloperLoginForm() {
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Developer Login
       </Button>
+       <div className="mt-4 text-center text-sm">
+        Don't have an account?{' '}
+        <Link href="/developer/create-dev-account" className="underline">
+          Sign up as a developer
+        </Link>
+      </div>
     </form>
   );
 }
