@@ -44,11 +44,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
-import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw, HeartPulse } from 'lucide-react';
+import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw, HeartPulse, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+
 
 type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health';
 
@@ -60,20 +63,11 @@ type AuditLog = {
     name: string;
     avatarUrl: string;
   };
-  timestamp: string;
+  timestamp: Timestamp;
   details: string | { oldValue: string | null; newValue: string };
   ipAddress?: string;
   userAgent?: string;
 };
-
-const mockLogs: AuditLog[] = [
-    { id: 'log-1', actionType: 'Settings', description: 'Updated school phone number', user: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' }, timestamp: '2024-07-28T11:00:00Z', details: { oldValue: '+254 722 000 000', newValue: '+254 722 123 456'}, ipAddress: '192.168.1.1', userAgent: 'Chrome on macOS' },
-    { id: 'log-2', actionType: 'User Management', description: 'Created new user account', user: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' }, timestamp: '2024-07-28T10:15:00Z', details: { oldValue: null, newValue: 'User: new.teacher@school.ac.ke, Role: Teacher' }, ipAddress: '192.168.1.1', userAgent: 'Chrome on macOS' },
-    { id: 'log-4', actionType: 'Security', description: 'User login failed (3 attempts)', user: { name: 'System', avatarUrl: 'https://picsum.photos/seed/system/100' }, timestamp: '2024-07-27T12:00:00Z', details: 'User: unknown@example.com', ipAddress: '203.0.113.1', userAgent: 'Firefox on Windows' },
-    { id: 'log-3', actionType: 'Finance', description: 'Generated Term 2 invoices', user: { name: 'Finance Officer', avatarUrl: 'https://picsum.photos/seed/finance-officer/100' }, timestamp: '2024-07-27T14:30:00Z', details: 'Applied to all students', ipAddress: '203.0.113.50', userAgent: 'Safari on iPhone' },
-    { id: 'log-6', actionType: 'Health', description: 'Viewed health record for Student 1', user: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' }, timestamp: '2024-07-26T16:05:00Z', details: 'Reason: Student complained of headache', ipAddress: '10.0.0.5', userAgent: 'Chrome on Windows' },
-    { id: 'log-5', actionType: 'Academics', description: 'Published grades for Form 4 Chemistry', user: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' }, timestamp: '2024-07-26T16:00:00Z', details: 'Exam: Mid-Term Exam', ipAddress: '10.0.0.5', userAgent: 'Chrome on Windows' },
-];
 
 const actionTypeConfig: Record<ActionType, { icon: React.ElementType, color: string }> = {
     'User Management': { icon: UserPlus, color: 'text-blue-500' },
@@ -88,19 +82,28 @@ const users = ['All Users', 'Admin User', 'Finance Officer', 'Ms. Wanjiku', 'Sys
 const actionTypes: (ActionType | 'All Types')[] = ['All Types', 'User Management', 'Finance', 'Academics', 'Settings', 'Security', 'Health'];
 
 export default function AuditLogsPage() {
+  const [logs, setLogs] = React.useState<AuditLog[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [userFilter, setUserFilter] = React.useState('All Users');
   const [actionFilter, setActionFilter] = React.useState<ActionType | 'All Types'>('All Types');
-  const [clientReady, setClientReady] = React.useState(false);
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
 
   React.useEffect(() => {
-    setClientReady(true);
+    setIsLoading(true);
+    const q = query(collection(firestore, 'audit_logs'), orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
+        setLogs(fetchedLogs);
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const filteredLogs = mockLogs.filter(log => {
-      const recordDate = new Date(log.timestamp);
+  const filteredLogs = logs.filter(log => {
+      const recordDate = log.timestamp.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
       const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof log.details === 'string' && log.details.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesUser = userFilter === 'All Users' || log.user.name === userFilter;
@@ -223,75 +226,81 @@ export default function AuditLogsPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[250px]">Action</TableHead>
-                                    <TableHead>Performed By</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Details</TableHead>
-                                    <TableHead className="text-right">View</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredLogs.length > 0 ? (
-                                    filteredLogs.map((log) => {
-                                        const config = actionTypeConfig[log.actionType];
-                                        const Icon = config.icon;
-                                        return (
-                                             <DialogTrigger key={log.id} asChild>
-                                                <TableRow 
-                                                  onClick={() => setSelectedLog(log)} 
-                                                  className={cn(
-                                                    "cursor-pointer",
-                                                    log.actionType === 'Security' && 'border-l-4 border-destructive'
-                                                  )}
-                                                >
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-3">
-                                                            <Icon className={cn("h-5 w-5", config.color)} />
-                                                            <span className="font-medium">{log.description}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-3">
-                                                            <Avatar className="h-8 w-8">
-                                                                <AvatarImage src={log.user.avatarUrl} alt={log.user.name} />
-                                                                <AvatarFallback>{log.user.name.charAt(0)}</AvatarFallback>
-                                                            </Avatar>
-                                                            <span>{log.user.name}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {clientReady ? new Date(log.timestamp).toLocaleString() : ''}
-                                                    </TableCell>
-                                                    <TableCell className="text-muted-foreground max-w-xs truncate">
-                                                        {typeof log.details === 'string' ? log.details : `Value changed from "${log.details.oldValue}" to "${log.details.newValue}"`}
-                                                    </TableCell>
-                                                     <TableCell className="text-right">
-                                                        <Button variant="ghost" size="sm">
-                                                            Details <ArrowRight className="ml-2 h-4 w-4" />
-                                                        </Button>
-                                                     </TableCell>
-                                                </TableRow>
-                                             </DialogTrigger>
-                                        );
-                                    })
-                                ) : (
+                    {isLoading ? (
+                         <div className="flex h-64 items-center justify-center">
+                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                        </div>
+                    ) : (
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-24 text-center">
-                                        No log entries found for the selected filters.
-                                        </TableCell>
+                                        <TableHead className="w-[250px]">Action</TableHead>
+                                        <TableHead>Performed By</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Details</TableHead>
+                                        <TableHead className="text-right">View</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredLogs.length > 0 ? (
+                                        filteredLogs.map((log) => {
+                                            const config = actionTypeConfig[log.actionType];
+                                            const Icon = config.icon;
+                                            return (
+                                                <DialogTrigger key={log.id} asChild>
+                                                    <TableRow 
+                                                    onClick={() => setSelectedLog(log)} 
+                                                    className={cn(
+                                                        "cursor-pointer",
+                                                        log.actionType === 'Security' && 'border-l-4 border-destructive'
+                                                    )}
+                                                    >
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-3">
+                                                                <Icon className={cn("h-5 w-5", config.color)} />
+                                                                <span className="font-medium">{log.description}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-3">
+                                                                <Avatar className="h-8 w-8">
+                                                                    <AvatarImage src={log.user.avatarUrl} alt={log.user.name} />
+                                                                    <AvatarFallback>{log.user.name.charAt(0)}</AvatarFallback>
+                                                                </Avatar>
+                                                                <span>{log.user.name}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {log.timestamp.toDate().toLocaleString()}
+                                                        </TableCell>
+                                                        <TableCell className="text-muted-foreground max-w-xs truncate">
+                                                            {typeof log.details === 'string' ? log.details : `Value changed from "${log.details.oldValue}" to "${log.details.newValue}"`}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button variant="ghost" size="sm">
+                                                                Details <ArrowRight className="ml-2 h-4 w-4" />
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </DialogTrigger>
+                                            );
+                                        })
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-24 text-center">
+                                            No log entries found for the selected filters.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
                 </CardContent>
                 <CardFooter>
                     <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredLogs.length}</strong> of <strong>{mockLogs.length}</strong> total records.
+                        Showing <strong>{filteredLogs.length}</strong> of <strong>{logs.length}</strong> total records.
                     </div>
                 </CardFooter>
             </Card>
@@ -355,7 +364,7 @@ export default function AuditLogsPage() {
                                 <CalendarIcon className="h-5 w-5 mt-0.5 text-muted-foreground"/>
                                 <div>
                                     <p className="text-muted-foreground">Timestamp</p>
-                                    <p className="font-medium">{clientReady ? new Date(selectedLog.timestamp).toLocaleString() : ''}</p>
+                                    <p className="font-medium">{selectedLog.timestamp.toDate().toLocaleString()}</p>
                                 </div>
                             </div>
                             {selectedLog.ipAddress && (
