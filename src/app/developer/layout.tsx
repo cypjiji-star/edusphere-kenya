@@ -14,11 +14,6 @@ export default function DeveloperLayout({
 }) {
   const pathname = usePathname();
 
-  // If the user is on the one-time creation page, don't run the auth check.
-  if (pathname === '/developer/create-dev-account') {
-    return <Suspense>{children}</Suspense>;
-  }
-
   return (
     <Suspense>
       <AuthCheck requiredRole="developer">
