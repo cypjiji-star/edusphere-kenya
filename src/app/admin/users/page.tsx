@@ -52,7 +52,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { initialRolePermissions } from '../permissions/roles-data';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -83,8 +82,6 @@ type User = {
 
 
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended', 'Transferred', 'Graduated'];
-const roles: UserRole[] = Object.keys(initialRolePermissions);
-const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1', 'Alumni'];
 const relationships: ParentRelationship[] = ['Father', 'Mother', 'Guardian'];
 const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i).toString());
 
@@ -100,6 +97,8 @@ const getStatusBadge = (status: UserStatus) => {
 
 export default function UserManagementPage() {
     const [users, setUsers] = React.useState<User[]>([]);
+    const [roles, setRoles] = React.useState<string[]>([]);
+    const [classes, setClasses] = React.useState<string[]>(['All Classes']);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'All Statuses'>('All Statuses');
     const [classFilter, setClassFilter] = React.useState('All Classes');
@@ -113,11 +112,23 @@ export default function UserManagementPage() {
     
     React.useEffect(() => {
         setClientReady(true);
-        const unsubscribe = onSnapshot(collection(firestore, 'users'), (snapshot) => {
+        const unsubUsers = onSnapshot(collection(firestore, 'users'), (snapshot) => {
             const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
             setUsers(usersData);
         });
-        return () => unsubscribe();
+        const unsubRoles = onSnapshot(collection(firestore, 'roles'), (snapshot) => {
+            setRoles(snapshot.docs.map(doc => doc.id));
+        });
+        const unsubClasses = onSnapshot(collection(firestore, 'classes'), (snapshot) => {
+            const classNames = snapshot.docs.map(doc => doc.data().name);
+            setClasses(['All Classes', ...classNames]);
+        });
+
+        return () => {
+            unsubUsers();
+            unsubRoles();
+            unsubClasses();
+        };
     }, []);
 
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

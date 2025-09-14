@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, User, Save, PlusCircle, Trash2, Users2, Search } from 'lucide-react';
+import { ShieldCheck, User, Save, PlusCircle, Trash2, Users2, Search, Loader2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -27,15 +27,107 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { initialPermissionStructure, initialRolePermissions } from './roles-data';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
+
+
+type Permission = {
+  id: string;
+  label: string;
+};
+
+type PermissionCategory = {
+  title: string;
+  permissions: Permission[];
+};
+
+type Role = {
+    permissions: string[];
+    userCount: number;
+    isCore: boolean;
+};
+
+// This can remain static as it defines the available permissions in the system.
+const permissionStructure: PermissionCategory[] = [
+  {
+    title: 'User Management',
+    permissions: [
+      { id: 'users.create', label: 'Create new users' },
+      { id: 'users.edit', label: 'Edit user profiles' },
+      { id: 'users.delete', label: 'Delete users' },
+      { id: 'users.roles', label: 'Change user roles' },
+    ],
+  },
+  {
+    title: 'Academics',
+    permissions: [
+      { id: 'academics.grades.view', label: 'View school-wide grades' },
+      { id: 'academics.grades.edit', label: 'Edit all student grades' },
+      { id: 'academics.timetable.edit', label: 'Manage school timetable' },
+      { id: 'academics.subjects.manage', label: 'Manage classes and subjects' },
+    ],
+  },
+  {
+    title: 'Communication',
+    permissions: [
+      { id: 'comms.announcements.school', label: 'Send school-wide announcements' },
+      { id: 'comms.messaging.all', label: 'View all messages' },
+    ],
+  },
+   {
+    title: 'Finance',
+    permissions: [
+      { id: 'finance.fees.manage', label: 'Manage fee structures and payments' },
+      { id: 'finance.expenses.manage', label: 'Manage school expenses' },
+    ],
+  },
+   {
+    title: 'System',
+    permissions: [
+      { id: 'admin.logs', label: 'View Audit Logs' },
+    ],
+  },
+];
 
 
 export default function PermissionsPage() {
-  const [permissionStructure, setPermissionStructure] = React.useState(initialPermissionStructure);
-  const [rolePermissions, setRolePermissions] = React.useState(initialRolePermissions);
+  const [rolePermissions, setRolePermissions] = React.useState<Record<string, Role>>({});
+  const [isLoading, setIsLoading] = React.useState(true);
   const [newRoleName, setNewRoleName] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    setIsLoading(true);
+    const rolesUnsub = onSnapshot(collection(firestore, 'roles'), (snapshot) => {
+        const roles: Record<string, Role> = {};
+        snapshot.forEach(doc => {
+            roles[doc.id] = doc.data() as Role;
+        });
+        
+        const usersUnsub = onSnapshot(collection(firestore, 'users'), (usersSnapshot) => {
+            const userCounts: Record<string, number> = {};
+            usersSnapshot.forEach(userDoc => {
+                const roleName = userDoc.data().role;
+                if (roleName) {
+                    userCounts[roleName] = (userCounts[roleName] || 0) + 1;
+                }
+            });
+
+            const updatedRoles = { ...roles };
+            for (const roleName in updatedRoles) {
+                updatedRoles[roleName].userCount = userCounts[roleName] || 0;
+            }
+
+            setRolePermissions(updatedRoles);
+            setIsLoading(false);
+        });
+
+        return () => usersUnsub();
+    });
+
+    return () => rolesUnsub();
+  }, []);
 
   const handlePermissionChange = (role: string, permissionId: string, checked: boolean) => {
     setRolePermissions(prev => {
@@ -50,59 +142,54 @@ export default function PermissionsPage() {
     });
   };
 
-  const handleSave = (role: string) => {
-    toast({
-        title: 'Permissions Saved',
-        description: `Permissions for the ${role} role have been updated.`,
-    });
+  const handleSave = async (role: string) => {
+    try {
+        const roleRef = doc(firestore, 'roles', role);
+        await updateDoc(roleRef, { permissions: rolePermissions[role].permissions });
+        toast({
+            title: 'Permissions Saved',
+            description: `Permissions for the ${role} role have been updated.`,
+        });
+    } catch (e) {
+        toast({ title: 'Save Failed', variant: 'destructive'});
+        console.error(e);
+    }
   }
   
-  const handleCreateRole = () => {
+  const handleCreateRole = async () => {
     const trimmedRoleName = newRoleName.trim();
     
     if (!trimmedRoleName) {
-        toast({
-            title: 'Error',
-            description: 'Role name cannot be empty.',
-            variant: 'destructive',
-        });
+        toast({ title: 'Error', description: 'Role name cannot be empty.', variant: 'destructive' });
         return;
     }
 
-    const roleExists = Object.keys(rolePermissions).some(
-        (existingRole) => existingRole.toLowerCase() === trimmedRoleName.toLowerCase()
-    );
-
-    if (roleExists) {
-        toast({
-            title: 'Duplicate Role',
-            description: `A role named "${trimmedRoleName}" already exists.`,
-            variant: 'destructive',
-        });
+    if (Object.keys(rolePermissions).some(r => r.toLowerCase() === trimmedRoleName.toLowerCase())) {
+        toast({ title: 'Duplicate Role', description: `A role named "${trimmedRoleName}" already exists.`, variant: 'destructive' });
         return;
     }
     
-    setRolePermissions(prev => ({
-        ...prev,
-        [trimmedRoleName]: { permissions: [], userCount: 0, isCore: false },
-    }));
-    setNewRoleName('');
-    toast({
-        title: 'Role Created',
-        description: `The "${trimmedRoleName}" role has been added.`
-    });
+    try {
+        const roleRef = doc(firestore, 'roles', trimmedRoleName);
+        await setDoc(roleRef, { permissions: [], isCore: false });
+        setNewRoleName('');
+        toast({ title: 'Role Created', description: `The "${trimmedRoleName}" role has been added.` });
+    } catch (e) {
+        toast({ title: 'Creation Failed', variant: 'destructive' });
+        console.error(e);
+    }
   };
 
-  const handleDeleteRole = (roleToDelete: string) => {
-      setRolePermissions(prev => {
-          const newRoles = { ...prev };
-          delete newRoles[roleToDelete];
-          return newRoles;
-      });
-       toast({
-            title: 'Role Deleted',
-            description: `The "${roleToDelete}" role has been removed.`
-        });
+  const handleDeleteRole = async (roleToDelete: string) => {
+      if (window.confirm(`Are you sure you want to delete the "${roleToDelete}" role?`)) {
+          try {
+              await deleteDoc(doc(firestore, 'roles', roleToDelete));
+              toast({ title: 'Role Deleted', description: `The "${roleToDelete}" role has been removed.`, variant: 'destructive' });
+          } catch(e) {
+               toast({ title: 'Deletion Failed', variant: 'destructive' });
+               console.error(e);
+          }
+      }
   }
     
   const renderPermissions = (role: string) => {
@@ -134,7 +221,6 @@ export default function PermissionsPage() {
   const filteredRoles = Object.keys(rolePermissions).filter(role =>
     role.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -186,46 +272,52 @@ export default function PermissionsPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredRoles.map(role => {
-          const roleData = rolePermissions[role];
-          if (!roleData) return null;
+       {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredRoles.map(role => {
+            const roleData = rolePermissions[role];
+            if (!roleData) return null;
 
-          return (
-            <Card key={role}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5 text-primary" />
-                      {role}
-                  </CardTitle>
-                  {!roleData.isCore && (
-                       <Button variant="ghost" size="icon" onClick={() => handleDeleteRole(role)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                  )}
-                </div>
-                 <CardDescription className="flex items-center gap-2 pt-1">
-                    <Users2 className="h-4 w-4"/>
-                    {roleData.userCount} users assigned
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {renderPermissions(role)}
-              </CardContent>
-              {role !== 'Admin' && (
-                <CardFooter>
-                    <Button onClick={() => handleSave(role)}>
-                        <Save className="mr-2 h-4 w-4"/>
-                        Save Permissions
-                    </Button>
-                </CardFooter>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-       {filteredRoles.length === 0 && (
+            return (
+                <Card key={role}>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5 text-primary" />
+                        {role}
+                    </CardTitle>
+                    {!roleData.isCore && (
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteRole(role)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    )}
+                    </div>
+                    <CardDescription className="flex items-center gap-2 pt-1">
+                        <Users2 className="h-4 w-4"/>
+                        {roleData.userCount} users assigned
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {renderPermissions(role)}
+                </CardContent>
+                {role !== 'Admin' && (
+                    <CardFooter>
+                        <Button onClick={() => handleSave(role)}>
+                            <Save className="mr-2 h-4 w-4"/>
+                            Save Permissions
+                        </Button>
+                    </CardFooter>
+                )}
+                </Card>
+            );
+            })}
+        </div>
+       )}
+       {!isLoading && filteredRoles.length === 0 && (
           <div className="text-center text-muted-foreground py-16">
             <p>No roles found matching your search.</p>
           </div>
