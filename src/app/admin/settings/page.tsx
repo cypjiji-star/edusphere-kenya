@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -374,7 +375,7 @@ export default function SettingsPage() {
                                 <Label htmlFor="fee-alerts" className="font-semibold">Automated Fee Reminders</Label>
                                 <p className="text-xs text-muted-foreground">Automatically notify parents about outstanding fee balances.</p>
                             </div>
-                            <Switch id="fee-alerts" checked={feeAlertsEnabled} onCheckedChange={(c) => {setFeeAlertsEnabled(c); handleSettingChange('notifications', 'feeAlertsEnabled', c);}} />
+                            <Switch id="fee-alerts" checked={feeAlertsEnabled} onCheckedChange={(c) => {setFeeAlertsEnabled(c); handleSettingChange('notifications', 'feeAlertsEnabled', c);}}/>
                         </div>
                         <div className={!feeAlertsEnabled ? 'opacity-50' : ''}>
                             <Separator/>
@@ -661,3 +662,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
