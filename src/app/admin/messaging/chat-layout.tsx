@@ -115,8 +115,9 @@ export function AdminChatLayout() {
 
   React.useEffect(() => {
     if (!schoolId) return;
-    const q = query(collection(firestore, `schools/${schoolId}/conversations`), orderBy('timestamp', 'desc'));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+
+    const convosQuery = query(collection(firestore, `schools/${schoolId}/conversations`), orderBy('timestamp', 'desc'));
+    const unsubConvos = onSnapshot(convosQuery, (querySnapshot) => {
         const convos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
         setConversations(convos);
         if (!selectedConvo && convos.length > 0) {
@@ -124,10 +125,9 @@ export function AdminChatLayout() {
         }
     });
 
-    const fetchUsers = async () => {
-        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', 'in', ['Teacher', 'Parent']));
-        const usersSnapshot = await getDocs(usersQuery);
-        const users = usersSnapshot.docs.map(doc => {
+    const usersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', 'in', ['Teacher', 'Parent']));
+    const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
+        const users = snapshot.docs.map(doc => {
             const data = doc.data();
             return {
                 id: doc.id,
@@ -137,11 +137,13 @@ export function AdminChatLayout() {
             }
         });
         setNewContactOptions(users);
-    }
-    fetchUsers();
+    });
 
-    return () => unsubscribe();
-  }, [selectedConvo, schoolId]);
+    return () => {
+        unsubConvos();
+        unsubUsers();
+    };
+  }, [schoolId, selectedConvo]);
 
   React.useEffect(() => {
     if (!selectedConvo || !schoolId) return;
