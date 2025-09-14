@@ -61,6 +61,7 @@ export function ClassAnalytics({ students }: { students: Student[] }) {
     const performanceData = React.useMemo(() => {
         const data = [...gradeRanges.map(r => ({ ...r, count: 0 }))];
         students.forEach(student => {
+            if (typeof student.overallGrade !== 'string') return;
             const grade = parseInt(student.overallGrade.replace('%', ''), 10);
             const range = data.find(r => grade >= r.min && grade <= r.max);
             if (range) {
@@ -71,14 +72,16 @@ export function ClassAnalytics({ students }: { students: Student[] }) {
     }, [students]);
 
     const attendanceData = React.useMemo(() => {
-        const counts: Record<Student['attendance'], number> = { present: 0, late: 0, absent: 0 };
+        const counts: Record<Student['attendance'], number> = { present: 0, late: 0, absent: 0, unmarked: 0 };
         students.forEach(student => {
-            counts[student.attendance]++;
+            if (student.attendance) {
+                counts[student.attendance]++;
+            }
         });
         return Object.entries(counts).map(([name, value]) => ({
             name: name as Student['attendance'],
             value,
-            fill: attendanceChartConfig[name as Student['attendance']].color,
+            fill: attendanceChartConfig[name as keyof typeof attendanceChartConfig]?.color || '#ccc',
         })).filter(d => d.value > 0);
     }, [students]);
 
