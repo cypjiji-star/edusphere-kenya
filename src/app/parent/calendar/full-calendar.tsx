@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, Timestamp, where } from 'firebase/firestore';
 
 
 type CalendarView = 'month' | 'week' | 'day';
@@ -42,6 +42,11 @@ export type CalendarEvent = {
   attachments?: { name: string; size: string }[];
 };
 
+type Child = {
+    id: string;
+    name: string;
+};
+
 
 const eventColors: Record<CalendarEvent['type'], string> = {
   event: 'bg-blue-500 hover:bg-blue-600',
@@ -52,12 +57,6 @@ const eventColors: Record<CalendarEvent['type'], string> = {
   trip: 'bg-pink-500 hover:bg-pink-600',
 };
 
-
-const childrenData = [
-  { id: 'child-1', name: 'John Doe', class: 'Form 4' },
-  { id: 'child-2', name: 'Jane Doe', class: 'Form 1' },
-];
-
 const eventTypes: CalendarEvent['type'][] = ['exam', 'meeting', 'trip', 'sports', 'holiday', 'event'];
 
 
@@ -67,9 +66,24 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
   const [clientReady, setClientReady] = React.useState(false);
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
-  const [selectedChild, setSelectedChild] = React.useState(childrenData[0].id);
+  const [childrenData, setChildrenData] = React.useState<Child[]>([]);
+  const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
   const [eventTypeFilter, setEventTypeFilter] = React.useState('all');
   const { toast } = useToast();
+  const parentId = 'parent-user-id'; // This should be dynamic
+
+  React.useEffect(() => {
+    if (!schoolId) return;
+    const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+        setChildrenData(fetchedChildren);
+        if (!selectedChild && fetchedChildren.length > 0) {
+            setSelectedChild(fetchedChildren[0].id);
+        }
+    });
+    return () => unsubscribe();
+  }, [schoolId, selectedChild, parentId]);
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -299,3 +313,5 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
     </Dialog>
   );
 }
+
+    
