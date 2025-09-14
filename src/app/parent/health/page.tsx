@@ -95,11 +95,12 @@ export default function ParentHealthPage() {
     const [absenceReason, setAbsenceReason] = React.useState('');
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const { toast } = useToast();
+    const parentId = 'parent-user-id'; // This should be dynamic
 
     React.useEffect(() => {
         if (!schoolId) return;
-        // In a real app, you would filter by parent ID. For now, we fetch a few students.
-        const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
+        // In a real app, you would filter by parent ID.
+        const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -108,7 +109,7 @@ export default function ParentHealthPage() {
             }
         });
         return () => unsubscribe();
-    }, [schoolId, selectedChild]);
+    }, [schoolId, selectedChild, parentId]);
     
     React.useEffect(() => {
         if (!selectedChild || !schoolId) return;
