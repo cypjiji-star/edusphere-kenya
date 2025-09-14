@@ -71,6 +71,7 @@ import {
 } from '@/components/ui/chart';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -194,19 +195,19 @@ export default function HealthPage() {
      React.useEffect(() => {
         if (!schoolId) return;
 
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('teacherId', '==', 'teacher-wanjiku'));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', 'teacher-wanjiku'));
         const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
             setAllStudents(studentsData);
         });
 
-        const incidentsQuery = query(collection(firestore, 'schools', schoolId, 'incidents'), where('reportedBy', '==', 'Ms. Wanjiku'));
+        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('reportedBy', '==', 'Ms. Wanjiku'));
         const unsubscribeIncidents = onSnapshot(incidentsQuery, (snapshot) => {
             const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
             setIncidents(incidentsData);
         });
         
-        const medsQuery = query(collection(firestore, 'schools', schoolId, 'medications'), where('givenBy', '==', 'Ms. Wanjiku'));
+        const medsQuery = query(collection(firestore, `schools/${schoolId}/medications`), where('givenBy', '==', 'Ms. Wanjiku'));
         const unsubscribeMeds = onSnapshot(medsQuery, (snapshot) => {
             const medsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Medication));
             setMedicationLog(medsData);
@@ -1038,44 +1039,24 @@ export default function HealthPage() {
                         <DialogHeader>
                             <DialogTitle>Incident Details</DialogTitle>
                             <DialogDescription>
-                                Review and manage the incident reported for {selectedIncident.studentName}.
+                                Review the incident reported for {selectedIncident.studentName}.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4 space-y-4">
-                            <div>
+                             <div>
                                 <p className="text-sm font-medium text-muted-foreground">Description</p>
                                 <p className="text-sm">{selectedIncident.description}</p>
                             </div>
                             <Separator/>
                             <div>
-                                <h4 className="font-semibold mb-2">Follow-up</h4>
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="incident-status">Update Status</Label>
-                                        <Select value={updatedStatus} onValueChange={(value: IncidentStatus) => setUpdatedStatus(value)}>
-                                            <SelectTrigger id="incident-status">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Reported">Reported</SelectItem>
-                                                <SelectItem value="Under Review">Under Review</SelectItem>
-                                                <SelectItem value="Resolved">Resolved</SelectItem>
-                                                <SelectItem value="Archived">Archived</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="follow-up-notes">Add Follow-up Notes</Label>
-                                        <Textarea id="follow-up-notes" placeholder="e.g., Parent contacted, student sent home..." />
-                                    </div>
-                                </div>
+                                <h4 className="font-semibold mb-2">Status</h4>
+                                 <p>{getStatusBadge(selectedIncident.status)}</p>
                             </div>
                         </div>
                         <DialogFooter>
                             <DialogClose asChild>
-                                <Button variant="outline">Cancel</Button>
+                                <Button variant="outline">Close</Button>
                             </DialogClose>
-                            <Button onClick={handleUpdateIncident}>Save Changes</Button>
                         </DialogFooter>
                     </DialogContent>
                 )}
@@ -1083,3 +1064,5 @@ export default function HealthPage() {
         </Dialog>
     );
 }
+
+    
