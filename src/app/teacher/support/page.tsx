@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, where, Timestamp, orderBy } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 const faqs = [
@@ -99,6 +100,8 @@ const getPriorityBadge = (priority: TicketPriority) => {
 }
 
 export default function TeacherSupportPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
     const [myTickets, setMyTickets] = React.useState<Ticket[]>([]);
     const { toast } = useToast();
@@ -107,14 +110,15 @@ export default function TeacherSupportPage() {
     const [description, setDescription] = React.useState('');
 
     React.useEffect(() => {
+        if (!schoolId) return;
         const teacherId = 'teacher-wanjiku'; // This would be dynamic
-        const q = query(collection(firestore, 'support-tickets'), where('user.id', '==', teacherId), orderBy('lastUpdate', 'desc'));
+        const q = query(collection(firestore, 'schools', schoolId, 'support-tickets'), where('user.id', '==', teacherId), orderBy('lastUpdate', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket));
             setMyTickets(tickets);
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
     const handleSubmitTicket = async () => {
         if (!subject || !description) {
@@ -126,8 +130,13 @@ export default function TeacherSupportPage() {
             return;
         }
 
+        if (!schoolId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'School ID is missing.' });
+            return;
+        }
+
         try {
-            await addDoc(collection(firestore, 'support-tickets'), {
+            await addDoc(collection(firestore, `schools/${schoolId}/support-tickets`), {
                 subject,
                 description,
                 category: 'Technical Issue', // default for now
@@ -154,6 +163,10 @@ export default function TeacherSupportPage() {
             toast({ variant: 'destructive', title: 'Submission Failed' });
         }
     };
+
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID missing.</div>
+    }
 
     return (
     <Dialog onOpenChange={(open) => !open && setSelectedTicket(null)}>
@@ -333,3 +346,5 @@ export default function TeacherSupportPage() {
     </Dialog>
   );
 }
+
+    
