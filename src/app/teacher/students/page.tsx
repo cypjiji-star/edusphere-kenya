@@ -60,7 +60,7 @@ import { ClassAnalytics } from './class-analytics';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDoc, updateDoc, addDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDocs, updateDoc, addDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
 
@@ -101,7 +101,7 @@ export default function StudentsPage() {
     if (!schoolId) return;
 
     const q = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const classesData: TeacherClass[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
         name: doc.data().name,
