@@ -44,10 +44,10 @@ export function AuthCheck({
             if (!fetchedRole) {
                 const schoolId = searchParams.get('schoolId');
                 if (schoolId) {
-                    const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
-                    const userDocSnap = await getDoc(userDocRef);
-                    if (userDocSnap.exists()) {
-                        fetchedRole = userDocSnap.data().role;
+                    const userQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('uid', '==', authUser.uid));
+                    const userSnapshot = await getDocs(userQuery);
+                    if(!userSnapshot.empty) {
+                        fetchedRole = userSnapshot.docs[0].data().role;
                     }
                 }
             }
@@ -73,6 +73,12 @@ export function AuthCheck({
       </div>
     );
   }
+
+  // Allow access to developer create page without auth
+  if (pathname === '/developer/create-dev-account') {
+      return <>{children}</>;
+  }
+
 
   if (user && userRole === requiredRole) {
     return <>{children}</>;
