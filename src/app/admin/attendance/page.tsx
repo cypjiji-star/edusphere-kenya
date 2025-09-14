@@ -127,6 +127,9 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
 
         const recordsInPeriod = records.filter(record => {
             const recordDate = record.date.toDate();
+            if (dateRange?.from && !dateRange.to) { // Single day selected
+                return recordDate.toDateString() === dateRange.from.toDateString();
+            }
             const isDateInRange = dateRange?.from && dateRange?.to ? recordDate >= dateRange.from && recordDate <= dateRange.to : true;
             return isDateInRange;
         });
@@ -567,3 +570,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
