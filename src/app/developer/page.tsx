@@ -29,7 +29,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { initialRolePermissions, initialPermissionStructure } from '@/app/admin/permissions/roles-data';
+import { periods as defaultPeriods } from '@/app/admin/timetable/timetable-data';
 
 
 type School = {
@@ -71,8 +73,11 @@ export default function DeveloperDashboard() {
     }
     setIsCreating(true);
     try {
+        const batch = writeBatch(firestore);
+        
+        // 1. Create main school document
         const schoolRef = doc(collection(firestore, 'schools'));
-        await setDoc(schoolRef, {
+        batch.set(schoolRef, {
             id: schoolRef.id,
             name: schoolName,
             domain: `${subdomain}.school.app`,
@@ -82,11 +87,38 @@ export default function DeveloperDashboard() {
             plan: 'Standard Tier',
             createdAt: serverTimestamp(),
         });
+
+        // 2. Add default roles
+        Object.entries(initialRolePermissions).forEach(([roleName, roleData]) => {
+            const roleRef = doc(firestore, 'schools', schoolRef.id, 'roles', roleName);
+            batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore, userCount: 0 });
+        });
+
+        // 3. Add default timetable periods
+        const periodsRef = doc(firestore, 'schools', schoolRef.id, 'timetableSettings', 'periods');
+        batch.set(periodsRef, { periods: defaultPeriods });
+
+        // 4. Add default fee structure item
+        const feeStructureRef = doc(collection(firestore, 'schools', schoolRef.id, 'feeStructure'));
+        batch.set(feeStructureRef, {
+            category: 'Tuition Fee',
+            appliesTo: 'All Students',
+            amount: 50000,
+        });
+
+        await batch.commit();
         
         toast({
             title: 'School Provisioned!',
-            description: `${schoolName} is being set up.`,
+            description: `${schoolName} is being set up with default data.`,
         });
+
+        // Simulate status change from Provisioning to Active
+        setTimeout(() => {
+             updateDoc(schoolRef, { status: 'Active' });
+        }, 3000);
+
+
         setSchoolName('');
         setSubdomain('');
         setAdminEmail('');
