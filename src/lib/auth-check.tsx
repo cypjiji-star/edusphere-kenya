@@ -8,7 +8,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, firestore } from './firebase';
 
 type AllowedRole = 'admin' | 'teacher' | 'parent' | 'developer';
@@ -33,21 +33,21 @@ export function AuthCheck({
         let fetchedRole: string | null = null;
         
         try {
-            // Check for developer role first
-            const devQuery = query(collection(firestore, 'developers'), where('uid', '==', authUser.uid));
-            const devSnapshot = await getDocs(devQuery);
-            if (!devSnapshot.empty) {
-                fetchedRole = devSnapshot.docs[0].data().role;
+            // Check for a role in the top-level 'roles' collection first
+            const roleDocRef = doc(firestore, 'roles', authUser.uid);
+            const roleDocSnap = await getDoc(roleDocRef);
+            if (roleDocSnap.exists()) {
+                fetchedRole = roleDocSnap.data().role;
             }
 
-            // If not a developer, check for school-level roles
+            // If not a global role, check for a school-specific role
             if (!fetchedRole) {
                 const schoolId = searchParams.get('schoolId');
                 if (schoolId) {
-                    const userQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('uid', '==', authUser.uid));
-                    const userSnapshot = await getDocs(userQuery);
-                    if(!userSnapshot.empty) {
-                        fetchedRole = userSnapshot.docs[0].data().role;
+                    const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
+                    const userDocSnap = await getDoc(userDocRef);
+                    if (userDocSnap.exists()) {
+                        fetchedRole = userDocSnap.data().role;
                     }
                 }
             }
@@ -129,3 +129,5 @@ export function AuthCheck({
     </div>
   );
 }
+
+    
