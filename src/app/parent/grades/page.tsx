@@ -47,6 +47,7 @@ import {
   ArrowDown,
   MessageCircle,
   Send,
+  Loader2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from 'recharts';
@@ -152,6 +153,7 @@ export default function ParentGradesPage() {
   const [childrenData, setChildrenData] = React.useState<Child[]>([]);
   const [gradeData, setGradeData] = React.useState<GradeData | null>(null);
   const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
+  const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
   const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
 
@@ -170,34 +172,69 @@ export default function ParentGradesPage() {
 
   React.useEffect(() => {
     if (!selectedChild) return;
+    setIsLoading(true);
 
     const fetchGradeData = async () => {
         const studentDocRef = doc(firestore, 'students', selectedChild);
-        const studentSnap = await getDoc(studentDocRef);
+        
+        const gradesQuery = query(collection(studentDocRef, 'grades'));
+        
+        const unsubGrades = onSnapshot(gradesQuery, (gradesSnapshot) => {
+            const grades = gradesSnapshot.docs.map(doc => doc.data());
+            
+            // This is a simplified aggregation. In a real app, this logic might be more complex
+            // or handled by backend functions. For now, we mock the subject aggregation.
+            const subjectScores: Record<string, { scores: number[], count: number }> = {};
+            
+            grades.forEach(grade => {
+                const subject = grade.assessmentTitle.split(' ')[0]; // Simple way to group by subject
+                if (!subjectScores[subject]) {
+                    subjectScores[subject] = { scores: [], count: 0 };
+                }
+                const score = parseInt(grade.grade, 10);
+                if (!isNaN(score)) {
+                    subjectScores[subject].scores.push(score);
+                    subjectScores[subject].count++;
+                }
+            });
 
-        if (studentSnap.exists()) {
-            const studentData = studentSnap.data() as DocumentData;
-            // This is a placeholder for fetching real grade data.
-            // In a real app, you would fetch grades from a subcollection.
-            const mockGradeData: GradeData = {
+            const subjects: SubjectData[] = Object.entries(subjectScores).map(([name, data], index) => {
+                const avg = data.scores.length > 0 ? Math.round(data.scores.reduce((a,b) => a+b, 0) / data.scores.length) : 0;
+                return {
+                    id: `${index}`,
+                    name: name,
+                    cat1: data.scores[0] || 0,
+                    midTerm: data.scores[1] || 0,
+                    cat2: data.scores[2] || 0,
+                    final: data.scores[3] || 0,
+                    average: avg,
+                    grade: avg >= 80 ? 'A' : avg >= 65 ? 'B' : 'C', // simplified
+                    comment: 'Good effort shown throughout the term.',
+                    teacher: 'Teacher Name'
+                };
+            });
+            
+            const overallScores = subjects.map(s => s.average).filter(s => s > 0);
+            const overallAvg = overallScores.length > 0 ? Math.round(overallScores.reduce((a, b) => a + b, 0) / overallScores.length) : 0;
+            
+            const newGradeData: GradeData = {
                 summary: {
-                    overall: `${studentData.overallGrade || 82}%`,
-                    rank: '5th',
-                    classSize: 42,
+                    overall: `${overallAvg}%`,
+                    rank: 'N/A', // Rank would require fetching all students in class
+                    classSize: 0,
                     trend: 'up',
-                    trendValue: '3%',
-                    highest: 'Chemistry (91%)',
-                    lowest: 'History (72%)',
+                    trendValue: '2%',
+                    highest: subjects.length > 0 ? subjects.reduce((max, s) => s.average > max.average ? s : max).name : 'N/A',
+                    lowest: subjects.length > 0 ? subjects.reduce((min, s) => s.average < min.average ? s : min).name : 'N/A',
                 },
-                subjects: [
-                    { id: '1', name: 'Mathematics', cat1: 80, midTerm: 85, cat2: 78, final: 84, average: 82, grade: 'A-', comment: 'Good progress, but needs to work on algebraic expressions.', teacher: 'Mr. Otieno' },
-                    { id: '2', name: 'English', cat1: 88, midTerm: 90, cat2: 85, final: 87, average: 88, grade: 'A', comment: 'Excellent work in literature analysis.', teacher: 'Ms. Njeri' },
-                    { id: '3', name: 'Kiswahili', cat1: 75, midTerm: 78, cat2: 80, final: 82, average: 79, grade: 'A-', comment: 'Improvement in vocabulary is needed.', teacher: 'Ms. Akinyi' },
-                    { id: '4', name: 'Chemistry', cat1: 90, midTerm: 92, cat2: 88, final: 94, average: 91, grade: 'A', comment: 'Outstanding performance in practicals.', teacher: 'Ms. Wanjiku' },
-                ]
+                subjects: subjects
             };
-            setGradeData(mockGradeData);
-        }
+            
+            setGradeData(newGradeData);
+            setIsLoading(false);
+        });
+
+        return () => unsubGrades();
     };
 
     fetchGradeData();
@@ -210,8 +247,8 @@ export default function ParentGradesPage() {
     });
   };
 
-  if (!gradeData) {
-    return <div className="p-8">Loading grades...</div>
+  if (isLoading || !gradeData) {
+    return <div className="p-8 h-full flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary"/></div>
   }
 
   const chartData = gradeData.subjects.map(s => ({ name: s.name.substring(0, 3).toUpperCase(), average: s.average }));
