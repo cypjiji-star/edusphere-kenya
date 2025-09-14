@@ -59,7 +59,9 @@ export function AssignmentForm() {
   async function onSubmit(values: AssignmentFormValues) {
     setIsLoading(true);
 
-    const result = await createAssignmentAction(values);
+    const selectedClass = teacherClasses.find(c => c.id === values.classId);
+
+    const result = await createAssignmentAction(values, selectedClass?.name || '');
     
     setIsLoading(false);
     

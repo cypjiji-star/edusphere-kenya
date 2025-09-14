@@ -24,13 +24,13 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 
 export type Assignment = {
   id: string;
   title: string;
   className: string;
-  dueDate: string;
+  dueDate: Timestamp;
   submissions: number;
   totalStudents: number;
 };
@@ -38,7 +38,7 @@ export type Assignment = {
 const teacherClasses = [
     'All Classes',
     'Form 4 - Chemistry',
-    'Form 3 - English',
+    'Form 3 - Mathematics',
     'Form 2 - Physics',
 ];
 
@@ -114,8 +114,8 @@ export default function AssignmentsPage() {
                 <div className="flex items-start justify-between">
                     <BookMarked className="h-6 w-6 text-primary" />
                     {clientReady && (
-                        <Badge variant={new Date(assignment.dueDate) < new Date() ? 'destructive' : 'secondary'}>
-                            Due {new Date(assignment.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <Badge variant={assignment.dueDate.toDate() < new Date() ? 'destructive' : 'secondary'}>
+                            Due {assignment.dueDate.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </Badge>
                     )}
                 </div>

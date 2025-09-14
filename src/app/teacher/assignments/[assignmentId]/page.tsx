@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { firestore } from '@/lib/firebase';
-import { doc, getDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 
 
@@ -57,7 +57,7 @@ const getStatusBadge = (status: Submission['status']) => {
 
 
 export default function AssignmentSubmissionsPage({ params }: { params: { assignmentId: string } }) {
-  const { assignmentId } = React.use(params);
+  const { assignmentId } = params;
   const { toast } = useToast();
 
   const [assignmentDetails, setAssignmentDetails] = React.useState<DocumentData | null>(null);
@@ -93,7 +93,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                 studentName: studentSnap.data()?.name || 'Unknown',
                 avatarUrl: studentSnap.data()?.avatarUrl || '',
                 status: data.status,
-                submittedDate: data.submittedDate?.toDate().toISOString(),
+                submittedDate: (data.submittedDate as Timestamp)?.toDate().toISOString(),
                 grade: data.grade,
                 feedback: data.feedback,
             }
@@ -131,11 +131,11 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
     )
   }
 
-  const formattedDueDate = new Date(assignmentDetails.dueDate.toDate()).toLocaleDateString('en-US', {
+  const formattedDueDate = assignmentDetails.dueDate ? new Date(assignmentDetails.dueDate.toDate()).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  });
+  }) : 'N/A';
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">

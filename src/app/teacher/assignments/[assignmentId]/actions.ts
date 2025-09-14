@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { firestore } from '@/lib/firebase';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, query, where, getDocs, collection } from 'firebase/firestore';
 
 export const gradingSchema = z.object({
   grade: z.string().min(1, 'Grade is required.'),
@@ -16,13 +16,24 @@ export type GradingFormValues = z.infer<typeof gradingSchema>;
 
 
 export async function saveGradeAction(
-  submissionId: string, 
+  studentId: string, 
   assignmentId: string,
   data: GradingFormValues
 ) {
   try {
-    const submissionRef = doc(firestore, 'assignments', assignmentId, 'submissions', submissionId);
-    await updateDoc(submissionRef, {
+    const q = query(
+      collection(firestore, 'assignments', assignmentId, 'submissions'),
+      where('studentRef', '==', doc(firestore, 'students', studentId))
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      throw new Error('Submission not found for this student.');
+    }
+    
+    const submissionDoc = querySnapshot.docs[0];
+
+    await updateDoc(submissionDoc.ref, {
       ...data,
       status: 'Graded',
     });
