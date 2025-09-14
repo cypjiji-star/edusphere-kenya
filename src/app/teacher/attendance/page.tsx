@@ -7,6 +7,7 @@ import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePen
 import { DateRange } from 'react-day-picker';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import {
@@ -77,6 +78,8 @@ type TeacherClass = {
 }
 
 export default function AttendancePage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
   const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -100,8 +103,9 @@ export default function AttendancePage() {
 
 
   React.useEffect(() => {
+    if (!schoolId) return;
     const teacherId = 'teacher-wanjiku'; // This should be dynamic based on logged-in user
-    const q = query(collection(firestore, 'classes'), where('teacherId', '==', teacherId));
+    const q = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const classesData: TeacherClass[] = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
         setTeacherClasses(classesData);
@@ -110,10 +114,10 @@ export default function AttendancePage() {
         }
     });
     return () => unsubscribe();
-  }, [selectedClass]);
+  }, [schoolId, selectedClass]);
 
   React.useEffect(() => {
-    if (!selectedClass || !date?.from) return;
+    if (!selectedClass || !date?.from || !schoolId) return;
 
     const fetchAttendance = async () => {
         setIsLoading(true);
@@ -124,13 +128,13 @@ export default function AttendancePage() {
 
         try {
             // Fetch students for the class
-            const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', selectedClass));
+            const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
             const studentsSnapshot = await getDocs(studentsQuery);
             const classStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
 
             // Fetch attendance records for these students for the selected date
             const attendanceQuery = query(
-                collection(firestore, 'attendance'),
+                collection(firestore, 'schools', schoolId, 'attendance'),
                 where('classId', '==', selectedClass),
                 where('date', '==', Timestamp.fromDate(targetDate))
             );
@@ -163,19 +167,18 @@ export default function AttendancePage() {
       setStudents([]);
     }
 
-  }, [selectedClass, date, isRange, toast]);
+  }, [selectedClass, date, isRange, toast, schoolId]);
 
   const handleSaveAttendance = React.useCallback(async () => {
-    if (!isEditable || !selectedClass || !date?.from) return;
+    if (!isEditable || !selectedClass || !date?.from || !schoolId) return;
 
     const batch = writeBatch(firestore);
     const attendanceDate = startOfToday();
     attendanceDate.setFullYear(date.from.getFullYear(), date.from.getMonth(), date.from.getDate());
 
     students.forEach(student => {
-        // Use a composite ID to prevent duplicate records for the same student, class, and date
         const docId = `${student.id}_${selectedClass}_${format(attendanceDate, 'yyyy-MM-dd')}`;
-        const attendanceRef = doc(firestore, 'attendance', docId);
+        const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
 
         batch.set(attendanceRef, {
             studentId: student.id,
@@ -203,7 +206,7 @@ export default function AttendancePage() {
             variant: 'destructive',
         });
     }
-  }, [isEditable, students, selectedClass, date, toast, teacherClasses]);
+  }, [isEditable, students, selectedClass, date, toast, teacherClasses, schoolId]);
   
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     if (!isEditable) return;
@@ -252,6 +255,10 @@ export default function AttendancePage() {
     }
     return students.filter(s => s.status === statusFilter);
   }, [students, statusFilter]);
+  
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing.</div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
