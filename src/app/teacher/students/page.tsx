@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -100,26 +101,41 @@ export default function StudentsPage() {
   React.useEffect(() => {
     if (!schoolId) return;
 
-    const q = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    // First, get the classes assigned to the teacher
+    const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
+    const classesUnsub = onSnapshot(classesQuery, (querySnapshot) => {
       const classesData: TeacherClass[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
         name: `${doc.data().name} ${doc.data().stream || ''}`.trim(),
       }));
       setTeacherClasses(classesData);
+
+      // Set initial tab only if it hasn't been set yet
       if (!activeTab && classesData.length > 0) {
         setActiveTab(classesData[0].id);
       }
+      
+      // If there are no classes, stop loading
+      if (classesData.length === 0) {
+        setIsLoading(false);
+      }
     });
-    return () => unsubscribe();
-  }, [schoolId, activeTab]);
+
+    return () => classesUnsub();
+  }, [schoolId]);
 
   React.useEffect(() => {
-    if (!activeTab || !schoolId) return;
+    if (!activeTab || !schoolId) {
+        // If activeTab is cleared, ensure loading is false if no classes exist
+        if (teacherClasses.length === 0) {
+            setIsLoading(false);
+        }
+        return;
+    };
 
     setIsLoading(true);
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', activeTab));
-    const unsubscribe = onSnapshot(studentsQuery, async (snapshot) => {
+    const unsubscribeStudents = onSnapshot(studentsQuery, async (snapshot) => {
         const studentsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Student));
         
         const today = new Date();
@@ -148,8 +164,9 @@ export default function StudentsPage() {
         setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeStudents();
   }, [activeTab, schoolId]);
+
 
   const studentsForCurrentTab = allClassStudents[activeTab || ''] || [];
   
@@ -361,12 +378,28 @@ export default function StudentsPage() {
                         <h1 className="font-headline text-3xl font-bold">Class &amp; Student Management</h1>
                         <p className="text-muted-foreground">Switch between your classes to view student rosters and mark attendance.</p>
                     </div>
-                    <TabsList>
-                        {teacherClasses.map((cls) => (
-                            <TabsTrigger key={cls.id} value={cls.id}>{cls.name}</TabsTrigger>
-                        ))}
-                    </TabsList>
+                    {teacherClasses.length > 0 && (
+                        <TabsList>
+                            {teacherClasses.map((cls) => (
+                                <TabsTrigger key={cls.id} value={cls.id}>{cls.name}</TabsTrigger>
+                            ))}
+                        </TabsList>
+                    )}
                 </div>
+
+                {teacherClasses.length === 0 && !isLoading && (
+                    <Card className="mt-6">
+                        <CardContent className="pt-6">
+                            <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                                <div className="text-center">
+                                <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <h3 className="mt-4 text-xl font-semibold">No Classes Assigned</h3>
+                                <p className="mt-2 text-sm text-muted-foreground">Please contact your school administrator to be assigned to a class.</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {teacherClasses.map((cls) => (
                     <TabsContent key={cls.id} value={cls.id}>
