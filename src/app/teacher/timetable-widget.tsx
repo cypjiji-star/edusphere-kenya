@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import * as React from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -33,13 +33,14 @@ export function TimetableWidget() {
   const [clientReady, setClientReady] = React.useState(false);
   const [todaySchedule, setTodaySchedule] = React.useState<TimetableEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const user = auth.currentUser;
   
   useEffect(() => {
     setClientReady(true);
     setCurrentTime(new Date());
 
     const getTodaySchedule = async () => {
-        if (!schoolId) {
+        if (!schoolId || !user) {
             setIsLoading(false);
             return;
         }
@@ -47,7 +48,7 @@ export function TimetableWidget() {
         setIsLoading(true);
         const today = new Date();
         const dayOfWeek = today.toLocaleString('en-US', { weekday: 'long' }); // e.g., 'Monday'
-        const teacherName = 'Ms. Wanjiku'; // This should be dynamic based on logged-in user
+        const teacherName = user.displayName; // This should be dynamic based on logged-in user
 
         try {
             // Fetch periods
@@ -92,7 +93,7 @@ export function TimetableWidget() {
 
     const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
     return () => clearInterval(timer);
-  }, [schoolId]);
+  }, [schoolId, user]);
 
   const isCurrentClass = (entry: TimetableEntry) => {
     if (!currentTime || entry.isBreak) return false;

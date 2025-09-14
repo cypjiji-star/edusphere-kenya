@@ -8,7 +8,7 @@ import { Library, ArrowRight, AlertTriangle, Gift } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { differenceInDays, parseISO } from 'date-fns';
 import * as React from 'react';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -30,10 +30,11 @@ export function LibraryNoticesWidget() {
   const schoolId = searchParams.get('schoolId');
   const [overdueItems, setOverdueItems] = React.useState<BorrowedItem[]>([]);
   const [newArrivals, setNewArrivals] = React.useState<NewResource[]>([]);
-  const teacherId = 'teacher-wanjiku'; // Placeholder
+  const user = auth.currentUser;
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
+    const teacherId = user.uid;
 
     // Fetch overdue items
     const borrowedQuery = query(collection(firestore, 'schools', schoolId, 'users', teacherId, 'borrowed-items'));
@@ -58,7 +59,7 @@ export function LibraryNoticesWidget() {
         unsubBorrowed();
         unsubArrivals();
     }
-  }, [schoolId, teacherId]);
+  }, [schoolId, user]);
 
   return (
     <Card>

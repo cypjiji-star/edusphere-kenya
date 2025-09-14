@@ -17,6 +17,7 @@ export type AssignmentFormValues = z.infer<typeof assignmentSchema>;
 
 export async function createAssignmentAction(
   schoolId: string,
+  teacherId: string,
   data: AssignmentFormValues,
   className: string
 ) {
@@ -36,7 +37,7 @@ export async function createAssignmentAction(
     const assignmentRef = await addDoc(collection(firestore, 'schools', schoolId, 'assignments'), {
       ...validatedData,
       className,
-      teacherId: 'teacher-wanjiku', // Placeholder for logged-in teacher
+      teacherId: teacherId, 
       createdAt: serverTimestamp(),
       submissions: 0,
       totalStudents,

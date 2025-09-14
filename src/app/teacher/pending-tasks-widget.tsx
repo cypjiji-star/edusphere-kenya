@@ -8,7 +8,7 @@ import { ClipboardList, AlertTriangle, CheckCircle, ArrowRight, Loader2 } from '
 import { Separator } from '@/components/ui/separator';
 import { differenceInDays, parseISO } from 'date-fns';
 import * as React from 'react';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -28,13 +28,14 @@ export function PendingTasksWidget() {
     const schoolId = searchParams.get('schoolId');
     const [tasks, setTasks] = React.useState<AssignmentTask[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
-    const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
+    const user = auth.currentUser;
 
     React.useEffect(() => {
-        if (!schoolId) {
+        if (!schoolId || !user) {
             setIsLoading(false);
             return;
         };
+        const teacherId = user.uid;
 
         setIsLoading(true);
         const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
@@ -63,7 +64,7 @@ export function PendingTasksWidget() {
         });
 
         return () => unsubscribe();
-    }, [schoolId]);
+    }, [schoolId, user]);
 
   const getDueDateText = (dueDate: string) => {
     const days = differenceInDays(parseISO(dueDate), new Date());

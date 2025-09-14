@@ -26,7 +26,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LessonPlanCalendar } from './lesson-plan-calendar';
 import { cn } from '@/lib/utils';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -64,15 +64,16 @@ export default function LessonPlansPage() {
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [filteredGrade, setFilteredGrade] = React.useState('All Grades');
   const [clientReady, setClientReady] = React.useState(false);
+  const user = auth.currentUser;
 
   React.useEffect(() => {
-    if (!schoolId) {
+    if (!schoolId || !user) {
         setIsLoading(false);
         return;
     }
 
     setClientReady(true);
-    const teacherId = 'teacher-wanjiku'; // Placeholder
+    const teacherId = user.uid;
     const q = query(collection(firestore, `schools/${schoolId}/lesson-plans`), where('teacherId', '==', teacherId));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -85,7 +86,7 @@ export default function LessonPlansPage() {
     });
 
     return () => unsubscribe();
-  }, [schoolId]);
+  }, [schoolId, user]);
 
   const lessonPlans = allLessonPlans.filter(plan => 
     (plan.topic.toLowerCase().includes(searchTerm.toLowerCase())) &&

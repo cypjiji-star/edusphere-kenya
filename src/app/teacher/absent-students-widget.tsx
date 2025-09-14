@@ -8,8 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserX, ArrowRight, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import * as React from 'react';
-import { firestore } from '@/lib/firebase';
-import { collection, query, where, Timestamp, onSnapshot, getDoc } from 'firebase/firestore';
+import { firestore, auth } from '@/lib/firebase';
+import { collection, query, where, Timestamp, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -26,10 +26,11 @@ export function AbsentStudentsWidget() {
     const schoolId = searchParams.get('schoolId');
     const [absentStudents, setAbsentStudents] = React.useState<AbsentStudent[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
-    const teacherId = 'teacher-wanjiku'; // Placeholder for dynamic teacher ID
+    const user = auth.currentUser;
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !user) return;
+        const teacherId = user.uid;
 
         setIsLoading(true);
         const today = new Date();
@@ -44,11 +45,8 @@ export function AbsentStudentsWidget() {
 
         const unsubscribe = onSnapshot(attendanceQuery, async (snapshot) => {
             const absentStudentData: AbsentStudent[] = [];
-            for (const doc of snapshot.docs) {
-                const attendance = doc.data();
-                const studentRef = attendance.studentRef; // Assuming studentRef is a DocumentReference
-                
-                // Assuming studentRef is not directly on attendance, but studentId is.
+            for (const attendanceDoc of snapshot.docs) {
+                const attendance = attendanceDoc.data();
                 if (attendance.studentId) {
                     const studentDocSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, attendance.studentId));
                     if (studentDocSnap.exists()) {
@@ -68,7 +66,7 @@ export function AbsentStudentsWidget() {
         });
 
         return () => unsubscribe();
-    }, [schoolId]);
+    }, [schoolId, user]);
 
   return (
     <Card>

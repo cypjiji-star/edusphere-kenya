@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -35,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where } from 'firebase/firestore';
 
 
@@ -65,6 +64,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(!!lessonPlanId);
+  const user = auth.currentUser;
   
   const [subjects, setSubjects] = useState<string[]>([]);
   const [grades, setGrades] = useState<string[]>([]);
@@ -84,8 +84,8 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   });
 
   useEffect(() => {
-    if (!schoolId) return;
-    const teacherId = 'teacher-wanjiku'; // This should be dynamic
+    if (!schoolId || !user) return;
+    const teacherId = user.uid;
     const q = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const uniqueSubjects = new Set<string>();
@@ -99,7 +99,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         setGrades(Array.from(uniqueGrades));
     });
     return () => unsubscribe();
-  }, [schoolId]);
+  }, [schoolId, user]);
 
    useEffect(() => {
     if (lessonPlanId && schoolId) {
@@ -121,6 +121,10 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   const formState = useWatch({ control: form.control });
 
   async function onSubmit(values: LessonPlanFormValues) {
+    if (!user) {
+        toast({variant: 'destructive', title: 'You must be logged in.'});
+        return;
+    }
     setIsLoading(true);
 
     try {
@@ -129,7 +133,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
             const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
             await updateDoc(docRef, {
                 ...values,
-                teacherId: 'teacher-wanjiku' // Placeholder
+                teacherId: user.uid
             });
             toast({
                 title: `Lesson Plan Updated!`,
@@ -139,7 +143,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
             // Create new lesson plan
             await addDoc(collection(firestore, `schools/${schoolId}/lesson-plans`), {
                 ...values,
-                teacherId: 'teacher-wanjiku', // Placeholder
+                teacherId: user.uid,
                 status: 'Draft',
                 createdAt: serverTimestamp(),
             });
@@ -432,5 +436,3 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
     </Form>
   );
 }
-
-    

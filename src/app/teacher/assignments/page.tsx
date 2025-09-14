@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -24,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -37,34 +36,34 @@ export type Assignment = {
   totalStudents: number;
 };
 
-const teacherClasses = [
-    'All Classes',
-    'Form 4 - Chemistry',
-    'Form 3 - Mathematics',
-    'Form 2 - Physics',
-];
-
-
 export default function AssignmentsPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [allAssignments, setAllAssignments] = React.useState<Assignment[]>([]);
+  const [teacherClasses, setTeacherClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
   const [filteredClass, setFilteredClass] = React.useState('All Classes');
   const [clientReady, setClientReady] = React.useState(false);
+  const user = auth.currentUser;
 
   React.useEffect(() => {
-    if (!schoolId) {
+    if (!schoolId || !user) {
         setIsLoading(false);
         return;
     }
+    const teacherId = user.uid;
 
     setClientReady(true);
-    const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
     
-    const q = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
+    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+    const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+        const classes = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
+        setTeacherClasses(['All Classes', ...classes]);
+    });
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
+    
+    const unsubscribeAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
         const fetchedAssignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assignment));
         setAllAssignments(fetchedAssignments);
         setIsLoading(false);
@@ -73,8 +72,11 @@ export default function AssignmentsPage() {
         setIsLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [schoolId]);
+    return () => {
+        unsubClasses();
+        unsubscribeAssignments();
+    };
+  }, [schoolId, user]);
 
   const assignments = allAssignments.filter(assignment => 
     filteredClass === 'All Classes' || assignment.className === filteredClass

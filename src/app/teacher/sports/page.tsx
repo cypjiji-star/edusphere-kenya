@@ -33,7 +33,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -57,11 +57,12 @@ export default function SportsPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const teacherName = 'Ms. Wanjiku'; // Placeholder for logged-in teacher
+  const user = auth.currentUser;
 
    React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
     setIsLoading(true);
+    const teacherName = user.displayName;
 
     const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'), where('coach', '==', teacherName));
     const unsubTeams = onSnapshot(teamsQuery, (snapshot) => {
@@ -80,7 +81,7 @@ export default function SportsPage() {
         unsubTeams();
         unsubTeachers();
     };
-  }, [schoolId, teacherName]);
+  }, [schoolId, user]);
 
   const handleCreateTeam = async () => {
     if (!newTeamName || !newTeamCoach || !newTeamIcon || !schoolId) {

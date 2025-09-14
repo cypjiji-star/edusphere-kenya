@@ -18,6 +18,10 @@ import { FileText, Download, Star } from 'lucide-react';
 import type { Resource } from './types';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
+import { firestore } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 interface ResourceDetailsDialogProps {
   resource: Resource | null;
@@ -31,6 +35,10 @@ export function ResourceDetailsDialog({
   onOpenChange,
 }: ResourceDetailsDialogProps) {
   const [formattedDueDate, setFormattedDueDate] = React.useState('');
+  const [isRecommended, setIsRecommended] = React.useState(resource?.recommended || false);
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
+  const { toast } = useToast();
 
   React.useEffect(() => {
     if (resource?.status === 'Out' && resource.dueDate) {
@@ -38,7 +46,27 @@ export function ResourceDetailsDialog({
     } else {
       setFormattedDueDate('');
     }
+    setIsRecommended(resource?.recommended || false);
   }, [resource]);
+  
+  const handleRecommendationToggle = async (checked: boolean) => {
+    if (!resource || !schoolId) return;
+
+    setIsRecommended(checked);
+    const resourceRef = doc(firestore, 'schools', schoolId, 'library-resources', resource.id);
+    try {
+        await updateDoc(resourceRef, { recommended: checked });
+        toast({
+            title: checked ? 'Resource Recommended' : 'Recommendation Removed',
+            description: `"${resource.title}" will ${checked ? 'now' : 'no longer'} be shown as recommended to students.`
+        });
+    } catch (e) {
+        console.error(e);
+        toast({ title: 'Update failed', variant: 'destructive'});
+        setIsRecommended(!checked); // Revert on failure
+    }
+  }
+
 
   if (!resource) return null;
 
@@ -73,13 +101,12 @@ export function ResourceDetailsDialog({
                  <div>
                     <h4 className="font-semibold text-primary mb-2">Teacher Actions</h4>
                      <div className="flex items-center space-x-2">
-                        <Switch id="recommend-switch" checked={resource.recommended} disabled />
+                        <Switch id="recommend-switch" checked={isRecommended} onCheckedChange={handleRecommendationToggle} />
                         <Label htmlFor="recommend-switch" className="flex items-center gap-2">
                             <Star className="h-4 w-4 text-yellow-500" />
                             Recommend for Students
                         </Label>
                     </div>
-                     <p className="text-xs text-muted-foreground mt-2">This feature is coming soon.</p>
                 </div>
             </div>
             <div>

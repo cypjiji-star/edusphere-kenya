@@ -32,7 +32,6 @@ export default function TeacherDashboard() {
     const [avgScore, setAvgScore] = React.useState(0);
     const [isLoading, setIsLoading] = React.useState(true);
     const [user, setUser] = React.useState(auth.currentUser);
-    const teacherId = 'teacher-wanjiku'; // Placeholder for dynamic teacher ID
 
     React.useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -40,11 +39,12 @@ export default function TeacherDashboard() {
     }, []);
 
     React.useEffect(() => {
-        if (!schoolId) {
+        if (!schoolId || !user) {
             setIsLoading(false);
             return;
         }
         
+        const teacherId = user.uid;
         setIsLoading(true);
 
         const schoolRef = doc(firestore, 'schools', schoolId);
@@ -100,7 +100,7 @@ export default function TeacherDashboard() {
             unsubAssignments();
         };
 
-    }, [schoolId, teacherId]);
+    }, [schoolId, user]);
 
     const quickStats = [
         {

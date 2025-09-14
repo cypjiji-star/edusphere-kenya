@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -54,10 +54,11 @@ export default function MyLibraryPage() {
     const [requestItems, setRequestItems] = React.useState<RequestItem[]>([]);
     const [newRequestTitle, setNewRequestTitle] = React.useState('');
     const { toast } = useToast();
-    const teacherId = 'teacher-wanjiku'; // Placeholder
+    const user = auth.currentUser;
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !user) return;
+        const teacherId = user.uid;
 
         setClientReady(true);
 
@@ -84,11 +85,11 @@ export default function MyLibraryPage() {
             unsubHistory();
             unsubRequests();
         }
-    }, [schoolId, teacherId]);
+    }, [schoolId, user]);
 
     const handleRenew = async (item: BorrowedItem) => {
-        if (!schoolId) return;
-        const itemRef = doc(firestore, 'schools', schoolId, 'users', teacherId, 'borrowed-items', item.id);
+        if (!schoolId || !user) return;
+        const itemRef = doc(firestore, 'schools', schoolId, 'users', user.uid, 'borrowed-items', item.id);
         const newDueDate = new Date(item.dueDate.toDate());
         newDueDate.setDate(newDueDate.getDate() + 14); // Extend by 2 weeks
 
@@ -133,9 +134,9 @@ export default function MyLibraryPage() {
     };
     
     const handleNewRequest = async () => {
-        if (!newRequestTitle.trim() || !schoolId) {
+        if (!newRequestTitle.trim() || !schoolId || !user) {
             toast({
-                title: 'Request is empty or School ID is missing',
+                title: 'Request is empty or user is not logged in.',
                 variant: 'destructive',
             });
             return;
@@ -144,7 +145,7 @@ export default function MyLibraryPage() {
         try {
             await addDoc(collection(firestore, `schools/${schoolId}/library-requests`), {
                 title: newRequestTitle,
-                requestedBy: teacherId,
+                requestedBy: user.uid,
                 status: 'Pending',
                 requestedAt: serverTimestamp(),
             });

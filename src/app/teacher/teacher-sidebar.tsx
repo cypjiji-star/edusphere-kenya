@@ -98,9 +98,9 @@ export function TeacherSidebar() {
   }, []);
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
 
-    const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
+    const teacherId = user.uid;
     
     // Unread messages count
     const unreadMessagesQuery = query(collection(firestore, `schools/${schoolId}/conversations`), where('unread', '==', true));
@@ -126,7 +126,7 @@ export function TeacherSidebar() {
         unsubscribeMessages();
         unsubscribeAssignments();
     };
-  }, [schoolId]);
+  }, [schoolId, user]);
 
   return (
     <>

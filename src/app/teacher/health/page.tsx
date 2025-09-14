@@ -69,7 +69,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -182,6 +182,7 @@ export default function HealthPage() {
     const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
     
     const [dashboardClassFilter, setDashboardClassFilter] = React.useState('all');
+    const user = auth.currentUser;
 
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
@@ -193,21 +194,22 @@ export default function HealthPage() {
     });
 
      React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !user) return;
+        const teacherId = user.uid;
 
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', 'teacher-wanjiku'));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId));
         const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
             setAllStudents(studentsData);
         });
 
-        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('reportedBy', '==', 'Ms. Wanjiku'));
+        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('reportedBy', '==', user.displayName));
         const unsubscribeIncidents = onSnapshot(incidentsQuery, (snapshot) => {
             const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
             setIncidents(incidentsData);
         });
         
-        const medsQuery = query(collection(firestore, `schools/${schoolId}/medications`), where('givenBy', '==', 'Ms. Wanjiku'));
+        const medsQuery = query(collection(firestore, `schools/${schoolId}/medications`), where('givenBy', '==', user.displayName));
         const unsubscribeMeds = onSnapshot(medsQuery, (snapshot) => {
             const medsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Medication));
             setMedicationLog(medsData);
@@ -218,7 +220,7 @@ export default function HealthPage() {
             unsubscribeIncidents();
             unsubscribeMeds();
         }
-    }, [schoolId]);
+    }, [schoolId, user]);
     
     React.useEffect(() => {
         if (selectedHealthStudent && schoolId) {
@@ -289,7 +291,7 @@ export default function HealthPage() {
     }, [incidents, allStudents, dashboardClassFilter]);
 
     async function onSubmit(values: IncidentFormValues) {
-        if (!schoolId) return;
+        if (!schoolId || !user) return;
         setIsSubmitting(true);
         const student = allStudents.find(s => s.id === values.studentId);
         
@@ -297,7 +299,7 @@ export default function HealthPage() {
             await addDoc(collection(firestore, 'schools', schoolId, 'incidents'), {
                 ...values,
                 date: Timestamp.fromDate(values.incidentDate),
-                reportedBy: 'Ms. Wanjiku', // Replace with actual user
+                reportedBy: user.displayName, // Replace with actual user
                 status: 'Reported',
                 studentName: student?.name || 'Unknown',
                 class: student?.class || 'Unknown',
@@ -346,7 +348,7 @@ export default function HealthPage() {
     };
 
     const handleSaveMedication = async () => {
-        if (!newMedStudent || !newMedName || !newMedDosage || !schoolId) {
+        if (!newMedStudent || !newMedName || !newMedDosage || !schoolId || !user) {
             toast({
                 title: "Missing Information",
                 description: "Please select a student and enter the medication name and dosage.",
@@ -365,7 +367,7 @@ export default function HealthPage() {
                 medication: newMedName,
                 dosage: newMedDosage,
                 time: `${format(new Date(), 'yyyy-MM-dd')} ${newMedTime}`,
-                givenBy: 'Ms. Wanjiku',
+                givenBy: user.displayName,
             });
 
             toast({
@@ -811,7 +813,7 @@ export default function HealthPage() {
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="log">
+                     <TabsContent value="log">
                         <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle>My Incident Log</CardTitle>
@@ -872,16 +874,10 @@ export default function HealthPage() {
                                                     <TableRow className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
-                                                                <Avatar className="h-8 w-8">
-                                                                    <AvatarImage src={incident.studentAvatar} alt={incident.studentName} />
-                                                                    <AvatarFallback>{incident.studentName.charAt(0)}</AvatarFallback>
-                                                                </Avatar>
-                                                                <span className="font-medium">{incident.studentName}</span>
+                                                                <p className="font-medium">{incident.studentName}</p>
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <Badge variant={incident.type === 'Health' ? 'destructive' : 'secondary'}>{incident.type}</Badge>
-                                                        </TableCell>
+                                                        <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'secondary'}>{incident.type}</Badge></TableCell>
                                                         <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell>
                                                         <TableCell>{getStatusBadge(incident.status)}</TableCell>
                                                     </TableRow>

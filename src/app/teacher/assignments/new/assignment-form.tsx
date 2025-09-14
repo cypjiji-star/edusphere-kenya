@@ -38,7 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useSearchParams } from 'next/navigation';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 type TeacherClass = {
@@ -52,17 +52,18 @@ export function AssignmentForm() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
+  const user = auth.currentUser;
 
   useEffect(() => {
-    if (!schoolId) return;
-    const teacherId = 'teacher-wanjiku'; // This should be dynamic
+    if (!schoolId || !user) return;
+    const teacherId = user.uid;
     const q = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
         setTeacherClasses(classesData);
     });
     return () => unsubscribe();
-  }, [schoolId]);
+  }, [schoolId, user]);
 
   const form = useForm<AssignmentFormValues>({
     resolver: zodResolver(assignmentSchema),
@@ -73,20 +74,21 @@ export function AssignmentForm() {
   });
 
   async function onSubmit(values: AssignmentFormValues) {
-    if (!schoolId) {
+    if (!schoolId || !user) {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'School ID is missing. Cannot create assignment.',
+            description: 'Authentication or School ID is missing. Cannot create assignment.',
         });
         return;
     }
+    const teacherId = user.uid;
 
     setIsLoading(true);
 
     const selectedClass = teacherClasses.find(c => c.id === values.classId);
 
-    const result = await createAssignmentAction(schoolId, values, selectedClass?.name || '');
+    const result = await createAssignmentAction(schoolId, teacherId, values, selectedClass?.name || '');
     
     setIsLoading(false);
     
