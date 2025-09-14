@@ -266,3 +266,5 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
     </div>
   );
 }
+
+    

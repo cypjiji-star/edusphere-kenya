@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Calendar } from 'lucide-react';
 import { FullCalendar } from './full-calendar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Bell } from 'lucide-react';
@@ -45,3 +46,5 @@ export default function CalendarPage() {
     </div>
   );
 }
+
+    
