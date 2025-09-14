@@ -11,31 +11,41 @@ import Link from 'next/link';
 
 export function LoginForm() {
     const router = useRouter();
-    const [role, setRole] = React.useState('/admin');
+    const [role, setRole] = React.useState('admin');
     const [schoolId, setSchoolId] = React.useState('');
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
-        if (schoolId) {
-            router.push(`${role}?schoolId=${schoolId}`);
+        const portalPath = `/${role}`;
+        
+        // In a real app, you would get a token from your auth provider
+        // and would not pass the role in the URL.
+        // For this demo, we pass the role and schoolId to simulate an authenticated session.
+        if (role === 'developer') {
+             router.push(`${portalPath}?role=developer`);
+        } else if (schoolId) {
+            router.push(`${portalPath}?schoolId=${schoolId}&role=${role}`);
         } else {
-            router.push(role);
+            // Handle case where schoolId is required but not provided
+            alert('A School ID is required for this role.');
         }
     };
 
     return (
         <form className="grid gap-4" onSubmit={handleLogin}>
-            <div className="grid gap-2">
-                <Label htmlFor="schoolId">School ID</Label>
-                <Input
-                    id="schoolId"
-                    type="text"
-                    placeholder="e.g., edusphere-high"
-                    required
-                    value={schoolId}
-                    onChange={(e) => setSchoolId(e.target.value)}
-                />
-            </div>
+             {role !== 'developer' && (
+                <div className="grid gap-2">
+                    <Label htmlFor="schoolId">School ID</Label>
+                    <Input
+                        id="schoolId"
+                        type="text"
+                        placeholder="e.g., edusphere-high"
+                        required={role !== 'developer'}
+                        value={schoolId}
+                        onChange={(e) => setSchoolId(e.target.value)}
+                    />
+                </div>
+            )}
             <div className="grid gap-2">
             <Label htmlFor="email">Email or Login ID</Label>
             <Input
@@ -63,10 +73,10 @@ export function LoginForm() {
                         <SelectValue placeholder="Login as..." />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="/teacher">Teacher</SelectItem>
-                        <SelectItem value="/admin">Admin</SelectItem>
-                        <SelectItem value="/parent">Parent</SelectItem>
-                        <SelectItem value="/developer">Developer</SelectItem>
+                        <SelectItem value="teacher">Teacher</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="parent">Parent</SelectItem>
+                        <SelectItem value="developer">Developer</SelectItem>
                     </SelectContent>
                 </Select>
                 <Button type="submit" className="w-full">

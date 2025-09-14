@@ -2,6 +2,7 @@
 import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import { DeveloperSidebar } from './developer-sidebar';
 import { Suspense } from 'react';
+import { AuthCheck } from '@/lib/auth-check';
 
 export default function DeveloperLayout({
   children,
@@ -9,17 +10,21 @@ export default function DeveloperLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider>
-      <Sidebar>
-        <Suspense>
-          <DeveloperSidebar />
-        </Suspense>
-      </Sidebar>
-      <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
-        <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <Suspense>
+      <AuthCheck requiredRole="developer">
+        <SidebarProvider>
+          <Sidebar>
+            <Suspense>
+              <DeveloperSidebar />
+            </Suspense>
+          </Sidebar>
+          <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
+            <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
+              {children}
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </AuthCheck>
+    </Suspense>
   );
 }
