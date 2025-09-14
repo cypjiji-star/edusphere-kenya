@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -275,7 +276,7 @@ export default function StudentEnrolmentPage() {
                 parentLastName: values.parentLastName,
                 parentRelationship: values.parentRelationship,
                 parentEmail: values.parentEmail,
-                parentPhone: values.parentPhone,
+                parentPhone: values.emergencyContactPhone, // Using emergency for now
                 allergies: values.allergies,
                 medicalConditions: values.medicalConditions,
                 emergencyContactName: values.emergencyContactName,
@@ -494,8 +495,8 @@ export default function StudentEnrolmentPage() {
                                 <FormField control={form.control} name="parentFirstName" render={({ field }) => ( <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="e.g., Mark" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                                 <FormField control={form.control} name="parentLastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="e.g., Johnson" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                                 <FormField control={form.control} name="parentRelationship" render={({ field }) => ( <FormItem><FormLabel>Relationship to Student</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a relationship" /></SelectTrigger></FormControl><SelectContent><SelectItem value="father">Father</SelectItem><SelectItem value="mother">Mother</SelectItem><SelectItem value="guardian">Guardian</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
-                                <FormField control={form.control} name="parentPhone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                            </div>
+                                <FormField control={form.control} name="emergencyContactPhone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                             </div>
                             <Separator className="my-6" />
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="parentEmail" render={({ field }) => ( <FormItem><FormLabel>Parent's Login Email</FormLabel><FormControl><Input type="email" placeholder="parent@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
@@ -514,7 +515,7 @@ export default function StudentEnrolmentPage() {
                             <h4 className="font-medium text-sm">Emergency Contact</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="emergencyContactName" render={({ field }) => ( <FormItem><FormLabel>Contact Name</FormLabel><FormControl><Input placeholder="e.g., Jane Doe" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                <FormField control={form.control} name="emergencyContactPhone" render={({ field }) => ( <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="parentPhone" render={({ field }) => ( <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             </div>
                         </CardContent>
                     </Card>
