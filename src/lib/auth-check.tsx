@@ -74,11 +74,13 @@ export function AuthCheck({
     );
   }
 
-  if (user && userRole === requiredRole) {
+  const roleMatches = userRole?.toLowerCase() === requiredRole;
+
+  if (user && roleMatches) {
     return <>{children}</>;
   }
 
-  if (user) {
+  if (user && !roleMatches) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
         <Card className="w-full max-w-md text-center">
@@ -93,7 +95,7 @@ export function AuthCheck({
               Your role is listed as "{userRole || 'Unknown'}", but this page requires the "
               {requiredRole}" role.
             </p>
-            <Button asChild className="mt-6">
+            <Button asChild className="mt-6" onClick={() => auth.signOut()}>
               <Link href="/login">Return to Login</Link>
             </Button>
           </CardContent>
