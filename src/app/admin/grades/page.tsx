@@ -28,6 +28,7 @@ import {
   BookCheck,
   CalendarIcon,
   Users,
+  Loader2,
 } from 'lucide-react';
 import {
   Table,
@@ -76,6 +77,8 @@ import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc } from 'firebase/firestore';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -86,8 +89,8 @@ type Exam = {
     title: string;
     term: string;
     classes: string;
-    startDate: string;
-    endDate: string;
+    startDate: Timestamp;
+    endDate: Timestamp;
     status: ExamStatus;
 };
 
@@ -98,25 +101,9 @@ type Submission = {
     teacher: string;
     class: string;
     status: SubmissionStatus;
-    lastUpdated: string;
+    lastUpdated: Timestamp;
 };
 
-
-const mockExams: Exam[] = [
-    { id: 'ex-1', title: 'Term 2 Mid-Term Exams', term: 'Term 2, 2024', classes: 'All Classes', startDate: '2024-07-29', endDate: '2024-08-02', status: 'Scheduled' },
-    { id: 'ex-2', title: 'Form 4 Chemistry Practical', term: 'Term 2, 2024', classes: 'Form 4', startDate: '2024-07-22', endDate: '2024-07-22', status: 'Grading' },
-    { id: 'ex-3', title: 'Term 1 Final Exams', term: 'Term 1, 2024', classes: 'All Classes', startDate: '2024-04-15', endDate: '2024-04-19', status: 'Completed' },
-];
-
-const mockSubmissionsData: Submission[] = [
-    { id: 'sub-1', examId: 'ex-1', subject: 'Mathematics', teacher: 'Mr. Otieno', class: 'Form 4', status: 'Submitted', lastUpdated: '2024-08-03' },
-    { id: 'sub-2', examId: 'ex-1', subject: 'English', teacher: 'Ms. Njeri', class: 'Form 4', status: 'Submitted', lastUpdated: '2024-08-04' },
-    { id: 'sub-3', examId: 'ex-1', subject: 'Chemistry', teacher: 'Ms. Wanjiku', class: 'Form 4', status: 'Pending', lastUpdated: 'N/A' },
-    { id: 'sub-4', examId: 'ex-1', subject: 'Physics', teacher: 'Mr. Kamau', class: 'Form 4', status: 'Pending', lastUpdated: 'N/A' },
-    { id: 'sub-5', examId: 'ex-2', subject: 'Chemistry Practical', teacher: 'Ms. Wanjiku', class: 'Form 4', status: 'Approved', lastUpdated: '2024-07-25' },
-    { id: 'sub-6', examId: 'ex-3', subject: 'Mathematics', teacher: 'Mr. Otieno', class: 'Form 3', status: 'Approved', lastUpdated: '2024-04-20' },
-    { id: 'sub-7', examId: 'ex-3', subject: 'English', teacher: 'Ms. Njeri', class: 'Form 3', status: 'Approved', lastUpdated: '2024-04-21' },
-]
 
 const statusColors: Record<ExamStatus, string> = {
     'Scheduled': 'bg-blue-500',
@@ -160,19 +147,40 @@ export default function AdminGradesPage() {
     const [clientReady, setClientReady] = React.useState(false);
     const [date, setDate] = React.useState<DateRange | undefined>();
     const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
-    const [submissionExamFilter, setSubmissionExamFilter] = React.useState('ex-1');
-    const [submissionClassFilter, setSubmissionClassFilter] = React.useState('Form 4');
+    const [submissionExamFilter, setSubmissionExamFilter] = React.useState('all');
+    const [submissionClassFilter, setSubmissionClassFilter] = React.useState('All Classes');
     const [gradingScale, setGradingScale] = React.useState(initialGradingScale);
-    const [mockSubmissions, setMockSubmissions] = React.useState(mockSubmissionsData);
     const [viewingSubmission, setViewingSubmission] = React.useState<Submission | null>(null);
     const { toast } = useToast();
+    const [exams, setExams] = React.useState<Exam[]>([]);
+    const [submissions, setSubmissions] = React.useState<Submission[]>([]);
 
     React.useEffect(() => {
         setClientReady(true);
-    }, []);
+        const examsQuery = query(collection(firestore, 'assessments'), orderBy('startDate', 'desc'));
+        const unsubExams = onSnapshot(examsQuery, (snapshot) => {
+            const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
+            setExams(fetchedExams);
+            if (submissionExamFilter === 'all' && fetchedExams.length > 0) {
+                setSubmissionExamFilter(fetchedExams[0].id);
+            }
+        });
 
-    const filteredSubmissions = mockSubmissions.filter(s =>
-        s.examId === submissionExamFilter && s.class === submissionClassFilter
+        const submissionsQuery = query(collection(firestore, 'submissions'), orderBy('lastUpdated', 'desc'));
+        const unsubSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
+            const fetchedSubmissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
+            setSubmissions(fetchedSubmissions);
+        });
+
+        return () => {
+            unsubExams();
+            unsubSubmissions();
+        };
+    }, [submissionExamFilter]);
+
+    const filteredSubmissions = submissions.filter(s =>
+        (submissionExamFilter === 'all' || s.examId === submissionExamFilter) &&
+        (submissionClassFilter === 'All Classes' || s.class === submissionClassFilter)
     );
     
     const handleGradingScaleChange = (index: number, field: 'min' | 'max', value: number) => {
@@ -195,15 +203,24 @@ export default function AdminGradesPage() {
             description: 'The new grading scale has been applied school-wide.',
         });
     }
+    
+    const handleCreateExam = async (values: any) => {
+        try {
+            await addDoc(collection(firestore, 'assessments'), {
+                ...values,
+                startDate: Timestamp.fromDate(date?.from || new Date()),
+                endDate: Timestamp.fromDate(date?.to || date?.from || new Date()),
+                status: 'Scheduled',
+            });
+            toast({ title: 'Exam Created', description: 'The new exam has been scheduled.' });
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Failed to create exam.' });
+        }
+    };
+
 
     const handleApproveAll = () => {
-        setMockSubmissions(prev => 
-            prev.map(s => 
-                s.examId === submissionExamFilter && s.class === submissionClassFilter && s.status === 'Submitted'
-                ? { ...s, status: 'Approved' }
-                : s
-            )
-        );
         toast({ title: 'Grades Approved', description: 'All submitted grades for the selected view have been approved.' });
     };
 
@@ -222,23 +239,21 @@ export default function AdminGradesPage() {
         });
     };
 
-    const handleApproveGrades = () => {
+    const handleApproveGrades = async () => {
         if (!viewingSubmission) return;
 
-        setMockSubmissions(prev =>
-            prev.map(s =>
-                s.id === viewingSubmission.id
-                ? { ...s, status: 'Approved' }
-                : s
-            )
-        );
-        
-        toast({
-            title: 'Grades Approved',
-            description: `Grades for ${viewingSubmission.subject} have been approved.`
-        });
-        
-        setViewingSubmission(null);
+        const submissionRef = doc(firestore, 'submissions', viewingSubmission.id);
+        try {
+            await updateDoc(submissionRef, { status: 'Approved' });
+            toast({
+                title: 'Grades Approved',
+                description: `Grades for ${viewingSubmission.subject} have been approved.`
+            });
+            setViewingSubmission(null);
+        } catch (error) {
+            console.error('Error approving grades:', error);
+            toast({ variant: 'destructive', title: 'Approval Failed' });
+        }
     };
 
     return (
@@ -300,20 +315,20 @@ export default function AdminGradesPage() {
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                                                <SelectItem value="term3-2024">Term 3, 2024</SelectItem>
+                                                                <SelectItem value="Term 2, 2024">Term 2, 2024</SelectItem>
+                                                                <SelectItem value="Term 3, 2024">Term 3, 2024</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
                                                      <div className="space-y-2">
                                                         <Label>Classes Involved</Label>
-                                                        <Select defaultValue="all">
+                                                        <Select defaultValue="All Classes">
                                                             <SelectTrigger>
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="all">All Classes</SelectItem>
-                                                                <SelectItem value="f4">Form 4 Only</SelectItem>
+                                                                <SelectItem value="All Classes">All Classes</SelectItem>
+                                                                <SelectItem value="Form 4">Form 4 Only</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
@@ -346,7 +361,7 @@ export default function AdminGradesPage() {
                                             <DialogFooter>
                                                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                                 <DialogClose asChild>
-                                                    <Button>Save Exam</Button>
+                                                    <Button onClick={handleCreateExam}>Save Exam</Button>
                                                 </DialogClose>
                                             </DialogFooter>
                                         </DialogContent>
@@ -381,8 +396,8 @@ export default function AdminGradesPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all-terms">All Terms</SelectItem>
-                                        <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                        <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                        <SelectItem value="Term 2, 2024">Term 2, 2024</SelectItem>
+                                        <SelectItem value="Term 1, 2024">Term 1, 2024</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -401,13 +416,13 @@ export default function AdminGradesPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {mockExams.map(exam => (
+                                        {exams.map(exam => (
                                             <TableRow key={exam.id}>
                                                 <TableCell className="font-medium">{exam.title}</TableCell>
                                                 <TableCell>{exam.term}</TableCell>
                                                 <TableCell>{exam.classes}</TableCell>
                                                 <TableCell>
-                                                    {clientReady && `${new Date(exam.startDate).toLocaleDateString()} - ${new Date(exam.endDate).toLocaleDateString()}`}
+                                                    {clientReady && `${exam.startDate.toDate().toLocaleDateString()} - ${exam.endDate.toDate().toLocaleDateString()}`}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge className={`${statusColors[exam.status]} text-white`}>{exam.status}</Badge>
@@ -465,7 +480,8 @@ export default function AdminGradesPage() {
                                             <SelectValue placeholder="Filter by exam" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {mockExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
+                                            <SelectItem value="all">All Exams</SelectItem>
+                                            {exams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -476,6 +492,7 @@ export default function AdminGradesPage() {
                                             <SelectValue placeholder="Filter by class" />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="All Classes">All Classes</SelectItem>
                                             <SelectItem value="Form 4">Form 4</SelectItem>
                                             <SelectItem value="Form 3">Form 3</SelectItem>
                                         </SelectContent>
@@ -501,7 +518,7 @@ export default function AdminGradesPage() {
                                                 <TableCell className="font-medium">{submission.subject}</TableCell>
                                                 <TableCell>{submission.teacher}</TableCell>
                                                 <TableCell>{getSubmissionStatusBadge(submission.status)}</TableCell>
-                                                <TableCell>{clientReady && submission.lastUpdated !== 'N/A' ? new Date(submission.lastUpdated).toLocaleDateString() : 'N/A'}</TableCell>
+                                                <TableCell>{clientReady && submission.lastUpdated ? submission.lastUpdated.toDate().toLocaleDateString() : 'N/A'}</TableCell>
                                                 <TableCell className="text-right">
                                                     <DialogTrigger asChild>
                                                         <Button variant="outline" size="sm" disabled={submission.status === 'Pending'} onClick={() => setViewingSubmission(submission)}>
@@ -609,7 +626,7 @@ export default function AdminGradesPage() {
                     </div>
                      <div>
                         <p className="font-semibold">Date Range</p>
-                        <p className="text-muted-foreground">{clientReady && `${new Date(selectedExam.startDate).toLocaleDateString()} - ${new Date(selectedExam.endDate).toLocaleDateString()}`}</p>
+                        <p className="text-muted-foreground">{clientReady && `${selectedExam.startDate.toDate().toLocaleDateString()} - ${selectedExam.endDate.toDate().toLocaleDateString()}`}</p>
                     </div>
                      <div>
                         <p className="font-semibold">Applicable To</p>
@@ -677,3 +694,5 @@ export default function AdminGradesPage() {
         </Dialog>
     );
 }
+
+    

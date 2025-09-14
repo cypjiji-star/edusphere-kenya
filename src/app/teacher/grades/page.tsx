@@ -61,7 +61,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { GradeEntryForm } from './new/grade-entry-form';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 
 
 // --- Data Types ---
@@ -107,7 +107,8 @@ export default function GradesPage() {
 
     React.useEffect(() => {
         setIsLoading(true);
-        const assessmentsQuery = query(collection(firestore, 'assessments'), where('classId', '==', selectedClass));
+        const teacherId = 'teacher-wanjiku'; // Placeholder
+        const assessmentsQuery = query(collection(firestore, 'assessments'), where('classId', '==', selectedClass), where('teacherId', '==', teacherId));
         const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
             const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
             setCurrentAssessments(assessments);
@@ -117,7 +118,7 @@ export default function GradesPage() {
         const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
             const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
                 const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
-                const gradesQuery = query(collection(firestore, 'students', student.studentId, 'grades'));
+                const gradesQuery = query(collection(firestore, 'submissions'), where('studentId', '==', student.studentId));
                 const gradesSnapshot = await getDocs(gradesQuery);
                 const grades = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
                 
@@ -335,7 +336,6 @@ export default function GradesPage() {
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-4 pt-2">
-                                         <Separator/>
                                          {currentAssessments.map(assessment => (
                                              <div key={assessment.id} className="flex justify-between items-center text-sm">
                                                 <span className="font-medium text-muted-foreground">{assessment.title}:</span>
@@ -398,3 +398,5 @@ export default function GradesPage() {
     </div>
   );
 }
+
+    

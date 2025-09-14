@@ -15,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { TrendingDown, TrendingUp, ArrowRight, BookCopy } from 'lucide-react';
+import { TrendingDown, TrendingUp, ArrowRight, BookCopy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import {
@@ -25,29 +25,9 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
+import { firestore } from '@/lib/firebase';
+import { collection, query, getDocs } from 'firebase/firestore';
 
-const allDistributionData = {
-    'term1-2024': [
-        { name: 'A', students: 120 },
-        { name: 'A-', students: 98 },
-        { name: 'B+', students: 150 },
-        { name: 'B', students: 180 },
-        { name: 'B-', students: 110 },
-        { name: 'C+', students: 80 },
-        { name: 'C/C-', students: 50 },
-        { name: 'D/E', students: 25 },
-    ],
-    'term2-2024': [
-        { name: 'A', students: 130 },
-        { name: 'A-', students: 105 },
-        { name: 'B+', students: 140 },
-        { name: 'B', students: 170 },
-        { name: 'B-', students: 100 },
-        { name: 'C+', students: 75 },
-        { name: 'C/C-', students: 45 },
-        { name: 'D/E', students: 20 },
-    ],
-};
 
 const distributionChartConfig = {
   students: {
@@ -56,25 +36,59 @@ const distributionChartConfig = {
   },
 };
 
-const subjectPerformanceData = [
-    { subject: 'Agriculture', avg: 85, trend: 'up' },
-    { subject: 'Biology', avg: 78, trend: 'up' },
-    { subject: 'Business', avg: 72, trend: 'down' },
-    { subject: 'Chemistry', avg: 81, trend: 'up' },
-    { subject: 'English', avg: 75, trend: 'stable' },
-    { subject: 'Geography', avg: 68, trend: 'down' },
-    { subject: 'History', avg: 70, trend: 'stable' },
-    { subject: 'Mathematics', avg: 65, trend: 'down' },
-    { subject: 'Physics', avg: 79, trend: 'up' },
-];
-
 export function GradeAnalysisCharts() {
-  const [selectedTerm, setSelectedTerm] = React.useState('term1-2024');
-  const [distributionData, setDistributionData] = React.useState(allDistributionData[selectedTerm as keyof typeof allDistributionData]);
+  const [selectedTerm, setSelectedTerm] = React.useState('Term 1, 2024');
+  const [distributionData, setDistributionData] = React.useState<any[]>([]);
+  const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    // Simulate fetching data for the selected term
-    setDistributionData(allDistributionData[selectedTerm as keyof typeof allDistributionData]);
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            // Simplified aggregation. A real app would use backend functions for this.
+            const submissionsSnapshot = await getDocs(query(collection(firestore, 'submissions')));
+            
+            // Grade Distribution
+            const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
+            submissionsSnapshot.forEach(doc => {
+                const grade = doc.data().grade;
+                if (grade >= 80) gradeCounts['A']++;
+                else if (grade >= 75) gradeCounts['A-']++;
+                else if (grade >= 70) gradeCounts['B+']++;
+                else if (grade >= 65) gradeCounts['B']++;
+                else if (grade >= 60) gradeCounts['B-']++;
+                else if (grade >= 55) gradeCounts['C+']++;
+                else if (grade >= 45) gradeCounts['C/C-']++;
+                else gradeCounts['D/E']++;
+            });
+            setDistributionData(Object.entries(gradeCounts).map(([name, students]) => ({ name, students })));
+
+            // Subject Performance
+            const subjectScores: Record<string, { total: number, count: number }> = {};
+            submissionsSnapshot.forEach(doc => {
+                const submission = doc.data();
+                if (!subjectScores[submission.subject]) {
+                    subjectScores[submission.subject] = { total: 0, count: 0 };
+                }
+                subjectScores[submission.subject].total += parseInt(submission.grade, 10);
+                subjectScores[submission.subject].count++;
+            });
+
+            const performance = Object.entries(subjectScores).map(([subject, data]) => ({
+                subject: subject,
+                avg: Math.round(data.total / data.count),
+                trend: 'stable', // Trend calculation would require historical data
+            }));
+            setSubjectPerformanceData(performance);
+
+        } catch (error) {
+            console.error("Error fetching analysis data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchData();
   }, [selectedTerm]);
   
   return (
@@ -92,15 +106,16 @@ export function GradeAnalysisCharts() {
                                 <SelectValue placeholder="Select term" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
-                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                <SelectItem value="Term 1, 2024">Term 1, 2024</SelectItem>
+                                <SelectItem value="Term 2, 2024">Term 2, 2024</SelectItem>
                             </SelectContent>
                          </Select>
-                         <Button variant="outline">Compare</Button>
+                         <Button variant="outline" disabled>Compare</Button>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
+                {isLoading ? <div className="h-[250px] w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
                 <ChartContainer config={distributionChartConfig} className="h-[250px] w-full">
                 <BarChart
                     accessibilityLayer
@@ -128,6 +143,7 @@ export function GradeAnalysisCharts() {
                     </Bar>
                 </BarChart>
                 </ChartContainer>
+                }
             </CardContent>
         </Card>
         <div className="grid gap-6 md:grid-cols-3">
@@ -138,6 +154,7 @@ export function GradeAnalysisCharts() {
                         <CardDescription>Average scores by subject and trend from previous exam.</CardDescription>
                     </CardHeader>
                     <CardContent className="w-full overflow-auto">
+                        {isLoading ? <div className="h-[150px] w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
                         <div className="grid grid-cols-3 gap-y-4 gap-x-8 text-sm min-w-[400px]">
                             {subjectPerformanceData.map(item => (
                                 <div key={item.subject} className="flex items-center justify-between border-b pb-2">
@@ -150,6 +167,7 @@ export function GradeAnalysisCharts() {
                                 </div>
                             ))}
                         </div>
+                        }
                     </CardContent>
                 </Link>
              </Card>
@@ -181,3 +199,5 @@ export function GradeAnalysisCharts() {
     </div>
   );
 }
+
+    
