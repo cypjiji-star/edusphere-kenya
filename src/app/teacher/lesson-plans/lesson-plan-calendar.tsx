@@ -25,6 +25,7 @@ import type { LessonPlan } from './page';
 
 interface LessonPlanCalendarProps {
     lessonPlans: LessonPlan[];
+    schoolId: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -34,7 +35,7 @@ const statusColors: Record<string, string> = {
     'Mr. Kamau': 'bg-yellow-500',
 };
 
-export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
+export function LessonPlanCalendar({ lessonPlans, schoolId }: LessonPlanCalendarProps) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
 
   const handlePrevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
@@ -87,7 +88,7 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
                   <span className={cn('font-medium', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
                   <div className="mt-1 space-y-1 overflow-y-auto">
                     {plansForDay.map(plan => (
-                      <Link key={plan.id} href={`/teacher/lesson-plans/new?id=${plan.id}`}>
+                      <Link key={plan.id} href={`/teacher/lesson-plans/new?id=${plan.id}&schoolId=${schoolId}`}>
                         <Badge 
                           className={cn(
                             'w-full truncate text-white cursor-pointer',
@@ -101,7 +102,7 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
                     ))}
                     {/* Add logic here to highlight days with missing plans */}
                   </div>
-                   <Link href={`/teacher/lesson-plans/new?date=${format(day, 'yyyy-MM-dd')}`} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <Link href={`/teacher/lesson-plans/new?date=${format(day, 'yyyy-MM-dd')}&schoolId=${schoolId}`} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-6 w-6">
                         <PlusCircle className="h-4 w-4 text-muted-foreground" />
                     </Button>
@@ -115,3 +116,5 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
     </div>
   );
 }
+
+    

@@ -28,6 +28,7 @@ import { LessonPlanCalendar } from './lesson-plan-calendar';
 import { cn } from '@/lib/utils';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 export type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
@@ -55,6 +56,8 @@ const statusColors: Record<LessonPlanStatus, string> = {
 
 
 export default function LessonPlansPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [allLessonPlans, setAllLessonPlans] = React.useState<LessonPlan[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -63,9 +66,11 @@ export default function LessonPlansPage() {
   const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     setClientReady(true);
     const teacherId = 'teacher-wanjiku'; // Placeholder
-    const q = query(collection(firestore, 'lesson-plans'), where('teacherId', '==', teacherId));
+    const q = query(collection(firestore, `schools/${schoolId}/lesson-plans`), where('teacherId', '==', teacherId));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LessonPlan));
@@ -77,7 +82,7 @@ export default function LessonPlansPage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const lessonPlans = allLessonPlans.filter(plan => 
     (plan.topic.toLowerCase().includes(searchTerm.toLowerCase())) &&
@@ -96,7 +101,7 @@ export default function LessonPlansPage() {
                 <p className="text-muted-foreground">Create, manage, and share your lesson plans.</p>
             </div>
             <Button asChild className="w-full md:w-auto">
-                <Link href="/teacher/lesson-plans/new">
+                <Link href={`/teacher/lesson-plans/new?schoolId=${schoolId}`}>
                 <PlusCircle className="mr-2" />
                 Create New Lesson Plan
                 </Link>
@@ -183,7 +188,7 @@ export default function LessonPlansPage() {
                             </CardContent>
                             <CardFooter>
                                 <Button asChild variant="outline" className="w-full">
-                                    <Link href={`/teacher/lesson-plans/new?id=${plan.id}`}>
+                                    <Link href={`/teacher/lesson-plans/new?id=${plan.id}&schoolId=${schoolId}`}>
                                         View / Edit
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </Link>
@@ -199,7 +204,7 @@ export default function LessonPlansPage() {
                             <h3 className="mt-4 text-xl font-semibold">No Lesson Plans Found</h3>
                             <p className="mt-2 text-sm text-muted-foreground">No plans match your current filters. Why not create one?</p>
                             <Button asChild className="mt-6">
-                                <Link href="/teacher/lesson-plans/new">
+                                <Link href={`/teacher/lesson-plans/new?schoolId=${schoolId}`}>
                                 <PlusCircle className="mr-2" />
                                 Create a New Lesson Plan
                                 </Link>
@@ -217,7 +222,7 @@ export default function LessonPlansPage() {
                     <CardDescription>A monthly overview of your scheduled lesson plans.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <LessonPlanCalendar lessonPlans={allLessonPlans} />
+                    <LessonPlanCalendar lessonPlans={allLessonPlans} schoolId={schoolId!} />
                 </CardContent>
              </Card>
         </TabsContent>
@@ -225,3 +230,5 @@ export default function LessonPlansPage() {
     </div>
   );
 }
+
+    

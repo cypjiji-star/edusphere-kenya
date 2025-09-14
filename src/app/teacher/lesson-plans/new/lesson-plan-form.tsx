@@ -36,6 +36,7 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
 import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 export const lessonPlanSchema = z.object({
@@ -65,9 +66,10 @@ type AiField = 'objectives' | 'activities' | 'assessment';
 interface LessonPlanFormProps {
     lessonPlanId?: string;
     prefilledDate?: string;
+    schoolId: string;
 }
 
-export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormProps) {
+export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: LessonPlanFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
@@ -88,9 +90,9 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
   });
 
    useEffect(() => {
-    if (lessonPlanId) {
+    if (lessonPlanId && schoolId) {
       const fetchLessonPlan = async () => {
-        const docRef = doc(firestore, 'lesson-plans', lessonPlanId);
+        const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -103,7 +105,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
       fetchLessonPlan();
       setIsEditMode(true);
     }
-  }, [lessonPlanId, form]);
+  }, [lessonPlanId, form, schoolId]);
   
   const formState = useWatch({ control: form.control });
 
@@ -113,7 +115,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
     try {
         if (isEditMode && lessonPlanId) {
             // Update existing lesson plan
-            const docRef = doc(firestore, 'lesson-plans', lessonPlanId);
+            const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
             await updateDoc(docRef, {
                 ...values,
                 teacherId: 'teacher-wanjiku' // Placeholder
@@ -124,7 +126,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
             });
         } else {
             // Create new lesson plan
-            await addDoc(collection(firestore, 'lesson-plans'), {
+            await addDoc(collection(firestore, `schools/${schoolId}/lesson-plans`), {
                 ...values,
                 teacherId: 'teacher-wanjiku', // Placeholder
                 status: 'Draft',
@@ -419,3 +421,5 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
     </Form>
   );
 }
+
+    
