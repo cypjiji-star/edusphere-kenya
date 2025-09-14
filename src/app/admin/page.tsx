@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { FinanceSnapshot, PerformanceSnapshot } from './admin-charts';
 import { CalendarWidget } from './calendar-widget';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 const overviewLinks: Record<string, string> = {
@@ -77,6 +77,7 @@ function formatTimeAgo(timestamp: Timestamp | undefined) {
 export default function AdminDashboard() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const [schoolName, setSchoolName] = React.useState('');
   const [stats, setStats] = React.useState({ totalStudents: 0, totalTeachers: 0, activeParents: 0, pendingRegistrations: 0 });
   const [quickStatsData, setQuickStatsData] = React.useState({ attendance: 0, feesCollected: 0, upcomingEvents: 0 });
   const [activities, setActivities] = React.useState<RecentActivity[]>([]);
@@ -87,6 +88,15 @@ export default function AdminDashboard() {
         setIsLoading(false);
         return;
     }
+    
+    // Fetch School Name
+    const schoolRef = doc(firestore, 'schools', schoolId);
+    getDoc(schoolRef).then(docSnap => {
+        if(docSnap.exists()) {
+            setSchoolName(docSnap.data().name);
+        }
+    });
+
 
     // --- STATS ---
     const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
@@ -196,7 +206,7 @@ export default function AdminDashboard() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="font-headline text-3xl font-bold">{schoolName || 'Admin Dashboard'}</h1>
         <p className="text-muted-foreground">School-wide overview and management.</p>
       </div>
       

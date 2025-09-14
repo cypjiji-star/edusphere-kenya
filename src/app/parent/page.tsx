@@ -18,7 +18,7 @@ import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardChe
 import Link from 'next/link';
 import { isPast } from 'date-fns';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -211,11 +211,20 @@ function CalendarWidget({ schoolId }: { schoolId: string }) {
 export default function ParentDashboard() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const [schoolName, setSchoolName] = React.useState('');
   const [childrenData, setChildrenData] = React.useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = React.useState<Child | null>(null);
 
   React.useEffect(() => {
     if (!schoolId) return;
+
+    const schoolRef = doc(firestore, 'schools', schoolId);
+    getDoc(schoolRef).then(docSnap => {
+        if(docSnap.exists()) {
+            setSchoolName(docSnap.data().name);
+        }
+    });
+
     // In a real app, you would filter by the logged-in parent's ID.
     const q = query(collection(firestore, `schools/${schoolId}/students`));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -242,7 +251,7 @@ export default function ParentDashboard() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="font-headline text-3xl font-bold">Parent Dashboard</h1>
-        <p className="text-muted-foreground">Welcome! Here's a summary of your child's progress.</p>
+        <p className="text-muted-foreground">Welcome to the {schoolName} parent portal.</p>
       </div>
 
        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">

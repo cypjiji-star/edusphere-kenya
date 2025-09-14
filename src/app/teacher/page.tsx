@@ -19,12 +19,13 @@ import { MessagesWidget } from './messages-widget';
 import { DashboardCharts } from './dashboard-charts';
 import { LibraryNoticesWidget } from './library-notices-widget';
 import { firestore } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 export default function TeacherDashboard() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const [schoolName, setSchoolName] = React.useState('');
     const [totalStudents, setTotalStudents] = React.useState(0);
     const [ungradedAssignments, setUngradedAssignments] = React.useState(0);
     const [attendancePercentage, setAttendancePercentage] = React.useState(0);
@@ -33,6 +34,13 @@ export default function TeacherDashboard() {
 
     React.useEffect(() => {
         if (!schoolId) return;
+
+        const schoolRef = doc(firestore, 'schools', schoolId);
+        getDoc(schoolRef).then(docSnap => {
+            if(docSnap.exists()) {
+                setSchoolName(docSnap.data().name);
+            }
+        });
 
         async function fetchDashboardData() {
             try {
@@ -116,7 +124,7 @@ export default function TeacherDashboard() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="font-headline text-3xl font-bold">Welcome, Ms. Wanjiku!</h1>
-        <p className="text-muted-foreground">Here's your summary for today, {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
+        <p className="text-muted-foreground">Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
       </div>
 
        {isLoading ? (
