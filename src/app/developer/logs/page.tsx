@@ -53,7 +53,7 @@ import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
 
 
-type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health';
+type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health' | 'General';
 
 type AuditLog = {
   id: string;
@@ -77,6 +77,7 @@ const actionTypeConfig: Record<ActionType, { icon: React.ElementType, color: str
     'Settings': { icon: Settings, color: 'text-orange-500' },
     'Security': { icon: ShieldCheck, color: 'text-red-500' },
     'Health': { icon: HeartPulse, color: 'text-pink-500' },
+    'General': { icon: FileClock, color: 'text-gray-500' },
 }
 
 const users = ['All Users', 'Admin User', 'Finance Officer', 'Ms. Wanjiku', 'System'];
