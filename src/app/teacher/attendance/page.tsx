@@ -167,7 +167,7 @@ export default function AttendancePage() {
       setStudents([]);
     }
 
-  }, [selectedClass, date, isRange, toast, schoolId]);
+  }, [selectedClass, date, isRange, toast, schoolId, selectedDate]);
 
   const handleSaveAttendance = React.useCallback(async () => {
     if (!isEditable || !selectedClass || !date?.from || !schoolId) return;
@@ -336,7 +336,7 @@ export default function AttendancePage() {
                   <DropdownMenuContent>
                     <DropdownMenuItem onClick={() => markAll('present')} disabled={!isEditable}>Mark All Present</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => markAll('absent')} disabled={!isEditable}>Mark All Absent</DropdownMenuItem>
-                    <DropdownMenuItem onClick={clearAll} disabled={!isEditable}>Clear All Selections</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => clearAll} disabled={!isEditable}>Clear All Selections</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <DropdownMenu>
@@ -593,3 +593,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
