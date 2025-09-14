@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -59,12 +58,18 @@ export default function SportsPage() {
   const schoolId = searchParams.get('schoolId');
 
    React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+        setIsLoading(false);
+        return;
+    };
     setIsLoading(true);
     const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'));
     const unsubscribe = onSnapshot(teamsQuery, (snapshot) => {
         const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SportsTeam));
         setSportsTeams(teamsData);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching teams:", error);
         setIsLoading(false);
     });
     return () => unsubscribe();

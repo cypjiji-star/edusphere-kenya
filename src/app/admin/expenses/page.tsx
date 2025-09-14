@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -273,10 +271,10 @@ export default function ExpensesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const [expenses, setExpenses] = React.useState<Expense[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [categoryFilter, setCategoryFilter] = React.useState('All Categories');
     const [statusFilter, setStatusFilter] = React.useState('All Statuses');
-    const [clientReady, setClientReady] = React.useState(false);
     
     // State for the new expense dialog
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -301,12 +299,20 @@ export default function ExpensesPage() {
     const form = useForm();
 
      React.useEffect(() => {
-        if (!schoolId) return;
-        setClientReady(true);
+        if (!schoolId) {
+            setIsLoading(false);
+            return;
+        };
+
+        setIsLoading(true);
         const q = query(collection(firestore, 'schools', schoolId, 'expenses'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             setExpenses(fetchedExpenses);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching expenses: ", error);
+            setIsLoading(false);
         });
         return () => unsubscribe();
     }, [schoolId]);
@@ -340,7 +346,7 @@ export default function ExpensesPage() {
         try {
             if (newExpenseAttachment) {
                 const storageRef = ref(storage, `schools/${schoolId}/expense-receipts/${newExpenseAttachment.name}_${Date.now()}`);
-                const snapshot = await uploadBytes(storageRef, newExpenseAttachment);
+                const snapshot = await uploadBytes(newExpenseAttachment, newExpenseAttachment);
                 attachmentUrl = await getDownloadURL(snapshot.ref);
                 hasAttachment = true;
             }
@@ -470,7 +476,7 @@ export default function ExpensesPage() {
     const handleExport = (type: 'PDF' | 'CSV') => {
         const doc = new jsPDF();
         const tableData = filteredExpenses.map(exp => [
-            clientReady && exp.date ? exp.date.toDate().toLocaleDateString() : '',
+            exp.date ? exp.date.toDate().toLocaleDateString() : '',
             exp.category,
             exp.description,
             exp.submittedBy,
@@ -826,7 +832,7 @@ export default function ExpensesPage() {
                             <TableBody>
                                 {filteredExpenses.map(expense => (
                                     <TableRow key={expense.id}>
-                                        <TableCell>{clientReady && expense.date ? expense.date.toDate().toLocaleDateString() : ''}</TableCell>
+                                        <TableCell>{expense.date ? expense.date.toDate().toLocaleDateString() : ''}</TableCell>
                                         <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
                                         <TableCell className="font-medium flex items-center gap-2">
                                             {expense.description}

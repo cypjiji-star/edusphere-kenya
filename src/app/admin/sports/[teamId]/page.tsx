@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -47,7 +46,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { firestore } from '@/lib/firebase';
-import { collection, doc, onSnapshot, query, where, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, setDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 type TeamDetails = {
@@ -114,21 +113,20 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
         setIsLoading(false);
     });
     
-    const fetchAllStudents = async () => {
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
-        const studentsSnapshot = await getDocs(studentsQuery);
-        const studentsList = studentsSnapshot.docs.map(doc => ({
+    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
+    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+        const studentsList = snapshot.docs.map(doc => ({
             id: doc.id,
             name: doc.data().name,
             class: doc.data().class
         }));
         setAllStudents(studentsList);
-    };
-    fetchAllStudents();
+    });
 
     return () => {
         unsubTeam();
         unsubMembers();
+        unsubStudents();
     }
   }, [teamId, schoolId]);
 
