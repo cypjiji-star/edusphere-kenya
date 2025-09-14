@@ -391,6 +391,8 @@ export default function ClassesAndSubjectsPage() {
                 department: newSubjectDept,
                 teachers: newSubjectTeachers,
                 classes: [],
+                schoolId: schoolId,
+                createdAt: serverTimestamp(),
             });
             toast({ title: 'Subject Created' });
             setNewSubjectName('');
