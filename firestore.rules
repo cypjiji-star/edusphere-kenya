@@ -1,155 +1,81 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isDeveloper() {
-      // Check if the user's UID exists in the developers collection.
-      return exists(/databases/$(database)/documents/developers/$(request.auth.uid));
+      return isSignedIn() && get(/databases/$(database)/documents/developers/$(request.auth.uid)).data.role == 'developer';
     }
 
-    function isSchoolAdmin(schoolId) {
-      // Check if the user is an admin for a specific school.
-      return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.role == 'Admin';
+    function isSchoolUser(schoolId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid));
     }
     
-    function isSchoolTeacher(schoolId) {
-       return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.role == 'Teacher';
+    function getUserRole(schoolId, userId) {
+      return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(userId)).data.role;
     }
 
-    function isSchoolParent(schoolId) {
-       return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.role == 'Parent';
-    }
-    
-    function isOwner(userId) {
-        return request.auth.uid == userId;
-    }
-
-    // --- Platform-Level Rules ---
+    // Platform-level collections
     match /developers/{developerId} {
-        // Allow creating the first developer account only
-        allow create: if !exists(/databases/$(database)/documents/developers/$(request.auth.uid));
-        // Allow developers to read/update their own doc
-        allow read, update: if isDeveloper() && isOwner(developerId);
+      // Allow creating the FIRST developer document if unauthenticated.
+      allow create: if !exists(/databases/$(database)/documents/developers/$(developerId)) && size(get(/databases/$(database)/documents/developers).data) == 0;
+      // Allow any developer to read developer records.
+      allow read: if isDeveloper();
+      // Only the developer themselves can update their own document.
+      allow update: if request.auth.uid == developerId;
     }
     
-    match /platformRoles/{roleId} {
-        allow read: if isDeveloper();
-        allow write: if isDeveloper();
+    match /platformRoles/{role} {
+      allow read: if isDeveloper();
+      allow write: if isDeveloper();
     }
-
-    match /platformSettings/{settingId} {
+    
+    match /platformSettings/{setting} {
         allow read, write: if isDeveloper();
     }
     
-     match /platform_audit_logs/{logId} {
-        allow read: if isDeveloper();
-        allow create; // Allow any service to create logs
+    match /platform_audit_logs/{logId} {
+        allow read, write: if isDeveloper();
     }
-
-    // --- School-Specific Rules ---
+    
+    // Schools collection
     match /schools/{schoolId} {
-      allow read; // Allow reading of school list by any authenticated user for login purposes.
-      allow write: if isDeveloper(); // Only developers can create/delete schools.
+      allow read, write: if isDeveloper();
+      
+      // School Profile (Branding, etc.) - allow public read for login page branding
+      match /schoolProfile/{profileId} {
+        allow read: true;
+        allow write: if isDeveloper() || getUserRole(schoolId, request.auth.uid) == 'Admin';
+      }
 
-        match /users/{userId} {
-            allow read: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId) || (isSchoolParent(schoolId) && isOwner(userId));
-            allow write: if isSchoolAdmin(schoolId);
-            allow create: if isSchoolAdmin(schoolId);
-        }
-
+      // All other subcollections within a school
+      match /{document=**} {
+        allow read, write: if isDeveloper() || getUserRole(schoolId, request.auth.uid) == 'Admin';
+        
+        // Granular rules for specific roles
         match /students/{studentId} {
-            allow read: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId) || isSchoolParent(schoolId); // Parents can read their children's data, checked in rules below
-            allow write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-
-        match /classes/{classId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-
-        match /subjects/{subjectId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
+            // Parents can only read their own children's data
+            allow read: if getUserRole(schoolId, request.auth.uid) == 'Parent' && request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId)).data.parentIds;
+            // Teachers can read students in their classes
+            allow read: if getUserRole(schoolId, request.auth.uid) == 'Teacher' && get(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId)).data.classId in get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.classIds;
         }
         
-        match /class-assignments/{assignmentId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
+        match /users/{userId} {
+            // Users can read their own profile
+            allow read: if request.auth.uid == userId;
         }
-
-        match /assignments/{assignmentId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-            match /submissions/{submissionId} {
-                 allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-            }
-        }
-        
-        match /grades/{gradeId} {
-             allow read: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId) || isSchoolParent(schoolId);
-             allow write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-
-        match /attendance/{attendanceId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-
-        match /announcements/{announcementId} {
-            allow read: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId) || isSchoolParent(schoolId);
-            allow write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-        
-        match /calendar-events/{eventId} {
-            allow read: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId) || isSchoolParent(schoolId);
-            allow write: if isSchoolAdmin(schoolId);
-        }
-        
-        match /incidents/{incidentId} {
-            allow read: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-            allow write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-        
-        match /medications/{medId} {
-             allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-
-        match /feeStructure/{feeId} {
-            allow read, write: if isSchoolAdmin(schoolId);
-        }
-
-        match /discounts/{discountId} {
-            allow read, write: if isSchoolAdmin(schoolId);
-        }
-
-        match /expenses/{expenseId} {
-            allow read, write: if isSchoolAdmin(schoolId);
-        }
-        
-        match /schoolProfile/{profileId} {
-            allow read;
-            allow write: if isSchoolAdmin(schoolId);
-        }
-        
-        match /lesson-plans/{planId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-
-        match /library-resources/{resourceId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-        }
-
-        match /settings/{settingId} {
-            allow read, write: if isSchoolAdmin(schoolId);
-        }
-        
-        match /notifications/{notifId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId) || isSchoolParent(schoolId);
-        }
-        
-        match /teams/{teamId} {
-            allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-            match /members/{memberId} {
-                allow read, write: if isSchoolAdmin(schoolId) || isSchoolTeacher(schoolId);
-            }
-        }
+      }
+    }
+    
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
     }
   }
 }
