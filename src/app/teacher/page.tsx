@@ -20,9 +20,11 @@ import { DashboardCharts } from './dashboard-charts';
 import { LibraryNoticesWidget } from './library-notices-widget';
 import { firestore } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
-
+import { useSearchParams } from 'next/navigation';
 
 export default function TeacherDashboard() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [totalStudents, setTotalStudents] = React.useState(0);
     const [ungradedAssignments, setUngradedAssignments] = React.useState(0);
     const [attendancePercentage, setAttendancePercentage] = React.useState(0);
@@ -30,15 +32,19 @@ export default function TeacherDashboard() {
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
+        if (!schoolId) return;
+
         async function fetchDashboardData() {
             try {
+                const teacherId = 'teacher-wanjiku'; // This should be dynamic
+
                 // Fetch students to calculate total
-                const studentsSnapshot = await getDocs(query(collection(firestore, 'students'), where('teacherId', '==', 'teacher-wanjiku'))); // Assuming a teacherId field
+                const studentsSnapshot = await getDocs(query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId)));
                 const studentsCount = studentsSnapshot.size;
                 setTotalStudents(studentsCount);
 
                 // Fetch assignments to calculate ungraded
-                const assignmentsSnapshot = await getDocs(query(collection(firestore, 'assignments'), where('teacherId', '==', 'teacher-wanjiku')));
+                const assignmentsSnapshot = await getDocs(query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId)));
                 let ungradedCount = 0;
                 assignmentsSnapshot.forEach(doc => {
                     const assignment = doc.data();
@@ -53,8 +59,8 @@ export default function TeacherDashboard() {
                 const startOfToday = new Date(today.setHours(0, 0, 0, 0));
                 
                 const attendanceQuery = query(
-                    collection(firestore, 'attendance'), 
-                    where('teacherId', '==', 'teacher-wanjiku'),
+                    collection(firestore, `schools/${schoolId}/attendance`), 
+                    where('teacherId', '==', teacherId),
                     where('date', '>=', Timestamp.fromDate(startOfToday))
                 );
                 const attendanceSnapshot = await getDocs(attendanceQuery);
@@ -69,7 +75,6 @@ export default function TeacherDashboard() {
                 // Fetch average score (mocked calculation)
                 setAvgScore(78);
 
-
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
             } finally {
@@ -78,32 +83,32 @@ export default function TeacherDashboard() {
         }
 
         fetchDashboardData();
-    }, []);
+    }, [schoolId]);
 
     const quickStats = [
         {
             title: "Total Students",
             stat: totalStudents,
             icon: <Users className="h-6 w-6 text-muted-foreground" />,
-            href: "/teacher/students",
+            href: `/teacher/students?schoolId=${schoolId}`,
         },
         {
             title: "Today's Attendance",
             stat: `${attendancePercentage}%`,
             icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" />,
-            href: "/teacher/attendance",
+            href: `/teacher/attendance?schoolId=${schoolId}`,
         },
         {
             title: "Ungraded Assignments",
             stat: ungradedAssignments,
             icon: <BookMarked className="h-6 w-6 text-muted-foreground" />,
-            href: "/teacher/assignments",
+            href: `/teacher/assignments?schoolId=${schoolId}`,
         },
         {
             title: "Avg. Last Exam Score",
             stat: `${avgScore}%`,
             icon: <Percent className="h-6 w-6 text-muted-foreground" />,
-            href: "/teacher/grades",
+            href: `/teacher/grades?schoolId=${schoolId}`,
         }
     ];
 

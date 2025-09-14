@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   GraduationCap,
   LayoutDashboard,
@@ -86,20 +86,24 @@ const navGroups = [
 
 export function TeacherSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const isActive = (href: string) => pathname === href || (href !== '/teacher' && pathname.startsWith(href));
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
     
     // Unread messages count
-    const unreadMessagesQuery = query(collection(firestore, 'conversations'), where('unread', '==', true));
+    const unreadMessagesQuery = query(collection(firestore, `schools/${schoolId}/conversations`), where('unread', '==', true));
     const unsubscribeMessages = onSnapshot(unreadMessagesQuery, (snapshot) => {
         setDynamicBadges(prev => ({...prev, unreadMessages: snapshot.size}));
     });
 
     // Ungraded assignments count
-    const assignmentsQuery = query(collection(firestore, 'assignments'), where('teacherId', '==', teacherId));
+    const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
     const unsubscribeAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
         let ungradedCount = 0;
         snapshot.forEach(doc => {
@@ -116,12 +120,12 @@ export function TeacherSidebar() {
         unsubscribeMessages();
         unsubscribeAssignments();
     };
-  }, []);
+  }, [schoolId]);
 
   return (
     <>
       <SidebarHeader>
-        <Link href="/teacher" className="flex items-center gap-2">
+        <Link href={`/teacher?schoolId=${schoolId}`} className="flex items-center gap-2">
           <GraduationCap className="size-6 text-primary" />
           <span className="font-bold font-headline text-lg">Teacher Portal</span>
         </Link>
@@ -131,7 +135,7 @@ export function TeacherSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/teacher'} tooltip={{ children: 'Dashboard' }}>
-              <Link href="/teacher">
+              <Link href={`/teacher?schoolId=${schoolId}`}>
                 <LayoutDashboard />
                 <span>Dashboard</span>
               </Link>
@@ -156,7 +160,7 @@ export function TeacherSidebar() {
                             disabled={item.disabled}
                             tooltip={{ children: item.label }}
                         >
-                            <Link href={item.href}>
+                            <Link href={`${item.href}?schoolId=${schoolId}`}>
                                 <item.icon />
                                 <span>{item.label}</span>
                                 {badgeCount > 0 && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
@@ -195,9 +199,9 @@ export function TeacherSidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem><Settings className="mr-2" />Profile &amp; Settings</DropdownMenuItem>
+            <DropdownMenuItem disabled><Settings className="mr-2" />Profile &amp; Settings</DropdownMenuItem>
             <DropdownMenuItem asChild>
-                <Link href="/teacher/support">
+                <Link href={`/teacher/support?schoolId=${schoolId}`}>
                     <HelpCircle className="mr-2" />
                     Support &amp; Feedback
                 </Link>
@@ -215,5 +219,3 @@ export function TeacherSidebar() {
     </>
   );
 }
-
-    

@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { isPast } from 'date-fns';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type Child = {
@@ -82,17 +83,18 @@ const getAttendanceColor = (attendance: number) => {
     return 'text-red-600';
 }
 
-function AnnouncementsWidget() {
+function AnnouncementsWidget({ schoolId }: { schoolId: string }) {
     const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
 
     React.useEffect(() => {
-        const q = query(collection(firestore, 'announcements'), orderBy('sentAt', 'desc'), limit(2));
+        if (!schoolId) return;
+        const q = query(collection(firestore, `schools/${schoolId}/announcements`), orderBy('sentAt', 'desc'), limit(2));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
             setAnnouncements(fetchedAnnouncements);
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
     return (
         <Card>
@@ -105,7 +107,7 @@ function AnnouncementsWidget() {
             <CardContent className="space-y-4">
                 {announcements.map((ann, index) => (
                      <div key={ann.id}>
-                        <Link href="/parent/announcements" className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
+                        <Link href={`/parent/announcements?schoolId=${schoolId}`} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
                             <div className="flex items-start gap-3">
                                 {!ann.read && <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
                                 <div className="flex-1 space-y-1">
@@ -126,7 +128,7 @@ function AnnouncementsWidget() {
             </CardContent>
             <CardFooter>
                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link href="/parent/announcements">
+                    <Link href={`/parent/announcements?schoolId=${schoolId}`}>
                         View All Announcements
                         <ArrowRight className="ml-2 h-4 w-4"/>
                     </Link>
@@ -136,12 +138,13 @@ function AnnouncementsWidget() {
     );
 }
 
-function CalendarWidget() {
+function CalendarWidget({ schoolId }: { schoolId: string }) {
     const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>([]);
 
     React.useEffect(() => {
+        if (!schoolId) return;
         const q = query(
-            collection(firestore, 'calendar-events'),
+            collection(firestore, `schools/${schoolId}/calendar-events`),
             where('date', '>=', Timestamp.now()),
             orderBy('date', 'asc'),
             limit(4)
@@ -158,7 +161,7 @@ function CalendarWidget() {
             setUpcomingEvents(fetchedEvents);
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
   return (
     <Card>
@@ -194,7 +197,7 @@ function CalendarWidget() {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-            <Link href="/parent/calendar">
+            <Link href={`/parent/calendar?schoolId=${schoolId}`}>
                 View Full Calendar
                 <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
@@ -206,13 +209,15 @@ function CalendarWidget() {
 
 
 export default function ParentDashboard() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [childrenData, setChildrenData] = React.useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = React.useState<Child | null>(null);
 
   React.useEffect(() => {
+    if (!schoolId) return;
     // In a real app, you would filter by the logged-in parent's ID.
-    // For this demo, we'll fetch all students with the 'Parent' role for simplicity.
-    const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+    const q = query(collection(firestore, `schools/${schoolId}/students`));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
       setChildrenData(fetchedChildren);
@@ -221,7 +226,7 @@ export default function ParentDashboard() {
       }
     });
     return () => unsubscribe();
-  }, [selectedChild]);
+  }, [selectedChild, schoolId]);
   
   const getFeeStatus = (feeStatus: Child['feeStatus']) => {
     if (feeStatus.balance <= 0) return 'Paid';
@@ -229,7 +234,7 @@ export default function ParentDashboard() {
     return 'Partial';
   }
 
-  if (!selectedChild) {
+  if (!selectedChild || !schoolId) {
     return <div className="p-8">Loading dashboard...</div>;
   }
 
@@ -278,7 +283,7 @@ export default function ParentDashboard() {
                 </CardContent>
                 <CardFooter>
                     <Button asChild size="sm" className="w-full">
-                      <Link href="/parent/fees">Pay Now</Link>
+                      <Link href={`/parent/fees?schoolId=${schoolId}`}>Pay Now</Link>
                     </Button>
                 </CardFooter>
             </Card>
@@ -327,7 +332,7 @@ export default function ParentDashboard() {
                     ))}
                 </CardContent>
             </Card>
-             <AnnouncementsWidget />
+             <AnnouncementsWidget schoolId={schoolId} />
         </div>
 
         <div className="lg:col-span-2 space-y-8">
@@ -336,7 +341,7 @@ export default function ParentDashboard() {
                     <CardTitle className="flex items-center justify-between">
                         <span>Academic Snapshot</span>
                          <Button asChild variant="secondary" size="sm">
-                            <Link href="/parent/grades">
+                            <Link href={`/parent/grades?schoolId=${schoolId}`}>
                                 View Full Report
                                 <ArrowRight className="ml-2 h-4 w-4"/>
                             </Link>
@@ -364,11 +369,9 @@ export default function ParentDashboard() {
                     </div>
                 </CardContent>
             </Card>
-             <CalendarWidget />
+             <CalendarWidget schoolId={schoolId} />
         </div>
        </div>
     </div>
   );
 }
-
-    

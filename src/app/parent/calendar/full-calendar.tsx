@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
@@ -61,7 +61,7 @@ const childrenData = [
 const eventTypes: CalendarEvent['type'][] = ['exam', 'meeting', 'trip', 'sports', 'holiday', 'event'];
 
 
-export function FullCalendar() {
+export function FullCalendar({ schoolId }: { schoolId: string }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [clientReady, setClientReady] = React.useState(false);
@@ -72,8 +72,9 @@ export function FullCalendar() {
   const { toast } = useToast();
 
   React.useEffect(() => {
+    if (!schoolId) return;
     setClientReady(true);
-    const q = query(collection(firestore, 'calendar-events'));
+    const q = query(collection(firestore, `schools/${schoolId}/calendar-events`));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fetchedEvents = querySnapshot.docs.map(doc => {
             const data = doc.data();
@@ -86,7 +87,7 @@ export function FullCalendar() {
         setEvents(fetchedEvents);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const handlePrev = () => {
     const newDate = sub(currentDate, { [view === 'month' ? 'months' : view === 'week' ? 'weeks' : 'days']: 1 });

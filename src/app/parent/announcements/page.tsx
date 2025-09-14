@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, Timestamp, getDocs, startAfter, arrayUnion, increment } from 'firebase/firestore';
-
+import { useSearchParams } from 'next/navigation';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -46,6 +46,8 @@ type Announcement = {
 
 export default function ParentAnnouncementsPage() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
   const [filter, setFilter] = React.useState<'All' | 'Read' | 'Unread'>('All');
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -56,9 +58,11 @@ export default function ParentAnnouncementsPage() {
   const currentUserId = 'parent-user-id'; // This should be dynamic
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     setIsLoading(true);
     const q = query(
-      collection(firestore, 'announcements'), 
+      collection(firestore, `schools/${schoolId}/announcements`), 
       orderBy('sentAt', 'desc'), 
       limit(5)
     );
@@ -76,17 +80,19 @@ export default function ParentAnnouncementsPage() {
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [schoolId, toast]);
 
 
   const handleMarkAsRead = async (id: string, readBy: string[]) => {
+    if (!schoolId) return;
+
     // Prevent re-marking if already read
     if (readBy.includes(currentUserId)) {
         toast({ description: 'Already marked as read.' });
         return;
     }
     
-    const announcementRef = doc(firestore, 'announcements', id);
+    const announcementRef = doc(firestore, `schools/${schoolId}/announcements`, id);
     try {
         await updateDoc(announcementRef, { 
             readBy: arrayUnion(currentUserId),
@@ -107,11 +113,11 @@ export default function ParentAnnouncementsPage() {
   });
 
   const handleLoadMore = async () => {
-    if (!lastVisible || !hasMore) return;
+    if (!lastVisible || !hasMore || !schoolId) return;
     
     setIsLoadingMore(true);
     const nextQuery = query(
-      collection(firestore, 'announcements'),
+      collection(firestore, `schools/${schoolId}/announcements`),
       orderBy('sentAt', 'desc'),
       startAfter(lastVisible),
       limit(5)
@@ -136,6 +142,10 @@ export default function ParentAnnouncementsPage() {
         title: 'Downloading Attachment',
         description: `Your download for "${fileName}" will start shortly.`,
     });
+  }
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing from URL.</div>
   }
 
   return (
@@ -262,4 +272,3 @@ export default function ParentAnnouncementsPage() {
     </div>
   );
 }
-
