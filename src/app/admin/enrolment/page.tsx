@@ -282,6 +282,7 @@ export default function StudentEnrolmentPage() {
             const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
             const studentData = {
                 id: studentDocRef.id,
+                schoolId: schoolId,
                 name: studentName,
                 firstName: values.studentFirstName,
                 lastName: values.studentLastName,
@@ -312,6 +313,7 @@ export default function StudentEnrolmentPage() {
             const parentUserDocRef = doc(collection(firestore, 'schools', schoolId, 'users'));
             const parentUserData = {
                 id: parentUserDocRef.id,
+                schoolId: schoolId,
                 name: parentName,
                 email: values.parentEmail,
                 password: values.parentPassword, 
