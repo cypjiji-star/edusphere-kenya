@@ -43,8 +43,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { subjects, views } from './timetable-data';
-import type { Subject } from './timetable-data';
+import { views } from './timetable-data';
+import type { Subject as DraggableSubjectType } from './timetable-data';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
@@ -52,9 +52,22 @@ import { useSearchParams } from 'next/navigation';
 
 
 type Period = { id: number; time: string; isBreak?: boolean; title?: string };
-type TimetableData = Record<string, Record<string, { subject: Subject; room: string; clash?: any }>>;
+type TimetableData = Record<string, Record<string, { subject: DraggableSubjectType; room: string; clash?: any }>>;
 
-function DraggableSubject({ subject }: { subject: Subject }) {
+const subjectColors = [
+    'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-yellow-500', 'bg-teal-500', 'bg-red-500', 'bg-indigo-500'
+];
+const getColorForSubject = (subjectName: string) => {
+    let hash = 0;
+    for (let i = 0; i < subjectName.length; i++) {
+        hash = subjectName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash % subjectColors.length);
+    return subjectColors[index];
+}
+
+
+function DraggableSubject({ subject }: { subject: DraggableSubjectType }) {
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
         id: `draggable-${subject.name}`,
         data: { subject },
@@ -106,6 +119,7 @@ export function TimetableBuilder() {
   const [allClasses, setAllClasses] = React.useState<{id: string, name: string}[]>([]);
   const [allTeachers, setAllTeachers] = React.useState<string[]>([]);
   const [allRooms, setAllRooms] = React.useState<string[]>([]);
+  const [subjects, setSubjects] = React.useState<DraggableSubjectType[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
@@ -115,7 +129,7 @@ export function TimetableBuilder() {
     let unsubTimetable = () => {};
 
     const unsubClasses = onSnapshot(collection(firestore, `schools/${schoolId}/classes`), (snapshot) => {
-      const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+      const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
       setAllClasses(classesData);
       if (!selectedItem && classesData.length > 0) {
         setSelectedItem(classesData[0].id);
@@ -131,6 +145,18 @@ export function TimetableBuilder() {
       if (docSnap.exists()) {
         setPeriods(docSnap.data().periods);
       }
+    });
+
+    const unsubSubjects = onSnapshot(collection(firestore, `schools/${schoolId}/subjects`), (snapshot) => {
+        const subjectsData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                name: data.name,
+                teacher: data.teachers[0] || 'Unassigned', // Use first teacher or default
+                color: getColorForSubject(data.name),
+            }
+        });
+        setSubjects(subjectsData);
     });
 
     if (selectedItem) {
@@ -150,6 +176,7 @@ export function TimetableBuilder() {
       unsubClasses();
       unsubPeriods();
       unsubTeachers();
+      unsubSubjects();
       unsubTimetable();
     }
   }, [schoolId, selectedItem]);
@@ -199,7 +226,7 @@ export function TimetableBuilder() {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { over, active } = event;
-    const subject = active.data.current?.subject as Subject | undefined;
+    const subject = active.data.current?.subject as DraggableSubjectType | undefined;
 
     if (over && subject) {
         const [day, periodIdStr] = over.id.toString().split('-');
@@ -518,5 +545,7 @@ export function TimetableBuilder() {
     </DndContext>
   );
 }
+
+    
 
     
