@@ -63,6 +63,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type Child = {
@@ -150,6 +151,8 @@ function CommentDialog({ studentName, subject, open, onOpenChange }: { studentNa
 }
 
 export default function ParentGradesPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [childrenData, setChildrenData] = React.useState<Child[]>([]);
   const [gradeData, setGradeData] = React.useState<GradeData | null>(null);
   const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
@@ -158,8 +161,9 @@ export default function ParentGradesPage() {
   const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
 
   React.useEffect(() => {
+    if (!schoolId) return;
     // Fetch children associated with the parent
-    const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+    const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
         setChildrenData(fetchedChildren);
@@ -168,14 +172,14 @@ export default function ParentGradesPage() {
         }
     });
     return () => unsubscribe();
-  }, [selectedChild]);
+  }, [selectedChild, schoolId]);
 
   React.useEffect(() => {
-    if (!selectedChild) return;
+    if (!selectedChild || !schoolId) return;
     setIsLoading(true);
 
     const fetchGradeData = async () => {
-        const studentDocRef = doc(firestore, 'students', selectedChild);
+        const studentDocRef = doc(firestore, 'schools', schoolId, 'students', selectedChild);
         
         const gradesQuery = query(collection(studentDocRef, 'grades'));
         
@@ -238,7 +242,7 @@ export default function ParentGradesPage() {
     };
 
     fetchGradeData();
-  }, [selectedChild]);
+  }, [selectedChild, schoolId]);
 
   const handleDownload = () => {
     toast({
@@ -246,6 +250,10 @@ export default function ParentGradesPage() {
       description: 'Your official report card is being prepared for download.',
     });
   };
+  
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing.</div>
+  }
 
   if (isLoading || !gradeData) {
     return <div className="p-8 h-full flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary"/></div>
