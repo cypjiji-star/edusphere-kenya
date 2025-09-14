@@ -7,6 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import { auth, firestore } from '@/lib/firebase';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type AllowedRole = 'developer' | 'admin' | 'teacher' | 'parent' | 'unknown';
 
