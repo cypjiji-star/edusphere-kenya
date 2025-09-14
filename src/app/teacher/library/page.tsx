@@ -36,6 +36,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
@@ -55,6 +56,8 @@ const statusConfig: Record<Resource['status'], { label: string; className: strin
 }
 
 export default function LibraryPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [resources, setResources] = React.useState<Resource[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -66,16 +69,18 @@ export default function LibraryPage() {
   const teacherId = 'teacher-wanjiku'; // Placeholder
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     setClientReady(true);
     setIsLoading(true);
-    const q = query(collection(firestore, 'library-resources'));
+    const q = query(collection(firestore, `schools/${schoolId}/library-resources`));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const resourcesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Resource));
         setResources(resourcesData);
         setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const filteredResources = resources.filter(res => 
     res.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -85,7 +90,9 @@ export default function LibraryPage() {
   
   const handleActionClick = async (e: React.MouseEvent, action: 'borrow' | 'reserve', resource: Resource) => {
     e.stopPropagation();
-    const resourceRef = doc(firestore, 'library-resources', resource.id);
+    if (!schoolId) return;
+    
+    const resourceRef = doc(firestore, `schools/${schoolId}/library-resources`, resource.id);
     
     if (action === 'borrow') {
         try {
@@ -94,7 +101,7 @@ export default function LibraryPage() {
             await updateDoc(resourceRef, { status: 'Out', dueDate: dueDate.toISOString() });
 
             // Add to user's borrowed items
-            await addDoc(collection(firestore, 'users', teacherId, 'borrowed-items'), {
+            await addDoc(collection(firestore, `schools/${schoolId}/users`, teacherId, 'borrowed-items'), {
                 resourceId: resource.id,
                 title: resource.title,
                 borrowedDate: serverTimestamp(),
@@ -167,6 +174,10 @@ export default function LibraryPage() {
         description: `The resource list is being exported as a ${type} file.`
     });
   };
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing.</div>
+  }
 
 
   return (

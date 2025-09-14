@@ -61,19 +61,19 @@ export default function MyLibraryPage() {
 
         setClientReady(true);
 
-        const borrowedQuery = query(collection(firestore, 'schools', schoolId, 'users', teacherId, 'borrowed-items'));
+        const borrowedQuery = query(collection(firestore, `schools/${schoolId}/users/${teacherId}/borrowed-items`));
         const unsubBorrowed = onSnapshot(borrowedQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowedItem));
             setBorrowedItems(items);
         });
 
-        const historyQuery = query(collection(firestore, 'schools', schoolId, 'users', teacherId, 'borrowing-history'));
+        const historyQuery = query(collection(firestore, `schools/${schoolId}/users/${teacherId}/borrowing-history`));
         const unsubHistory = onSnapshot(historyQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HistoryItem));
             setHistoryItems(items);
         });
         
-        const requestsQuery = query(collection(firestore, 'schools', schoolId, 'library-requests'), where('requestedBy', '==', teacherId));
+        const requestsQuery = query(collection(firestore, `schools/${schoolId}/library-requests`), where('requestedBy', '==', teacherId));
         const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RequestItem));
             setRequestItems(items);
@@ -142,7 +142,7 @@ export default function MyLibraryPage() {
         }
 
         try {
-            await addDoc(collection(firestore, 'schools', schoolId, 'library-requests'), {
+            await addDoc(collection(firestore, `schools/${schoolId}/library-requests`), {
                 title: newRequestTitle,
                 requestedBy: teacherId,
                 status: 'Pending',
@@ -341,5 +341,3 @@ export default function MyLibraryPage() {
     </div>
   );
 }
-
-  
