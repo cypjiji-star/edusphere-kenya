@@ -32,6 +32,7 @@ import {
   deleteDoc,
   updateDoc,
 } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -103,6 +104,8 @@ const getIconComponent = (iconName: string) => {
 }
 
 export function ChatLayout() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [messages, setMessages] = React.useState<Record<string, Message[]>>({});
   const [selectedConvo, setSelectedConvo] = React.useState<Conversation | null>(null);
@@ -115,7 +118,8 @@ export function ChatLayout() {
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const q = query(collection(firestore, 'conversations'), orderBy('timestamp', 'desc'));
+    if (!schoolId) return;
+    const q = query(collection(firestore, `schools/${schoolId}/conversations`), orderBy('timestamp', 'desc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const convos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
         setConversations(convos);
@@ -125,13 +129,13 @@ export function ChatLayout() {
     });
 
     return () => unsubscribe();
-  }, [selectedConvo]);
+  }, [schoolId, selectedConvo]);
 
   React.useEffect(() => {
-    if (!selectedConvo) return;
+    if (!selectedConvo || !schoolId) return;
 
     const messagesQuery = query(
-        collection(firestore, 'conversations', selectedConvo.id, 'messages'),
+        collection(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages'),
         orderBy('timestamp', 'asc')
     );
 
@@ -144,17 +148,17 @@ export function ChatLayout() {
     });
 
     return () => unsubscribe();
-  }, [selectedConvo]);
+  }, [selectedConvo, schoolId]);
 
   const handleSendMessage = async () => {
-    if ((message.trim() === '' && !attachment) || !selectedConvo) return;
+    if ((message.trim() === '' && !attachment) || !selectedConvo || !schoolId) return;
     
     setIsSending(true);
     let messageText = message;
     
     if (attachment) {
       try {
-        const storageRef = ref(storage, `chat-attachments/${attachment.name}_${Date.now()}`);
+        const storageRef = ref(storage, `schools/${schoolId}/chat-attachments/${attachment.name}_${Date.now()}`);
         const snapshot = await uploadBytes(storageRef, attachment);
         const downloadURL = await getDownloadURL(snapshot.ref);
         messageText += `\n\n📎 [Attachment](${downloadURL})`;
@@ -178,10 +182,10 @@ export function ChatLayout() {
       senderName: 'Ms. Wanjiku'
     };
     
-    await addDoc(collection(firestore, 'conversations', selectedConvo.id, 'messages'), newMessage);
+    await addDoc(collection(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages'), newMessage);
 
     // Update last message in conversation
-    const convoRef = doc(firestore, 'conversations', selectedConvo.id);
+    const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
     await updateDoc(convoRef, {
         lastMessage: messageText,
         timestamp: serverTimestamp(),
@@ -203,6 +207,7 @@ export function ChatLayout() {
   };
   
   const handleCreateConversation = async (contactId: string) => {
+    if (!schoolId) return;
     const contact = newContactOptions.find(c => c.id === contactId);
     if (!contact) return;
     
@@ -221,7 +226,7 @@ export function ChatLayout() {
         unread: false,
     };
 
-    const docRef = await addDoc(collection(firestore, 'conversations'), newConvoData);
+    const docRef = await addDoc(collection(firestore, `schools/${schoolId}/conversations`), newConvoData);
     
     toast({
         title: 'Conversation Started',
@@ -294,10 +299,10 @@ export function ChatLayout() {
 };
 
   const handleDelete = async () => {
-    if (!selectedConvo) return;
+    if (!selectedConvo || !schoolId) return;
     if (!window.confirm(`Are you sure you want to delete your conversation with ${selectedConvo.name}? This action cannot be undone.`)) return;
     
-    await deleteDoc(doc(firestore, 'conversations', selectedConvo.id));
+    await deleteDoc(doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id));
     
     setMessages(prev => {
         const newMessages = { ...prev };
@@ -543,3 +548,5 @@ export function ChatLayout() {
     </div>
   );
 }
+
+    
