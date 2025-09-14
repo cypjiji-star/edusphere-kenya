@@ -7,6 +7,7 @@ import { Suspense } from 'react';
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
   description: "Empowering Kenya's Future, One School at a Time.",
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
