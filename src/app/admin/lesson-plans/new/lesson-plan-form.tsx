@@ -35,7 +35,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
-import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot } from 'firebase/firestore';
 
 
 export const lessonPlanSchema = z.object({
@@ -51,15 +51,6 @@ export const lessonPlanSchema = z.object({
 
 export type LessonPlanFormValues = z.infer<typeof lessonPlanSchema>;
 
-
-const teacherClasses = [
-  { id: 'f4-chem', name: 'Form 4 - Chemistry', subject: 'Chemistry', grade: 'Form 4' },
-  { id: 'f3-math', name: 'Form 3 - Mathematics', subject: 'Mathematics', grade: 'Form 3' },
-  { id: 'f2-phys', name: 'Form 2 - Physics', subject: 'Physics', grade: 'Form 2' },
-  { id: 'f1-eng', name: 'Form 1 - English', subject: 'English', grade: 'Form 1'},
-  { id: 'g6-hist', name: 'Grade 6 - History', subject: 'History', grade: 'Grade 6'},
-];
-
 type AiField = 'objectives' | 'activities' | 'assessment';
 
 interface LessonPlanFormProps {
@@ -73,6 +64,10 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(!!lessonPlanId);
+  
+  const [subjects, setSubjects] = React.useState<string[]>([]);
+  const [grades, setGrades] = React.useState<string[]>([]);
+
 
   const form = useForm<LessonPlanFormValues>({
     resolver: zodResolver(lessonPlanSchema),
@@ -87,6 +82,28 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
       date: prefilledDate && isValid(parse(prefilledDate, 'yyyy-MM-dd', new Date())) ? parse(prefilledDate, 'yyyy-MM-dd', new Date()) : new Date(),
     },
   });
+
+  useEffect(() => {
+    if (!schoolId) return;
+
+    const subjectsUnsub = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
+        const subjectData = new Set<string>();
+        const gradeData = new Set<string>();
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.name) subjectData.add(data.name);
+            if (data.classes) {
+              data.classes.forEach((c: string) => gradeData.add(c.split(' ')[0]));
+            }
+        });
+        setSubjects(Array.from(subjectData));
+        setGrades(Array.from(gradeData));
+    });
+
+    return () => {
+        subjectsUnsub();
+    }
+  }, [schoolId]);
 
    useEffect(() => {
     if (lessonPlanId && schoolId) {
@@ -235,7 +252,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {[...new Set(teacherClasses.map(c => c.subject))].map((subject) => (
+                          {subjects.map((subject) => (
                             <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                           ))}
                         </SelectContent>
@@ -257,7 +274,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {[...new Set(teacherClasses.map(c => c.grade))].map((grade) => (
+                          {grades.map((grade) => (
                             <SelectItem key={grade} value={grade}>{grade}</SelectItem>
                           ))}
                         </SelectContent>
