@@ -54,6 +54,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -96,6 +97,8 @@ const getStatusBadge = (status: UserStatus) => {
 }
 
 export default function UserManagementPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [users, setUsers] = React.useState<User[]>([]);
     const [roles, setRoles] = React.useState<string[]>([]);
     const [classes, setClasses] = React.useState<string[]>(['All Classes']);
@@ -111,15 +114,16 @@ export default function UserManagementPage() {
     const [isBulkImportOpen, setIsBulkImportOpen] = React.useState(false);
     
     React.useEffect(() => {
+        if (!schoolId) return;
         setClientReady(true);
-        const unsubUsers = onSnapshot(collection(firestore, 'users'), (snapshot) => {
+        const unsubUsers = onSnapshot(collection(firestore, 'schools', schoolId, 'users'), (snapshot) => {
             const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
             setUsers(usersData);
         });
-        const unsubRoles = onSnapshot(collection(firestore, 'roles'), (snapshot) => {
+        const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
             setRoles(snapshot.docs.map(doc => doc.id));
         });
-        const unsubClasses = onSnapshot(collection(firestore, 'classes'), (snapshot) => {
+        const unsubClasses = onSnapshot(collection(firestore, 'schools', schoolId, 'classes'), (snapshot) => {
             const classNames = snapshot.docs.map(doc => doc.data().name);
             setClasses(['All Classes', ...classNames]);
         });
@@ -129,7 +133,7 @@ export default function UserManagementPage() {
             unsubRoles();
             unsubClasses();
         };
-    }, []);
+    }, [schoolId]);
 
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -169,8 +173,9 @@ export default function UserManagementPage() {
     };
 
     const handleCreateUser = async (values: any) => {
+        if (!schoolId) return;
         try {
-            await addDoc(collection(firestore, 'users'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'users'), {
                 ...values,
                 status: 'Pending',
                 createdAt: serverTimestamp(),
@@ -194,7 +199,8 @@ export default function UserManagementPage() {
     };
     
     const handleSaveChanges = async (userId: string, updatedData: Partial<User>) => {
-        const userRef = doc(firestore, 'users', userId);
+        if (!schoolId) return;
+        const userRef = doc(firestore, 'schools', schoolId, 'users', userId);
         try {
             await updateDoc(userRef, updatedData);
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
@@ -208,9 +214,10 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (userId: string) => {
+        if (!schoolId) return;
         if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
             try {
-                await deleteDoc(doc(firestore, 'users', userId));
+                await deleteDoc(doc(firestore, 'schools', schoolId, 'users', userId));
                 toast({ title: 'User Deleted', description: 'The user account has been deleted.', variant: 'destructive' });
             } catch(e) {
                 toast({ title: 'Error', description: 'Could not delete user.', variant: 'destructive'});
@@ -228,7 +235,7 @@ export default function UserManagementPage() {
             const matchesRole = roleFilter === 'All' || user.role === roleFilter;
             const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
             const matchesClass = classFilter === 'All Classes' || user.class === classFilter;
-            const matchesYear = yearFilter === 'All Years' || new Date(user.createdAt).getFullYear().toString() === yearFilter;
+            const matchesYear = yearFilter === 'All Years' || (user.createdAt && new Date(user.createdAt).getFullYear().toString() === yearFilter);
 
             return matchesSearch && matchesRole && matchesStatus && (roleFilter !== 'Student' || (matchesClass && matchesYear));
         });
@@ -331,7 +338,7 @@ export default function UserManagementPage() {
                                                                 </div>
                                                                  <div className="space-y-2">
                                                                     <Label htmlFor="admission-year">Year of Admission</Label>
-                                                                    <Select defaultValue={new Date(user.createdAt).getFullYear().toString()}>
+                                                                    <Select defaultValue={user.createdAt ? new Date(user.createdAt).getFullYear().toString() : ''}>
                                                                         <SelectTrigger id="admission-year">
                                                                             <SelectValue />
                                                                         </SelectTrigger>
@@ -394,9 +401,9 @@ export default function UserManagementPage() {
                                                         <div className="space-y-4">
                                                             <h4 className="font-semibold text-base flex items-center gap-2"><History className="h-4 w-4" />User History</h4>
                                                              <div className="text-sm text-muted-foreground space-y-2">
-                                                                <div><strong>Account Created:</strong> {clientReady ? new Date(user.createdAt).toLocaleString() : ''}</div>
+                                                                <div><strong>Account Created:</strong> {clientReady && user.createdAt ? new Date(user.createdAt).toLocaleString() : ''}</div>
                                                                 <div><strong>Last Login:</strong> {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleString() : 'Never'}</div>
-                                                                 <div><strong>Last Profile Update:</strong> {clientReady ? new Date(user.lastLogin).toLocaleDateString() : ''} by Admin</div>
+                                                                 <div><strong>Last Profile Update:</strong> {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleDateString() : 'Never'} by Admin</div>
                                                             </div>
                                                         </div>
                                                         <Separator />
@@ -445,6 +452,10 @@ export default function UserManagementPage() {
             </>
         );
     }
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing. Please access this page through the developer dashboard.</div>
+  }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">

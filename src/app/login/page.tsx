@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { firestore } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { LoginForm } from './login-form';
 
 async function getSchoolProfile() {
     try {
@@ -80,54 +81,7 @@ export default async function LoginPage() {
                 </div>
                 <Card className="shadow-none border-none">
                     <CardContent className="p-0">
-                        <form className="grid gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="schoolId">School ID</Label>
-                                <Input
-                                    id="schoolId"
-                                    type="text"
-                                    placeholder="e.g., edusphere-high"
-                                    required
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                            <Label htmlFor="email">Email or Login ID</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                placeholder="m@example.com"
-                                required
-                            />
-                            </div>
-                            <div className="grid gap-2">
-                            <div className="flex items-center">
-                                <Label htmlFor="password">Password</Label>
-                                <Link
-                                href="#"
-                                className="ml-auto inline-block text-sm underline text-muted-foreground hover:text-primary"
-                                >
-                                Forgot your password?
-                                </Link>
-                            </div>
-                            <Input id="password" type="password" required />
-                            </div>
-                             <div className="grid gap-4">
-                                <Select defaultValue="/teacher">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Login as..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="/teacher">Teacher</SelectItem>
-                                        <SelectItem value="/admin">Admin</SelectItem>
-                                        <SelectItem value="/parent">Parent</SelectItem>
-                                        <SelectItem value="/developer">Developer</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button type="submit" asChild className="w-full">
-                                    <Link href="/teacher">Login</Link>
-                                </Button>
-                            </div>
-                        </form>
+                        <LoginForm />
                     </CardContent>
                 </Card>
                 <div className="mt-4 text-center text-sm">
