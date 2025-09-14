@@ -8,38 +8,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { GraduationCap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { firestore } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { LoginForm } from './login-form';
 
-async function getSchoolProfile() {
-    try {
-        const profileRef = doc(firestore, 'schoolProfile', 'main');
-        const profileSnap = await getDoc(profileRef);
 
-        if (profileSnap.exists()) {
-            return profileSnap.data();
-        }
-        return null;
-    } catch (error) {
-        console.error("Error fetching school profile:", error);
-        return null;
-    }
-}
-
-export default async function LoginPage() {
-    const profile = await getSchoolProfile();
-
-    const coverImageUrl = profile?.coverImageUrl || "https://picsum.photos/seed/login-bg/1200/1800";
-    const schoolName = profile?.name || "EduSphere High School";
-    const schoolMotto = profile?.motto || "Excellence and Integrity";
-    const logoUrl = profile?.logoUrl || "https://picsum.photos/seed/school-logo/200";
+export default function LoginPage() {
+    const coverImageUrl = "https://picsum.photos/seed/login-bg/1200/1800";
+    const schoolName = "EduSphere Kenya";
+    const schoolMotto = "Empowering Kenya's Future, One School at a Time.";
+    const logoUrl = "https://picsum.photos/seed/school-logo/200";
     
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
@@ -65,7 +43,7 @@ export default async function LoginPage() {
                  <div className="flex items-center justify-center mb-4">
                     <Avatar className="h-20 w-20 border-4 border-white/50">
                         <AvatarImage src={logoUrl} alt="School Logo" />
-                        <AvatarFallback>SH</AvatarFallback>
+                        <AvatarFallback>ES</AvatarFallback>
                     </Avatar>
                 </div>
                 <h1 className="text-3xl font-bold font-headline">{schoolName}</h1>
@@ -95,3 +73,4 @@ export default async function LoginPage() {
     </div>
   );
 }
+
