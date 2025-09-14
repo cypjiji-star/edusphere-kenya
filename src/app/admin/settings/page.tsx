@@ -30,14 +30,23 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { firestore } from '@/lib/firebase';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 
 
-const recentChanges = [
-    { user: 'Admin User', change: 'Enabled self-registration for parents.', date: '2024-07-28 10:05 AM' },
-    { user: 'Principal Jane Doe', change: 'Updated the current academic term to Term 3.', date: '2024-07-27 02:00 PM' },
-    { user: 'Admin User', change: 'Set idle session timeout to 15 minutes.', date: '2024-07-26 09:30 AM' },
-];
+const formatTimeAgo = (timestamp: Timestamp | undefined) => {
+    if (!timestamp) return '';
+    const now = new Date();
+    const then = timestamp.toDate();
+    const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -67,6 +76,8 @@ export default function SettingsPage() {
     
     const [attendanceAlerts, setAttendanceAlerts] = React.useState(true);
     const [systemAlerts, setSystemAlerts] = React.useState(true);
+    
+    const [recentChanges, setRecentChanges] = React.useState<any[]>([]);
 
     const settingUpdaters: Record<string, React.Dispatch<React.SetStateAction<any>>> = {
         notifications: (data: any) => {
@@ -113,9 +124,25 @@ export default function SettingsPage() {
                 }
             });
         });
+        
+        const changesQuery = query(collection(firestore, 'notifications'), orderBy('createdAt', 'desc'), limit(3));
+        const unsubChanges = onSnapshot(changesQuery, (snapshot) => {
+            const changes = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    change: data.description,
+                    user: 'System', // This could be enhanced to store the user who made the change
+                    date: formatTimeAgo(data.createdAt),
+                }
+            });
+            setRecentChanges(changes);
+        });
 
         setIsLoading(false);
-        return () => unsubscribers.forEach(unsub => unsub());
+        return () => {
+            unsubscribers.forEach(unsub => unsub());
+            unsubChanges();
+        }
 
     }, []);
 
@@ -125,7 +152,7 @@ export default function SettingsPage() {
             await setDoc(docRef, { [key]: value }, { merge: true });
             toast({
                 title: 'Setting Saved',
-                description: `Your change to "${key.replace(/([A-Z])/g, ' $1')}" has been saved.`,
+                description: `Your change has been saved.`,
             });
         } catch (error) {
             console.error(`Failed to save setting ${key}:`, error);
@@ -662,4 +689,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
