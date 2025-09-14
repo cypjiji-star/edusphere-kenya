@@ -30,16 +30,16 @@ const versionHistory = [
     { version: 1, date: '2024-07-26 09:00 AM', author: 'Ms. Wanjiku', summary: 'Initial draft created.' },
 ]
 
-export default function EditLessonPlanPage({ searchParams }: { searchParams: { id?: string, date?: string }}) {
-  const lessonPlanId = searchParams.id;
-  const prefilledDate = searchParams.date;
+export default function EditLessonPlanPage({ params, searchParams }: { params: { id: string }, searchParams: { date?: string, schoolId: string }}) {
+  const { id: lessonPlanId } = params;
+  const { schoolId, date: prefilledDate } = searchParams;
   const isEditMode = !!lessonPlanId;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
         <Button asChild variant="outline" size="sm">
-            <Link href="/admin/lesson-plans">
+            <Link href={`/admin/lesson-plans?schoolId=${schoolId}`}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to All Lesson Plans
             </Link>
@@ -93,7 +93,7 @@ export default function EditLessonPlanPage({ searchParams }: { searchParams: { i
                     </TabsList>
                 )}
                 <TabsContent value="editor">
-                     <LessonPlanForm lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} />
+                     <LessonPlanForm lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} schoolId={schoolId} />
                 </TabsContent>
                 <TabsContent value="history">
                     <Card>

@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LessonPlanCalendar } from './lesson-plan-calendar';
+import { useSearchParams } from 'next/navigation';
 
 
 type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
@@ -100,6 +101,8 @@ const getStatusBadge = (status: LessonPlanStatus) => {
 
 
 export default function AdminLessonPlansPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [teacherFilter, setTeacherFilter] = React.useState('All Teachers');
@@ -121,6 +124,10 @@ export default function AdminLessonPlansPage() {
 
       return isDateInRange && matchesSearch && matchesTeacher && matchesClass && matchesSubject;
   });
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing from URL.</div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -268,7 +275,7 @@ export default function AdminLessonPlansPage() {
                             <TableCell>{getStatusBadge(submission.status)}</TableCell>
                             <TableCell className="text-right">
                                 <Button asChild variant="outline" size="sm">
-                                  <Link href={`/admin/lesson-plans/${submission.id}`}>
+                                  <Link href={`/admin/lesson-plans/${submission.id}?schoolId=${schoolId}`}>
                                       View Plan
                                       <ArrowRight className="ml-2 h-4 w-4" />
                                   </Link>
