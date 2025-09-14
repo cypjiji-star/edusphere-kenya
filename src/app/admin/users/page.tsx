@@ -177,14 +177,14 @@ export default function UserManagementPage() {
         try {
             await addDoc(collection(firestore, 'schools', schoolId, 'users'), {
                 ...values,
-                status: 'Pending',
+                status: 'Active',
                 createdAt: serverTimestamp(),
                 lastLogin: 'Never',
                 avatarUrl: `https://picsum.photos/seed/${values.email}/100`
             });
             toast({
                 title: 'User Created',
-                description: 'A new user account has been created and an invitation has been sent.',
+                description: 'A new user account has been created.',
             });
         } catch(e) {
             toast({ title: 'Error', description: 'Could not create user.', variant: 'destructive'});
@@ -511,18 +511,14 @@ export default function UserManagementPage() {
                                                     <Input name="email" id="email-create" type="email" placeholder="user@example.com" />
                                                 </div>
                                             </div>
-                                            <Separator />
                                             <div className="space-y-2">
-                                                <div className="flex items-center space-x-2">
-                                                    <Switch id="send-invite" defaultChecked />
-                                                    <Label htmlFor="send-invite">Send invitation link with auto-generated password</Label>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">The user will be prompted to set a new password on their first login.</p>
+                                                <Label htmlFor="password-create">Set Initial Password</Label>
+                                                <Input name="password" id="password-create" type="password" />
                                             </div>
                                         </div>
                                         <DialogFooter>
                                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                            <Button type="submit">Create & Send Invite</Button>
+                                            <Button type="submit">Create User Account</Button>
                                         </DialogFooter>
                                     </form>
                                 </DialogContent>
