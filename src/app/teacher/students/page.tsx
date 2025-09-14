@@ -62,8 +62,9 @@ import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
+import { useSearchParams } from 'next/navigation';
 
-type AttendanceStatus = 'present' | 'absent' | 'late';
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'unmarked';
 
 export type Student = {
     id: string;
@@ -93,9 +94,13 @@ export default function StudentsPage() {
   const [isAddStudentOpen, setIsAddStudentOpen] = React.useState(false);
   const [editingStudent, setEditingStudent] = React.useState<Student | null>(null);
   const teacherId = 'teacher-wanjiku'; // This should be dynamic
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
 
   React.useEffect(() => {
-    const q = query(collection(firestore, 'classes'), where('teacherId', '==', teacherId));
+    if (!schoolId) return;
+
+    const q = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
       const classesData: TeacherClass[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -107,23 +112,22 @@ export default function StudentsPage() {
       }
     });
     return () => unsubscribe();
-  }, [activeTab]);
+  }, [schoolId, activeTab]);
 
   React.useEffect(() => {
-    if (!activeTab) return;
+    if (!activeTab || !schoolId) return;
 
     setIsLoading(true);
-    const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', activeTab));
+    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', activeTab));
     const unsubscribe = onSnapshot(studentsQuery, async (snapshot) => {
         const studentsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Student));
         
-        // Fetch attendance for today for these students
         const today = new Date();
         today.setHours(0,0,0,0);
         const attendanceDate = Timestamp.fromDate(today);
 
         const attendanceQuery = query(
-            collection(firestore, 'attendance'), 
+            collection(firestore, 'schools', schoolId, 'attendance'), 
             where('classId', '==', activeTab),
             where('date', '==', attendanceDate)
         );
@@ -145,7 +149,7 @@ export default function StudentsPage() {
     });
 
     return () => unsubscribe();
-  }, [activeTab]);
+  }, [activeTab, schoolId]);
 
   const studentsForCurrentTab = allClassStudents[activeTab || ''] || [];
   
@@ -157,7 +161,7 @@ export default function StudentsPage() {
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setAllClassStudents(prevAllStudents => {
       const newStudentsForClass = (prevAllStudents[activeTab!] || []).map(s =>
-        s.id === studentId ? { ...s, status } : s
+        s.id === studentId ? { ...s, attendance: status } : s
       );
       return {
         ...prevAllStudents,
@@ -179,7 +183,7 @@ export default function StudentsPage() {
   };
   
   const handleSaveAttendance = async () => {
-    if (!activeTab) return;
+    if (!activeTab || !schoolId) return;
 
     const batch = writeBatch(firestore);
     const today = new Date();
@@ -188,7 +192,7 @@ export default function StudentsPage() {
     for (const student of studentsForCurrentTab) {
         const attendanceDate = Timestamp.fromDate(today);
         const attendanceQuery = query(
-            collection(firestore, 'attendance'),
+            collection(firestore, 'schools', schoolId, 'attendance'),
             where('studentId', '==', student.id),
             where('date', '==', attendanceDate)
         );
@@ -196,13 +200,13 @@ export default function StudentsPage() {
         const querySnapshot = await getDocs(attendanceQuery);
         if (!querySnapshot.empty) {
             const docId = querySnapshot.docs[0].id;
-            const attendanceRef = doc(firestore, 'attendance', docId);
+            const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
             batch.update(attendanceRef, {
                 status: student.attendance,
                 notes: student.notes || '',
             });
         } else {
-            const attendanceRef = doc(collection(firestore, 'attendance'));
+            const attendanceRef = doc(collection(firestore, 'schools', schoolId, 'attendance'));
             batch.set(attendanceRef, {
                 studentId: student.id,
                 classId: activeTab,
@@ -231,7 +235,7 @@ export default function StudentsPage() {
   };
   
   const handleAddNewStudent = async () => {
-    if (!newStudentName.trim() || !activeTab) {
+    if (!newStudentName.trim() || !activeTab || !schoolId) {
         toast({
             variant: 'destructive',
             title: 'Student name and class are required.',
@@ -240,7 +244,7 @@ export default function StudentsPage() {
     }
 
     try {
-        const newStudentRef = doc(collection(firestore, 'students'));
+        const newStudentRef = doc(collection(firestore, 'schools', schoolId, 'students'));
         await setDoc(newStudentRef, {
             id: newStudentRef.id,
             name: newStudentName,
@@ -268,6 +272,7 @@ export default function StudentsPage() {
   };
   
   const handleExport = (type: 'PDF' | 'CSV') => {
+    if (!activeTab) return;
     const doc = new jsPDF();
     const tableData = filteredStudents.map(student => [
         student.name,
@@ -275,6 +280,8 @@ export default function StudentsPage() {
         student.overallGrade,
         student.attendance.charAt(0).toUpperCase() + student.attendance.slice(1),
     ]);
+    
+    const className = teacherClasses.find(c => c.id === activeTab)?.name;
 
     if (type === 'CSV') {
         const headers = ['Name', 'Roll Number', 'Overall Grade', 'Attendance Status'];
@@ -287,32 +294,32 @@ export default function StudentsPage() {
         if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", `${activeTab}-roster.csv`);
+            link.setAttribute("download", `${className}-roster.csv`);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
     } else {
-         doc.text(`${teacherClasses.find(c => c.id === activeTab)?.name} Roster`, 14, 16);
+         doc.text(`${className} Roster`, 14, 16);
          (doc as any).autoTable({
             startY: 22,
             head: [['Name', 'Roll Number', 'Overall Grade', 'Attendance Status']],
             body: tableData,
          });
-         doc.save(`${activeTab}-roster.pdf`);
+         doc.save(`${className}-roster.pdf`);
     }
   };
 
   const handleUpdateStudent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editingStudent) return;
+    if (!editingStudent || !schoolId) return;
 
     const formData = new FormData(e.currentTarget);
     const updatedName = formData.get('name') as string;
     const updatedRollNumber = formData.get('rollNumber') as string;
 
-    const studentRef = doc(firestore, 'students', editingStudent.id);
+    const studentRef = doc(firestore, 'schools', schoolId, 'students', editingStudent.id);
     try {
         await updateDoc(studentRef, {
             name: updatedName,
@@ -417,13 +424,13 @@ export default function StudentsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                             <DropdownMenuItem asChild>
-                                <Link href="/teacher/attendance">
+                                <Link href={`/teacher/attendance?schoolId=${schoolId}`}>
                                     <ClipboardCheck className="mr-2" />
                                     View Full Attendance
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                                <Link href="/teacher/messaging">
+                                <Link href={`/teacher/messaging?schoolId=${schoolId}`}>
                                     <Megaphone className="mr-2" />
                                     Send Class Announcement
                                 </Link>
@@ -514,7 +521,7 @@ export default function StudentsPage() {
                                     </DialogTrigger>
                                 </Dialog>
                                 <Button asChild variant="ghost" size="sm">
-                                    <Link href={`/teacher/students/${student.id}`}>
+                                    <Link href={`/teacher/students/${student.id}?schoolId=${schoolId}`}>
                                         View Profile
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </Link>
@@ -576,3 +583,5 @@ export default function StudentsPage() {
     </div>
   );
 }
+
+    
