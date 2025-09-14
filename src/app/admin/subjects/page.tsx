@@ -53,7 +53,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -98,6 +98,12 @@ export default function ClassesAndSubjectsPage() {
     const [subjects, setSubjects] = React.useState<Subject[]>([]);
     const [teachers, setTeachers] = React.useState<Teacher[]>([]);
     const [classAssignments, setClassAssignments] = React.useState<ClassAssignment>({});
+    
+    // State for the new class dialog
+    const [newClassName, setNewClassName] = React.useState('');
+    const [newClassStream, setNewClassStream] = React.useState('');
+    const [newClassTeacherId, setNewClassTeacherId] = React.useState('');
+    const [newClassCapacity, setNewClassCapacity] = React.useState('');
 
     React.useEffect(() => {
         if (!schoolId) return;
@@ -138,6 +144,44 @@ export default function ClassesAndSubjectsPage() {
     }, [classAssignments]);
 
     const OVER_ASSIGNED_THRESHOLD = 3;
+    
+    const resetNewClassForm = () => {
+        setNewClassName('');
+        setNewClassStream('');
+        setNewClassTeacherId('');
+        setNewClassCapacity('');
+    };
+
+    const handleCreateClass = async () => {
+        if (!schoolId || !newClassName || !newClassTeacherId || !newClassCapacity) {
+            toast({ title: 'Missing Information', description: 'Please fill out all required fields.', variant: 'destructive' });
+            return;
+        }
+
+        const teacher = teachers.find(t => t.id === newClassTeacherId);
+        if (!teacher) {
+            toast({ title: 'Invalid Teacher', description: 'Selected teacher could not be found.', variant: 'destructive' });
+            return;
+        }
+
+        try {
+            await addDoc(collection(firestore, 'schools', schoolId, 'classes'), {
+                name: newClassName,
+                stream: newClassStream || null,
+                classTeacher: { name: teacher.name, avatarUrl: teacher.avatarUrl },
+                capacity: Number(newClassCapacity),
+                studentCount: 0,
+                createdAt: serverTimestamp(),
+            });
+
+            toast({ title: 'Class Created', description: `The class "${newClassName} ${newClassStream}" has been successfully created.` });
+            resetNewClassForm();
+        } catch (error) {
+            console.error('Error creating class:', error);
+            toast({ title: 'Creation Failed', variant: 'destructive' });
+        }
+    };
+
 
     const handleSaveChanges = (message: string) => {
         toast({
@@ -235,15 +279,15 @@ export default function ClassesAndSubjectsPage() {
                                     <div className="grid gap-4 py-4">
                                         <div className="grid grid-cols-4 items-center gap-4">
                                             <Label htmlFor="class-name" className="text-right">Class Name</Label>
-                                            <Input id="class-name" placeholder="e.g., Form 1" className="col-span-3" />
+                                            <Input id="class-name" placeholder="e.g., Form 1" className="col-span-3" value={newClassName} onChange={e => setNewClassName(e.target.value)} />
                                         </div>
                                         <div className="grid grid-cols-4 items-center gap-4">
                                             <Label htmlFor="class-stream" className="text-right">Stream</Label>
-                                            <Input id="class-stream" placeholder="e.g., A, North (Optional)" className="col-span-3" />
+                                            <Input id="class-stream" placeholder="e.g., A, North (Optional)" className="col-span-3" value={newClassStream} onChange={e => setNewClassStream(e.target.value)} />
                                         </div>
                                         <div className="grid grid-cols-4 items-center gap-4">
                                             <Label htmlFor="class-teacher" className="text-right">Class Teacher</Label>
-                                            <Select>
+                                            <Select value={newClassTeacherId} onValueChange={setNewClassTeacherId}>
                                                 <SelectTrigger id="class-teacher" className="col-span-3">
                                                     <SelectValue placeholder="Select a teacher" />
                                                 </SelectTrigger>
@@ -256,13 +300,13 @@ export default function ClassesAndSubjectsPage() {
                                         </div>
                                         <div className="grid grid-cols-4 items-center gap-4">
                                             <Label htmlFor="class-capacity" className="text-right">Capacity</Label>
-                                            <Input id="class-capacity" type="number" placeholder="e.g., 45" className="col-span-3" />
+                                            <Input id="class-capacity" type="number" placeholder="e.g., 45" className="col-span-3" value={newClassCapacity} onChange={e => setNewClassCapacity(e.target.value)} />
                                         </div>
                                     </div>
                                     <DialogFooter>
-                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                        <DialogClose asChild><Button variant="outline" onClick={resetNewClassForm}>Cancel</Button></DialogClose>
                                         <DialogClose asChild>
-                                            <Button onClick={() => handleSaveChanges('A new class has been created.')}>Save Class</Button>
+                                            <Button onClick={handleCreateClass}>Save Class</Button>
                                         </DialogClose>
                                     </DialogFooter>
                                 </DialogContent>
