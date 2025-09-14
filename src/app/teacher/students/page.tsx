@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -59,7 +60,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ClassAnalytics } from './class-analytics';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDocs, updateDoc, addDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
@@ -94,19 +95,25 @@ export default function StudentsPage() {
   const [newStudentName, setNewStudentName] = React.useState('');
   const [isAddStudentOpen, setIsAddStudentOpen] = React.useState(false);
   const [editingStudent, setEditingStudent] = React.useState<Student | null>(null);
-  const teacherId = 'teacher-wanjiku'; // This should be dynamic
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'all'>('all');
   const [yearFilter, setYearFilter] = React.useState('All Years');
   const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i).toString());
+  const [user, setUser] = React.useState(auth.currentUser);
+
+  React.useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(setUser);
+    return () => unsubscribe();
+  }, []);
 
   // Effect to fetch the teacher's classes
   React.useEffect(() => {
-    if (!schoolId) {
+    if (!schoolId || !user) {
       setIsLoading(false);
       return;
     }
+    const teacherId = user.uid;
 
     const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
     const unsubscribe = onSnapshot(classesQuery, (querySnapshot) => {
@@ -124,7 +131,7 @@ export default function StudentsPage() {
     });
 
     return () => unsubscribe();
-  }, [schoolId, teacherId, activeTab]);
+  }, [schoolId, user, activeTab]);
 
   // Effect to fetch students for the active class
   React.useEffect(() => {
@@ -199,7 +206,8 @@ export default function StudentsPage() {
   };
   
   const handleSaveAttendance = async () => {
-    if (!activeTab || !schoolId) return;
+    if (!activeTab || !schoolId || !user) return;
+    const teacherId = user.uid;
 
     const batch = writeBatch(firestore);
     const today = new Date();
