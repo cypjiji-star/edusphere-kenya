@@ -65,6 +65,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -72,27 +74,18 @@ type IncidentStatus = 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
 
 type Incident = {
   id: string;
+  studentId: string;
   studentName: string;
   studentAvatar: string;
   class: string;
   type: IncidentType;
   description: string;
-  date: string;
+  date: Timestamp;
   reportedBy: string;
   status: IncidentStatus;
 };
 
-const MOCK_INCIDENTS_DATA: Incident[] = [
-    { id: 'inc-1', studentName: 'Student 1', studentAvatar: 'https://picsum.photos/seed/f4-student1/100', class: 'Form 4', type: 'Health', description: 'Complained of a headache and feeling dizzy during the chemistry lesson.', date: '2024-07-15', reportedBy: 'Ms. Wanjiku', status: 'Under Review' },
-    { id: 'inc-2', studentName: 'Student 32', studentAvatar: 'https://picsum.photos/seed/f3-student1/100', class: 'Form 3', type: 'Accident', description: 'Slipped and fell during break time. Minor scrape on the knee.', date: '2024-07-12', reportedBy: 'Mr. Otieno', status: 'Resolved' },
-    { id: 'inc-3', studentName: 'Student 60', studentAvatar: 'https://picsum.photos/seed/f2-student1/100', class: 'Form 2', type: 'Discipline', description: 'Skipped afternoon classes.', date: '2024-07-10', reportedBy: 'Mr. Kamau', status: 'Resolved' },
-];
-
-const students = [
-  { id: 'f4-chem-1', name: 'Student 1', class: 'Form 4' },
-  { id: 'f4-chem-2', name: 'Student 2', class: 'Form 4' },
-  { id: 'f3-math-1', name: 'Student 32', class: 'Form 3' },
-];
+type TeacherStudent = { id: string; name: string; class: string; };
 
 const teacherClasses = [
     { id: 'all', name: 'All Classes' },
@@ -100,27 +93,6 @@ const teacherClasses = [
     { id: 'f3-math', name: 'Form 3 - Mathematics' },
     { id: 'f2-phys', name: 'Form 2 - Physics' },
 ];
-
-const studentHealthRecords = {
-    'f4-chem-1': {
-        studentName: 'Student 1',
-        allergies: ['Peanuts', 'Pollen'],
-        conditions: ['Asthma (mild)'],
-        emergencyContact: { name: 'Joseph Kariuki', relationship: 'Father', phone: '0722 123 456' }
-    },
-    'f4-chem-2': {
-        studentName: 'Student 2',
-        allergies: ['None known'],
-        conditions: ['None known'],
-        emergencyContact: { name: 'Mary Wambui', relationship: 'Mother', phone: '0722 987 654' }
-    },
-    'f3-math-1': {
-        studentName: 'Student 32',
-        allergies: ['Lactose Intolerance'],
-        conditions: ['None known'],
-        emergencyContact: { name: 'David Omondi', relationship: 'Father', phone: '0711 555 888' }
-    }
-}
 
 const getStatusBadge = (status: IncidentStatus) => {
     switch (status) {
@@ -179,17 +151,28 @@ const chartConfig = {
   },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-const initialMedicationLog = [
-    { id: 'med-1', studentName: 'Student 1', medication: 'Asthma Inhaler', dosage: '2 puffs', time: '2024-07-15 10:30 AM', givenBy: 'Ms. Wanjiku' },
-    { id: 'med-2', studentName: 'Student 32', medication: 'Paracetamol', dosage: '1 tablet', time: '2024-07-14 09:00 AM', givenBy: 'Nurse Joy' },
-];
+type Medication = {
+    id: string;
+    studentName: string;
+    medication: string;
+    dosage: string;
+    time: string;
+    givenBy: string;
+};
+
+type HealthRecord = {
+    allergies: string[];
+    conditions: string[];
+    emergencyContact: { name: string; relationship: string; phone: string };
+};
+
 
 export default function HealthPage() {
     const { toast } = useToast();
-    const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<keyof typeof studentHealthRecords | null>(null);
+    const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<string | null>(null);
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const [updatedStatus, setUpdatedStatus] = React.useState<IncidentStatus | undefined>();
-    const [mockIncidents, setMockIncidents] = React.useState(MOCK_INCIDENTS_DATA);
+    const [mockIncidents, setMockIncidents] = React.useState<Incident[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [typeFilter, setTypeFilter] = React.useState<IncidentType | 'All Types'>('All Types');
     const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
@@ -197,11 +180,14 @@ export default function HealthPage() {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     
     // State for medication log form
-    const [medicationLog, setMedicationLog] = React.useState(initialMedicationLog);
+    const [medicationLog, setMedicationLog] = React.useState<Medication[]>([]);
     const [newMedStudent, setNewMedStudent] = React.useState<string | undefined>();
     const [newMedName, setNewMedName] = React.useState('');
     const [newMedDosage, setNewMedDosage] = React.useState('');
     const [newMedTime, setNewMedTime] = React.useState(format(new Date(), 'HH:mm'));
+
+    const [allStudents, setAllStudents] = React.useState<TeacherStudent[]>([]);
+    const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
 
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
@@ -211,6 +197,58 @@ export default function HealthPage() {
             urgency: 'Low',
         },
     });
+
+     React.useEffect(() => {
+        // Fetch all students for the teacher
+        const studentsQuery = query(collection(firestore, 'students'), where('teacherId', '==', 'teacher-wanjiku'));
+        const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
+            const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
+            setAllStudents(studentsData);
+        });
+
+        // Fetch all incidents
+        const incidentsQuery = query(collection(firestore, 'incidents'), where('reportedBy', '==', 'Ms. Wanjiku'));
+        const unsubscribeIncidents = onSnapshot(incidentsQuery, (snapshot) => {
+            const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
+            setMockIncidents(incidentsData);
+        });
+        
+        // Fetch medication log
+        const medsQuery = query(collection(firestore, 'medications'), where('givenBy', '==', 'Ms. Wanjiku'));
+        const unsubscribeMeds = onSnapshot(medsQuery, (snapshot) => {
+            const medsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Medication));
+            setMedicationLog(medsData);
+        });
+
+        return () => {
+            unsubscribeStudents();
+            unsubscribeIncidents();
+            unsubscribeMeds();
+        }
+    }, []);
+    
+    React.useEffect(() => {
+        if (selectedHealthStudent) {
+            const studentRef = doc(firestore, 'students', selectedHealthStudent);
+            const unsubscribe = onSnapshot(studentRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    setCurrentHealthRecord({
+                        allergies: data.allergies || ['None known'],
+                        conditions: data.medicalConditions || ['None known'],
+                        emergencyContact: {
+                            name: data.emergencyContactName || 'N/A',
+                            relationship: data.parentRelationship || 'Guardian',
+                            phone: data.parentPhone || 'N/A',
+                        }
+                    });
+                }
+            });
+            return () => unsubscribe();
+        } else {
+            setCurrentHealthRecord(null);
+        }
+    }, [selectedHealthStudent]);
     
     React.useEffect(() => {
         if (selectedIncident) {
@@ -220,48 +258,48 @@ export default function HealthPage() {
 
     async function onSubmit(values: IncidentFormValues) {
         setIsSubmitting(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        const student = allStudents.find(s => s.id === values.studentId);
         
-        console.log(values);
-        toast({
-            title: 'Incident Reported',
-            description: 'The incident has been logged and relevant parties have been notified.',
-        });
-        
-        const student = students.find(s => s.id === values.studentId);
-        const newIncident: Incident = {
-            id: `inc-${Date.now()}`,
-            studentName: student?.name || 'Unknown Student',
-            studentAvatar: 'https://picsum.photos/seed/new-incident/100',
-            class: student?.class || 'Unknown',
-            type: values.incidentType,
-            description: values.description,
-            date: format(values.incidentDate, 'yyyy-MM-dd'),
-            reportedBy: 'Ms. Wanjiku', // Replace with actual user
-            status: 'Reported',
-        };
+        try {
+            await addDoc(collection(firestore, 'incidents'), {
+                ...values,
+                date: Timestamp.fromDate(values.incidentDate),
+                reportedBy: 'Ms. Wanjiku', // Replace with actual user
+                status: 'Reported',
+                studentName: student?.name || 'Unknown',
+                class: student?.class || 'Unknown',
+                studentAvatar: `https://picsum.photos/seed/${student?.id || 'default'}/100`,
+            });
 
-        setMockIncidents(prev => [newIncident, ...prev]);
-        form.reset();
-        setIsSubmitting(false);
+            toast({
+                title: 'Incident Reported',
+                description: 'The incident has been logged and relevant parties have been notified.',
+            });
+            form.reset();
+
+        } catch (e) {
+            console.error("Error submitting incident:", e);
+            toast({ variant: 'destructive', title: 'Submission Failed' });
+        } finally {
+            setIsSubmitting(false);
+        }
     }
     
-    const handleUpdateIncident = () => {
+    const handleUpdateIncident = async () => {
         if (!selectedIncident || !updatedStatus) return;
 
-        setMockIncidents(prev => 
-            prev.map(inc => 
-                inc.id === selectedIncident.id ? { ...inc, status: updatedStatus } : inc
-            )
-        );
-
-        toast({
-            title: 'Incident Updated',
-            description: `The status for incident #${selectedIncident.id} has been set to "${updatedStatus}".`
-        });
-
-        setSelectedIncident(null);
+        const incidentRef = doc(firestore, 'incidents', selectedIncident.id);
+        try {
+            await updateDoc(incidentRef, { status: updatedStatus });
+            toast({
+                title: 'Incident Updated',
+                description: `The status for incident #${selectedIncident.id.substring(0,6)} has been set to "${updatedStatus}".`
+            });
+            setSelectedIncident(null);
+        } catch (e) {
+            console.error("Error updating incident:", e);
+            toast({ variant: 'destructive', title: 'Update Failed' });
+        }
     };
     
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,7 +312,7 @@ export default function HealthPage() {
         setAttachedFile(null);
     };
 
-    const handleSaveMedication = () => {
+    const handleSaveMedication = async () => {
         if (!newMedStudent || !newMedName || !newMedDosage) {
             toast({
                 title: "Missing Information",
@@ -284,30 +322,34 @@ export default function HealthPage() {
             return;
         }
 
-        const student = students.find(s => s.id === newMedStudent);
+        const student = allStudents.find(s => s.id === newMedStudent);
         if (!student) return;
 
-        const newLogEntry = {
-            id: `med-${Date.now()}`,
-            studentName: student.name,
-            medication: newMedName,
-            dosage: newMedDosage,
-            time: `${format(new Date(), 'yyyy-MM-dd')} ${newMedTime}`,
-            givenBy: 'Ms. Wanjiku', // Placeholder for current user
-        };
+        try {
+            await addDoc(collection(firestore, 'medications'), {
+                studentId: newMedStudent,
+                studentName: student.name,
+                medication: newMedName,
+                dosage: newMedDosage,
+                time: `${format(new Date(), 'yyyy-MM-dd')} ${newMedTime}`,
+                givenBy: 'Ms. Wanjiku',
+            });
 
-        setMedicationLog(prev => [newLogEntry, ...prev]);
+            toast({
+                title: "Medication Logged",
+                description: `Administration of ${newMedName} for ${student.name} has been saved.`
+            });
+            
+            // Reset form
+            setNewMedStudent(undefined);
+            setNewMedName('');
+            setNewMedDosage('');
+            setNewMedTime(format(new Date(), 'HH:mm'));
 
-        toast({
-            title: "Medication Logged",
-            description: `Administration of ${newMedName} for ${student.name} has been saved.`
-        });
-        
-        // Reset form
-        setNewMedStudent(undefined);
-        setNewMedName('');
-        setNewMedDosage('');
-        setNewMedTime(format(new Date(), 'HH:mm'));
+        } catch (e) {
+            console.error("Error logging medication:", e);
+            toast({ variant: 'destructive', title: 'Log Failed' });
+        }
     };
 
     const filteredIncidents = mockIncidents.filter(incident => {
@@ -318,8 +360,6 @@ export default function HealthPage() {
         const matchesStatus = statusFilter === 'All Statuses' || incident.status === statusFilter;
         return matchesSearch && matchesType && matchesStatus;
     });
-
-    const currentHealthRecord = selectedHealthStudent ? studentHealthRecords[selectedHealthStudent] : null;
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
@@ -476,7 +516,7 @@ export default function HealthPage() {
                                                             </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
-                                                            {students.map((s) => (
+                                                            {allStudents.map((s) => (
                                                                 <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
                                                             ))}
                                                             </SelectContent>
@@ -807,7 +847,7 @@ export default function HealthPage() {
                                                             <Badge variant={incident.type === 'Health' ? 'destructive' : incident.type === 'Accident' ? 'secondary' : 'default'}>{incident.type}</Badge>
                                                         </TableCell>
                                                         <TableCell className="max-w-xs truncate">{incident.description}</TableCell>
-                                                        <TableCell>{incident.date}</TableCell>
+                                                        <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell>
                                                         <TableCell>{getStatusBadge(incident.status)}</TableCell>
                                                     </TableRow>
                                                 </DialogTrigger>
@@ -827,12 +867,12 @@ export default function HealthPage() {
                             <CardContent>
                                 <div className="max-w-md mb-6">
                                     <Label htmlFor="student-health-select">Select a Student</Label>
-                                    <Select onValueChange={(value: keyof typeof studentHealthRecords) => setSelectedHealthStudent(value)}>
+                                    <Select onValueChange={(value: string) => setSelectedHealthStudent(value)}>
                                         <SelectTrigger id="student-health-select">
                                             <SelectValue placeholder="Search and select a student..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {students.map((s) => (
+                                            {allStudents.map((s) => (
                                                 <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -843,7 +883,7 @@ export default function HealthPage() {
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <User className="h-5 w-5 text-primary" />
-                                                {currentHealthRecord.studentName}
+                                                {allStudents.find(s => s.id === selectedHealthStudent)?.name}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-6">
@@ -851,7 +891,7 @@ export default function HealthPage() {
                                                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4>
                                                 <div className="space-x-2">
                                                     {currentHealthRecord.allergies.map(allergy => (
-                                                        <Badge key={allergy} variant="destructive">{allergy}</Badge>
+                                                        <Badge key={allergy} variant={allergy !== "None" &amp;&amp; allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>
                                                     ))}
                                                 </div>
                                             </div>
@@ -871,16 +911,6 @@ export default function HealthPage() {
                                                     <p><span className="font-medium">{currentHealthRecord.emergencyContact.name}</span> ({currentHealthRecord.emergencyContact.relationship})</p>
                                                     <p className="text-muted-foreground">{currentHealthRecord.emergencyContact.phone}</p>
                                                 </div>
-                                            </div>
-                                            <Separator />
-                                            <div>
-                                                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><FileText className="h-4 w-4" /> Medical History</h4>
-                                                <Alert variant="default">
-                                                    <AlertTitle>No Detailed History</AlertTitle>
-                                                    <AlertDescription>
-                                                        A comprehensive medical or vaccination history has not been provided for this student. For detailed records, please contact the school administration or the student's guardian.
-                                                    </AlertDescription>
-                                                </Alert>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -913,7 +943,7 @@ export default function HealthPage() {
                                                         <SelectValue placeholder="Select a student" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {students.map((s) => (
+                                                        {allStudents.map((s) => (
                                                             <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -955,7 +985,7 @@ export default function HealthPage() {
                                                             <TableCell>{log.time}</TableCell>
                                                         </TableRow>
                                                     ))}
-                                                     {medicationLog.length === 0 && (
+                                                     {medicationLog.length === 0 &amp;&amp; (
                                                         <TableRow>
                                                             <TableCell colSpan={3} className="h-24 text-center">No records for today.</TableCell>
                                                         </TableRow>
@@ -970,7 +1000,7 @@ export default function HealthPage() {
                     </TabsContent>
                 </Tabs>
 
-                {selectedIncident && (
+                {selectedIncident &amp;&amp; (
                     <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
                             <DialogTitle>Incident Details</DialogTitle>
