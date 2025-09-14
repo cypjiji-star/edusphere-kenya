@@ -36,7 +36,6 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
 import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
 
 
 export const lessonPlanSchema = z.object({
@@ -91,19 +90,18 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
 
    useEffect(() => {
     if (lessonPlanId && schoolId) {
-      const fetchLessonPlan = async () => {
-        const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
-        const docSnap = await getDoc(docRef);
+      const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           form.reset({
             ...data,
             date: data.date.toDate(),
           });
+          setIsEditMode(true);
         }
-      }
-      fetchLessonPlan();
-      setIsEditMode(true);
+      });
+      return () => unsubscribe();
     }
   }, [lessonPlanId, form, schoolId]);
   
@@ -421,5 +419,3 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
     </Form>
   );
 }
-
-    

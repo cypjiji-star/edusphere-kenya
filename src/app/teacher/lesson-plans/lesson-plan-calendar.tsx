@@ -116,5 +116,3 @@ export function LessonPlanCalendar({ lessonPlans, schoolId }: LessonPlanCalendar
     </div>
   );
 }
-
-    

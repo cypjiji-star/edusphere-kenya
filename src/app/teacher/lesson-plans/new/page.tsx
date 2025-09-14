@@ -39,27 +39,6 @@ export default function NewLessonPlanPage() {
   const lessonPlanId = searchParams.get('id') || undefined;
   const prefilledDate = searchParams.get('date') || undefined;
   const isEditMode = !!lessonPlanId;
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = React.useState('editor');
-  const [formKey, setFormKey] = React.useState(Date.now()); // Used to force re-render of form
-
-  const handleRestore = (versionData: any) => {
-    // In a real app, you might want a more sophisticated state management solution (like Jotai or Zustand)
-    // to pass the restored data to the form component. For now, we'll just update a key to remount it
-    // and rely on a mock/local storage mechanism if we were to persist this state across tabs.
-    // For this demo, we'll just show a toast and switch tabs.
-    
-    // This is a simplified way to trigger a re-render with new defaults.
-    // A more robust solution would use a shared state.
-    sessionStorage.setItem('restoredLessonPlan', JSON.stringify(versionData));
-    setFormKey(Date.now()); // Update key to force LessonPlanForm to remount and read sessionStorage
-
-    toast({
-        title: 'Version Restored',
-        description: 'The selected version has been loaded into the editor.',
-    });
-    setActiveTab('editor');
-  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -110,7 +89,7 @@ export default function NewLessonPlanPage() {
             )}
         </CardHeader>
         <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs defaultValue="editor" className="w-full">
                 {isEditMode && (
                     <TabsList className="mb-4">
                         <TabsTrigger value="editor">Editor</TabsTrigger>
@@ -119,7 +98,7 @@ export default function NewLessonPlanPage() {
                     </TabsList>
                 )}
                 <TabsContent value="editor">
-                     <LessonPlanForm key={formKey} lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} schoolId={schoolId!} />
+                     <LessonPlanForm lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} schoolId={schoolId!} />
                 </TabsContent>
                 <TabsContent value="history">
                     <Card>
@@ -144,7 +123,7 @@ export default function NewLessonPlanPage() {
                                         </div>
                                         <p className="text-sm text-muted-foreground">{version.summary}</p>
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={() => handleRestore(version.data)}>Restore</Button>
+                                    <Button variant="outline" size="sm" disabled>Restore</Button>
                                 </div>
                             ))}
                         </CardContent>
@@ -165,7 +144,7 @@ export default function NewLessonPlanPage() {
                                     <div className="flex-1">
                                         <p className="font-medium">Allow co-teachers to edit</p>
                                     </div>
-                                    <Switch id="edit-perms" />
+                                    <Switch id="edit-perms" disabled />
                                 </div>
                             </div>
                             <Separator />
@@ -177,7 +156,7 @@ export default function NewLessonPlanPage() {
                                      <div className="flex-1">
                                         <p className="font-medium">Share with all Science Department teachers</p>
                                     </div>
-                                    <Switch id="view-perms" />
+                                    <Switch id="view-perms" disabled />
                                 </div>
                             </div>
                         </CardContent>
@@ -189,5 +168,3 @@ export default function NewLessonPlanPage() {
     </div>
   );
 }
-
-    

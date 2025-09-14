@@ -66,7 +66,10 @@ export default function LessonPlansPage() {
   const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+        setIsLoading(false);
+        return;
+    }
 
     setClientReady(true);
     const teacherId = 'teacher-wanjiku'; // Placeholder
@@ -230,5 +233,3 @@ export default function LessonPlansPage() {
     </div>
   );
 }
-
-    

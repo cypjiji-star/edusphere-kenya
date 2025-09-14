@@ -810,6 +810,7 @@ export default function HealthPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
+
                     <TabsContent value="log">
                         <Card className="mt-4">
                             <CardHeader>
@@ -892,11 +893,12 @@ export default function HealthPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
+                    
                     <TabsContent value="records">
                         <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle>Student Health Records</CardTitle>
-                                <CardDescription>Look up important health information for a student. Records are confidential and access is logged.</CardDescription>
+                                <CardDescription>Look up important health information for students in your classes. Access is logged.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="max-w-md mb-6">
@@ -959,11 +961,12 @@ export default function HealthPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
+
                     <TabsContent value="medication">
                           <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2"><Pill className="h-5 w-5 text-primary"/>Medication Log</CardTitle>
-                                <CardDescription>Record and track medication administered to students at school.</CardDescription>
+                                <CardDescription>Record medication administered to students under your care.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid gap-8 md:grid-cols-2">
@@ -1001,7 +1004,7 @@ export default function HealthPage() {
                                         </div>
                                     </div>
                                     <div className="space-y-6">
-                                        <h3 className="font-semibold text-lg">Recent Log</h3>
+                                        <h3 className="font-semibold text-lg">My Recent Log</h3>
                                         <div className="w-full overflow-auto rounded-lg border">
                                             <Table>
                                                 <TableHeader>
