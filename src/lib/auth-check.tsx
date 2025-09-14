@@ -23,7 +23,6 @@ export function useUserRole() {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       setUser(authUser);
       if (authUser) {
-        setLoading(true);
         // 1. Check for developer role first (global)
         const devDocRef = doc(firestore, 'developers', authUser.uid);
         const devDoc = await getDoc(devDocRef);
@@ -38,21 +37,20 @@ export function useUserRole() {
           const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
-            setRole(userDoc.data().role as AllowedRole);
+            setRole(userDoc.data().role.toLowerCase() as AllowedRole);
           } else {
             setRole('unknown');
           }
-        } else {
-            // Not a developer and no schoolId in URL (e.g., on /developer page)
+        } else if (!pathname.startsWith('/developer')) {
+            // If there's no schoolId and they are not in a developer path, role is unknown.
             setRole('unknown');
         }
-        setLoading(false);
-
+        
       } else {
         setUser(null);
         setRole('unknown');
-        setLoading(false);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -68,7 +66,8 @@ export function AuthCheck({ children, requiredRole }: { children: ReactNode, req
   const pathname = usePathname();
   
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login' && pathname !== '/') {
+    // Only redirect when loading is complete and there's no user.
+    if (!loading && !user && pathname !== '/login' && !pathname.startsWith('/#')) {
         router.push('/login');
     }
   }, [loading, user, pathname, router]);
@@ -80,13 +79,14 @@ export function AuthCheck({ children, requiredRole }: { children: ReactNode, req
       </div>
     );
   }
+  
+  // Allow unauthenticated users on the homepage
+  if (!user && (pathname === '/' || pathname.startsWith('/#') || pathname === '/learning-path')) {
+    return <>{children}</>;
+  }
 
   if (!user) {
-    // Show children on public pages, or redirect from protected ones (handled by useEffect)
-    if (pathname === '/login' || pathname === '/') {
-        return <>{children}</>;
-    }
-    return null; // or a loading spinner while redirecting
+    return null; // Don't render anything while redirecting
   }
   
   if (role !== requiredRole) {
