@@ -8,7 +8,9 @@ import {
 import { GraduationCap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoginForm } from './login-form';
+import { DeveloperLoginForm } from './developer-login-form';
 import { Suspense } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const defaultProfile = {
     name: 'EduSphere Kenya',
@@ -58,19 +60,28 @@ function LoginPageContent() {
                 <div className="mx-auto grid w-full max-w-sm items-center gap-6">
                     <div className="text-center">
                         <h1 className="text-3xl font-bold font-headline text-primary">Sign In</h1>
-                        <p className="text-muted-foreground">Enter your credentials to access the portal</p>
+                        <p className="text-muted-foreground">Select your portal to access your dashboard</p>
                     </div>
-                    <Card className="shadow-none border-none">
-                        <CardContent className="p-0">
-                            <LoginForm />
-                        </CardContent>
-                    </Card>
-                    <div className="mt-4 text-center text-sm">
-                        Having trouble logging in?{' '}
-                        <Link href="#" className="underline text-muted-foreground hover:text-primary">
-                        Contact Support
-                        </Link>
-                    </div>
+                    <Tabs defaultValue="school" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="school">School Portal</TabsTrigger>
+                            <TabsTrigger value="developer">Developer</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="school">
+                            <Card className="shadow-none border-none">
+                                <CardContent className="p-0 pt-6">
+                                    <LoginForm />
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        <TabsContent value="developer">
+                            <Card className="shadow-none border-none">
+                                <CardContent className="p-0 pt-6">
+                                    <DeveloperLoginForm />
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
                 </div>
             </div>
         </div>
