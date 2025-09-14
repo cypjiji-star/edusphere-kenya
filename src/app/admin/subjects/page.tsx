@@ -52,6 +52,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query } from 'firebase/firestore';
 
 
 type SchoolClass = {
@@ -66,99 +68,59 @@ type SchoolClass = {
   };
 };
 
-const mockClasses: SchoolClass[] = [
-  {
-    id: 'form-4-a',
-    name: 'Form 4',
-    stream: 'A',
-    studentCount: 42,
-    capacity: 45,
-    classTeacher: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' },
-  },
-    {
-    id: 'form-4-b',
-    name: 'Form 4',
-    stream: 'B',
-    studentCount: 43,
-    capacity: 45,
-    classTeacher: { name: 'Mr. Kamau', avatarUrl: 'https://picsum.photos/seed/teacher-kamau/100' },
-  },
-  {
-    id: 'form-3-north',
-    name: 'Form 3',
-    stream: 'North',
-    studentCount: 45,
-    capacity: 50,
-    classTeacher: { name: 'Mr. Otieno', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100' },
-  },
-    {
-    id: 'form-3-south',
-    name: 'Form 3',
-    stream: 'South',
-    studentCount: 47,
-    capacity: 50,
-    classTeacher: { name: 'Ms. Njeri', avatarUrl: 'https://picsum.photos/seed/teacher-njeri/100' },
-  },
-  {
-    id: 'form-2',
-    name: 'Form 2',
-    studentCount: 95,
-    capacity: 100,
-     classTeacher: { name: 'Mr. Kimani', avatarUrl: 'https://picsum.photos/seed/teacher-kimani/100' },
-  },
-   {
-    id: 'form-1',
-    name: 'Form 1',
-    studentCount: 101,
-    capacity: 110,
-     classTeacher: { name: 'Ms. Akinyi', avatarUrl: 'https://picsum.photos/seed/teacher-akinyi/100' },
-  },
-];
+type Subject = {
+    id: string;
+    name: string;
+    code: string;
+    department: string;
+    teachers: string[];
+    classes: string[];
+};
 
-const mockTeachers = [
-    { id: 't-1', name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' },
-    { id: 't-2', name: 'Mr. Kamau', avatarUrl: 'https://picsum.photos/seed/teacher-kamau/100' },
-    { id: 't-3', name: 'Mr. Otieno', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100' },
-    { id: 't-4', name: 'Ms. Njeri', avatarUrl: 'https://picsum.photos/seed/teacher-njeri/100' },
-    { id: 't-5', name: 'Mr. Kimani', avatarUrl: 'https://picsum.photos/seed/teacher-kimani/100' },
-    { id: 't-6', name: 'Ms. Akinyi', avatarUrl: 'https://picsum.photos/seed/teacher-akinyi/100' },
-];
+type Teacher = {
+    id: string;
+    name: string;
+    avatarUrl: string;
+};
+
+type ClassAssignment = {
+    [classId: string]: { subject: string; teacher: string | null }[];
+};
 
 const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', 'Technical Subjects', 'Creative Arts'];
 
-const mockSubjects = [
-    { id: 'sub-math', name: 'Mathematics', code: '121', department: 'Mathematics', teachers: ['Mr. Otieno', 'Mr. Kimani'], classes: ['Form 1', 'Form 2', 'Form 3', 'Form 4'] },
-    { id: 'sub-eng', name: 'English', code: '101', department: 'Languages', teachers: ['Ms. Njeri'], classes: ['Form 1', 'Form 2', 'Form 3', 'Form 4'] },
-    { id: 'sub-chem', name: 'Chemistry', code: '233', department: 'Sciences', teachers: ['Ms. Wanjiku'], classes: ['Form 3', 'Form 4'] },
-    { id: 'sub-phy', name: 'Physics', code: '232', department: 'Sciences', teachers: ['Mr. Kamau'], classes: ['Form 3', 'Form 4'] },
-    { id: 'sub-bio', name: 'Biology', code: '231', department: 'Sciences', teachers: ['Ms. Wanjiku', 'Ms. Akinyi'], classes: ['Form 1', 'Form 2'] },
-    { id: 'sub-hist', name: 'History & Government', code: '311', department: 'Humanities', teachers: ['Mr. Kamau'], classes: ['Form 1', 'Form 2', 'Form 3'] },
-];
-
-const initialClassAssignments = {
-    'form-4-a': [
-        { subject: 'Mathematics', teacher: 'Mr. Otieno' },
-        { subject: 'English', teacher: 'Ms. Njeri' },
-        { subject: 'Chemistry', teacher: 'Ms. Wanjiku' },
-        { subject: 'Physics', teacher: null },
-    ],
-    'form-3-north': [
-        { subject: 'Mathematics', teacher: 'Mr. Kimani' },
-        { subject: 'English', teacher: 'Ms. Njeri' },
-        { subject: 'History & Government', teacher: 'Mr. Kamau' },
-        { subject: 'Chemistry', teacher: 'Ms. Wanjiku' },
-    ],
-    'form-4-b': [
-        { subject: 'Mathematics', teacher: 'Mr. Otieno' },
-        { subject: 'English', teacher: 'Ms. Njeri' },
-        { subject: 'Physics', teacher: 'Mr. Kamau' },
-    ]
-};
-
-
 export default function ClassesAndSubjectsPage() {
     const { toast } = useToast();
-    const [classAssignments, setClassAssignments] = React.useState(initialClassAssignments);
+    const [classes, setClasses] = React.useState<SchoolClass[]>([]);
+    const [subjects, setSubjects] = React.useState<Subject[]>([]);
+    const [teachers, setTeachers] = React.useState<Teacher[]>([]);
+    const [classAssignments, setClassAssignments] = React.useState<ClassAssignment>({});
+
+    React.useEffect(() => {
+        const unsubClasses = onSnapshot(collection(firestore, 'classes'), (snapshot) => {
+            setClasses(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SchoolClass)));
+        });
+        const unsubSubjects = onSnapshot(collection(firestore, 'subjects'), (snapshot) => {
+            setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
+        });
+        const unsubTeachers = onSnapshot(query(collection(firestore, 'users'), where => where('role', '==', 'Teacher')), (snapshot) => {
+            setTeachers(snapshot.docs.map(d => ({ id: d.id, name: d.data().name, avatarUrl: d.data().avatarUrl } as Teacher)));
+        });
+        const unsubAssignments = onSnapshot(collection(firestore, 'class-assignments'), (snapshot) => {
+            const assignments: ClassAssignment = {};
+            snapshot.forEach(doc => {
+                assignments[doc.id] = doc.data().assignments;
+            });
+            setClassAssignments(assignments);
+        });
+
+        return () => {
+            unsubClasses();
+            unsubSubjects();
+            unsubTeachers();
+            unsubAssignments();
+        };
+    }, []);
     
     const teacherWorkload: Record<string, number> = React.useMemo(() => {
         const load: Record<string, number> = {};
@@ -186,31 +148,38 @@ export default function ClassesAndSubjectsPage() {
         });
     };
 
-    const handleAssignTeacher = (classId: string, subject: string, teacher: string) => {
-        setClassAssignments(prev => {
-            const newAssignments = { ...prev };
-            const assignmentsForClass = newAssignments[classId as keyof typeof newAssignments];
-            if (assignmentsForClass) {
-                const assignmentIndex = assignmentsForClass.findIndex(a => a.subject === subject);
-                if (assignmentIndex !== -1) {
-                    assignmentsForClass[assignmentIndex].teacher = teacher;
-                }
-            }
-            return newAssignments;
-        });
+    const handleAssignTeacher = async (classId: string, subject: string, teacherName: string) => {
+        const currentAssignments = classAssignments[classId] || [];
+        const updatedAssignments = currentAssignments.map(a => 
+            a.subject === subject ? { ...a, teacher: teacherName } : a
+        );
 
-        toast({
-            title: 'Teacher Assigned',
-            description: `${teacher} has been assigned to teach ${subject} in this class.`
-        })
+        try {
+            await updateDoc(doc(firestore, 'class-assignments', classId), { assignments: updatedAssignments });
+            toast({
+                title: 'Teacher Assigned',
+                description: `${teacherName} has been assigned to teach ${subject} in this class.`
+            });
+        } catch (error) {
+            console.error("Failed to assign teacher:", error);
+            toast({ title: 'Assignment Failed', variant: 'destructive' });
+        }
     };
     
-     const handleDelete = (item: string, type: 'subject' | 'class') => {
-        toast({
-            title: `${type === 'subject' ? 'Subject' : 'Class'} Deleted`,
-            description: `The ${type} "${item}" has been deleted.`,
-            variant: 'destructive',
-        });
+    const handleDelete = async (collectionName: string, id: string, name: string) => {
+         if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+            return;
+        }
+        try {
+            await deleteDoc(doc(firestore, collectionName, id));
+            toast({
+                title: `${collectionName === 'subjects' ? 'Subject' : 'Class'} Deleted`,
+                description: `The ${collectionName === 'subjects' ? 'subject' : 'class'} "${name}" has been deleted.`,
+                variant: 'destructive',
+            });
+        } catch (error) {
+             toast({ title: 'Deletion failed', variant: 'destructive' });
+        }
     };
 
   return (
@@ -268,7 +237,7 @@ export default function ClassesAndSubjectsPage() {
                                                     <SelectValue placeholder="Select a teacher" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {mockTeachers.map(teacher => (
+                                                    {teachers.map(teacher => (
                                                         <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -277,16 +246,6 @@ export default function ClassesAndSubjectsPage() {
                                         <div className="grid grid-cols-4 items-center gap-4">
                                             <Label htmlFor="class-capacity" className="text-right">Capacity</Label>
                                             <Input id="class-capacity" type="number" placeholder="e.g., 45" className="col-span-3" />
-                                        </div>
-                                        <div className="grid grid-cols-4 items-start gap-4">
-                                            <Label className="text-right pt-2">Co-Teachers</Label>
-                                            <div className="col-span-3">
-                                                <Button variant="outline" size="sm" disabled>
-                                                    <UserPlus className="mr-2 h-4 w-4"/>
-                                                    Assign Co-Teacher
-                                                </Button>
-                                                <p className="text-xs text-muted-foreground mt-2">Multiple teacher assignment is coming soon.</p>
-                                            </div>
                                         </div>
                                     </div>
                                     <DialogFooter>
@@ -326,7 +285,7 @@ export default function ClassesAndSubjectsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {mockClasses.map((schoolClass) => (
+                                {classes.map((schoolClass) => (
                                     <TableRow key={schoolClass.id}>
                                         <TableCell className="font-semibold">{schoolClass.name}</TableCell>
                                         <TableCell>
@@ -371,12 +330,12 @@ export default function ClassesAndSubjectsPage() {
                                                         </div>
                                                         <div className="grid grid-cols-4 items-center gap-4">
                                                             <Label htmlFor="class-teacher-edit" className="text-right">Class Teacher</Label>
-                                                            <Select defaultValue={mockTeachers.find(t => t.name === schoolClass.classTeacher.name)?.id}>
+                                                            <Select defaultValue={teachers.find(t => t.name === schoolClass.classTeacher.name)?.id}>
                                                                 <SelectTrigger id="class-teacher-edit" className="col-span-3">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {mockTeachers.map(teacher => (
+                                                                    {teachers.map(teacher => (
                                                                         <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
                                                                     ))}
                                                                 </SelectContent>
@@ -389,7 +348,7 @@ export default function ClassesAndSubjectsPage() {
                                                     </div>
                                                     <DialogFooter className="justify-between">
                                                          <DialogClose asChild>
-                                                            <Button variant="destructive" onClick={() => handleDelete(`${schoolClass.name} ${schoolClass.stream || ''}`, 'class')}>
+                                                            <Button variant="destructive" onClick={() => handleDelete('classes', schoolClass.id, `${schoolClass.name} ${schoolClass.stream || ''}`)}>
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 Archive Class
                                                             </Button>
@@ -400,47 +359,6 @@ export default function ClassesAndSubjectsPage() {
                                                                 <Button onClick={() => handleSaveChanges(`Updated details for ${schoolClass.name} ${schoolClass.stream || ''}`)}>Save Changes</Button>
                                                             </DialogClose>
                                                         </div>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="ghost" size="sm">
-                                                        Manage Subjects
-                                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent className="sm:max-w-2xl">
-                                                    <DialogHeader>
-                                                        <DialogTitle>Manage Subjects for {schoolClass.name} {schoolClass.stream || ''}</DialogTitle>
-                                                        <DialogDescription>Select the subjects taught in this class and assign a primary teacher for each.</DialogDescription>
-                                                    </DialogHeader>
-                                                    <div className="py-4 max-h-[60vh] overflow-y-auto">
-                                                        <div className="space-y-4">
-                                                            {mockSubjects.map(subject => (
-                                                                <div key={subject.id} className="grid grid-cols-[auto_1fr_1fr] items-center gap-4 border-b pb-4">
-                                                                    <Checkbox id={`subj-${schoolClass.id}-${subject.id}`} />
-                                                                    <Label htmlFor={`subj-${schoolClass.id}-${subject.id}`} className="font-medium">{subject.name}</Label>
-                                                                    <Select>
-                                                                        <SelectTrigger>
-                                                                            <SelectValue placeholder="Assign Teacher" />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {subject.teachers.map(teacherName => {
-                                                                                const teacher = mockTeachers.find(t => t.name === teacherName);
-                                                                                return teacher ? <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem> : null;
-                                                                            })}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    <DialogFooter>
-                                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                        <DialogClose asChild>
-                                                            <Button onClick={() => handleSaveChanges(`Subject assignments updated for ${schoolClass.name} ${schoolClass.stream || ''}`)}>Save Assignments</Button>
-                                                        </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
@@ -498,30 +416,6 @@ export default function ClassesAndSubjectsPage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <Separator />
-                                         <div className="space-y-2">
-                                            <Label>Assign to Classes</Label>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                {mockClasses.map(cls => (
-                                                    <div key={cls.id} className="flex items-center space-x-2">
-                                                        <Checkbox id={`class-${cls.id}`} />
-                                                        <Label htmlFor={`class-${cls.id}`} className="font-normal">{cls.name} {cls.stream || ''}</Label>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <Separator />
-                                         <div className="space-y-2">
-                                            <Label>Assign Teachers</Label>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                {mockTeachers.map(teacher => (
-                                                    <div key={teacher.id} className="flex items-center space-x-2">
-                                                        <Checkbox id={`teacher-${teacher.id}`} />
-                                                        <Label htmlFor={`teacher-${teacher.id}`} className="font-normal">{teacher.name}</Label>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
                                     </div>
                                      <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
@@ -560,7 +454,7 @@ export default function ClassesAndSubjectsPage() {
                                 </TableRow>
                             </TableHeader>
                              <TableBody>
-                                {mockSubjects.map(subject => (
+                                {subjects.map(subject => (
                                     <TableRow key={subject.id}>
                                         <TableCell className="font-semibold">{subject.name}</TableCell>
                                         <TableCell><Badge variant="outline">{subject.code}</Badge></TableCell>
@@ -610,7 +504,7 @@ export default function ClassesAndSubjectsPage() {
                                                     </div>
                                                     <DialogFooter className="justify-between">
                                                         <DialogClose asChild>
-                                                            <Button variant="destructive" onClick={() => handleDelete(subject.name, 'subject')}>
+                                                            <Button variant="destructive" onClick={() => handleDelete('subjects', subject.id, subject.name)}>
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 Delete Subject
                                                             </Button>
@@ -659,7 +553,7 @@ export default function ClassesAndSubjectsPage() {
                 <CardContent className="space-y-6">
                     <TooltipProvider>
                     {Object.entries(classAssignments).map(([classId, assignments]) => {
-                        const schoolClass = mockClasses.find(c => c.id === classId);
+                        const schoolClass = classes.find(c => c.id === classId);
                         if (!schoolClass) return null;
                         
                         return (
@@ -672,7 +566,7 @@ export default function ClassesAndSubjectsPage() {
                                     <div className="space-y-2">
                                         {assignments.map(assignment => {
                                             const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
-                                            const subjectDetails = mockSubjects.find(s => s.name === assignment.subject);
+                                            const subjectDetails = subjects.find(s => s.name === assignment.subject);
                                             const availableTeachers = subjectDetails ? subjectDetails.teachers.filter(t => (teacherWorkload[t] || 0) <= OVER_ASSIGNED_THRESHOLD) : [];
 
                                             return (
