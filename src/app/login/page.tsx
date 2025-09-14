@@ -15,6 +15,7 @@ import { GraduationCap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { firestore } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 async function getSchoolProfile() {
     try {
@@ -81,7 +82,16 @@ export default async function LoginPage() {
                     <CardContent className="p-0">
                         <form className="grid gap-4">
                             <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="schoolId">School ID</Label>
+                                <Input
+                                    id="schoolId"
+                                    type="text"
+                                    placeholder="e.g., edusphere-high"
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                            <Label htmlFor="email">Email or Login ID</Label>
                             <Input
                                 id="email"
                                 type="email"
@@ -101,18 +111,20 @@ export default async function LoginPage() {
                             </div>
                             <Input id="password" type="password" required />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <Button type="submit" asChild>
-                                    <Link href="/teacher">Login as Teacher</Link>
-                                </Button>
-                                <Button type="submit" asChild>
-                                    <Link href="/admin">Login as Admin</Link>
-                                </Button>
-                                <Button type="submit" asChild variant="secondary">
-                                    <Link href="/parent">Login as Parent</Link>
-                                </Button>
-                                <Button type="submit" asChild variant="secondary">
-                                    <Link href="/developer">Login as Developer</Link>
+                             <div className="grid gap-4">
+                                <Select defaultValue="/teacher">
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Login as..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="/teacher">Teacher</SelectItem>
+                                        <SelectItem value="/admin">Admin</SelectItem>
+                                        <SelectItem value="/parent">Parent</SelectItem>
+                                        <SelectItem value="/developer">Developer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button type="submit" asChild className="w-full">
+                                    <Link href="/teacher">Login</Link>
                                 </Button>
                             </div>
                         </form>
