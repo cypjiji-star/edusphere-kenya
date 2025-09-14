@@ -47,7 +47,7 @@ import { views } from './timetable-data';
 import type { Subject as DraggableSubjectType } from './timetable-data';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, addDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -65,6 +65,8 @@ const getColorForSubject = (subjectName: string) => {
     const index = Math.abs(hash % subjectColors.length);
     return subjectColors[index];
 }
+
+const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', 'Technical Subjects', 'Creative Arts'];
 
 
 function DraggableSubject({ subject }: { subject: DraggableSubjectType }) {
@@ -122,6 +124,11 @@ export function TimetableBuilder() {
   const [subjects, setSubjects] = React.useState<DraggableSubjectType[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
+
+  const [newSubjectName, setNewSubjectName] = React.useState('');
+  const [newSubjectCode, setNewSubjectCode] = React.useState('');
+  const [newSubjectDept, setNewSubjectDept] = React.useState('');
+  const [isAddSubjectOpen, setIsAddSubjectOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -299,6 +306,30 @@ export function TimetableBuilder() {
       title: 'Exporting Timetable',
       description: `Your timetable is being exported as a ${type} file.`,
     });
+  };
+
+  const handleAddNewSubject = async () => {
+    if (!newSubjectName || !newSubjectCode || !newSubjectDept || !schoolId) {
+        toast({ title: 'Missing fields', description: 'Please fill out all subject details.', variant: 'destructive'});
+        return;
+    }
+    try {
+        await addDoc(collection(firestore, `schools/${schoolId}/subjects`), {
+            name: newSubjectName,
+            code: newSubjectCode,
+            department: newSubjectDept,
+            teachers: [], // Initially no teachers assigned
+            classes: [], // Initially not assigned to any class
+        });
+        toast({ title: 'Subject Added', description: `${newSubjectName} has been added to the list.`});
+        setNewSubjectName('');
+        setNewSubjectCode('');
+        setNewSubjectDept('');
+        setIsAddSubjectOpen(false);
+    } catch (error) {
+        console.error("Error adding new subject:", error);
+        toast({ title: 'Failed to add subject', variant: 'destructive' });
+    }
   };
 
   if (!selectedItem && !isLoading) {
@@ -534,10 +565,48 @@ export function TimetableBuilder() {
                             <DraggableSubject key={subject.name} subject={subject} />
                         ))}
                         <Separator/>
-                        <Button variant="secondary" className="w-full">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add New Subject
-                        </Button>
+                        <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="secondary" className="w-full">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add New Subject
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                    <DialogTitle>Add New Subject</DialogTitle>
+                                    <DialogDescription>
+                                        Define a new subject that can be added to the timetable.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="new-subject-name">Subject Name</Label>
+                                        <Input id="new-subject-name" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} placeholder="e.g., Computer Science" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="new-subject-code">Subject Code</Label>
+                                        <Input id="new-subject-code" value={newSubjectCode} onChange={(e) => setNewSubjectCode(e.target.value)} placeholder="e.g., 451" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="new-subject-dept">Department</Label>
+                                        <Select onValueChange={setNewSubjectDept} value={newSubjectDept}>
+                                            <SelectTrigger id="new-subject-dept">
+                                                <SelectValue placeholder="Select a department" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {mockDepartments.map(dept => (
+                                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="button" onClick={handleAddNewSubject}>Save Subject</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </CardContent>
                 </Card>
             </div>
@@ -545,7 +614,5 @@ export function TimetableBuilder() {
     </DndContext>
   );
 }
-
-    
 
     
