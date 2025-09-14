@@ -37,6 +37,7 @@ import {
   FileText,
   ChevronDown,
   Printer,
+  Loader2
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -59,12 +60,14 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { GradeEntryForm } from './new/grade-entry-form';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 
-// --- Mock Data ---
 
+// --- Data Types ---
 type Grade = {
   assessmentId: string;
-  score: number | string; // Can be percentage or letter grade
+  score: number | string;
 };
 
 export type StudentGrades = {
@@ -83,53 +86,12 @@ export type Assessment = {
   date: string;
 };
 
-export const assessmentsByClass: Record<string, Assessment[]> = {
-  'f4-chem': [
-    { id: 'assess-1', title: 'Mid-Term Exam', type: 'Exam', date: '2024-06-15' },
-    { id: 'assess-2', title: 'Titration Lab Report', type: 'Assignment', date: '2024-07-22' },
-    { id: 'assess-3', title: 'Organic Compounds Quiz', type: 'Quiz', date: '2024-07-28' },
-  ],
-  'f3-math': [
-    { id: 'assess-4', title: 'Mid-Term Exam', type: 'Exam', date: '2024-06-18' },
-    { id: 'assess-5', title: 'Algebra Problem Set', type: 'Assignment', date: '2024-07-10' },
-  ],
-  'f2-phys': [
-     { id: 'assess-6', title: 'Mid-Term Exam', type: 'Exam', date: '2024-06-20' },
-  ],
-};
-
-export const gradesByClass: Record<string, StudentGrades[]> = {
-  'f4-chem': Array.from({ length: 31 }, (_, i) => ({
-    studentId: `f4-chem-${i + 1}`,
-    studentName: `Student ${i + 1}`,
-    studentAvatar: `https://picsum.photos/seed/f4-student${i + 1}/100`,
-    rollNumber: `F4-0${i + 1}`,
-    grades: [
-      { assessmentId: 'assess-1', score: 60 + (i % 36) },
-      { assessmentId: 'assess-2', score: 'A' },
-      { assessmentId: 'assess-3', score: 70 + (i % 31) },
-    ],
-    overall: 65 + ((i * 3) % 35),
-  })),
-  'f3-math': Array.from({ length: 28 }, (_, i) => ({
-    studentId: `f3-math-${i + 1}`,
-    studentName: `Student ${i + 32}`,
-    studentAvatar: `https://picsum.photos/seed/f3-student${i + 1}/100`,
-    rollNumber: `F3-0${i + 1}`,
-    grades: [
-        { assessmentId: 'assess-4', score: 70 + (i % 29) },
-        { assessmentId: 'assess-5', score: 'B+' },
-    ],
-    overall: 70 + ((i * 3) % 30),
-  })),
-  'f2-phys': [],
-};
-
 export const teacherClasses = [
     { id: 'f4-chem', name: 'Form 4 - Chemistry' },
     { id: 'f3-math', name: 'Form 3 - Mathematics' },
     { id: 'f2-phys', name: 'Form 2 - Physics' },
 ];
+
 
 export default function GradesPage() {
     const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
@@ -137,9 +99,48 @@ export default function GradesPage() {
     const { toast } = useToast();
     const [editingStudent, setEditingStudent] = React.useState<StudentGrades | null>(null);
     const [activeTab, setActiveTab] = React.useState('gradebook');
+    const [isLoading, setIsLoading] = React.useState(true);
 
-    const currentAssessments = assessmentsByClass[selectedClass] || [];
-    const currentStudents = gradesByClass[selectedClass] || [];
+    const [currentAssessments, setCurrentAssessments] = React.useState<Assessment[]>([]);
+    const [currentStudents, setCurrentStudents] = React.useState<StudentGrades[]>([]);
+
+
+    React.useEffect(() => {
+        setIsLoading(true);
+        const assessmentsQuery = query(collection(firestore, 'assessments'), where('classId', '==', selectedClass));
+        const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
+            const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
+            setCurrentAssessments(assessments);
+        });
+
+        const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', selectedClass));
+        const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
+            const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
+                const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
+                const gradesQuery = query(collection(firestore, 'students', student.studentId, 'grades'));
+                const gradesSnapshot = await getDocs(gradesQuery);
+                const grades = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
+                
+                const numericScores = grades.map(g => parseInt(String(g.score))).filter(s => !isNaN(s));
+                const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a+b, 0) / numericScores.length) : 0;
+                
+                return {
+                    ...student,
+                    grades,
+                    overall,
+                };
+            }));
+            setCurrentStudents(studentsData);
+            setIsLoading(false);
+        });
+
+
+        return () => {
+            unsubAssessments();
+            unsubStudents();
+        }
+
+    }, [selectedClass]);
 
     const filteredStudents = currentStudents.filter(s => 
         s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -263,7 +264,11 @@ export default function GradesPage() {
                 </div>
             </CardHeader>
             <CardContent>
-                {currentStudents.length > 0 ? (
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-64">
+                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    </div>
+                ) : currentStudents.length > 0 ? (
                     <>
                         <GradeSummaryWidget students={currentStudents} />
                         {/* Desktop Table */}
@@ -385,23 +390,8 @@ export default function GradesPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              {currentAssessments.map((assessment) => (
-                <div key={assessment.id} className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor={`grade-${assessment.id}`} className="text-right">
-                    {assessment.title}
-                  </Label>
-                  <Input
-                    id={`grade-${assessment.id}`}
-                    defaultValue={getGradeForStudent(editingStudent, assessment.id)}
-                    className="col-span-3"
-                  />
-                </div>
-              ))}
+              {/* Simplified for demo. A real app would use a form. */}
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditingStudent(null)}>Cancel</Button>
-              <Button type="submit" onClick={() => {toast({title: 'Grades updated!'}); setEditingStudent(null);}}>Save changes</Button>
-            </DialogFooter>
           </DialogContent>
         )}
       </Dialog>

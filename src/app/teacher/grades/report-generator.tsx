@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { teacherClasses, gradesByClass, assessmentsByClass, StudentGrades, Assessment } from './page';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 
@@ -38,8 +37,32 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, LabelList } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
+// --- Data Types (could be shared in a types file) ---
+type Grade = {
+  assessmentId: string;
+  score: number | string;
+};
 
+export type StudentGrades = {
+  studentId: string;
+  studentName: string;
+  studentAvatar: string;
+  rollNumber: string;
+  grades: Grade[];
+  overall: number;
+};
+
+export type Assessment = {
+  id: string;
+  title: string;
+  type: 'Exam' | 'Assignment' | 'Quiz';
+  date: string;
+};
+
+// --- Report Specific Types ---
 type ReportType = 'individual' | 'summary' | 'ranking' | 'assignment-completion' | 'daily-log' | 'absentee-patterns' | 'participation-records' | 'performance-stats' | 'team-rosters' | 'message-delivery' | 'interaction-logs' | 'notification-history';
 
 type ClassSummary = {
@@ -67,6 +90,12 @@ const summaryChartConfig = {
   },
 };
 
+const teacherClasses = [
+    { id: 'f4-chem', name: 'Form 4 - Chemistry' },
+    { id: 'f3-math', name: 'Form 3 - Mathematics' },
+    { id: 'f2-phys', name: 'Form 2 - Physics' },
+];
+
 
 export function ReportGenerator() {
   const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
@@ -79,7 +108,35 @@ export function ReportGenerator() {
   const [alertLowPerf, setAlertLowPerf] = React.useState(false);
   const [alertAbsent, setAlertAbsent] = React.useState(false);
 
-  const studentsInClass = gradesByClass[selectedClass] || [];
+  const [studentsInClass, setStudentsInClass] = React.useState<StudentGrades[]>([]);
+  const [assessmentsForClass, setAssessmentsForClass] = React.useState<Assessment[]>([]);
+
+  React.useEffect(() => {
+    const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', selectedClass));
+    const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
+        const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
+            const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
+            const gradesQuery = query(collection(firestore, 'students', student.studentId, 'grades'));
+            const gradesSnapshot = await getDocs(gradesQuery);
+            const grades = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
+            const numericScores = grades.map(g => parseInt(String(g.score))).filter(s => !isNaN(s));
+            const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a+b, 0) / numericScores.length) : 0;
+            return { ...student, grades, overall };
+        }));
+        setStudentsInClass(studentsData);
+    });
+
+    const assessmentsQuery = query(collection(firestore, 'assessments'), where('classId', '==', selectedClass));
+    const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
+        const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
+        setAssessmentsForClass(assessments);
+    });
+
+    return () => {
+        unsubStudents();
+        unsubAssessments();
+    }
+  }, [selectedClass]);
 
   React.useEffect(() => {
     setSelectedStudent(null);
@@ -91,13 +148,11 @@ export function ReportGenerator() {
     if (reportType === 'individual' && !selectedStudent) return;
     
     setIsGenerating(true);
-    // Simulate generation time
     setTimeout(() => {
       if (reportType === 'individual') {
         const studentData = studentsInClass.find(s => s.studentId === selectedStudent);
-        const assessmentData = assessmentsByClass[selectedClass] || [];
         if (studentData) {
-          setIndividualReport({ student: studentData, assessments: assessmentData });
+          setIndividualReport({ student: studentData, assessments: assessmentsForClass });
         }
       } else if (reportType === 'summary') {
         if (studentsInClass.length === 0) {
@@ -430,7 +485,7 @@ export function ReportGenerator() {
                                     <Bar key="students" dataKey="students" fill="var(--color-students)" radius={8}>
                                         <LabelList position="top" offset={8} className="fill-foreground" fontSize={12} />
                                     </Bar>
-                                </BarChart>
+                                </ChartContainer>
                             </ChartContainer>
                             <Separator className="my-6"/>
                             <div className="grid md:grid-cols-2 gap-6">
@@ -483,5 +538,3 @@ export function ReportGenerator() {
     </div>
   );
 }
-
-    
