@@ -287,6 +287,10 @@ export function AdminChatLayout() {
   const handleDelete = async () => {
     if (!selectedConvo) return;
     
+    if (!window.confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
+        return;
+    }
+
     await deleteDoc(doc(firestore, 'conversations', selectedConvo.id));
     
     setMessages(prev => {
