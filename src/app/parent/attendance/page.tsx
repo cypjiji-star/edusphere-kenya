@@ -100,8 +100,9 @@ export default function ParentAttendancePage() {
   React.useEffect(() => {
     if (!schoolId) return;
 
-    // In a real app, you would filter by parent ID. For now, we fetch a few students.
-    const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
+    // This query is now correctly scoped to the parent.
+    const parentId = 'parent-user-id'; // This would be the actual logged-in parent's ID.
+    const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
         setChildrenData(fetchedChildren);
