@@ -47,7 +47,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { firestore } from '@/lib/firebase';
-import { collection, doc, onSnapshot, query, where, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, setDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, setDoc, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 type TeamDetails = {
@@ -65,19 +65,21 @@ type StudentMember = {
 
 const ROLES: StudentMember['role'][] = ['Member', 'Captain', 'Vice-Captain', 'Treasurer'];
 
-const upcomingEvents = [
-    {
-        id: 'evt-1',
-        type: 'Match',
-        title: 'Friendly vs. Highway Secondary',
-        date: '2024-07-25',
-        time: '15:00',
-    },
-];
+type TeamEvent = {
+    id: string;
+    type: string;
+    title: string;
+    date: Timestamp;
+    time: string;
+};
 
-const mediaHighlights = [
-    { id: 'media-1', type: 'photo', url: 'https://picsum.photos/seed/match-highlight-1/800/600', caption: 'Goal against Nairobi School!', date: '2024-07-18' },
-];
+type MediaHighlight = {
+    id: string;
+    type: 'photo' | 'video';
+    url: string;
+    caption: string;
+    date: Timestamp;
+};
 
 export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
   const { teamId } = params;
@@ -88,6 +90,8 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
   const [teamDetails, setTeamDetails] = React.useState<TeamDetails | null>(null);
   const [members, setMembers] = React.useState<StudentMember[]>([]);
   const [allStudents, setAllStudents] = React.useState<{id: string; name: string; class: string}[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = React.useState<TeamEvent[]>([]);
+  const [mediaHighlights, setMediaHighlights] = React.useState<MediaHighlight[]>([]);
   
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -113,6 +117,16 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
         setMembers(membersData);
         setIsLoading(false);
     });
+
+    const eventsQuery = query(collection(firestore, 'schools', schoolId, 'teams', teamId, 'events'), orderBy('date', 'asc'));
+    const unsubEvents = onSnapshot(eventsQuery, snapshot => {
+        setUpcomingEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamEvent)));
+    });
+
+    const mediaQuery = query(collection(firestore, 'schools', schoolId, 'teams', teamId, 'media'), orderBy('date', 'desc'));
+    const unsubMedia = onSnapshot(mediaQuery, snapshot => {
+        setMediaHighlights(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaHighlight)));
+    });
     
     const fetchAllStudents = async () => {
         const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
@@ -129,6 +143,8 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
     return () => {
         unsubTeam();
         unsubMembers();
+        unsubEvents();
+        unsubMedia();
     }
   }, [teamId, schoolId]);
 
@@ -392,8 +408,8 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                         <div key={event.id}>
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col items-center justify-center w-16 text-center bg-muted/50 rounded-md p-2">
-                                    {clientReady && <span className="text-sm font-bold uppercase text-primary">{new Date(event.date).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</span>}
-                                    {clientReady && <span className="text-xl font-bold">{new Date(event.date).getUTCDate()}</span>}
+                                    {clientReady && <span className="text-sm font-bold uppercase text-primary">{event.date.toDate().toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</span>}
+                                    {clientReady && <span className="text-xl font-bold">{event.date.toDate().getUTCDate()}</span>}
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-semibold">{event.title}</p>
@@ -440,7 +456,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
                                 </CardContent>
                                 <CardFooter className="p-4 flex-col items-start">
                                     <p className="text-sm font-medium">{item.caption}</p>
-                                    {clientReady && <p className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>}
+                                    {clientReady && <p className="text-xs text-muted-foreground">{item.date.toDate().toLocaleDateString()}</p>}
                                 </CardFooter>
                             </Card>
                         ))}

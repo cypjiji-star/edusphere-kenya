@@ -86,17 +86,17 @@ export type Assessment = {
   date: string;
 };
 
-export const teacherClasses = [
-    { id: 'f4-chem', name: 'Form 4 - Chemistry' },
-    { id: 'f3-math', name: 'Form 3 - Mathematics' },
-    { id: 'f2-phys', name: 'Form 2 - Physics' },
-];
+type TeacherClass = {
+  id: string;
+  name: string;
+};
 
 
 export default function GradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
+    const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+    const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
     const [searchTerm, setSearchTerm] = React.useState('');
     const { toast } = useToast();
     const [editingStudent, setEditingStudent] = React.useState<StudentGrades | null>(null);
@@ -105,7 +105,23 @@ export default function GradesPage() {
 
     const [currentAssessments, setCurrentAssessments] = React.useState<Assessment[]>([]);
     const [currentStudents, setCurrentStudents] = React.useState<StudentGrades[]>([]);
+    const teacherId = 'teacher-wanjiku'; // Placeholder
 
+
+    React.useEffect(() => {
+        if (!schoolId) return;
+
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+            const classes = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+            setTeacherClasses(classes);
+            if (!selectedClass && classes.length > 0) {
+                setSelectedClass(classes[0].id);
+            }
+        });
+
+        return () => unsubClasses();
+    }, [schoolId, selectedClass, teacherId]);
 
     React.useEffect(() => {
         if (!schoolId || !selectedClass) return;

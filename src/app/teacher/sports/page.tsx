@@ -46,7 +46,6 @@ type SportsTeam = {
     icon: string;
 };
 
-const mockCoaches = ['Mr. David Otieno', 'Ms. Grace Njeri', 'Mr. Paul Kimani', 'Mr. Ben Carter', 'Ms. Fatuma Ali'];
 
 export default function SportsPage() {
   const [sportsTeams, setSportsTeams] = React.useState<SportsTeam[]>([]);
@@ -54,6 +53,7 @@ export default function SportsPage() {
   const [newTeamName, setNewTeamName] = React.useState('');
   const [newTeamCoach, setNewTeamCoach] = React.useState('');
   const [newTeamIcon, setNewTeamIcon] = React.useState('');
+  const [allTeachers, setAllTeachers] = React.useState<string[]>([]);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -62,13 +62,24 @@ export default function SportsPage() {
    React.useEffect(() => {
     if (!schoolId) return;
     setIsLoading(true);
+
     const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'), where('coach', '==', teacherName));
-    const unsubscribe = onSnapshot(teamsQuery, (snapshot) => {
+    const unsubTeams = onSnapshot(teamsQuery, (snapshot) => {
         const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SportsTeam));
         setSportsTeams(teamsData);
         setIsLoading(false);
     });
-    return () => unsubscribe();
+
+    const teachersQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
+        const teacherNames = snapshot.docs.map(doc => doc.data().name);
+        setAllTeachers(teacherNames);
+    });
+
+    return () => {
+        unsubTeams();
+        unsubTeachers();
+    };
   }, [schoolId, teacherName]);
 
   const handleCreateTeam = async () => {
@@ -148,7 +159,7 @@ export default function SportsPage() {
                                 <SelectValue placeholder="Select a teacher" />
                             </SelectTrigger>
                             <SelectContent>
-                                {mockCoaches.map(coach => (
+                                {allTeachers.map(coach => (
                                     <SelectItem key={coach} value={coach}>{coach}</SelectItem>
                                 ))}
                             </SelectContent>

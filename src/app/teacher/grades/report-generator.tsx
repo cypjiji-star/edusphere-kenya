@@ -91,17 +91,16 @@ const summaryChartConfig = {
   },
 };
 
-const teacherClasses = [
-    { id: 'f4-chem', name: 'Form 4 - Chemistry' },
-    { id: 'f3-math', name: 'Form 3 - Mathematics' },
-    { id: 'f2-phys', name: 'Form 2 - Physics' },
-];
-
+type TeacherClass = {
+  id: string;
+  name: string;
+};
 
 export function ReportGenerator() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
+  const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+  const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
   const [selectedStudent, setSelectedStudent] = React.useState<string | null>(null);
   const [reportType, setReportType] = React.useState<ReportType>('individual');
   const [isGenerating, setIsGenerating] = React.useState(false);
@@ -113,6 +112,22 @@ export function ReportGenerator() {
 
   const [studentsInClass, setStudentsInClass] = React.useState<StudentGrades[]>([]);
   const [assessmentsForClass, setAssessmentsForClass] = React.useState<Assessment[]>([]);
+  const teacherId = 'teacher-wanjiku'; // Placeholder
+
+  React.useEffect(() => {
+    if (!schoolId) return;
+
+    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+    const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+        const classes = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+        setTeacherClasses(classes);
+        if (!selectedClass && classes.length > 0) {
+            setSelectedClass(classes[0].id);
+        }
+    });
+
+    return () => unsubClasses();
+  }, [schoolId, selectedClass, teacherId]);
 
   React.useEffect(() => {
     if (!schoolId || !selectedClass) return;
