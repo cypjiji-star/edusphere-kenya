@@ -1,114 +1,138 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- Helper Functions ---
-    // These functions make the rules easier to read and maintain.
-    
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isDeveloper() {
-      return isAuthenticated() && request.auth.token.role == 'developer';
-    }
-    
-    function isSchoolAdmin(schoolId) {
-      return isAuthenticated() && request.auth.token.role == 'admin' && request.auth.token.schoolId == schoolId;
+  
+    // =================================
+    // Default Security (Deny All)
+    // =================================
+    // By default, no one can read or write to any document.
+    // Specific rules below will grant access.
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    function isTeacher(schoolId) {
-      return isAuthenticated() && request.auth.token.role == 'teacher' && request.auth.token.schoolId == schoolId;
-    }
-
-    function isParent(schoolId) {
-      return isAuthenticated() && request.auth.token.role == 'parent' && request.auth.token.schoolId == schoolId;
-    }
+    // =================================
+    // Platform-Level Rules (Developers)
+    // =================================
     
-    function isUserInSchool(schoolId) {
-      return isAuthenticated() && request.auth.token.schoolId == schoolId;
+    // The 'users' collection stores developer and platform admin accounts.
+    match /users/{userId} {
+      // Allow a user to read and write to their own user document.
+      allow read, write: if request.auth.uid == userId;
     }
 
-    // --- Developer-Only Collections ---
-    // The 'schools' collection can only be managed by developers.
+    // The 'schools' collection contains all school instances.
     match /schools/{schoolId} {
+      // Developers have god-mode access to manage any school.
+      function isDeveloper() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Developer';
+      }
+
+      // Allow developers to read, create, update, and delete school documents.
       allow read, write: if isDeveloper();
 
-      // --- School-Specific Subcollections ---
-      // All data is nested under a specific school document.
+      // Delegate rules for subcollections within a school.
+      match /{subcollection}/{docId=**} {
+        allow read, write: if isDeveloper();
+      }
+    }
 
-      // Default deny all access to subcollections unless specified below.
-      match /{document=**} {
-        allow read, write: if false;
-      }
-      
-      // PUBLIC DATA: School branding for login page
-      // Anyone can read this, only admins/devs can write.
-      match /schoolProfile/{profileId} {
-        allow read: if true;
-        allow write: if isDeveloper() || isSchoolAdmin(schoolId);
-      }
-      
-      // USER MANAGEMENT:
-      // Admins can manage users within their school.
-      // Teachers/Parents can only read their own user document.
-      match /users/{userId} {
-        allow read: if isUserInSchool(schoolId) && (isDeveloper() || isSchoolAdmin(schoolId) || request.auth.uid == userId);
-        allow create: if isDeveloper() || isSchoolAdmin(schoolId);
-        allow update: if isDeveloper() || isSchoolAdmin(schoolId) || (isAuthenticated() && request.auth.uid == userId); // Allow users to update their own profile
-        allow delete: if isDeveloper() || isSchoolAdmin(schoolId);
-      }
-      
-      // STUDENTS:
-      // Admins/Teachers can manage students. Parents can only view their own children.
-      match /students/{studentId} {
-        allow read: if (isDeveloper() || isSchoolAdmin(schoolId) || isTeacher(schoolId)) || (isParent(schoolId) && studentId in get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.children);
-        allow create, update, delete: if isDeveloper() || isSchoolAdmin(schoolId);
-        
-        // Student-specific subcollections like grades and transactions
-        match /grades/{gradeId} {
-            allow read: if (isDeveloper() || isSchoolAdmin(schoolId) || isTeacher(schoolId)) || (isParent(schoolId) && studentId in get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.children);
-            allow create, write: if isDeveloper() || isSchoolAdmin(schoolId) || isTeacher(schoolId);
+    // =================================
+    // School-Level Rules (Admins, Teachers, Parents)
+    // =================================
+    match /schools/{schoolId}/documents {
+
+        // --- Helper Functions ---
+        function isSignedIn() {
+          return request.auth != null;
         }
 
-        match /transactions/{transactionId} {
-             allow read: if (isDeveloper() || isSchoolAdmin(schoolId)) || (isParent(schoolId) && studentId in get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.children);
-             allow create, write: if isDeveloper() || isSchoolAdmin(schoolId);
+        function isUserOfThisSchool() {
+          return isSignedIn() && request.auth.token.schoolId == schoolId;
         }
-      }
-      
-      // ACADEMICS, FINANCE, COMMUNICATION (Admin/Teacher access)
-      // Generic rule for collections managed primarily by Admins and Teachers.
-      match /{collectionName}/{docId}
-        where collectionName in ['classes', 'subjects', 'assignments', 'attendance', 'lesson-plans', 'announcements', 'calendar-events', 'expenses', 'feeStructure', 'discounts', 'incidents', 'medications', 'teams', 'library-resources', 'support-tickets'] {
-        
-        allow read: if isUserInSchool(schoolId); // Anyone logged into the school can view
-        allow create, update, delete: if isDeveloper() || isSchoolAdmin(schoolId) || isTeacher(schoolId);
-        
-        // Nested collections (e.g., assignment submissions, team members)
-        match /{nestedCollection}/{nestedId} {
-            allow read: if isUserInSchool(schoolId);
-            allow write: if isDeveloper() || isSchoolAdmin(schoolId) || isTeacher(schoolId);
+
+        function isRole(role) {
+          return isUserOfThisSchool() && request.auth.token.role == role;
         }
-      }
-    }
-    
-    // PLATFORM-LEVEL SETTINGS (Developer only)
-    match /platformSettings/{docId} {
-      allow read, write: if isDeveloper();
-    }
-    
-    // ROLES (Developer managed)
-    match /roles/{role} {
-      allow read: if isAuthenticated();
-      allow write: if isDeveloper();
-    }
-    
-    // AUDIT LOGS (Write-only for the system, read for Developers)
-    match /audit_logs/{logId} {
-      allow read: if isDeveloper();
-      allow write: if isAuthenticated(); // Should be further restricted to backend functions in production
+        
+        function isAdmin() {
+          return isRole('Admin');
+        }
+        
+        function isTeacher() {
+          return isRole('Teacher');
+        }
+
+        function isParent() {
+          return isRole('Parent');
+        }
+        
+        function isMyRecord(recordUserId) {
+          return isSignedIn() && request.auth.uid == recordUserId;
+        }
+
+        // --- Rules for School Subcollections ---
+
+        // Admins, teachers, and staff user accounts for a specific school
+        match /users/{userId} {
+          allow read: if isUserOfThisSchool();
+          allow write: if isAdmin();
+        }
+        
+        // Student records
+        match /students/{studentId} {
+          allow read: if isUserOfThisSchool();
+          allow write: if isAdmin() || isTeacher(); // Teachers can update grades, attendance etc.
+        }
+
+        // Announcements, Calendar Events, etc. (Public within the school)
+        match /announcements/{announcementId} {
+          allow read: if isUserOfThisSchool();
+          allow write: if isAdmin() || isTeacher();
+        }
+        match /calendar-events/{eventId} {
+          allow read: if isUserOfThisSchool();
+          allow write: if isAdmin();
+        }
+
+        // Academic records like classes, subjects, assignments
+        match /classes/{classId} {
+          allow read: if isUserOfThisSchool();
+          allow write: if isAdmin();
+        }
+        match /subjects/{subjectId} {
+          allow read: if isUserOfThisSchool();
+          allow write: if isAdmin();
+        }
+        match /assignments/{assignmentId} {
+          allow read: if isUserOfThisSchool();
+          allow write: if isTeacher(); // Teachers can create assignments
+        }
+        
+        // Granular control for assignment submissions
+        match /assignments/{assignmentId}/submissions/{submissionId} {
+           allow read, write: if isTeacher(); // Teachers can grade
+        }
+
+        // Financial Records
+        match /feeStructure/{itemId} {
+          allow read, write: if isAdmin();
+        }
+        match /expenses/{expenseId} {
+          allow read, write: if isAdmin();
+        }
+        match /students/{studentId}/transactions/{transactionId} {
+            allow read: if isAdmin() || (isParent() && studentId in get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.children);
+            allow write: if isAdmin();
+        }
+
+        // Incident Reports
+        match /incidents/{incidentId} {
+          allow read: if isAdmin() || isTeacher();
+          allow write: if isTeacher(); // Teachers can create reports
+        }
     }
   }
 }

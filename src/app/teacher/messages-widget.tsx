@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 type Conversation = {
   id: string;
@@ -30,18 +31,21 @@ const getIconComponent = (iconName: string) => {
 }
 
 export function MessagesWidget() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const unreadCount = conversations.filter(m => m.unread).length;
 
   React.useEffect(() => {
-    const q = query(collection(firestore, 'conversations'), orderBy('timestamp', 'desc'));
+    if (!schoolId) return;
+    const q = query(collection(firestore, `schools/${schoolId}/conversations`), orderBy('timestamp', 'desc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const convos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
         setConversations(convos);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
     
   return (
     <Card>
@@ -60,7 +64,7 @@ export function MessagesWidget() {
             const IconComponent = getIconComponent(message.icon);
             return (
               <div key={index} className="space-y-3">
-                <Link href="/teacher/messaging" className="block hover:bg-muted/50 p-2 rounded-lg">
+                <Link href={`/teacher/messaging?schoolId=${schoolId}`} className="block hover:bg-muted/50 p-2 rounded-lg">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={message.avatar} alt={message.name} />
@@ -90,7 +94,7 @@ export function MessagesWidget() {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-            <Link href="/teacher/messaging">
+            <Link href={`/teacher/messaging?schoolId=${schoolId}`}>
                 Open Full Messaging App
                 <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
