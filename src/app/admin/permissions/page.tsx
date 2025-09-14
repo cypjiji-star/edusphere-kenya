@@ -107,34 +107,51 @@ export default function PermissionsPage() {
     };
 
     setIsLoading(true);
-    const rolesUnsub = onSnapshot(collection(firestore, `schools/${schoolId}/roles`), (snapshot) => {
-        const roles: Record<string, Role> = {};
+
+    const rolesRef = collection(firestore, `schools/${schoolId}/roles`);
+    const usersRef = collection(firestore, `schools/${schoolId}/users`);
+
+    let rolesData: Record<string, Role> = {};
+
+    const unsubRoles = onSnapshot(rolesRef, (snapshot) => {
         snapshot.forEach(doc => {
-            roles[doc.id] = doc.data() as Role;
+            rolesData[doc.id] = doc.data() as Role;
         });
-        
-        const usersUnsub = onSnapshot(collection(firestore, `schools/${schoolId}/users`), (usersSnapshot) => {
-            const userCounts: Record<string, number> = {};
-            usersSnapshot.forEach(userDoc => {
-                const roleName = userDoc.data().role;
-                if (roleName) {
-                    userCounts[roleName] = (userCounts[roleName] || 0) + 1;
+        // We might get user counts before roles, so let's re-apply them.
+        setRolePermissions(currentPermissions => {
+            const updated = { ...rolesData };
+             for (const roleName in updated) {
+                if(currentPermissions[roleName]) {
+                    updated[roleName].userCount = currentPermissions[roleName].userCount;
                 }
-            });
-
-            const updatedRoles = { ...roles };
-            for (const roleName in updatedRoles) {
-                updatedRoles[roleName].userCount = userCounts[roleName] || 0;
             }
-
-            setRolePermissions(updatedRoles);
-            setIsLoading(false);
+            return updated;
         });
-
-        return () => usersUnsub();
+        setIsLoading(false);
     });
 
-    return () => rolesUnsub();
+    const unsubUsers = onSnapshot(usersRef, (snapshot) => {
+        const userCounts: Record<string, number> = {};
+        snapshot.forEach(doc => {
+            const roleName = doc.data().role;
+            if (roleName) {
+                userCounts[roleName] = (userCounts[roleName] || 0) + 1;
+            }
+        });
+
+        setRolePermissions(currentPermissions => {
+            const updated = { ...currentPermissions };
+            for (const roleName in updated) {
+                updated[roleName].userCount = userCounts[roleName] || 0;
+            }
+            return updated;
+        });
+    });
+
+    return () => {
+        unsubRoles();
+        unsubUsers();
+    };
   }, [schoolId]);
 
   const handlePermissionChange = (role: string, permissionId: string, checked: boolean) => {
