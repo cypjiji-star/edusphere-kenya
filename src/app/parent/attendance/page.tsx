@@ -54,6 +54,7 @@ import {
   AlertTriangle,
   ChevronDown,
   FileDown,
+  Loader2,
 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -90,6 +91,7 @@ export default function ParentAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = React.useState<AttendanceRecord[]>([]);
   const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
   const [date, setDate] = React.useState<DateRange | undefined>();
+  const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -103,19 +105,21 @@ export default function ParentAttendancePage() {
         }
     });
      setDate({
-      from: new Date(new Date().setDate(new Date().getDate() - 7)),
+      from: new Date(new Date().setDate(new Date().getDate() - 30)),
       to: new Date(),
     });
     return () => unsubscribe();
-  }, []);
+  }, [selectedChild]);
 
   React.useEffect(() => {
     if (!selectedChild) return;
-
-    const q = query(collection(firestore, `students/${selectedChild}/attendance`));
+    
+    setIsLoading(true);
+    const q = query(collection(firestore, `attendance`), where('studentId', '==', selectedChild));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
       setAttendanceRecords(records);
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -216,78 +220,85 @@ export default function ParentAttendancePage() {
             </Alert>
         )}
       
-        <div className="grid gap-6 md:grid-cols-3">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Overall Attendance</CardTitle>
-                    <Percent className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{attendanceRate}%</div>
-                    <p className="text-xs text-muted-foreground">+2% from last month</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
-                    <UserX className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{summaryStats.absent}</div>
-                    <p className="text-xs text-muted-foreground">Days marked absent</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
-                    <UserCheck className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{summaryStats.late}</div>
-                    <p className="text-xs text-muted-foreground">Days marked late</p>
-                </CardContent>
-            </Card>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-48">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
+      ) : (
+        <>
+            <div className="grid gap-6 md:grid-cols-3">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Overall Attendance</CardTitle>
+                        <Percent className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{attendanceRate}%</div>
+                        <p className="text-xs text-muted-foreground">{totalRecords} days recorded</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
+                        <UserX className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{summaryStats.absent}</div>
+                        <p className="text-xs text-muted-foreground">Days marked absent</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
+                        <UserCheck className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{summaryStats.late}</div>
+                        <p className="text-xs text-muted-foreground">Days marked late</p>
+                    </CardContent>
+                </Card>
+            </div>
 
-
-      <Card>
-        <CardHeader>
-            <CardTitle>Attendance Log</CardTitle>
-             <CardDescription>
-                Daily attendance records for the selected period.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full overflow-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRecords.length > 0 ? (
-                  filteredRecords.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">{format(record.date.toDate(), 'PPP')}</TableCell>
-                      <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      <TableCell className="text-muted-foreground">{record.notes || '—'}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
-                      No attendance records found for the selected period.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Attendance Log</CardTitle>
+                    <CardDescription>
+                        Daily attendance records for the selected period.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                <div className="w-full overflow-auto rounded-lg border">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Notes</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredRecords.length > 0 ? (
+                        filteredRecords.map((record) => (
+                            <TableRow key={record.id}>
+                            <TableCell className="font-medium">{format(record.date.toDate(), 'PPP')}</TableCell>
+                            <TableCell>{getStatusBadge(record.status)}</TableCell>
+                            <TableCell className="text-muted-foreground">{record.notes || '—'}</TableCell>
+                            </TableRow>
+                        ))
+                        ) : (
+                        <TableRow>
+                            <TableCell colSpan={3} className="h-24 text-center">
+                            No attendance records found for the selected period.
+                            </TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                </div>
+                </CardContent>
+            </Card>
+        </>
+      )}
     </div>
   );
 }
