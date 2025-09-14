@@ -32,6 +32,7 @@ import {
   deleteDoc,
   updateDoc,
   where,
+  getDocs,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -91,10 +92,12 @@ type Message = {
   translatedText?: string;
 };
 
-const newContactOptions = [
-    { id: 'contact-1', name: 'Mr. Otieno (Teacher)', avatar: 'https://picsum.photos/seed/teacher-otieno/100', icon: User },
-    { id: 'contact-2', name: 'Ms. Njeri (Teacher)', avatar: 'https://picsum.photos/seed/teacher-njeri/100', icon: User },
-];
+type SelectableContact = {
+    id: string;
+    name: string;
+    avatar: string;
+    icon: React.ElementType;
+}
 
 const getIconComponent = (iconName: string) => {
     if (iconName === 'User') return User;
@@ -116,6 +119,8 @@ export function ChatLayout() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const parentId = 'parent-user-id'; // This should be dynamic based on logged-in user
+  const [newContactOptions, setNewContactOptions] = React.useState<SelectableContact[]>([]);
+
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -131,6 +136,22 @@ export function ChatLayout() {
             setSelectedConvo(convos[0]);
         }
     });
+
+    const fetchUsers = async () => {
+        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', 'in', ['Teacher', 'Admin']));
+        const usersSnapshot = await getDocs(usersQuery);
+        const users = usersSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: `${data.name} (${data.role})`,
+                avatar: data.avatarUrl,
+                icon: User,
+            }
+        });
+        setNewContactOptions(users);
+    }
+    fetchUsers();
 
     return () => unsubscribe();
   }, [selectedConvo, schoolId, parentId]);

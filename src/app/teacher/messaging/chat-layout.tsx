@@ -31,6 +31,8 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  where,
+  getDocs,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -90,12 +92,13 @@ type Message = {
   translatedText?: string;
 };
 
-const newContactOptions = [
-    { id: 'contact-1', name: 'Mr. Omondi (Parent)', avatar: 'https://picsum.photos/seed/parent1/100', icon: User },
-    { id: 'contact-2', name: 'Jane Achieng (Student)', avatar: 'https://picsum.photos/seed/student3/100', icon: User },
-    { id: 'contact-3', name: 'Admin Office', avatar: 'https://picsum.photos/seed/admin/100', icon: Users },
-    { id: 'contact-4', name: 'Form 4 Parents Group', avatar: 'https://picsum.photos/seed/group1/100', icon: Users },
-];
+type SelectableContact = {
+    id: string;
+    name: string;
+    avatar: string;
+    icon: React.ElementType;
+}
+
 
 const getIconComponent = (iconName: string) => {
     if (iconName === 'User') return User;
@@ -116,6 +119,7 @@ export function ChatLayout() {
   const [attachment, setAttachment] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [newContactOptions, setNewContactOptions] = React.useState<SelectableContact[]>([]);
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -128,8 +132,24 @@ export function ChatLayout() {
         }
     });
 
+    const fetchUsers = async () => {
+        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', 'in', ['Parent', 'Student', 'Admin']));
+        const usersSnapshot = await getDocs(usersQuery);
+        const users = usersSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: `${data.name} (${data.role})`,
+                avatar: data.avatarUrl,
+                icon: User,
+            }
+        });
+        setNewContactOptions(users);
+    }
+    fetchUsers();
+
     return () => unsubscribe();
-  }, [schoolId, selectedConvo]);
+  }, [selectedConvo, schoolId]);
 
   React.useEffect(() => {
     if (!selectedConvo || !schoolId) return;
@@ -208,6 +228,7 @@ export function ChatLayout() {
   
   const handleCreateConversation = async (contactId: string) => {
     if (!schoolId) return;
+
     const contact = newContactOptions.find(c => c.id === contactId);
     if (!contact) return;
     
@@ -220,10 +241,11 @@ export function ChatLayout() {
     const newConvoData = {
         name: contact.name,
         avatar: contact.avatar,
-        icon: contact.icon === User ? 'User' : 'Users', // Storing string instead of component
+        icon: 'User', // Storing string instead of component
         lastMessage: 'New conversation started.',
         timestamp: serverTimestamp(),
         unread: false,
+        participants: ['teacher-wanjiku', contact.id]
     };
 
     const docRef = await addDoc(collection(firestore, `schools/${schoolId}/conversations`), newConvoData);
