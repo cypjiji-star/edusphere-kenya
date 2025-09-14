@@ -29,6 +29,7 @@ import {
   HeartPulse,
   Bell,
   Check,
+  Trophy,
 } from 'lucide-react';
 import {
   SidebarHeader,
