@@ -11,6 +11,7 @@ import * as React from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type TimetableEntry = {
@@ -21,11 +22,13 @@ type TimetableEntry = {
   isBreak?: boolean;
 };
 
-type TimetableData = Record<string, Record<string, { subject: string, room: string }>>;
+type TimetableData = Record<string, Record<string, { subject: { name: string, teacher: string }, room: string }>>;
 type PeriodData = { id: number, time: string, isBreak?: boolean, title?: string };
 
 
 export function TimetableWidget() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [clientReady, setClientReady] = React.useState(false);
   const [todaySchedule, setTodaySchedule] = React.useState<TimetableEntry[]>([]);
@@ -36,23 +39,27 @@ export function TimetableWidget() {
     setCurrentTime(new Date());
 
     const getTodaySchedule = async () => {
+        if (!schoolId) {
+            setIsLoading(false);
+            return;
+        }
+
         setIsLoading(true);
         const today = new Date();
         const dayOfWeek = today.toLocaleString('en-US', { weekday: 'long' }); // e.g., 'Monday'
-        const teacherId = 'teacher-wanjiku'; // This should be dynamic based on logged-in user
+        const teacherName = 'Ms. Wanjiku'; // This should be dynamic based on logged-in user
 
         try {
             // Fetch periods
-            const periodsRef = doc(firestore, 'timetableSettings', 'periods');
+            const periodsRef = doc(firestore, `schools/${schoolId}/timetableSettings`, 'periods');
             const periodsSnap = await getDoc(periodsRef);
             const periods: PeriodData[] = periodsSnap.exists() ? periodsSnap.data().periods : [];
 
-            // Fetch timetable for all classes taught by the teacher
-            const q = query(collection(firestore, 'timetables'), where('teacherId', '==', teacherId));
-            const timetablesSnapshot = await getDocs(q);
+            // Fetch timetable for all classes to find the teacher's lessons
+            const timetablesSnapshot = await getDocs(collection(firestore, `schools/${schoolId}/timetables`));
 
             const scheduleForToday: TimetableEntry[] = periods.map(period => {
-                 const [startTime, endTime] = period.time.split(' - ');
+                const [startTime, endTime] = period.time.split(' - ');
                 if (period.isBreak) {
                     return { startTime, endTime, title: period.title || 'Break', location: '-', isBreak: true };
                 }
@@ -64,8 +71,8 @@ export function TimetableWidget() {
                     const daySchedule = timetable[dayOfWeek];
                     if (daySchedule) {
                         const lesson = daySchedule[period.time];
-                        if (lesson) {
-                             lessonForPeriod = { startTime, endTime, title: lesson.subject, location: lesson.room };
+                        if (lesson && lesson.subject.teacher === teacherName) {
+                             lessonForPeriod = { startTime, endTime, title: lesson.subject.name, location: lesson.room };
                         }
                     }
                 });
@@ -85,7 +92,7 @@ export function TimetableWidget() {
 
     const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
     return () => clearInterval(timer);
-  }, []);
+  }, [schoolId]);
 
   const isCurrentClass = (entry: TimetableEntry) => {
     if (!currentTime || entry.isBreak) return false;
@@ -147,7 +154,7 @@ export function TimetableWidget() {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-            <Link href="/teacher/calendar">
+            <Link href={`/teacher/calendar?schoolId=${schoolId}`}>
                 View Full Calendar
                 <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
