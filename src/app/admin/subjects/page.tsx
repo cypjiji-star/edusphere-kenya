@@ -55,6 +55,7 @@ import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 
 type SchoolClass = {
@@ -150,6 +151,85 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
     )
 }
 
+function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDelete }: { subject: Subject | null, teachers: Teacher[], open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Subject>) => void, onDelete: (id: string, name: string) => void }) {
+    const [name, setName] = React.useState('');
+    const [code, setCode] = React.useState('');
+    const [department, setDepartment] = React.useState('');
+    const [assignedTeachers, setAssignedTeachers] = React.useState<string[]>([]);
+    
+    const teacherOptions = React.useMemo(() => teachers.map(t => ({ value: t.name, label: t.name })), [teachers]);
+
+    React.useEffect(() => {
+        if (subject) {
+            setName(subject.name);
+            setCode(subject.code);
+            setDepartment(subject.department);
+            setAssignedTeachers(subject.teachers || []);
+        }
+    }, [subject]);
+
+    if (!subject) return null;
+
+    const handleSave = () => {
+        onSave(subject.id, { name, code, department, teachers: assignedTeachers });
+        onOpenChange(false);
+    };
+
+    return (
+         <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                    <DialogTitle>Edit Subject: {subject.name}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-6 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="subject-name-edit">Subject Name</Label>
+                            <Input id="subject-name-edit" value={name} onChange={(e) => setName(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="subject-code-edit">Subject Code</Label>
+                            <Input id="subject-code-edit" value={code} onChange={(e) => setCode(e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="subject-dept-edit">Department</Label>
+                        <Select value={department} onValueChange={setDepartment}>
+                            <SelectTrigger id="subject-dept-edit">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {mockDepartments.map(dept => (
+                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="subject-teachers-edit">Assigned Teachers</Label>
+                         <MultiSelect
+                            options={teacherOptions}
+                            selected={assignedTeachers}
+                            onChange={setAssignedTeachers}
+                            placeholder="Select teachers..."
+                        />
+                    </div>
+                </div>
+                <DialogFooter className="justify-between">
+                    <Button variant="destructive" onClick={() => { onDelete(subject.id, subject.name); onOpenChange(false); }}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Subject
+                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button onClick={handleSave}>Save Changes</Button>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function ClassesAndSubjectsPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
@@ -159,11 +239,20 @@ export default function ClassesAndSubjectsPage() {
     const [teachers, setTeachers] = React.useState<Teacher[]>([]);
     const [classAssignments, setClassAssignments] = React.useState<ClassAssignment>({});
     
-    // State for the new class dialog
+    // State for new class dialog
     const [newClassName, setNewClassName] = React.useState('');
     const [newClassStream, setNewClassStream] = React.useState('');
     const [newClassTeacherId, setNewClassTeacherId] = React.useState('');
     const [newClassCapacity, setNewClassCapacity] = React.useState('');
+
+    // State for new subject dialog
+    const [newSubjectName, setNewSubjectName] = React.useState('');
+    const [newSubjectCode, setNewSubjectCode] = React.useState('');
+    const [newSubjectDept, setNewSubjectDept] = React.useState('');
+    const [newSubjectTeachers, setNewSubjectTeachers] = React.useState<string[]>([]);
+    
+    // State for editing subject
+    const [editingSubject, setEditingSubject] = React.useState<Subject | null>(null);
 
     React.useEffect(() => {
         if (!schoolId) return;
@@ -243,13 +332,6 @@ export default function ClassesAndSubjectsPage() {
     };
 
 
-    const handleSaveChanges = (message: string) => {
-        toast({
-            title: 'Changes Saved',
-            description: message,
-        });
-    };
-    
     const handleExport = (type: string) => {
         toast({
             title: 'Exporting...',
@@ -291,6 +373,41 @@ export default function ClassesAndSubjectsPage() {
             });
         } catch (error) {
              toast({ title: 'Deletion failed', variant: 'destructive' });
+        }
+    };
+    
+    const handleCreateSubject = async () => {
+        if (!schoolId || !newSubjectName || !newSubjectCode || !newSubjectDept) {
+            toast({ title: 'Missing Information', variant: 'destructive' });
+            return;
+        }
+        try {
+            await addDoc(collection(firestore, `schools/${schoolId}/subjects`), {
+                name: newSubjectName,
+                code: newSubjectCode,
+                department: newSubjectDept,
+                teachers: newSubjectTeachers,
+                classes: [],
+            });
+            toast({ title: 'Subject Created' });
+            setNewSubjectName('');
+            setNewSubjectCode('');
+            setNewSubjectDept('');
+            setNewSubjectTeachers([]);
+        } catch(e) {
+            console.error(e);
+            toast({ title: 'Creation Failed', variant: 'destructive' });
+        }
+    }
+    
+    const handleUpdateSubject = async (id: string, data: Partial<Subject>) => {
+        if (!schoolId) return;
+        try {
+            await updateDoc(doc(firestore, 'schools', schoolId, 'subjects', id), data);
+            toast({ title: 'Subject Updated' });
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Update Failed', variant: 'destructive' });
         }
     };
     
@@ -472,7 +589,7 @@ export default function ClassesAndSubjectsPage() {
                                                         <div className="flex gap-2">
                                                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                                             <DialogClose asChild>
-                                                                <Button onClick={() => handleSaveChanges(`Updated details for ${schoolClass.name} ${schoolClass.stream || ''}`)}>Save Changes</Button>
+                                                                <Button>Save Changes</Button>
                                                             </DialogClose>
                                                         </div>
                                                     </DialogFooter>
@@ -512,16 +629,16 @@ export default function ClassesAndSubjectsPage() {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="subject-name">Subject Name</Label>
-                                                <Input id="subject-name" placeholder="e.g., Computer Science" />
+                                                <Input id="subject-name" placeholder="e.g., Computer Science" value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} />
                                             </div>
                                              <div className="space-y-2">
                                                 <Label htmlFor="subject-code">Subject Code</Label>
-                                                <Input id="subject-code" placeholder="e.g., 451" />
+                                                <Input id="subject-code" placeholder="e.g., 451" value={newSubjectCode} onChange={e => setNewSubjectCode(e.target.value)} />
                                             </div>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="subject-dept">Department</Label>
-                                            <Select>
+                                            <Select value={newSubjectDept} onValueChange={setNewSubjectDept}>
                                                 <SelectTrigger id="subject-dept">
                                                     <SelectValue placeholder="Select a department" />
                                                 </SelectTrigger>
@@ -532,11 +649,20 @@ export default function ClassesAndSubjectsPage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
+                                         <div className="space-y-2">
+                                            <Label>Assigned Teachers</Label>
+                                            <MultiSelect
+                                                options={teachers.map(t => ({ value: t.name, label: t.name }))}
+                                                selected={newSubjectTeachers}
+                                                onChange={setNewSubjectTeachers}
+                                                placeholder="Select teachers..."
+                                            />
+                                        </div>
                                     </div>
                                      <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                         <DialogClose asChild>
-                                            <Button onClick={() => handleSaveChanges('A new subject has been created.')}>Save Subject</Button>
+                                            <Button onClick={handleCreateSubject}>Save Subject</Button>
                                         </DialogClose>
                                     </DialogFooter>
                                 </DialogContent>
@@ -577,63 +703,15 @@ export default function ClassesAndSubjectsPage() {
                                         <TableCell className="text-muted-foreground">{subject.department}</TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1">
-                                                {subject.teachers.map(teacher => (
+                                                {(subject.teachers || []).map(teacher => (
                                                     <Badge key={teacher} variant="secondary" className="font-normal">{teacher}</Badge>
                                                 ))}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="ghost" size="sm">
-                                                        <Edit className="mr-2 h-4 w-4" /> Edit
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Edit Subject: {subject.name}</DialogTitle>
-                                                    </DialogHeader>
-                                                    <div className="grid gap-6 py-4">
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <Label htmlFor="subject-name-edit">Subject Name</Label>
-                                                                <Input id="subject-name-edit" defaultValue={subject.name} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label htmlFor="subject-code-edit">Subject Code</Label>
-                                                                <Input id="subject-code-edit" defaultValue={subject.code} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="subject-dept-edit">Department</Label>
-                                                            <Select defaultValue={subject.department}>
-                                                                <SelectTrigger id="subject-dept-edit">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {mockDepartments.map(dept => (
-                                                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    </div>
-                                                    <DialogFooter className="justify-between">
-                                                        <DialogClose asChild>
-                                                            <Button variant="destructive" onClick={() => handleDelete('subjects', subject.id, subject.name)}>
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete Subject
-                                                            </Button>
-                                                        </DialogClose>
-                                                        <div className="flex gap-2">
-                                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                            <DialogClose asChild>
-                                                                <Button onClick={() => handleSaveChanges(`Updated details for ${subject.name}`)}>Save Changes</Button>
-                                                            </DialogClose>
-                                                        </div>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
+                                            <Button variant="ghost" size="sm" onClick={() => setEditingSubject(subject)}>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -690,7 +768,7 @@ export default function ClassesAndSubjectsPage() {
                                         {assignments.length > 0 ? assignments.map(assignment => {
                                             const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
                                             const subjectDetails = subjects.find(s => s.name === assignment.subject);
-                                            const availableTeachers = subjectDetails ? subjectDetails.teachers.filter(t => (teacherWorkload[t] || 0) <= OVER_ASSIGNED_THRESHOLD) : [];
+                                            const availableTeachers = subjectDetails ? (subjectDetails.teachers || []).filter(t => (teacherWorkload[t] || 0) <= OVER_ASSIGNED_THRESHOLD) : [];
 
                                             return (
                                             <div key={assignment.subject} className="flex items-center justify-between border-b py-3">
@@ -746,6 +824,16 @@ export default function ClassesAndSubjectsPage() {
             </Card>
         </TabsContent>
       </Tabs>
+        <EditSubjectDialog 
+            subject={editingSubject} 
+            teachers={teachers}
+            open={!!editingSubject} 
+            onOpenChange={(open) => !open && setEditingSubject(null)}
+            onSave={handleUpdateSubject}
+            onDelete={handleDelete}
+        />
     </div>
   );
 }
+
+    
