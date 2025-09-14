@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { FinanceSnapshot, PerformanceSnapshot } from './admin-charts';
 import { CalendarWidget } from './calendar-widget';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, limit, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDocs } from 'firebase/firestore';
 
 const overviewLinks: Record<string, string> = {
     "Total Students": "/admin/users",
@@ -98,8 +98,38 @@ export default function AdminDashboard() {
       setStats(prev => ({ ...prev, pendingRegistrations: snapshot.size }));
     });
     
-    // --- QUICK STATS (mocked for now as logic is complex) ---
-    setQuickStatsData({ attendance: 96, feesCollected: 82, upcomingEvents: 3 });
+    // --- QUICK STATS ---
+    const fetchQuickStats = async () => {
+        // Attendance
+        const today = new Date();
+        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+        const attendanceQuery = query(collection(firestore, 'attendance'), where('date', '>=', Timestamp.fromDate(startOfToday)));
+        const attendanceSnapshot = await getDocs(attendanceQuery);
+        const presentCount = attendanceSnapshot.docs.filter(doc => ['Present', 'Late'].includes(doc.data().status)).length;
+        const totalStudentsCount = stats.totalStudents || 1; // Avoid division by zero
+        const attendancePercentage = Math.round((presentCount / totalStudentsCount) * 100);
+
+        // Fees
+        const studentsSnapshot = await getDocs(collection(firestore, 'students'));
+        let totalBilled = 0;
+        let totalPaid = 0;
+        studentsSnapshot.forEach(doc => {
+            totalBilled += doc.data().totalFee || 0;
+            totalPaid += doc.data().amountPaid || 0;
+        });
+        const feesPercentage = totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0;
+        
+        // Events
+        const eventsQuery = query(collection(firestore, 'calendar-events'), where('date', '>=', Timestamp.now()));
+        const eventsSnapshot = await getDocs(eventsQuery);
+        const upcomingEventsCount = eventsSnapshot.size;
+
+        setQuickStatsData({ attendance: attendancePercentage, feesCollected: feesPercentage, upcomingEvents: upcomingEventsCount });
+    };
+
+    if (stats.totalStudents > 0) { // Fetch only when we have total students to avoid division by zero
+        fetchQuickStats();
+    }
 
     // --- RECENT ACTIVITIES ---
     const notificationsQuery = query(collection(firestore, 'notifications'), orderBy('createdAt', 'desc'), limit(6));
@@ -124,7 +154,7 @@ export default function AdminDashboard() {
         unsubPendingReg();
         unsubActivities();
     };
-  }, []);
+  }, [stats.totalStudents]);
   
   const overviewStats = [
     { title: "Total Students", stat: stats.totalStudents, icon: <Users className="h-6 w-6 text-muted-foreground" />, subtext: "1.2%", subtextIcon: <ArrowUp className="h-4 w-4 text-green-600" />, subtextDescription: "vs last term" },
