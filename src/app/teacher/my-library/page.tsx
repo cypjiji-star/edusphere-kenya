@@ -94,8 +94,9 @@ export default function MyLibraryPage() {
         } catch (error) {
             console.error("Error renewing item:", error);
             toast({
-                title: 'Renewal Request Sent (Simulation)',
-                description: `A request to renew "${item.title}" has been sent to the librarian.`,
+                variant: 'destructive',
+                title: 'Renewal Failed',
+                description: 'Could not update the due date. Please contact the librarian.',
             });
         }
     };

@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { differenceInDays, parseISO } from 'date-fns';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
 
 
 type BorrowedItem = {
@@ -21,6 +21,7 @@ type BorrowedItem = {
 type NewResource = {
     id: string;
     title: string;
+    createdAt: Timestamp;
 }
 
 export function LibraryNoticesWidget() {
@@ -34,7 +35,8 @@ export function LibraryNoticesWidget() {
     const unsubBorrowed = onSnapshot(borrowedQuery, (snapshot) => {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowedItem));
         const overdue = items.filter(item => {
-            const dueDate = parseISO(item.dueDate);
+            if (!item.dueDate) return false;
+            const dueDate = new Date(item.dueDate);
             return differenceInDays(new Date(), dueDate) > 0;
         });
         setOverdueItems(overdue);
@@ -43,7 +45,7 @@ export function LibraryNoticesWidget() {
     // Fetch new arrivals
     const newArrivalsQuery = query(collection(firestore, 'library-resources'), orderBy('createdAt', 'desc'), limit(2));
     const unsubArrivals = onSnapshot(newArrivalsQuery, (snapshot) => {
-        const items = snapshot.docs.map(doc => ({ id: doc.id, title: doc.data().title } as NewResource));
+        const items = snapshot.docs.map(doc => ({ id: doc.id, title: doc.data().title, createdAt: doc.data().createdAt } as NewResource));
         setNewArrivals(items);
     });
 
