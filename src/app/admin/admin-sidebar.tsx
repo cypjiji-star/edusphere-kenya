@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import * as React from 'react';
 import {
   GraduationCap,
@@ -98,6 +98,12 @@ const navGroups = [
         { href: '/admin/expenses', label: 'Expenses', icon: Receipt },
     ],
   },
+   {
+    title: 'Sports & Clubs',
+    items: [
+        { href: '/admin/sports', label: 'Teams & Clubs', icon: Trophy },
+    ]
+  },
   {
     title: 'School Settings',
     items: [
@@ -116,21 +122,23 @@ const navGroups = [
 ];
 
 
-function NotificationsPopover() {
+function NotificationsPopover({ schoolId }: { schoolId: string }) {
     const [notifications, setNotifications] = React.useState<Notification[]>([]);
     const unreadCount = notifications.filter(n => !n.read).length;
 
     React.useEffect(() => {
-        const q = query(collection(firestore, 'notifications'), orderBy('createdAt', 'desc'), limit(10));
+        if (!schoolId) return;
+        const q = query(collection(firestore, 'schools', schoolId, 'notifications'), orderBy('createdAt', 'desc'), limit(10));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
             setNotifications(fetchedNotifications);
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
     
     const handleMarkAsRead = async (id: string) => {
-        const notificationRef = doc(firestore, 'notifications', id);
+        if (!schoolId) return;
+        const notificationRef = doc(firestore, 'schools', schoolId, 'notifications', id);
         await updateDoc(notificationRef, { read: true });
     };
 
@@ -168,7 +176,7 @@ function NotificationsPopover() {
                          <div key={notif.id} className={cn("flex items-start gap-3", !notif.read && "font-semibold")}>
                              {!notif.read && <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
                             <div className="flex-1 space-y-1">
-                                <Link href={notif.href || '#'} className="hover:underline text-sm">
+                                <Link href={`${notif.href}?schoolId=${schoolId}`} className="hover:underline text-sm">
                                     <p>{notif.title}</p>
                                     <p className={cn("text-xs", !notif.read ? "text-muted-foreground" : "text-muted-foreground/70")}>{notif.description}</p>
                                 </Link>
@@ -190,38 +198,42 @@ function NotificationsPopover() {
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId') || '';
   const isActive = (href: string) => pathname.startsWith(href);
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
 
   React.useEffect(() => {
+    if (!schoolId) return;
+    
     const unsubscribes = navGroups
       .flatMap(g => g.items)
       .filter(item => item.collection && item.field && item.value)
       .map(item => {
-        const q = query(collection(firestore, item.collection!), where(item.field!, '==', item.value!));
+        const q = query(collection(firestore, 'schools', schoolId, item.collection!), where(item.field!, '==', item.value!));
         return onSnapshot(q, (snapshot) => {
           setDynamicBadges(prev => ({ ...prev, [item.label]: snapshot.size }));
         });
       });
 
     return () => unsubscribes.forEach(unsub => unsub());
-  }, []);
+  }, [schoolId]);
 
   return (
     <>
       <SidebarHeader className="flex items-center justify-between">
-        <Link href="/admin" className="flex items-center gap-2">
+        <Link href={`/admin?schoolId=${schoolId}`} className="flex items-center gap-2">
           <GraduationCap className="size-6 text-primary" />
           <span className="font-bold font-headline text-lg">Admin Portal</span>
         </Link>
-        <NotificationsPopover />
+        <NotificationsPopover schoolId={schoolId} />
       </SidebarHeader>
 
       <SidebarContent className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/admin'} tooltip={{ children: 'Dashboard' }}>
-              <Link href="/admin">
+              <Link href={`/admin?schoolId=${schoolId}`}>
                 <LayoutDashboard />
                 <span>Dashboard</span>
               </Link>
@@ -249,7 +261,7 @@ export function AdminSidebar() {
                             isActive={isActive(item.href)}
                             tooltip={{ children: item.label }}
                         >
-                            <Link href={item.href}>
+                            <Link href={`${item.href}?schoolId=${schoolId}`}>
                                 <item.icon />
                                 <span>{item.label}</span>
                                 {badgeCount !== undefined && badgeCount > 0 && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
@@ -290,12 +302,12 @@ export function AdminSidebar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-                <Link href="/admin/profile">
+                <Link href={`/admin/profile?schoolId=${schoolId}`}>
                     <Settings className="mr-2" />Profile
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-                <Link href="/admin/support">
+                <Link href={`/admin/support?schoolId=${schoolId}`}>
                     <HelpCircle className="mr-2" />
                     Support
                 </Link>
@@ -313,6 +325,3 @@ export function AdminSidebar() {
     </>
   );
 }
-
-
-    

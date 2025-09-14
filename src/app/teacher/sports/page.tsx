@@ -61,7 +61,7 @@ export default function SportsPage() {
    React.useEffect(() => {
     if (!schoolId) return;
     setIsLoading(true);
-    const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'));
+    const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'), where('coach', '==', 'Ms. Wanjiku'));
     const unsubscribe = onSnapshot(teamsQuery, (snapshot) => {
         const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SportsTeam));
         setSportsTeams(teamsData);
@@ -117,9 +117,9 @@ export default function SportsPage() {
           <div className="text-left">
             <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
               <Trophy className="h-8 w-8 text-primary" />
-              Sports &amp; Clubs
+              My Teams &amp; Clubs
             </h1>
-            <p className="text-muted-foreground">Manage school teams, clubs, and student participation.</p>
+            <p className="text-muted-foreground">Manage the teams and clubs you are responsible for.</p>
           </div>
           <Dialog>
               <DialogTrigger asChild>
@@ -193,7 +193,7 @@ export default function SportsPage() {
                 </CardContent>
                 <CardFooter>
                 <Button asChild variant="default" className="w-full">
-                    <Link href={`/admin/sports/${team.id}?schoolId=${schoolId}`}>
+                    <Link href={`/teacher/sports/${team.id}?schoolId=${schoolId}`}>
                         Manage Team
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>

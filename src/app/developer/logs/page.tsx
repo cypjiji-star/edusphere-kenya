@@ -104,6 +104,7 @@ export default function AuditLogsPage() {
   }, []);
 
   const filteredLogs = logs.filter(log => {
+      if (!log.timestamp) return false;
       const recordDate = log.timestamp.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
       const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof log.details === 'string' && log.details.toLowerCase().includes(searchTerm.toLowerCase()));

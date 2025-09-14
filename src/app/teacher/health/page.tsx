@@ -24,15 +24,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -42,23 +33,36 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock, Mic, ClipboardCheck, MapPin, CheckCircle, FileDown, Loader2, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useToast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, LabelList } from 'recharts';
 import {
   ChartContainer,
@@ -153,6 +157,8 @@ type HealthRecord = {
 
 
 export default function HealthPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<string | null>(null);
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
@@ -186,19 +192,21 @@ export default function HealthPage() {
     });
 
      React.useEffect(() => {
-        const studentsQuery = query(collection(firestore, 'students'), where('teacherId', '==', 'teacher-wanjiku'));
+        if (!schoolId) return;
+
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('teacherId', '==', 'teacher-wanjiku'));
         const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
             setAllStudents(studentsData);
         });
 
-        const incidentsQuery = query(collection(firestore, 'incidents'), where('reportedBy', '==', 'Ms. Wanjiku'));
+        const incidentsQuery = query(collection(firestore, 'schools', schoolId, 'incidents'), where('reportedBy', '==', 'Ms. Wanjiku'));
         const unsubscribeIncidents = onSnapshot(incidentsQuery, (snapshot) => {
             const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
             setIncidents(incidentsData);
         });
         
-        const medsQuery = query(collection(firestore, 'medications'), where('givenBy', '==', 'Ms. Wanjiku'));
+        const medsQuery = query(collection(firestore, 'schools', schoolId, 'medications'), where('givenBy', '==', 'Ms. Wanjiku'));
         const unsubscribeMeds = onSnapshot(medsQuery, (snapshot) => {
             const medsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Medication));
             setMedicationLog(medsData);
@@ -209,11 +217,11 @@ export default function HealthPage() {
             unsubscribeIncidents();
             unsubscribeMeds();
         }
-    }, []);
+    }, [schoolId]);
     
     React.useEffect(() => {
-        if (selectedHealthStudent) {
-            const studentRef = doc(firestore, 'students', selectedHealthStudent);
+        if (selectedHealthStudent && schoolId) {
+            const studentRef = doc(firestore, 'schools', schoolId, 'students', selectedHealthStudent);
             const unsubscribe = onSnapshot(studentRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
@@ -232,7 +240,7 @@ export default function HealthPage() {
         } else {
             setCurrentHealthRecord(null);
         }
-    }, [selectedHealthStudent]);
+    }, [selectedHealthStudent, schoolId]);
     
     React.useEffect(() => {
         if (selectedIncident) {
@@ -254,8 +262,6 @@ export default function HealthPage() {
         
         let studentsWithAllergies = 0;
         let studentsWithConditions = 0;
-        // In a real app, this data would be fetched more efficiently
-        // For now, we are simulating this based on what might be loaded.
         
         const incidentsByType = filteredIncidents.reduce((acc, incident) => {
             acc[incident.type] = (acc[incident.type] || 0) + 1;
@@ -282,11 +288,12 @@ export default function HealthPage() {
     }, [incidents, allStudents, dashboardClassFilter]);
 
     async function onSubmit(values: IncidentFormValues) {
+        if (!schoolId) return;
         setIsSubmitting(true);
         const student = allStudents.find(s => s.id === values.studentId);
         
         try {
-            await addDoc(collection(firestore, 'incidents'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'incidents'), {
                 ...values,
                 date: Timestamp.fromDate(values.incidentDate),
                 reportedBy: 'Ms. Wanjiku', // Replace with actual user
@@ -311,9 +318,9 @@ export default function HealthPage() {
     }
     
     const handleUpdateIncident = async () => {
-        if (!selectedIncident || !updatedStatus) return;
+        if (!selectedIncident || !updatedStatus || !schoolId) return;
 
-        const incidentRef = doc(firestore, 'incidents', selectedIncident.id);
+        const incidentRef = doc(firestore, 'schools', schoolId, 'incidents', selectedIncident.id);
         try {
             await updateDoc(incidentRef, { status: updatedStatus });
             toast({
@@ -338,7 +345,7 @@ export default function HealthPage() {
     };
 
     const handleSaveMedication = async () => {
-        if (!newMedStudent || !newMedName || !newMedDosage) {
+        if (!newMedStudent || !newMedName || !newMedDosage || !schoolId) {
             toast({
                 title: "Missing Information",
                 description: "Please select a student and enter the medication name and dosage.",
@@ -351,7 +358,7 @@ export default function HealthPage() {
         if (!student) return;
 
         try {
-            await addDoc(collection(firestore, 'medications'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'medications'), {
                 studentId: newMedStudent,
                 studentName: student.name,
                 medication: newMedName,
@@ -384,6 +391,10 @@ export default function HealthPage() {
         const matchesStatus = statusFilter === 'All Statuses' || incident.status === statusFilter;
         return matchesSearch && matchesType && matchesStatus;
     });
+
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing.</div>
+    }
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
@@ -458,11 +469,11 @@ export default function HealthPage() {
                                             <Stethoscope className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">{dashboardData.studentsWithConditions}</div>
+                                             <div className="text-2xl font-bold">{dashboardData.studentsWithConditions}</div>
                                             <p className="text-xs text-muted-foreground">e.g., Asthma, Diabetes</p>
                                         </CardContent>
                                     </Card>
-                                    <Card>
+                                     <Card>
                                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                             <CardTitle className="text-sm font-medium">Medications Due</CardTitle>
                                             <Pill className="h-4 w-4 text-muted-foreground" />
@@ -948,7 +959,7 @@ export default function HealthPage() {
                         </Card>
                     </TabsContent>
                     <TabsContent value="medication">
-                        <Card className="mt-4">
+                          <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2"><Pill className="h-5 w-5 text-primary"/>Medication Log</CardTitle>
                                 <CardDescription>Record and track medication administered to students at school.</CardDescription>
@@ -1006,7 +1017,7 @@ export default function HealthPage() {
                                                             <TableCell>{log.medication}</TableCell>
                                                             <TableCell>{log.time}</TableCell>
                                                         </TableRow>
-                                                    ))}
+                                                     ))}
                                                      {medicationLog.length === 0 && (
                                                         <TableRow>
                                                             <TableCell colSpan={3} className="h-24 text-center">No records for today.</TableCell>
@@ -1018,7 +1029,7 @@ export default function HealthPage() {
                                     </div>
                                 </div>
                             </CardContent>
-                        </Card>
+                          </Card>
                     </TabsContent>
                 </Tabs>
 
