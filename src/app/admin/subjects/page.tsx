@@ -69,6 +69,7 @@ type SchoolClass = {
     name: string;
     avatarUrl: string;
   };
+  teacherId: string;
 };
 
 type Subject = {
@@ -568,7 +569,7 @@ export default function ClassesAndSubjectsPage() {
                                                         </div>
                                                         <div className="grid grid-cols-4 items-center gap-4">
                                                             <Label htmlFor="class-teacher-edit" className="text-right">Class Teacher</Label>
-                                                            <Select defaultValue={teachers.find(t => t.name === schoolClass.classTeacher.name)?.id}>
+                                                            <Select defaultValue={schoolClass.teacherId}>
                                                                 <SelectTrigger id="class-teacher-edit" className="col-span-3">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
