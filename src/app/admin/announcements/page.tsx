@@ -44,7 +44,7 @@ import { translateText } from '@/ai/flows/translate-text';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp, getDocs, where, increment, arrayUnion, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -69,13 +69,14 @@ type Announcement = {
     totalRecipients: number;
     attachmentUrl?: string;
     attachmentName?: string;
+    readBy?: string[];
 };
 
 const announcementSchema = z.object({
     title: z.string().min(5, 'Title must be at least 5 characters long.'),
     message: z.string().min(10, 'Message must be at least 10 characters.'),
     audience: z.string({ required_error: 'Please select an audience.' }),
-    category: z.nativeEnum(announcementCategories),
+    category: z.nativeEnum(Object.keys(announcementCategories) as [AnnouncementCategory]),
     notifyApp: z.boolean().default(true),
     notifyEmail: z.boolean().default(false),
     notifySms: z.boolean().default(false),
@@ -254,6 +255,11 @@ export default function AdminAnnouncementsPage() {
             attachmentName = attachedFile.name;
         }
 
+        // In a real application, you would calculate totalRecipients based on the audience.
+        // For this demo, we'll use a placeholder value.
+        const studentsSnapshot = await getDocs(query(collection(firestore, 'users'), where('role', 'in', ['Student', 'Parent', 'Teacher'])));
+        const totalRecipients = studentsSnapshot.size;
+
         const newAnnouncement = {
             title: values.title,
             content: values.message,
@@ -267,7 +273,7 @@ export default function AdminAnnouncementsPage() {
                 sms: values.notifySms
             },
             readCount: 0,
-            totalRecipients: 1800, // This would be calculated dynamically in a real app
+            totalRecipients: totalRecipients,
             ...(attachmentUrl && { attachmentUrl, attachmentName }),
             readBy: [],
         };
@@ -592,4 +598,3 @@ export default function AdminAnnouncementsPage() {
   );
 }
 
-    

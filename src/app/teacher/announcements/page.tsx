@@ -58,7 +58,7 @@ const announcementSchema = z.object({
     title: z.string().min(5, 'Title must be at least 5 characters long.'),
     message: z.string().min(10, 'Message must be at least 10 characters.'),
     audience: z.string({ required_error: 'Please select an audience.' }),
-    category: z.nativeEnum(announcementCategories),
+    category: z.nativeEnum(Object.keys(announcementCategories) as [AnnouncementCategory]),
 });
 
 type AnnouncementFormValues = z.infer<typeof announcementSchema>;
@@ -153,6 +153,9 @@ export default function AnnouncementsPage() {
           category: values.category,
           sender: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-avatar/100' },
           sentAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
+          readBy: [],
+          readCount: 0,
+          channels: { app: true, email: false, sms: false }, // Default channels for teacher
           ...(attachmentUrl && { attachmentUrl, attachmentName }),
       };
 
@@ -391,4 +394,3 @@ export default function AnnouncementsPage() {
   );
 }
 
-    

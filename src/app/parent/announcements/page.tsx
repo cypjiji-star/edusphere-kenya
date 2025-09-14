@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, Timestamp, getDocs, startAfter, arrayUnion } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, Timestamp, getDocs, startAfter, arrayUnion, increment } from 'firebase/firestore';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -79,11 +79,18 @@ export default function ParentAnnouncementsPage() {
   }, [toast]);
 
 
-  const handleMarkAsRead = async (id: string) => {
+  const handleMarkAsRead = async (id: string, readBy: string[]) => {
+    // Prevent re-marking if already read
+    if (readBy.includes(currentUserId)) {
+        toast({ description: 'Already marked as read.' });
+        return;
+    }
+    
     const announcementRef = doc(firestore, 'announcements', id);
     try {
         await updateDoc(announcementRef, { 
             readBy: arrayUnion(currentUserId),
+            readCount: increment(1)
         });
         toast({ title: 'Marked as Read' });
     } catch(e) {
@@ -93,7 +100,7 @@ export default function ParentAnnouncementsPage() {
   }
   
   const filteredAnnouncements = announcements.filter(ann => {
-      const isRead = ann.readBy.includes(currentUserId);
+      const isRead = ann.readBy?.includes(currentUserId);
       const matchesFilter = filter === 'All' || (filter === 'Read' && isRead) || (filter === 'Unread' && !isRead);
       const matchesSearch = searchTerm === '' || ann.content.toLowerCase().includes(searchTerm.toLowerCase()) || ann.sender.name.toLowerCase().includes(searchTerm.toLowerCase()) || ann.title.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesFilter && matchesSearch;
@@ -177,7 +184,7 @@ export default function ParentAnnouncementsPage() {
             <>
                 <CardContent className="space-y-6 pt-6">
                     {filteredAnnouncements.length > 0 ? filteredAnnouncements.map((ann) => {
-                        const isRead = ann.readBy.includes(currentUserId);
+                        const isRead = ann.readBy?.includes(currentUserId);
                         return (
                         <Card key={ann.id} className={cn(!isRead && 'border-primary/50')}>
                             <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -220,7 +227,7 @@ export default function ParentAnnouncementsPage() {
                             </CardContent>
                             {!isRead && (
                                 <CardFooter>
-                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id)}>
+                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id, ann.readBy || [])}>
                                         <Check className="mr-2 h-4 w-4"/>
                                         Mark as Read
                                     </Button>
@@ -256,4 +263,3 @@ export default function ParentAnnouncementsPage() {
   );
 }
 
-    
