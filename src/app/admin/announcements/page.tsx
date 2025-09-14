@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -149,6 +148,7 @@ export default function AdminAnnouncementsPage() {
   const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
   const [selectedAnnouncementForStats, setSelectedAnnouncementForStats] = React.useState<Announcement | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [totalUserCount, setTotalUserCount] = React.useState(0);
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -164,12 +164,23 @@ export default function AdminAnnouncementsPage() {
 
    React.useEffect(() => {
     if (!schoolId) return;
+
     const q = query(collection(firestore, 'schools', schoolId, 'announcements'), orderBy('sentAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
         setPastAnnouncements(fetchedAnnouncements);
     });
-    return () => unsubscribe();
+    
+    // Real-time listener for user count
+    const usersQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', 'in', ['Student', 'Parent', 'Teacher']));
+    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+        setTotalUserCount(snapshot.size);
+    });
+
+    return () => {
+        unsubscribe();
+        unsubscribeUsers();
+    };
   }, [schoolId]);
 
   const handleTranslate = async () => {
@@ -261,11 +272,6 @@ export default function AdminAnnouncementsPage() {
             attachmentName = attachedFile.name;
         }
 
-        // In a real application, you would calculate totalRecipients based on the audience.
-        // For this demo, we'll use a placeholder value.
-        const usersSnapshot = await getDocs(query(collection(firestore, 'schools', schoolId, 'users'), where('role', 'in', ['Student', 'Parent', 'Teacher'])));
-        const totalRecipients = usersSnapshot.size;
-
         const newAnnouncement = {
             title: values.title,
             content: values.message,
@@ -279,7 +285,7 @@ export default function AdminAnnouncementsPage() {
                 sms: values.notifySms
             },
             readCount: 0,
-            totalRecipients: totalRecipients,
+            totalRecipients: totalUserCount, // Use live user count
             ...(attachmentUrl && { attachmentUrl, attachmentName }),
             readBy: [],
         };
@@ -607,3 +613,5 @@ export default function AdminAnnouncementsPage() {
     </>
   );
 }
+
+    
