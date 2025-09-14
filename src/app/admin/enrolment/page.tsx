@@ -127,12 +127,6 @@ const getStatusBadge = (status: RecentEnrolment['status']) => {
     }
 }
 
-const classOptions = [
-    { value: 'f1', label: 'Form 1' },
-    { value: 'f2', label: 'Form 2' },
-];
-
-
 export default function StudentEnrolmentPage() {
     const { toast } = useToast();
     const searchParams = useSearchParams();
@@ -147,6 +141,7 @@ export default function StudentEnrolmentPage() {
     const [recentEnrolments, setRecentEnrolments] = React.useState<RecentEnrolment[]>([]);
     const [isBulkDialogOpen, setIsBulkDialogOpen] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [classOptions, setClassOptions] = React.useState<{ value: string; label: string; }[]>([]);
 
 
     const form = useForm<EnrolmentFormValues>({
@@ -155,9 +150,10 @@ export default function StudentEnrolmentPage() {
             generateInvoice: true,
         },
     });
-    
+
      React.useEffect(() => {
         if (!schoolId) return;
+
         const q = query(collection(firestore, 'schools', schoolId, 'students'), orderBy('createdAt', 'desc'), limit(5));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedEnrolments = snapshot.docs.map(doc => {
@@ -173,7 +169,17 @@ export default function StudentEnrolmentPage() {
             });
             setRecentEnrolments(fetchedEnrolments);
         });
-        return () => unsubscribe();
+
+        const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
+        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+            const options = snapshot.docs.map(doc => ({ value: doc.id, label: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+            setClassOptions(options);
+        });
+
+        return () => {
+            unsubscribe();
+            unsubClasses();
+        };
     }, [schoolId]);
 
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,7 +299,6 @@ export default function StudentEnrolmentPage() {
                 id: parentUserDocRef.id,
                 name: parentName,
                 email: values.parentEmail,
-                // In a real app, hash the password before storing
                 password: values.parentPassword, 
                 role: 'Parent',
                 status: 'Active',

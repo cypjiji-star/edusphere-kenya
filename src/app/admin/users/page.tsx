@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -126,8 +127,8 @@ export default function UserManagementPage() {
             setRoles(snapshot.docs.map(doc => doc.id));
         });
         const unsubClasses = onSnapshot(collection(firestore, 'schools', schoolId, 'classes'), (snapshot) => {
-            const classNames = snapshot.docs.map(doc => doc.data().name);
-            setClasses(['All Classes', ...classNames]);
+            const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
+            setClasses(['All Classes', ...new Set(classNames)]);
         });
 
         return () => {
@@ -716,5 +717,3 @@ export default function UserManagementPage() {
         </div>
     );
 }
-
-    

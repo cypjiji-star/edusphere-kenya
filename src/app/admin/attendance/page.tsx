@@ -85,7 +85,6 @@ type AttendanceRecord = {
   status: AttendanceStatus;
 };
 
-const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const statuses: (AttendanceStatus | 'All Statuses')[] = ['All Statuses', 'Present', 'Absent', 'Late'];
 
 const getStatusBadge = (status: AttendanceStatus) => {
@@ -128,7 +127,7 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
             if (dateRange?.from && !dateRange.to) { // Single day selected
                 return recordDate.toDateString() === dateRange.from.toDateString();
             }
-            const isDateInRange = dateRange?.from && dateRange?.to ? recordDate >= dateRange.from && recordDate <= dateRange.to : true;
+            const isDateInRange = dateRange?.from && dateRange?.to ? recordDate >= dateRange.from && recordDate <= date.to : true;
             return isDateInRange;
         });
 
@@ -224,39 +223,46 @@ export default function AdminAttendancePage() {
   const { toast } = useToast();
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
   const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
+  const [classes, setClasses] = React.useState<string[]>(['All Classes']);
+
 
   React.useEffect(() => {
     if (!schoolId) return;
-    const q = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+
+    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
         const teacherNames = snapshot.docs.map(doc => doc.data().name);
         setTeachers(['All Teachers', ...teacherNames]);
     });
-    return () => unsubscribe();
-  }, [schoolId]);
-
-  React.useEffect(() => {
-    setDate({
-        from: new Date(),
-        to: new Date()
-    })
     
-    if (!schoolId) return;
-
-    const q = query(collection(firestore, 'schools', schoolId, 'attendance'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
+    const unsubClasses = onSnapshot(qClasses, (snapshot) => {
+        const classNames = snapshot.docs.map(doc => doc.data().name);
+        setClasses(['All Classes', ...new Set(classNames)]);
+    });
+    
+    const qAttendance = query(collection(firestore, 'schools', schoolId, 'attendance'));
+    const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
         const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
         setAllRecords(records);
     });
 
-    return () => unsubscribe();
+     setDate({
+        from: new Date(),
+        to: new Date()
+    });
+
+    return () => {
+        unsubTeachers();
+        unsubClasses();
+        unsubAttendance();
+    };
   }, [schoolId])
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
     
-    // This is a simplified version. A real app would filter by term dates.
-    const termRecords = allRecords.slice(0, 500); // Use a subset for performance demo
+    const termRecords = allRecords.slice(0, 500); 
 
     const dailyData: Record<string, { present: number, total: number }> = {};
 
@@ -277,7 +283,7 @@ export default function AdminAttendancePage() {
         rate: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0,
       }))
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-5); // Get last 5 days for trend
+      .slice(-5);
       
   }, [allRecords, selectedTerm]);
   

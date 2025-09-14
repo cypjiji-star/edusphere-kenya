@@ -102,7 +102,6 @@ type Transaction = {
     recordedBy: string;
 };
 
-const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const statuses: (PaymentStatus | 'All Statuses')[] = ['All Statuses', 'Paid', 'Partial', 'Unpaid', 'Overdue'];
 
 const getStatusBadge = (status: PaymentStatus) => {
@@ -436,6 +435,8 @@ export default function FeesPage() {
     const [editingCategory, setEditingCategory] = React.useState<FeeStructureItem | null>(null);
     const [editingDiscount, setEditingDiscount] = React.useState<DiscountItem | null>(null);
     const [isAddTransactionOpen, setIsAddTransactionOpen] = React.useState(false);
+    const [classes, setClasses] = React.useState<string[]>(['All Classes']);
+
 
     React.useEffect(() => {
         if (!schoolId) return;
@@ -470,12 +471,19 @@ export default function FeesPage() {
         const unsubscribeDiscounts = onSnapshot(discountsQuery, (snapshot) => {
             setDiscounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DiscountItem)));
         });
+        
+        const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
+        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+            const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
+            setClasses(['All Classes', ...new Set(classNames)]);
+        });
 
         return () => {
             unsubscribeStudents();
             unsubscribeTransactions();
             unsubscribeFeeStructure();
             unsubscribeDiscounts();
+            unsubClasses();
         };
     }, [schoolId]);
 
@@ -623,7 +631,7 @@ export default function FeesPage() {
             collectionRate: rate,
             collectionData: dataByClass,
         };
-    }, [students]);
+    }, [students, classes]);
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
