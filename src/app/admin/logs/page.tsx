@@ -51,9 +51,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
-type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health';
+type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health' | 'General';
 
 type AuditLog = {
   id: string;
@@ -76,12 +77,15 @@ const actionTypeConfig: Record<ActionType, { icon: React.ElementType, color: str
     'Settings': { icon: Settings, color: 'text-orange-500' },
     'Security': { icon: ShieldCheck, color: 'text-red-500' },
     'Health': { icon: HeartPulse, color: 'text-pink-500' },
+    'General': { icon: FileClock, color: 'text-gray-500' },
 }
 
 const users = ['All Users', 'Admin User', 'Finance Officer', 'Ms. Wanjiku', 'System'];
 const actionTypes: (ActionType | 'All Types')[] = ['All Types', 'User Management', 'Finance', 'Academics', 'Settings', 'Security', 'Health'];
 
 export default function AuditLogsPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [logs, setLogs] = React.useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [date, setDate] = React.useState<DateRange | undefined>();
@@ -91,16 +95,30 @@ export default function AuditLogsPage() {
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     setIsLoading(true);
-    const q = query(collection(firestore, 'audit_logs'), orderBy('timestamp', 'desc'));
+    const q = query(collection(firestore, 'schools', schoolId, 'notifications'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
+        const fetchedLogs = snapshot.docs.map(doc => {
+            const data = doc.data();
+            const category = data.href?.split('/')[2]?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()).split(' ')[0] || 'General';
+            
+            return { 
+                id: doc.id,
+                description: data.title,
+                details: data.description,
+                actionType: category,
+                user: { name: 'System', avatarUrl: '' },
+                timestamp: data.createdAt,
+            } as AuditLog;
+        });
         setLogs(fetchedLogs);
         setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const filteredLogs = logs.filter(log => {
       const recordDate = log.timestamp.toDate();
@@ -111,6 +129,10 @@ export default function AuditLogsPage() {
 
       return isDateInRange && matchesSearch && matchesUser && matchesAction;
   });
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing.</div>
+  }
 
   return (
     <Dialog onOpenChange={(open) => !open && setSelectedLog(null)}>
@@ -272,10 +294,10 @@ export default function AuditLogsPage() {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
-                                                            {log.timestamp.toDate().toLocaleString()}
+                                                            {log.timestamp?.toDate().toLocaleString()}
                                                         </TableCell>
                                                         <TableCell className="text-muted-foreground max-w-xs truncate">
-                                                            {typeof log.details === 'string' ? log.details : `Value changed from "${log.details.oldValue}" to "${log.details.newValue}"`}
+                                                            {typeof log.details === 'string' ? log.details : `Value changed`}
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <Button variant="ghost" size="sm">
@@ -364,7 +386,7 @@ export default function AuditLogsPage() {
                                 <CalendarIcon className="h-5 w-5 mt-0.5 text-muted-foreground"/>
                                 <div>
                                     <p className="text-muted-foreground">Timestamp</p>
-                                    <p className="font-medium">{selectedLog.timestamp.toDate().toLocaleString()}</p>
+                                    <p className="font-medium">{selectedLog.timestamp?.toDate().toLocaleString()}</p>
                                 </div>
                             </div>
                             {selectedLog.ipAddress && (
