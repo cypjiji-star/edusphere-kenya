@@ -16,19 +16,24 @@ export const assignmentSchema = z.object({
 export type AssignmentFormValues = z.infer<typeof assignmentSchema>;
 
 export async function createAssignmentAction(
+  schoolId: string,
   data: AssignmentFormValues,
   className: string
 ) {
+  if (!schoolId) {
+    return { success: false, message: 'School ID is missing.' };
+  }
+
   try {
     const validatedData = assignmentSchema.parse(data);
 
     // 1. Get all students for the selected class
-    const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', data.classId));
+    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', data.classId));
     const studentsSnapshot = await getDocs(studentsQuery);
     const totalStudents = studentsSnapshot.size;
 
     // 2. Create a new assignment record
-    const assignmentRef = await addDoc(collection(firestore, 'assignments'), {
+    const assignmentRef = await addDoc(collection(firestore, 'schools', schoolId, 'assignments'), {
       ...validatedData,
       className,
       teacherId: 'teacher-wanjiku', // Placeholder for logged-in teacher
@@ -40,9 +45,9 @@ export async function createAssignmentAction(
     // 3. Create a subcollection for submissions for this assignment
     const batch = writeBatch(firestore);
     studentsSnapshot.forEach((studentDoc) => {
-        const submissionRef = doc(collection(firestore, 'assignments', assignmentRef.id, 'submissions'));
+        const submissionRef = doc(collection(firestore, 'schools', schoolId, 'assignments', assignmentRef.id, 'submissions'));
         batch.set(submissionRef, {
-            studentRef: doc(firestore, 'students', studentDoc.id),
+            studentRef: doc(firestore, 'schools', schoolId, 'students', studentDoc.id),
             status: 'Not Handed In',
             grade: null,
             feedback: null,
@@ -52,7 +57,7 @@ export async function createAssignmentAction(
 
     await batch.commit();
 
-    revalidatePath('/teacher/assignments');
+    revalidatePath(`/teacher/assignments?schoolId=${schoolId}`);
 
     return { success: true, message: 'Assignment created successfully!' };
   } catch (error) {

@@ -21,6 +21,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type BorrowedItem = {
@@ -44,6 +45,8 @@ type RequestItem = {
 }
 
 export default function MyLibraryPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [clientReady, setClientReady] = React.useState(false);
     const [borrowedItems, setBorrowedItems] = React.useState<BorrowedItem[]>([]);
     const [historyItems, setHistoryItems] = React.useState<HistoryItem[]>([]);
@@ -53,21 +56,23 @@ export default function MyLibraryPage() {
     const teacherId = 'teacher-wanjiku'; // Placeholder
 
     React.useEffect(() => {
+        if (!schoolId) return;
+
         setClientReady(true);
 
-        const borrowedQuery = query(collection(firestore, 'users', teacherId, 'borrowed-items'));
+        const borrowedQuery = query(collection(firestore, 'schools', schoolId, 'users', teacherId, 'borrowed-items'));
         const unsubBorrowed = onSnapshot(borrowedQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowedItem));
             setBorrowedItems(items);
         });
 
-        const historyQuery = query(collection(firestore, 'users', teacherId, 'borrowing-history'));
+        const historyQuery = query(collection(firestore, 'schools', schoolId, 'users', teacherId, 'borrowing-history'));
         const unsubHistory = onSnapshot(historyQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HistoryItem));
             setHistoryItems(items);
         });
         
-        const requestsQuery = query(collection(firestore, 'library-requests'), where('requestedBy', '==', teacherId));
+        const requestsQuery = query(collection(firestore, 'schools', schoolId, 'library-requests'), where('requestedBy', '==', teacherId));
         const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RequestItem));
             setRequestItems(items);
@@ -78,10 +83,11 @@ export default function MyLibraryPage() {
             unsubHistory();
             unsubRequests();
         }
-    }, [teacherId]);
+    }, [schoolId, teacherId]);
 
     const handleRenew = async (item: BorrowedItem) => {
-        const itemRef = doc(firestore, 'users', teacherId, 'borrowed-items', item.id);
+        if (!schoolId) return;
+        const itemRef = doc(firestore, 'schools', schoolId, 'users', teacherId, 'borrowed-items', item.id);
         const newDueDate = new Date(item.dueDate.toDate());
         newDueDate.setDate(newDueDate.getDate() + 14); // Extend by 2 weeks
 
@@ -126,17 +132,16 @@ export default function MyLibraryPage() {
     };
     
     const handleNewRequest = async () => {
-        if (!newRequestTitle.trim()) {
+        if (!newRequestTitle.trim() || !schoolId) {
             toast({
-                title: 'Request is empty',
-                description: 'Please enter a title for the resource you want to request.',
+                title: 'Request is empty or School ID is missing',
                 variant: 'destructive',
             });
             return;
         }
 
         try {
-            await addDoc(collection(firestore, 'library-requests'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'library-requests'), {
                 title: newRequestTitle,
                 requestedBy: teacherId,
                 status: 'Pending',

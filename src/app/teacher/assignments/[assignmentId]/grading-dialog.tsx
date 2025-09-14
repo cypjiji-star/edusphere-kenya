@@ -32,6 +32,7 @@ import type { Submission } from './types';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useSearchParams } from 'next/navigation';
 
 export const gradingSchema = z.object({
   grade: z.string().min(1, 'Grade is required.'),
@@ -56,6 +57,8 @@ export function GradingDialog({
   onGradeSave,
 }: GradingDialogProps) {
   const [isLoading, setIsLoading] = React.useState(false);
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   
   const form = useForm<GradingFormValues>({
     resolver: zodResolver(gradingSchema),
@@ -75,10 +78,10 @@ export function GradingDialog({
   }, [student, form]);
 
   const onSubmit = async (values: GradingFormValues) => {
-    if (!student) return;
+    if (!student || !schoolId) return;
     setIsLoading(true);
 
-    const result = await saveGradeAction(student.studentId, assignmentId, values);
+    const result = await saveGradeAction(schoolId, student.studentId, assignmentId, values);
 
     setIsLoading(false);
     if (result.success) {

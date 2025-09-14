@@ -67,6 +67,7 @@ type AuditLog = {
   details: string | { oldValue: string | null; newValue: string };
   ipAddress?: string;
   userAgent?: string;
+  schoolId?: string;
 };
 
 const actionTypeConfig: Record<ActionType, { icon: React.ElementType, color: string }> = {
@@ -92,7 +93,7 @@ export default function AuditLogsPage() {
 
   React.useEffect(() => {
     setIsLoading(true);
-    const q = query(collection(firestore, 'audit_logs'), orderBy('timestamp', 'desc'));
+    const q = query(collection(firestore, 'platform_audit_logs'), orderBy('timestamp', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
         setLogs(fetchedLogs);
@@ -118,15 +119,15 @@ export default function AuditLogsPage() {
         <div className="mb-6">
             <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                 <FileClock className="h-8 w-8 text-primary"/>
-                Audit Log
+                Platform Audit Log
             </h1>
-            <p className="text-muted-foreground">Track important activities and changes within the portal. Access is restricted to authorized personnel.</p>
+            <p className="text-muted-foreground">Track all important activities and changes across the entire platform.</p>
         </div>
 
         <Card>
                 <CardHeader>
-                    <CardTitle>System Activity Feed</CardTitle>
-                    <CardDescription>A detailed log of all key actions performed in the system.</CardDescription>
+                    <CardTitle>Platform Activity Feed</CardTitle>
+                    <CardDescription>A detailed log of all key actions performed across all school instances.</CardDescription>
                     <div className="mt-4 flex flex-col gap-4">
                         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                             <div className="relative w-full md:max-w-sm">
@@ -167,10 +168,6 @@ export default function AuditLogsPage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="flex items-center space-x-2 pt-2">
-                                            <Switch id="include-archived" disabled />
-                                            <Label htmlFor="include-archived" className="text-sm font-normal">Include archived logs</Label>
-                                        </div>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
@@ -191,16 +188,6 @@ export default function AuditLogsPage() {
                                     <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
                                     </PopoverContent>
                                 </Popover>
-                                <Separator orientation="vertical" className="h-10 hidden md:block" />
-                                 <div className="flex items-center gap-2">
-                                     <Button variant="outline" size="icon">
-                                        <RefreshCw className="h-4 w-4" />
-                                     </Button>
-                                     <div className="flex items-center space-x-2">
-                                        <Switch id="auto-refresh" />
-                                        <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground">Auto-refresh</Label>
-                                    </div>
-                                </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="secondary" className="w-full md:w-auto">
@@ -219,10 +206,6 @@ export default function AuditLogsPage() {
                                 </DropdownMenu>
                             </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {userFilter !== 'All Users' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setUserFilter('All Users')}>User: {userFilter} &times;</Badge>}
-                            {actionFilter !== 'All Types' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setActionFilter('All Types')}>Type: {actionFilter} &times;</Badge>}
-                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -237,6 +220,7 @@ export default function AuditLogsPage() {
                                     <TableRow>
                                         <TableHead className="w-[250px]">Action</TableHead>
                                         <TableHead>Performed By</TableHead>
+                                        <TableHead>School ID</TableHead>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Details</TableHead>
                                         <TableHead className="text-right">View</TableHead>
@@ -272,10 +256,13 @@ export default function AuditLogsPage() {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
+                                                            <Badge variant="outline">{log.schoolId || 'Platform'}</Badge>
+                                                        </TableCell>
+                                                        <TableCell>
                                                             {log.timestamp.toDate().toLocaleString()}
                                                         </TableCell>
                                                         <TableCell className="text-muted-foreground max-w-xs truncate">
-                                                            {typeof log.details === 'string' ? log.details : `Value changed from "${log.details.oldValue}" to "${log.details.newValue}"`}
+                                                            {typeof log.details === 'string' ? log.details : `Value changed`}
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <Button variant="ghost" size="sm">
@@ -288,7 +275,7 @@ export default function AuditLogsPage() {
                                         })
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="h-24 text-center">
+                                            <TableCell colSpan={6} className="h-24 text-center">
                                             No log entries found for the selected filters.
                                             </TableCell>
                                         </TableRow>
@@ -320,6 +307,7 @@ export default function AuditLogsPage() {
                     <div className="space-y-1">
                         <h4 className="font-semibold">{selectedLog.description}</h4>
                         <div className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.actionType}</Badge></div>
+                         {selectedLog.schoolId && <div className="text-sm text-muted-foreground">School ID: <Badge variant="secondary">{selectedLog.schoolId}</Badge></div>}
                     </div>
 
                     <Separator />

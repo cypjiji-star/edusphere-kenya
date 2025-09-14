@@ -16,14 +16,19 @@ export type GradingFormValues = z.infer<typeof gradingSchema>;
 
 
 export async function saveGradeAction(
+  schoolId: string,
   studentId: string, 
   assignmentId: string,
   data: GradingFormValues
 ) {
+  if (!schoolId) {
+    return { success: false, message: 'School ID is missing.' };
+  }
+
   try {
     const q = query(
-      collection(firestore, 'assignments', assignmentId, 'submissions'),
-      where('studentRef', '==', doc(firestore, 'students', studentId))
+      collection(firestore, 'schools', schoolId, 'assignments', assignmentId, 'submissions'),
+      where('studentRef', '==', doc(firestore, 'schools', schoolId, 'students', studentId))
     );
     const querySnapshot = await getDocs(q);
 
@@ -38,7 +43,7 @@ export async function saveGradeAction(
       status: 'Graded',
     });
 
-    revalidatePath(`/teacher/assignments/${assignmentId}`);
+    revalidatePath(`/teacher/assignments/${assignmentId}?schoolId=${schoolId}`);
     return { success: true, message: 'Grade saved successfully!' };
 
   } catch (error) {

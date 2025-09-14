@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type Child = {
@@ -81,6 +82,8 @@ type HealthRecord = {
 };
 
 export default function ParentHealthPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [childrenData, setChildrenData] = React.useState<Child[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [healthRecord, setHealthRecord] = React.useState<HealthRecord | null>(null);
@@ -94,8 +97,9 @@ export default function ParentHealthPage() {
     const { toast } = useToast();
 
     React.useEffect(() => {
+        if (!schoolId) return;
         // In a real app, you would filter by parent ID. For now, we fetch a few students.
-        const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+        const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -104,13 +108,13 @@ export default function ParentHealthPage() {
             }
         });
         return () => unsubscribe();
-    }, [selectedChild]);
+    }, [schoolId, selectedChild]);
     
     React.useEffect(() => {
-        if (!selectedChild) return;
+        if (!selectedChild || !schoolId) return;
 
         setIsLoading(true);
-        const childRef = doc(firestore, 'students', selectedChild);
+        const childRef = doc(firestore, 'schools', schoolId, 'students', selectedChild);
         const unsubChild = onSnapshot(childRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
@@ -120,7 +124,7 @@ export default function ParentHealthPage() {
                     emergencyContact: {
                         name: data.emergencyContactName || 'N/A',
                         relationship: 'Parent/Guardian',
-                        phone: data.emergencyContactPhone || 'N/A',
+                        phone: data.parentPhone || 'N/A',
                     },
                     lastHealthCheck: data.lastHealthCheck || 'N/A',
                 });
@@ -128,12 +132,12 @@ export default function ParentHealthPage() {
             setIsLoading(false);
         });
 
-        const incidentsQuery = query(collection(firestore, `students/${selectedChild}/incidents`), orderBy('date', 'desc'));
+        const incidentsQuery = query(collection(firestore, 'schools', schoolId, 'students', selectedChild, 'incidents'), orderBy('date', 'desc'));
         const unsubIncidents = onSnapshot(incidentsQuery, (snapshot) => {
             setIncidents(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Incident)));
         });
 
-        const medsQuery = query(collection(firestore, `students/${selectedChild}/medications`), orderBy('date', 'desc'));
+        const medsQuery = query(collection(firestore, 'schools', schoolId, 'students', selectedChild, 'medications'), orderBy('date', 'desc'));
         const unsubMeds = onSnapshot(medsQuery, (snapshot) => {
             setMedications(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Medication)));
         });
@@ -145,16 +149,16 @@ export default function ParentHealthPage() {
             unsubMeds();
         };
 
-    }, [selectedChild]);
+    }, [selectedChild, schoolId]);
 
     const handleReportAbsence = async () => {
-        if (!selectedChild || !absenceDate || !absenceReason) {
+        if (!selectedChild || !absenceDate || !absenceReason || !schoolId) {
             toast({ title: 'Missing Information', description: 'Please select a date and provide a reason.', variant: 'destructive' });
             return;
         }
 
         try {
-            await addDoc(collection(firestore, 'absences'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'absences'), {
                 studentId: selectedChild,
                 studentName: childrenData.find(c => c.id === selectedChild)?.name,
                 date: Timestamp.fromDate(absenceDate),

@@ -10,6 +10,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type AssignmentTask = {
@@ -23,12 +24,16 @@ type AssignmentTask = {
 };
 
 export function PendingTasksWidget() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [tasks, setTasks] = React.useState<AssignmentTask[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
+        if (!schoolId) return;
+
         const teacherId = 'teacher-wanjiku'; // This should be dynamic
-        const assignmentsQuery = query(collection(firestore, 'assignments'), where('teacherId', '==', teacherId));
+        const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
 
         const unsubscribe = onSnapshot(assignmentsQuery, (snapshot) => {
             const fetchedTasks: AssignmentTask[] = [];
@@ -42,7 +47,7 @@ export function PendingTasksWidget() {
                         dueDate: data.dueDate,
                         status: 'Ungraded',
                         count: data.totalStudents - data.submissions,
-                        href: `/teacher/assignments/${doc.id}`,
+                        href: `/teacher/assignments/${doc.id}?schoolId=${schoolId}`,
                     });
                 }
             });
@@ -51,7 +56,7 @@ export function PendingTasksWidget() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
   const getDueDateText = (dueDate: string) => {
     const days = differenceInDays(parseISO(dueDate), new Date());

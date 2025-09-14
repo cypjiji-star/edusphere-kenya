@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { useSearchParams } from 'next/navigation';
 
 const studentGradeSchema = z.object({
   studentId: z.string(),
@@ -84,6 +85,8 @@ export function GradeEntryForm() {
   const [isWeighted, setIsWeighted] = React.useState(false);
   const [useRubric, setUseRubric] = React.useState(false);
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
 
   const form = useForm<GradeEntryFormValues>({
     resolver: zodResolver(gradeEntrySchema),
@@ -107,8 +110,12 @@ export function GradeEntryForm() {
   }, [selectedClass, replace, form]);
 
   async function onSubmit(values: GradeEntryFormValues) {
+    if (!schoolId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'School ID is missing.' });
+        return;
+    }
     setIsLoading(true);
-    const result = await saveGradesAction(values);
+    const result = await saveGradesAction(schoolId, values);
     setIsLoading(false);
 
     if (result.success) {

@@ -9,12 +9,15 @@ import { revalidatePath } from 'next/cache';
 
 
 // In a real app, this would save to a database.
-export async function saveGradesAction(data: GradeEntryFormValues) {
+export async function saveGradesAction(schoolId: string, data: GradeEntryFormValues) {
+  if (!schoolId) {
+    return { success: false, message: 'School ID is missing.' };
+  }
   try {
     gradeEntrySchema.parse(data);
 
     // 1. Create a new assessment record in the 'assessments' collection
-    const assessmentRef = await addDoc(collection(firestore, 'assessments'), {
+    const assessmentRef = await addDoc(collection(firestore, 'schools', schoolId, 'assessments'), {
       title: data.assessmentTitle,
       type: data.assessmentType,
       date: data.assessmentDate,
@@ -25,13 +28,13 @@ export async function saveGradesAction(data: GradeEntryFormValues) {
 
     // 2. Create grade records for each student in a subcollection
     const batch = writeBatch(firestore);
-    const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', data.classId));
+    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', data.classId));
     const studentsSnapshot = await getDocs(studentsQuery);
     
     studentsSnapshot.forEach(studentDoc => {
         const studentGrade = data.grades.find(g => g.studentId === studentDoc.id);
         if (studentGrade) {
-            const gradeRef = doc(collection(firestore, 'students', studentDoc.id, 'grades'));
+            const gradeRef = doc(collection(firestore, 'schools', schoolId, 'students', studentDoc.id, 'grades'));
             batch.set(gradeRef, {
                 assessmentId: assessmentRef.id,
                 assessmentTitle: data.assessmentTitle,
@@ -43,7 +46,7 @@ export async function saveGradesAction(data: GradeEntryFormValues) {
 
     await batch.commit();
   
-    revalidatePath(`/teacher/grades`);
+    revalidatePath(`/teacher/grades?schoolId=${schoolId}`);
 
     return { success: true, message: 'Grades saved successfully!' };
 

@@ -37,6 +37,7 @@ import { CalendarIcon, Loader2, PlusCircle, Paperclip } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
+import { useSearchParams } from 'next/navigation';
 
 const teacherClasses = [
   { id: 'f4-chem', name: 'Form 4 - Chemistry' },
@@ -47,6 +48,8 @@ const teacherClasses = [
 export function AssignmentForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
 
   const form = useForm<AssignmentFormValues>({
     resolver: zodResolver(assignmentSchema),
@@ -57,11 +60,20 @@ export function AssignmentForm() {
   });
 
   async function onSubmit(values: AssignmentFormValues) {
+    if (!schoolId) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'School ID is missing. Cannot create assignment.',
+        });
+        return;
+    }
+
     setIsLoading(true);
 
     const selectedClass = teacherClasses.find(c => c.id === values.classId);
 
-    const result = await createAssignmentAction(values, selectedClass?.name || '');
+    const result = await createAssignmentAction(schoolId, values, selectedClass?.name || '');
     
     setIsLoading(false);
     

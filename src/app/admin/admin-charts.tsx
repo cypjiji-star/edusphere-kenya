@@ -23,6 +23,7 @@ import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { firestore } from '@/lib/firebase';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 const feeChartConfig = {
@@ -38,11 +39,14 @@ const performanceChartConfig = {
 };
 
 export function FinanceSnapshot() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [financeData, setFinanceData] = React.useState({ totalCollected: 0, totalBilled: 1 });
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const studentsQuery = query(collection(firestore, 'students'));
+    if (!schoolId) return;
+    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
     const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
         let totalBilled = 0;
         let totalPaid = 0;
@@ -54,7 +58,7 @@ export function FinanceSnapshot() {
         setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const totalOutstanding = financeData.totalBilled - financeData.totalCollected;
   const collectedPercentage = financeData.totalBilled > 0 ? (financeData.totalCollected / financeData.totalBilled) * 100 : 0;
@@ -131,18 +135,21 @@ export function FinanceSnapshot() {
 }
 
 export function PerformanceSnapshot() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [performanceData, setPerformanceData] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const gradesQuery = query(collection(firestore, 'assessments'));
+    if (!schoolId) return;
+    const gradesQuery = query(collection(firestore, `schools/${schoolId}/assessments`));
     const unsubscribe = onSnapshot(gradesQuery, async (snapshot) => {
       // This is a simplified aggregation. Real-world scenarios would use a backend function.
       const subjectScores: Record<string, { total: number, count: number}> = {};
       
       for(const doc of snapshot.docs) {
           const assessment = doc.data();
-          const submissionsSnapshot = await getDocs(collection(firestore, 'assessments', doc.id, 'submissions'));
+          const submissionsSnapshot = await getDocs(collection(firestore, `schools/${schoolId}/assessments`, doc.id, 'submissions'));
           submissionsSnapshot.forEach(subDoc => {
               const submission = subDoc.data();
               const score = parseInt(submission.grade, 10);
@@ -166,7 +173,7 @@ export function PerformanceSnapshot() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   return (
     <Card>
@@ -209,7 +216,7 @@ export function PerformanceSnapshot() {
         )}
          <div className="mt-4 flex justify-end">
             <Button variant="link" asChild>
-                <Link href="/admin/grades">
+                <Link href={`/admin/grades?schoolId=${schoolId}`}>
                     View Detailed Reports
                     <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>

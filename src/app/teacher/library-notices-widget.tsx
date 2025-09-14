@@ -10,6 +10,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type BorrowedItem = {
@@ -25,13 +26,17 @@ type NewResource = {
 }
 
 export function LibraryNoticesWidget() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [overdueItems, setOverdueItems] = React.useState<BorrowedItem[]>([]);
   const [newArrivals, setNewArrivals] = React.useState<NewResource[]>([]);
   const teacherId = 'teacher-wanjiku'; // Placeholder
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     // Fetch overdue items
-    const borrowedQuery = query(collection(firestore, 'users', teacherId, 'borrowed-items'));
+    const borrowedQuery = query(collection(firestore, 'schools', schoolId, 'users', teacherId, 'borrowed-items'));
     const unsubBorrowed = onSnapshot(borrowedQuery, (snapshot) => {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowedItem));
         const overdue = items.filter(item => {
@@ -43,7 +48,7 @@ export function LibraryNoticesWidget() {
     });
 
     // Fetch new arrivals
-    const newArrivalsQuery = query(collection(firestore, 'library-resources'), orderBy('createdAt', 'desc'), limit(2));
+    const newArrivalsQuery = query(collection(firestore, 'schools', schoolId, 'library-resources'), orderBy('createdAt', 'desc'), limit(2));
     const unsubArrivals = onSnapshot(newArrivalsQuery, (snapshot) => {
         const items = snapshot.docs.map(doc => ({ id: doc.id, title: doc.data().title, createdAt: doc.data().createdAt } as NewResource));
         setNewArrivals(items);
@@ -53,7 +58,7 @@ export function LibraryNoticesWidget() {
         unsubBorrowed();
         unsubArrivals();
     }
-  }, [teacherId]);
+  }, [schoolId, teacherId]);
 
   return (
     <Card>
@@ -78,7 +83,7 @@ export function LibraryNoticesWidget() {
                                 </div>
                             </div>
                             <Button asChild size="sm" variant="secondary">
-                                <Link href="/teacher/my-library">Return</Link>
+                                <Link href={`/teacher/my-library?schoolId=${schoolId}`}>Return</Link>
                             </Button>
                         </div>
                      </div>
@@ -105,7 +110,7 @@ export function LibraryNoticesWidget() {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-            <Link href="/teacher/library">
+            <Link href={`/teacher/library?schoolId=${schoolId}`}>
                 Go to Library
                 <ArrowRight className="ml-2 h-4 w-4" />
             </Link>

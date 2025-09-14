@@ -20,6 +20,7 @@ import {
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 type TimetableData = Record<string, Record<string, { subject: { teacher: string } }>>;
 
@@ -38,18 +39,22 @@ const assignmentChartConfig = {
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
 export function DashboardCharts() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [scheduleData, setScheduleData] = React.useState<any[]>([]);
     const [assignmentData, setAssignmentData] = React.useState<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
+        if (!schoolId) return;
+
         const fetchData = async () => {
             setIsLoading(true);
             const teacherId = 'teacher-wanjiku'; // Dynamic teacher ID
 
-            // Fetch Schedule Data
             try {
-                const timetablesSnapshot = await getDocs(collection(firestore, 'timetables'));
+                // Fetch Schedule Data
+                const timetablesSnapshot = await getDocs(collection(firestore, `schools/${schoolId}/timetables`));
                 const dailyCounts = days.map(day => {
                     let classCount = 0;
                     timetablesSnapshot.forEach(doc => {
@@ -66,7 +71,7 @@ export function DashboardCharts() {
                 setScheduleData(dailyCounts);
 
                 // Fetch Assignment Data
-                const assignmentsSnapshot = await getDocs(query(collection(firestore, 'assignments'), where('teacherId', '==', teacherId)));
+                const assignmentsSnapshot = await getDocs(query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId)));
                 let graded = 0;
                 let ungraded = 0;
                 assignmentsSnapshot.forEach(doc => {
@@ -91,7 +96,7 @@ export function DashboardCharts() {
         };
 
         fetchData();
-    }, []);
+    }, [schoolId]);
 
     if (isLoading) {
         return (

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp, collectionGroup } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type AbsentStudent = {
@@ -21,10 +22,14 @@ type AbsentStudent = {
 }
 
 export function AbsentStudentsWidget() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [absentStudents, setAbsentStudents] = React.useState<AbsentStudent[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
+        if (!schoolId) return;
+
         const fetchAbsentStudents = async () => {
             setIsLoading(true);
             const today = new Date();
@@ -33,7 +38,7 @@ export function AbsentStudentsWidget() {
 
             try {
                 // First get all classes taught by this teacher
-                const classesQuery = query(collection(firestore, 'classes'), where('teacherId', '==', teacherId));
+                const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
                 const classesSnapshot = await getDocs(classesQuery);
                 const classIds = classesSnapshot.docs.map(doc => doc.id);
 
@@ -44,7 +49,7 @@ export function AbsentStudentsWidget() {
 
                 // Query attendance subcollections for all students who belong to this teacher's classes
                 const attendanceQuery = query(
-                    collectionGroup(firestore, 'attendance'),
+                    collection(firestore, `schools/${schoolId}/attendance`),
                     where('date', '>=', Timestamp.fromDate(startOfToday)),
                     where('status', 'in', ['absent', 'late'])
                 );
@@ -54,7 +59,7 @@ export function AbsentStudentsWidget() {
 
                 for (const doc of attendanceSnapshot.docs) {
                     const attendance = doc.data();
-                    const studentDoc = await getDocs(query(collection(firestore, 'students'), where('id', '==', attendance.studentId)));
+                    const studentDoc = await getDocs(query(collection(firestore, `schools/${schoolId}/students`), where('id', '==', attendance.studentId)));
 
                     if (!studentDoc.empty) {
                         const studentData = studentDoc.docs[0].data();
@@ -79,7 +84,7 @@ export function AbsentStudentsWidget() {
         };
 
         fetchAbsentStudents();
-    }, []);
+    }, [schoolId]);
 
   return (
     <Card>
@@ -122,7 +127,7 @@ export function AbsentStudentsWidget() {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-            <Link href="/teacher/attendance">
+            <Link href={`/teacher/attendance?schoolId=${schoolId}`}>
                 View Full Attendance Sheet
                 <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
