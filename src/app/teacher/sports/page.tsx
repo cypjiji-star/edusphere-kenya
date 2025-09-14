@@ -57,18 +57,19 @@ export default function SportsPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const teacherName = 'Ms. Wanjiku'; // Placeholder for logged-in teacher
 
    React.useEffect(() => {
     if (!schoolId) return;
     setIsLoading(true);
-    const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'), where('coach', '==', 'Ms. Wanjiku'));
+    const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'), where('coach', '==', teacherName));
     const unsubscribe = onSnapshot(teamsQuery, (snapshot) => {
         const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SportsTeam));
         setSportsTeams(teamsData);
         setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [schoolId]);
+  }, [schoolId, teacherName]);
 
   const handleCreateTeam = async () => {
     if (!newTeamName || !newTeamCoach || !newTeamIcon || !schoolId) {

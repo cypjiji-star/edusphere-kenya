@@ -47,8 +47,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { firestore } from '@/lib/firebase';
-import { collection, doc, onSnapshot, query, where, getDocs, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-
+import { collection, doc, onSnapshot, query, where, getDocs, addDoc, updateDoc, deleteDoc, writeBatch, setDoc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 type TeamDetails = {
     name: string;
@@ -82,6 +82,8 @@ const mediaHighlights = [
 export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
   const { teamId } = params;
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
 
   const [teamDetails, setTeamDetails] = React.useState<TeamDetails | null>(null);
   const [members, setMembers] = React.useState<StudentMember[]>([]);
@@ -93,26 +95,27 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
   const [newStudentId, setNewStudentId] = React.useState<string | undefined>();
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     setClientReady(true);
     setIsLoading(true);
 
-    const teamRef = doc(firestore, 'teams', teamId);
+    const teamRef = doc(firestore, 'schools', schoolId, 'teams', teamId);
     const unsubTeam = onSnapshot(teamRef, (docSnap) => {
         if (docSnap.exists()) {
             setTeamDetails(docSnap.data() as TeamDetails);
         }
     });
 
-    const membersQuery = query(collection(firestore, 'teams', teamId, 'members'));
+    const membersQuery = query(collection(firestore, 'schools', schoolId, 'teams', teamId, 'members'));
     const unsubMembers = onSnapshot(membersQuery, (snapshot) => {
         const membersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentMember));
         setMembers(membersData);
         setIsLoading(false);
     });
     
-    // Fetch all students to populate the "add student" dropdown
     const fetchAllStudents = async () => {
-        const studentsQuery = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
         const studentsSnapshot = await getDocs(studentsQuery);
         const studentsList = studentsSnapshot.docs.map(doc => ({
             id: doc.id,
@@ -127,10 +130,11 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
         unsubTeam();
         unsubMembers();
     }
-  }, [teamId]);
+  }, [teamId, schoolId]);
 
   const handleRoleChange = async (studentId: string, newRole: StudentMember['role']) => {
-    const memberRef = doc(firestore, 'teams', teamId, 'members', studentId);
+    if (!schoolId) return;
+    const memberRef = doc(firestore, 'schools', schoolId, 'teams', teamId, 'members', studentId);
     try {
         await updateDoc(memberRef, { role: newRole });
         toast({
@@ -144,8 +148,13 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
   };
   
   const handleRemoveMember = async (studentId: string) => {
+    if (!schoolId) return;
      try {
-        await deleteDoc(doc(firestore, 'teams', teamId, 'members', studentId));
+        await deleteDoc(doc(firestore, 'schools', schoolId, 'teams', teamId, 'members', studentId));
+        
+        const teamRef = doc(firestore, 'schools', schoolId, 'teams', teamId);
+        await updateDoc(teamRef, { members: members.length - 1 });
+        
         toast({
             title: 'Member Removed',
             description: 'The student has been removed from the team roster.',
@@ -158,7 +167,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
   }
 
   const handleAddStudent = async () => {
-    if (!newStudentId) return;
+    if (!newStudentId || !schoolId) return;
     const student = allStudents.find(s => s.id === newStudentId);
     if (!student) return;
 
@@ -171,7 +180,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
     }
 
     try {
-        const studentDoc = await getDoc(doc(firestore, 'students', newStudentId));
+        const studentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'students', newStudentId));
         if (!studentDoc.exists()) throw new Error("Student document not found");
 
         const studentData = studentDoc.data();
@@ -181,12 +190,10 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
             avatarUrl: studentData.avatarUrl,
             role: 'Member',
         };
-
-        // Use the student's main ID as the ID for the member document for consistency
-        await setDoc(doc(firestore, 'teams', teamId, 'members', student.id), newMemberData);
         
-        // Also update member count on team doc
-        const teamRef = doc(firestore, 'teams', teamId);
+        await setDoc(doc(firestore, 'schools', schoolId, 'teams', teamId, 'members', student.id), newMemberData);
+        
+        const teamRef = doc(firestore, 'schools', schoolId, 'teams', teamId);
         await updateDoc(teamRef, { members: members.length + 1 });
 
         setNewStudentId(undefined);
@@ -231,7 +238,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
             </div>
             <div className="flex w-full md:w-auto items-center gap-2">
                 <Button asChild variant="outline" size="sm">
-                    <Link href="/teacher/sports">
+                    <Link href={`/teacher/sports?schoolId=${schoolId}`}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to All Teams
                     </Link>
