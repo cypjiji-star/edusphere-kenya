@@ -31,6 +31,7 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -114,10 +115,15 @@ export function ChatLayout() {
   const [attachment, setAttachment] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const parentId = 'parent-user-id'; // This should be dynamic based on logged-in user
 
   React.useEffect(() => {
     if (!schoolId) return;
-    const q = query(collection(firestore, `schools/${schoolId}/conversations`), orderBy('timestamp', 'desc'));
+    const q = query(
+        collection(firestore, `schools/${schoolId}/conversations`), 
+        where('participants', 'array-contains', parentId),
+        orderBy('timestamp', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const convos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
         setConversations(convos);
@@ -127,7 +133,7 @@ export function ChatLayout() {
     });
 
     return () => unsubscribe();
-  }, [selectedConvo, schoolId]);
+  }, [selectedConvo, schoolId, parentId]);
 
   React.useEffect(() => {
     if (!selectedConvo || !schoolId) return;
@@ -223,6 +229,7 @@ export function ChatLayout() {
         lastMessage: 'New conversation started.',
         timestamp: serverTimestamp(),
         unread: false,
+        participants: [parentId, contact.id] // Added participants array
     };
 
     await addDoc(collection(firestore, `schools/${schoolId}/conversations`), newConvoData);
