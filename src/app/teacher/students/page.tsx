@@ -60,7 +60,8 @@ import { ClassAnalytics } from './class-analytics';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, getDocs, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDoc, updateDoc, addDoc } from 'firebase/firestore';
+import { format } from 'date-fns';
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
@@ -78,7 +79,6 @@ export type Student = {
 export type TeacherClass = {
   id: string;
   name: string;
-  students: Student[];
 };
 
 export default function StudentsPage() {
@@ -88,18 +88,18 @@ export default function StudentsPage() {
   const { toast } = useToast();
   
   const [allClassStudents, setAllClassStudents] = React.useState<Record<string, Student[]>>({});
+  const [isLoading, setIsLoading] = React.useState(true);
   const [newStudentName, setNewStudentName] = React.useState('');
   const [isAddStudentOpen, setIsAddStudentOpen] = React.useState(false);
   const [editingStudent, setEditingStudent] = React.useState<Student | null>(null);
+  const teacherId = 'teacher-wanjiku'; // This should be dynamic
 
   React.useEffect(() => {
-    const teacherId = 'teacher-wanjiku'; // This should be dynamic
     const q = query(collection(firestore, 'classes'), where('teacherId', '==', teacherId));
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
       const classesData: TeacherClass[] = querySnapshot.docs.map(doc => ({
         id: doc.id,
         name: doc.data().name,
-        students: []
       }));
       setTeacherClasses(classesData);
       if (!activeTab && classesData.length > 0) {
@@ -112,10 +112,36 @@ export default function StudentsPage() {
   React.useEffect(() => {
     if (!activeTab) return;
 
+    setIsLoading(true);
     const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', activeTab));
-    const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(studentsQuery, async (snapshot) => {
         const studentsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Student));
-        setAllClassStudents(prev => ({ ...prev, [activeTab]: studentsData }));
+        
+        // Fetch attendance for today for these students
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const attendanceDate = Timestamp.fromDate(today);
+
+        const attendanceQuery = query(
+            collection(firestore, 'attendance'), 
+            where('classId', '==', activeTab),
+            where('date', '==', attendanceDate)
+        );
+        const attendanceSnapshot = await getDocs(attendanceQuery);
+        const attendanceMap = new Map();
+        attendanceSnapshot.forEach(doc => {
+            const data = doc.data();
+            attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
+        });
+
+        const studentsWithAttendance = studentsData.map(student => ({
+            ...student,
+            attendance: attendanceMap.get(student.id)?.status || 'unmarked',
+            notes: attendanceMap.get(student.id)?.notes || '',
+        }));
+
+        setAllClassStudents(prev => ({ ...prev, [activeTab]: studentsWithAttendance }));
+        setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -158,16 +184,35 @@ export default function StudentsPage() {
     const batch = writeBatch(firestore);
     const today = new Date();
     today.setHours(0,0,0,0);
-    const attendanceDate = Timestamp.fromDate(today);
+    
+    for (const student of studentsForCurrentTab) {
+        const attendanceDate = Timestamp.fromDate(today);
+        const attendanceQuery = query(
+            collection(firestore, 'attendance'),
+            where('studentId', '==', student.id),
+            where('date', '==', attendanceDate)
+        );
 
-    studentsForCurrentTab.forEach(student => {
-        const attendanceRef = doc(collection(firestore, 'students', student.id, 'attendance'));
-        batch.set(attendanceRef, {
-            date: attendanceDate,
-            status: student.attendance,
-            notes: student.notes || '',
-        });
-    });
+        const querySnapshot = await getDocs(attendanceQuery);
+        if (!querySnapshot.empty) {
+            const docId = querySnapshot.docs[0].id;
+            const attendanceRef = doc(firestore, 'attendance', docId);
+            batch.update(attendanceRef, {
+                status: student.attendance,
+                notes: student.notes || '',
+            });
+        } else {
+            const attendanceRef = doc(collection(firestore, 'attendance'));
+            batch.set(attendanceRef, {
+                studentId: student.id,
+                classId: activeTab,
+                date: attendanceDate,
+                status: student.attendance,
+                notes: student.notes || '',
+                teacherId,
+            });
+        }
+    }
 
     try {
         await batch.commit();
@@ -199,8 +244,9 @@ export default function StudentsPage() {
         await setDoc(newStudentRef, {
             id: newStudentRef.id,
             name: newStudentName,
+            rollNumber: `TEMP-${Math.floor(1000 + Math.random() * 9000)}`,
             classId: activeTab,
-            role: 'Student', // default role
+            role: 'Student',
             avatarUrl: `https://picsum.photos/seed/${newStudentRef.id}/100`,
             overallGrade: 'N/A',
             attendance: 'present',
@@ -291,12 +337,14 @@ export default function StudentsPage() {
             return <Badge variant="destructive" className="w-full"><XCircle className="mr-2 h-4 w-4"/>Absent</Badge>;
         case 'late':
             return <Badge variant="secondary" className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"><Clock className="mr-2 h-4 w-4"/>Late</Badge>;
+        default:
+            return <Badge variant="outline" className="w-full">Unmarked</Badge>;
     }
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="md:flex md:items-center md:justify-between">
           <div className="mb-4 md:mb-0">
             <h1 className="font-headline text-3xl font-bold">Class &amp; Student Management</h1>
@@ -399,6 +447,9 @@ export default function StudentsPage() {
                 </div>
               </CardHeader>
               <CardContent>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : (
                 <div className="w-full overflow-auto rounded-lg border">
                   <Table>
                     <TableHeader>
@@ -481,6 +532,7 @@ export default function StudentsPage() {
                     </TableBody>
                   </Table>
                 </div>
+                )}
               </CardContent>
               <CardFooter>
                  <Button onClick={handleSaveAttendance}>
