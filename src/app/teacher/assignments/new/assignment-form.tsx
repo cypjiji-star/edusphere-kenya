@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -38,18 +38,31 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useSearchParams } from 'next/navigation';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
-const teacherClasses = [
-  { id: 'f4-chem', name: 'Form 4 - Chemistry' },
-  { id: 'f3-math', name: 'Form 3 - Mathematics' },
-  { id: 'f2-phys', name: 'Form 2 - Physics' },
-];
+type TeacherClass = {
+  id: string;
+  name: string;
+};
 
 export function AssignmentForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
+
+  useEffect(() => {
+    if (!schoolId) return;
+    const teacherId = 'teacher-wanjiku'; // This should be dynamic
+    const q = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+        setTeacherClasses(classesData);
+    });
+    return () => unsubscribe();
+  }, [schoolId]);
 
   const form = useForm<AssignmentFormValues>({
     resolver: zodResolver(assignmentSchema),
@@ -145,8 +158,8 @@ export function AssignmentForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {teacherClasses.map((level) => (
-                            <SelectItem key={level.id} value={level.id}>{level.name}</SelectItem>
+                          {teacherClasses.map((cls) => (
+                            <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

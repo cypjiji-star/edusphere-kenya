@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -75,36 +74,51 @@ type Student = {
     avatarUrl: string;
 }
 
-const teacherClasses = [
-  { id: 'f4-chem', name: 'Form 4 - Chemistry' },
-  { id: 'f3-math', name: 'Form 3 - Mathematics' },
-  { id: 'f2-phys', name: 'Form 2 - Physics' },
-];
+type TeacherClass = {
+  id: string;
+  name: string;
+};
+
 const assessmentTypes = ['Exam', 'Quiz', 'Assignment', 'Project'] as const;
 
 export function GradeEntryForm() {
   const [isLoading, setIsLoading] = React.useState(false);
-  const [selectedClass, setSelectedClass] = React.useState<string>(teacherClasses[0].id);
   const [isWeighted, setIsWeighted] = React.useState(false);
   const [useRubric, setUseRubric] = React.useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
   const [studentsByClass, setStudentsByClass] = React.useState<Record<string, Student[]>>({});
-
+  const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
+  
   React.useEffect(() => {
     if (!schoolId) return;
+    const teacherId = 'teacher-wanjiku'; // Dynamic teacher ID
+    const q = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+        setTeacherClasses(classesData);
+        if (!selectedClass && classesData.length > 0) {
+            setSelectedClass(classesData[0].id);
+        }
+    });
+    return () => unsubscribe();
+  }, [schoolId, selectedClass]);
 
-    teacherClasses.forEach(tc => {
+  React.useEffect(() => {
+    if (!schoolId || teacherClasses.length === 0) return;
+
+    const unsubscribers = teacherClasses.map(tc => {
         const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', tc.id));
-        const unsubscribe = onSnapshot(studentsQuery, snapshot => {
+        return onSnapshot(studentsQuery, snapshot => {
             const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
             setStudentsByClass(prev => ({ ...prev, [tc.id]: students }));
         });
-        return unsubscribe;
     });
 
-  }, [schoolId]);
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [schoolId, teacherClasses]);
 
   const form = useForm<GradeEntryFormValues>({
     resolver: zodResolver(gradeEntrySchema),
@@ -122,9 +136,11 @@ export function GradeEntryForm() {
   });
 
   React.useEffect(() => {
-    const students = studentsByClass[selectedClass] || [];
-    replace(students.map(s => ({ studentId: s.id, grade: '' })));
-    form.setValue('classId', selectedClass);
+    if (selectedClass) {
+        const students = studentsByClass[selectedClass] || [];
+        replace(students.map(s => ({ studentId: s.id, grade: '' })));
+        form.setValue('classId', selectedClass);
+    }
   }, [selectedClass, replace, form, studentsByClass]);
 
   async function onSubmit(values: GradeEntryFormValues) {
@@ -151,7 +167,7 @@ export function GradeEntryForm() {
     }
   }
 
-  const studentsForClass = studentsByClass[selectedClass] || [];
+  const studentsForClass = studentsByClass[selectedClass || ''] || [];
 
   return (
     <Form {...form}>
@@ -170,7 +186,7 @@ export function GradeEntryForm() {
                       field.onChange(value);
                       setSelectedClass(value);
                     }}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -287,6 +303,7 @@ export function GradeEntryForm() {
                 <TableBody>
                   {fields.map((field, index) => {
                     const student = studentsForClass[index];
+                    if (!student) return null;
                     return (
                       <TableRow key={field.id}>
                         <TableCell>
