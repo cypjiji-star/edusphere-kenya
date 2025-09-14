@@ -20,8 +20,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Edit, GripVertical, Plus, Save, Settings, Share, Trash2, AlertTriangle, FileDown, Printer, ChevronDown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Edit, GripVertical, Plus, Save, Settings, Share, Trash2, AlertTriangle, FileDown, Printer, ChevronDown, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -44,10 +43,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { classes, teachers, rooms, periods as initialPeriods, subjects, mockTimetableData, views, days } from './timetable-data';
+import { subjects, views } from './timetable-data';
 import type { Subject } from './timetable-data';
 import { useToast } from '@/hooks/use-toast';
+import { firestore } from '@/lib/firebase';
+import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 
+
+type Period = { id: number; time: string; isBreak?: boolean; title?: string };
+type TimetableData = Record<string, Record<string, { subject: Subject; room: string; clash?: any }>>;
 
 function DraggableSubject({ subject }: { subject: Subject }) {
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -93,11 +97,55 @@ function DroppableCell({ day, periodId, children }: { day: string; periodId: num
 
 export function TimetableBuilder() {
   const [view, setView] = React.useState(views[0]);
-  const [selectedItem, setSelectedItem] = React.useState(classes[0]);
-  const [timetable, setTimetable] = React.useState(mockTimetableData);
-  const [clientReady, setClientReady] = React.useState(false);
+  const [selectedItem, setSelectedItem] = React.useState<string | undefined>();
+  const [timetable, setTimetable] = React.useState<TimetableData>({});
+  const [periods, setPeriods] = React.useState<Period[]>([]);
+  const [allClasses, setAllClasses] = React.useState<{id: string, name: string}[]>([]);
+  const [allTeachers, setAllTeachers] = React.useState<string[]>([]);
+  const [allRooms, setAllRooms] = React.useState<string[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
-  const [periods, setPeriods] = React.useState(initialPeriods);
+
+  React.useEffect(() => {
+    const unsubClasses = onSnapshot(collection(firestore, 'classes'), (snapshot) => {
+        const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+        setAllClasses(classesData);
+        if (!selectedItem && classesData.length > 0) {
+            setSelectedItem(classesData[0].id);
+        }
+    });
+
+    // Mock fetching teachers and rooms for now
+    setAllTeachers(['Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri', 'Mr. Kamau']);
+    setAllRooms(['Science Lab', 'Room 12A', 'Room 10B', 'Staff Room']);
+
+    const unsubPeriods = onSnapshot(doc(firestore, 'timetableSettings', 'periods'), (docSnap) => {
+        if (docSnap.exists()) {
+            setPeriods(docSnap.data().periods);
+        }
+    });
+    
+    return () => {
+        unsubClasses();
+        unsubPeriods();
+    }
+  }, [selectedItem]);
+
+  React.useEffect(() => {
+    if (!selectedItem) return;
+    setIsLoading(true);
+    const timetableRef = doc(firestore, 'timetables', selectedItem);
+    const unsubTimetable = onSnapshot(timetableRef, (docSnap) => {
+        if (docSnap.exists()) {
+            setTimetable(docSnap.data() as TimetableData);
+        } else {
+            setTimetable({});
+        }
+        setIsLoading(false);
+    });
+
+    return () => unsubTimetable();
+  }, [selectedItem]);
 
   const addPeriod = () => {
     const newId = periods.length > 0 ? Math.max(...periods.map(p => p.id)) + 1 : 1;
@@ -113,21 +161,17 @@ export function TimetableBuilder() {
   }
 
 
-  React.useEffect(() => {
-    setClientReady(true);
-  }, []);
-
   const renderFilterDropdown = () => {
-    let items: string[] = [];
+    let items: {id: string, name: string}[] | string[] = [];
     switch(view) {
         case 'Class View':
-            items = classes;
+            items = allClasses;
             break;
         case 'Teacher View':
-            items = teachers;
+            items = allTeachers;
             break;
         case 'Room View':
-            items = rooms;
+            items = allRooms;
             break;
     }
     
@@ -137,7 +181,10 @@ export function TimetableBuilder() {
                 <SelectValue placeholder={`Select ${view.split(' ')[0]}`} />
             </SelectTrigger>
             <SelectContent>
-                {items.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                {items.map(item => typeof item === 'string' 
+                    ? <SelectItem key={item} value={item}>{item}</SelectItem> 
+                    : <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                )}
             </SelectContent>
         </Select>
     )
@@ -150,13 +197,15 @@ export function TimetableBuilder() {
     if (over && subject) {
         const [day, periodIdStr] = over.id.toString().split('-');
         const periodId = parseInt(periodIdStr, 10);
+        const periodTime = periods.find(p => p.id === periodId)?.time;
+        if (!periodTime) return;
 
         setTimetable(prev => {
             const newTimetable = { ...prev };
             if (!newTimetable[day]) {
                 newTimetable[day] = {};
             }
-            newTimetable[day][periodId] = {
+            newTimetable[day][periodTime] = {
                 subject,
                 room: 'Room TBD' // Placeholder room
             };
@@ -165,21 +214,29 @@ export function TimetableBuilder() {
     }
   }
   
-  const handleClearCell = (day: string, periodId: number) => {
+  const handleClearCell = (day: string, periodTime: string) => {
     setTimetable(prev => {
         const newTimetable = { ...prev };
-        if (newTimetable[day] && newTimetable[day][periodId]) {
-            delete newTimetable[day][periodId];
+        if (newTimetable[day] && newTimetable[day][periodTime]) {
+            delete newTimetable[day][periodTime];
         }
         return newTimetable;
     });
   }
 
-  const handleSave = () => {
-    toast({
-        title: 'Timetable Saved',
-        description: `The timetable for ${selectedItem} has been saved as a draft.`,
-    })
+  const handleSave = async () => {
+    if (!selectedItem) return;
+    try {
+        const timetableRef = doc(firestore, 'timetables', selectedItem);
+        await setDoc(timetableRef, timetable);
+        toast({
+            title: 'Timetable Saved',
+            description: `The timetable for ${selectedItem} has been saved.`,
+        });
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Save Failed' });
+    }
   }
   
   const handlePublish = () => {
@@ -189,11 +246,17 @@ export function TimetableBuilder() {
     })
   }
   
-  const handleSavePeriods = () => {
-    toast({
-        title: 'Periods Saved',
-        description: 'The school day periods have been updated for all timetables.',
-    });
+  const handleSavePeriods = async () => {
+    try {
+        await setDoc(doc(firestore, 'timetableSettings', 'periods'), { periods });
+        toast({
+            title: 'Periods Saved',
+            description: 'The school day periods have been updated for all timetables.',
+        });
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Could not save periods.' });
+    }
   };
 
   const handleExport = (type: string) => {
@@ -203,21 +266,24 @@ export function TimetableBuilder() {
     });
   };
 
-  if (!clientReady) {
+  if (!selectedItem) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Loading Timetable...</CardTitle>
-                <CardDescription>Please wait while the timetable builder is being prepared.</CardDescription>
+                <CardTitle>Loading Timetable Data...</CardTitle>
+                <CardDescription>Please wait while we prepare the timetable builder.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex items-center justify-center h-96">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 </div>
             </CardContent>
         </Card>
     );
   }
+
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const selectedClassName = allClasses.find(c => c.id === selectedItem)?.name || selectedItem;
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
@@ -227,7 +293,7 @@ export function TimetableBuilder() {
                     <CardHeader>
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
-                                <CardTitle>Timetable for {selectedItem}</CardTitle>
+                                <CardTitle>Timetable for {selectedClassName}</CardTitle>
                                 <CardDescription>Drag subjects from the right panel and drop them into time slots.</CardDescription>
                             </div>
                             <div className="flex w-full flex-wrap md:w-auto items-center gap-2">
@@ -242,9 +308,9 @@ export function TimetableBuilder() {
                                 </Select>
                                 <Select value={view} onValueChange={(v) => {
                                     setView(v);
-                                    if (v === 'Class View') setSelectedItem(classes[0]);
-                                    if (v === 'Teacher View') setSelectedItem(teachers[0]);
-                                    if (v === 'Room View') setSelectedItem(rooms[0]);
+                                    if (v === 'Class View') setSelectedItem(allClasses[0]?.id);
+                                    if (v === 'Teacher View') setSelectedItem(allTeachers[0]);
+                                    if (v === 'Room View') setSelectedItem(allRooms[0]);
                                 }}>
                                     <SelectTrigger className="w-full sm:w-auto">
                                         <SelectValue placeholder="Select view" />
@@ -282,18 +348,6 @@ export function TimetableBuilder() {
                                                     <Button variant="ghost" size="icon" className="self-end text-destructive hover:text-destructive" onClick={() => removePeriod(period.id)}>
                                                         <Trash2 className="h-4 w-4"/>
                                                     </Button>
-                                                    {period.isBreak && (
-                                                        <div className="col-span-full grid grid-cols-[1fr_auto] items-center gap-4 pt-2">
-                                                            <div className="space-y-1.5">
-                                                                <Label htmlFor={`break-title-${period.id}`}>Break Title</Label>
-                                                                <Input id={`break-title-${period.id}`} value={period.title} onChange={(e) => updatePeriod(period.id, 'title', e.target.value)} />
-                                                            </div>
-                                                            <div className="flex items-center space-x-2 self-end pb-1">
-                                                                <Switch id={`is-break-${period.id}`} checked={period.isBreak} onCheckedChange={(checked) => updatePeriod(period.id, 'isBreak', checked)} />
-                                                                <Label htmlFor={`is-break-${period.id}`}>Is a Break</Label>
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             )})}
                                         </div>
@@ -338,6 +392,7 @@ export function TimetableBuilder() {
                         </div>
                     </CardHeader>
                     <CardContent>
+                        {isLoading ? <div className="h-96 flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary"/></div> :
                         <div className="w-full overflow-auto rounded-lg border">
                             <table className="w-full min-w-[800px]">
                                 <thead>
@@ -353,7 +408,7 @@ export function TimetableBuilder() {
                                         <tr key={period.id} className="border-b">
                                             <td className="p-2 font-semibold text-primary text-sm border-r text-center">{period.time}</td>
                                             {days.map(day => {
-                                                const cellData = timetable[day]?.[period.id];
+                                                const cellData = timetable[day]?.[period.time];
                                                 const content = (
                                                     <div className={cn("h-full w-full", cellData?.clash && "relative ring-2 ring-destructive ring-inset rounded-md")}>
                                                         {cellData?.clash && (
@@ -376,7 +431,7 @@ export function TimetableBuilder() {
                                                                         <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
                                                                             <Edit className="h-4 w-4" />
                                                                         </Button>
-                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white" onClick={() => handleClearCell(day, period.id)}>
+                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white" onClick={() => handleClearCell(day, period.time)}>
                                                                             <Trash2 className="h-4 w-4" />
                                                                         </Button>
                                                                     </div>
@@ -407,6 +462,7 @@ export function TimetableBuilder() {
                                 </tbody>
                             </table>
                         </div>
+                        }
                     </CardContent>
                     <CardFooter className="flex justify-end gap-2">
                         <Button variant="outline" onClick={() => setTimetable({})}>Clear Timetable</Button>

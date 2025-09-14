@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -138,11 +137,6 @@ export function TimetableWidget() {
                         <p className="font-semibold text-sm leading-tight">{event.title}</p>
                         {!event.isBreak && <p className="text-xs text-muted-foreground">{event.location}</p>}
                         </div>
-                        {isCurrent && !event.isBreak && (
-                        <Badge variant="default" className="mt-auto">
-                            Ongoing
-                        </Badge>
-                        )}
                     </div>
                     );
                 })}
