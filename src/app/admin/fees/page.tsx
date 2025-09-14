@@ -274,20 +274,7 @@ function NewTransactionDialog({ students, open, onOpenChange, schoolId }: { stud
     )
 }
 
-function StudentLedgerDialog({ student, open, onOpenChange, schoolId }: { student: StudentFee | null, open: boolean, onOpenChange: (open: boolean) => void, schoolId: string }) {
-    const [ledger, setLedger] = React.useState<Transaction[]>([]);
-
-    React.useEffect(() => {
-        if (student) {
-            const q = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
-                setLedger(transactions);
-            });
-            return () => unsubscribe();
-        }
-    }, [student, schoolId]);
-
+function StudentLedgerDialog({ student, transactions, open, onOpenChange }: { student: StudentFee | null, transactions: Transaction[], open: boolean, onOpenChange: (open: boolean) => void }) {
     if (!student) return null;
 
     return (
@@ -331,7 +318,7 @@ function StudentLedgerDialog({ student, open, onOpenChange, schoolId }: { studen
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {ledger.map((item) => (
+                                {transactions.map((item) => (
                                     <TableRow key={item.id}>
                                         <TableCell>{item.date.toDate().toLocaleDateString('en-GB')}</TableCell>
                                         <TableCell className="font-medium">{item.description}</TableCell>
@@ -436,6 +423,7 @@ export default function FeesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const [students, setStudents] = React.useState<StudentFee[]>([]);
+    const [allTransactions, setAllTransactions] = React.useState<Record<string, Transaction[]>>({});
     const [feeStructure, setFeeStructure] = React.useState<FeeStructureItem[]>([]);
     const [discounts, setDiscounts] = React.useState<DiscountItem[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -452,29 +440,43 @@ export default function FeesPage() {
     React.useEffect(() => {
         if (!schoolId) return;
 
-        const q = query(collection(firestore, 'schools', schoolId, 'students'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
+        const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
             setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentFee)));
         });
-        return () => unsubscribe();
-    }, [schoolId]);
 
-    React.useEffect(() => {
-        if (!schoolId) return;
-        const q = query(collection(firestore, 'schools', schoolId, 'feeStructure'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const transactionsQuery = query(collectionGroup(firestore, 'transactions'), orderBy('date', 'desc'));
+        const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
+            const groupedTransactions: Record<string, Transaction[]> = {};
+            snapshot.docs.forEach(doc => {
+                const parentPath = doc.ref.parent.parent;
+                if (parentPath && parentPath.parent.id === schoolId) {
+                    const studentId = parentPath.id;
+                    if (!groupedTransactions[studentId]) {
+                        groupedTransactions[studentId] = [];
+                    }
+                    groupedTransactions[studentId].push({ id: doc.id, ...doc.data() } as Transaction);
+                }
+            });
+            setAllTransactions(groupedTransactions);
+        });
+
+        const feeStructureQuery = query(collection(firestore, 'schools', schoolId, 'feeStructure'));
+        const unsubscribeFeeStructure = onSnapshot(feeStructureQuery, (snapshot) => {
             setFeeStructure(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeeStructureItem)));
         });
-        return () => unsubscribe();
-    }, [schoolId]);
 
-    React.useEffect(() => {
-        if (!schoolId) return;
-        const q = query(collection(firestore, 'schools', schoolId, 'discounts'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const discountsQuery = query(collection(firestore, 'schools', schoolId, 'discounts'));
+        const unsubscribeDiscounts = onSnapshot(discountsQuery, (snapshot) => {
             setDiscounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DiscountItem)));
         });
-        return () => unsubscribe();
+
+        return () => {
+            unsubscribeStudents();
+            unsubscribeTransactions();
+            unsubscribeFeeStructure();
+            unsubscribeDiscounts();
+        };
     }, [schoolId]);
 
     const filteredStudents = students.filter(student => {
@@ -697,7 +699,7 @@ export default function FeesPage() {
             </Tabs>
 
             <NewTransactionDialog students={students} open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen} schoolId={schoolId} />
-            <StudentLedgerDialog student={selectedStudent} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} schoolId={schoolId}/>
+            <StudentLedgerDialog student={selectedStudent} transactions={allTransactions[selectedStudent?.id ?? ''] || []} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} />
             <EditCategoryDialog category={editingCategory} open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)} onSave={handleUpdateCategory} />
             <EditDiscountDialog discount={editingDiscount} open={!!editingDiscount} onOpenChange={(open) => !open && setEditingDiscount(null)} onSave={handleUpdateDiscount} />
             <Dialog><DialogContent><DialogHeader><DialogTitle>Generate Bulk Invoices</DialogTitle><DialogDescription>This will create new invoices for all students based on their class and the current fee structure for the selected term.</DialogDescription></DialogHeader><div className="py-4 grid gap-4"><div className="space-y-2"><Label htmlFor="invoice-term">Select Term</Label><Select value={invoiceTerm} onValueChange={setInvoiceTerm}><SelectTrigger id="invoice-term"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="term2-2024">Term 2, 2024</SelectItem><SelectItem value="term3-2024">Term 3, 2024 (Upcoming)</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label htmlFor="invoice-classes">Select Classes</Label><Select value={invoiceClass} onValueChange={setInvoiceClass}><SelectTrigger id="invoice-classes"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Classes</SelectItem><SelectItem value="Form 4">Form 4 Only</SelectItem><SelectItem value="Form 3">Form 3 Only</SelectItem></SelectContent></Select></div></div><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><DialogClose asChild><Button onClick={generateInvoices}>Generate Invoices</Button></DialogClose></DialogFooter></DialogContent></Dialog>
