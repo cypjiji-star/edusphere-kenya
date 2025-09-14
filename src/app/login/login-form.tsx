@@ -46,13 +46,37 @@ export function LoginForm() {
             router.push(portalPath + queryParams);
 
         } catch (error: any) {
-            console.error(error);
-            let description = 'Invalid credentials or network error. Please try again.';
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                description = 'The email or password you entered is incorrect.';
+            console.error("Login Error Code:", error.code);
+            let title = 'Login Failed';
+            let description = 'An unexpected error occurred. Please try again.';
+            
+            switch (error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
+                    title = 'Invalid Credentials';
+                    description = 'The email or password you entered is incorrect. Please check your credentials and try again.';
+                    break;
+                case 'auth/invalid-email':
+                    title = 'Invalid Email';
+                    description = 'The email address you entered is not in a valid format. Please correct it and try again.';
+                    break;
+                case 'auth/user-disabled':
+                    title = 'Account Disabled';
+                    description = 'This user account has been disabled. Please contact your administrator.';
+                    break;
+                case 'auth/too-many-requests':
+                    title = 'Too Many Attempts';
+                    description = 'Access to this account has been temporarily disabled due to many failed login attempts. You can reset your password or try again later.';
+                    break;
+                 case 'auth/network-request-failed':
+                    title = 'Network Error';
+                    description = 'Could not connect to the authentication service. Please check your internet connection.';
+                    break;
             }
+
             toast({
-                title: 'Login Failed',
+                title: title,
                 description: description,
                 variant: 'destructive',
             });
