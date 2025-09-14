@@ -269,7 +269,7 @@ export function TimetableBuilder() {
     if (!selectedItem || !schoolId) return;
     try {
         const timetableRef = doc(firestore, `schools/${schoolId}/timetables`, selectedItem);
-        await setDoc(timetableRef, timetable);
+        await setDoc(timetableRef, {...timetable, schoolId: schoolId});
         toast({
             title: 'Timetable Saved',
             description: `The timetable for the selected view has been saved.`,
@@ -615,4 +615,3 @@ export function TimetableBuilder() {
   );
 }
 
-    
