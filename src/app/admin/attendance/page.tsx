@@ -304,7 +304,7 @@ export default function AdminAttendancePage() {
   const filteredRecords = allRecords.filter(record => {
       const recordDate = record.date.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
-      const matchesSearch = record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = record.studentName && record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClass = classFilter === 'All Classes' || record.class === classFilter;
       const matchesTeacher = teacherFilter === 'All Teachers' || record.teacher === teacherFilter;
       const matchesStatus = statusFilter === 'All Statuses' || record.status === statusFilter;
