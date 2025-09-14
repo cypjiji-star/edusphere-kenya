@@ -3,8 +3,10 @@
 
 import * as React from 'react';
 import { addDays, format, eachDayOfInterval, isBefore, startOfToday, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
-import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock, Bell, UserCheck, UserX } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown, Check, History, Percent, FilePenLine, FileDown, Printer, Lock, Bell, UserCheck, UserX, Loader2 } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, doc, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
 
 import { cn } from '@/lib/utils';
 import {
@@ -55,7 +57,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 
@@ -70,33 +71,14 @@ type Student = {
     notes?: string;
 };
 
-// Mock data - this would come from an API in a real app
-const allStudents: Record<string, Omit<Student, 'status' | 'notes'>[]> = {
-  'f4-chem': Array.from({ length: 31 }, (_, i) => ({
-    id: `f4-chem-${i + 1}`,
-    name: `Student ${i + 1}`,
-    avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100`,
-  })),
-  'f3-math': Array.from({ length: 28 }, (_, i) => ({
-    id: `f3-math-${i + 1}`,
-    name: `Student ${i + 32}`,
-    avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100`,
-  })),
-  'f2-phys': Array.from({ length: 35 }, (_, i) => ({
-    id: `f2-phys-${i + 1}`,
-    name: `Student ${i + 60}`,
-    avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100`,
-  })),
-};
-
-const teacherClasses = [
-  { id: 'f4-chem', name: 'Form 4 - Chemistry' },
-  { id: 'f3-math', name: 'Form 3 - Mathematics' },
-  { id: 'f2-phys', name: 'Form 2 - Physics' },
-];
+type TeacherClass = {
+  id: string;
+  name: string;
+}
 
 export default function AttendancePage() {
-  const [selectedClass, setSelectedClass] = React.useState(teacherClasses[0].id);
+  const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+  const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(),
     to: undefined,
@@ -104,6 +86,7 @@ export default function AttendancePage() {
   const [students, setStudents] = React.useState<Student[]>([]);
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'all'>('all');
+  const [isLoading, setIsLoading] = React.useState(true);
   
   const isRange = date?.from && date?.to;
   const selectedDate = date?.from && !date.to ? date.from : undefined;
@@ -117,28 +100,110 @@ export default function AttendancePage() {
 
 
   React.useEffect(() => {
-    // In a real app, you would fetch students and their attendance for the selected date.
-    // For this mock, we'll just initialize them with 'unmarked' status.
-    const classStudents = allStudents[selectedClass] || [];
-    setStudents(classStudents.map(s => ({ ...s, status: 'unmarked', notes: '' })));
-  }, [selectedClass, date]);
+    const teacherId = 'teacher-wanjiku'; // This should be dynamic based on logged-in user
+    const q = query(collection(firestore, 'classes'), where('teacherId', '==', teacherId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const classesData: TeacherClass[] = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+        setTeacherClasses(classesData);
+        if (!selectedClass && classesData.length > 0) {
+            setSelectedClass(classesData[0].id);
+        }
+    });
+    return () => unsubscribe();
+  }, [selectedClass]);
 
-  const handleSaveAttendance = React.useCallback(() => {
-    if (!isEditable) return;
-    let description = '';
-    if (date?.from && !date.to) {
-        description = `Attendance for ${
-            teacherClasses.find((c) => c.id === selectedClass)?.name
-        } on ${format(date.from, 'PPP')} has been saved.`
-    } else {
-        description = 'Attendance has been saved.';
+  React.useEffect(() => {
+    if (!selectedClass || !date?.from) return;
+
+    const fetchAttendance = async () => {
+        setIsLoading(true);
+        const targetDate = startOfToday();
+        if (selectedDate) {
+            targetDate.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        }
+
+        try {
+            // Fetch students for the class
+            const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', selectedClass));
+            const studentsSnapshot = await getDocs(studentsQuery);
+            const classStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
+
+            // Fetch attendance records for these students for the selected date
+            const attendanceQuery = query(
+                collection(firestore, 'attendance'),
+                where('classId', '==', selectedClass),
+                where('date', '==', Timestamp.fromDate(targetDate))
+            );
+            const attendanceSnapshot = await getDocs(attendanceQuery);
+            const attendanceMap = new Map();
+            attendanceSnapshot.forEach(doc => {
+                const data = doc.data();
+                attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
+            });
+
+            const studentAttendance = classStudents.map(student => ({
+                ...student,
+                status: attendanceMap.get(student.id)?.status || 'unmarked',
+                notes: attendanceMap.get(student.id)?.notes || '',
+            }));
+
+            setStudents(studentAttendance);
+
+        } catch(e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Error fetching data.' });
+        } finally {
+            setIsLoading(false);
+        }
     }
 
-    toast({
-      title: "✓ Saved",
-      description,
+    if (!isRange) {
+      fetchAttendance();
+    } else {
+      setStudents([]);
+    }
+
+  }, [selectedClass, date, isRange, toast]);
+
+  const handleSaveAttendance = React.useCallback(async () => {
+    if (!isEditable || !selectedClass || !date?.from) return;
+
+    const batch = writeBatch(firestore);
+    const attendanceDate = startOfToday();
+    attendanceDate.setFullYear(date.from.getFullYear(), date.from.getMonth(), date.from.getDate());
+
+    students.forEach(student => {
+        // Use a composite ID to prevent duplicate records for the same student, class, and date
+        const docId = `${student.id}_${selectedClass}_${format(attendanceDate, 'yyyy-MM-dd')}`;
+        const attendanceRef = doc(firestore, 'attendance', docId);
+
+        batch.set(attendanceRef, {
+            studentId: student.id,
+            classId: selectedClass,
+            date: Timestamp.fromDate(attendanceDate),
+            status: student.status,
+            notes: student.notes || '',
+            teacherId: 'teacher-wanjiku' // This should be dynamic
+        });
     });
-  }, [date, selectedClass, toast, isEditable]);
+
+    try {
+        await batch.commit();
+        toast({
+        title: "✓ Saved",
+        description: `Attendance for ${
+            teacherClasses.find((c) => c.id === selectedClass)?.name
+        } on ${format(date.from, 'PPP')} has been saved.`,
+        });
+    } catch (e) {
+        console.error("Error saving attendance: ", e);
+        toast({
+            title: "Save Failed",
+            description: "Could not save attendance. Please try again.",
+            variant: 'destructive',
+        });
+    }
+  }, [isEditable, students, selectedClass, date, toast, teacherClasses]);
   
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     if (!isEditable) return;
@@ -377,23 +442,13 @@ export default function AttendancePage() {
                                                 </Button>
                                             </TableCell>
                                             <TableCell>
-                                                {Math.random() > 0.2 ? (
                                                 <div className="flex items-center gap-2 text-sm text-green-600">
                                                     <Check className="h-4 w-4" />
                                                     <span>Record Saved</span>
                                                 </div>
-                                                ) : (
-                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                    <span>No Record</span>
-                                                </div>
-                                                )}
                                             </TableCell>
-                                            <TableCell className="text-center">
-                                                {Math.random() > 0.2 ? `${Math.floor(Math.random() * (100 - 85 + 1)) + 85}%` : '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {Math.random() > 0.2 ? "Ms. Wanjiku" : '—'}
-                                            </TableCell>
+                                            <TableCell className="text-center">98%</TableCell>
+                                            <TableCell>Ms. Wanjiku</TableCell>
                                         </TableRow>
                                         ))}
                                         </TableBody>
@@ -416,6 +471,11 @@ export default function AttendancePage() {
                 </AlertDescription>
               </Alert>
             )}
+            {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                </div>
+            ) : (
             <div className="w-full overflow-auto rounded-lg border">
                 <Table>
                 <TableHeader>
@@ -486,6 +546,7 @@ export default function AttendancePage() {
                 </TableBody>
                 </Table>
             </div>
+            )}
             </>
           )}
         </CardContent>
@@ -495,6 +556,13 @@ export default function AttendancePage() {
             </CardFooter>
         ) : (
             <CardFooter className="flex-col items-start gap-4 border-t pt-6">
+                <div className="flex w-full justify-end">
+                    <Button onClick={handleSaveAttendance} disabled={!isEditable}>
+                        <Check className="mr-2" />
+                        Submit Today's Attendance
+                    </Button>
+                </div>
+                <Separator />
                 <div className="space-y-2">
                     <h4 className="font-semibold flex items-center gap-2">
                         <Bell className="h-5 w-5 text-primary" />
@@ -512,7 +580,6 @@ export default function AttendancePage() {
                         <Label htmlFor="notify-admin">Alert admin for low attendance</Label>
                     </div>
                 </div>
-                 <p className="text-xs text-muted-foreground pt-2">Full alert customization is coming soon.</p>
             </CardFooter>
         )}
       </Card>
