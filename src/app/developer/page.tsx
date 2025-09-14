@@ -29,7 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 
 
 type School = {
@@ -71,7 +71,9 @@ export default function DeveloperDashboard() {
     }
     setIsCreating(true);
     try {
-        await addDoc(collection(firestore, 'schools'), {
+        const schoolRef = doc(collection(firestore, 'schools'));
+        await setDoc(schoolRef, {
+            id: schoolRef.id,
             name: schoolName,
             domain: `${subdomain}.school.app`,
             admin: adminEmail,
@@ -80,6 +82,7 @@ export default function DeveloperDashboard() {
             plan: 'Standard Tier',
             createdAt: serverTimestamp(),
         });
+        
         toast({
             title: 'School Provisioned!',
             description: `${schoolName} is being set up.`,
@@ -187,9 +190,9 @@ export default function DeveloperDashboard() {
                     </CardContent>
                     <CardFooter>
                     <Button asChild variant="outline" className="w-full" disabled={school.status !== 'Active'}>
-                        <Link href={`/admin`}>
-                        Manage School
-                        <ArrowRight className="ml-2 h-4 w-4" />
+                        <Link href={`/admin?schoolId=${school.id}`}>
+                            Manage School
+                            <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                     </Button>
                     </CardFooter>

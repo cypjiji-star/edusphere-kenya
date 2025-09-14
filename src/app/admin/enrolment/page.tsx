@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { firestore, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import {
@@ -99,7 +100,6 @@ const enrolmentSchema = z.object({
   parentLastName: z.string().min(2, 'Parent\'s last name is required.'),
   parentRelationship: z.string({ required_error: 'Relationship is required.' }),
   parentEmail: z.string().email('Invalid email address.'),
-  parentPhone: z.string().min(10, 'A valid phone number is required.'),
   parentPassword: z.string().min(8, 'Password must be at least 8 characters.'),
   allergies: z.string().optional(),
   medicalConditions: z.string().optional(),
@@ -135,6 +135,9 @@ const classOptions = [
 
 export default function StudentEnrolmentPage() {
     const { toast } = useToast();
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
+
     const [bulkEnrolmentFile, setBulkEnrolmentFile] = React.useState<File | null>(null);
     const [profilePhotoFile, setProfilePhotoFile] = React.useState<File | null>(null);
     const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
@@ -154,7 +157,8 @@ export default function StudentEnrolmentPage() {
     });
     
      React.useEffect(() => {
-        const q = query(collection(firestore, 'students'), orderBy('createdAt', 'desc'), limit(5));
+        if (!schoolId) return;
+        const q = query(collection(firestore, 'schools', schoolId, 'students'), orderBy('createdAt', 'desc'), limit(5));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedEnrolments = snapshot.docs.map(doc => {
                 const data = doc.data();
@@ -170,7 +174,7 @@ export default function StudentEnrolmentPage() {
             setRecentEnrolments(fetchedEnrolments);
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -229,18 +233,22 @@ export default function StudentEnrolmentPage() {
     };
 
     async function onSubmit(values: EnrolmentFormValues) {
+        if (!schoolId) {
+            toast({ title: 'Error', description: 'School ID is missing.', variant: 'destructive'});
+            return;
+        }
         setIsSubmitting(true);
         try {
             let photoUrl = '';
             if (profilePhotoFile) {
-                const storageRef = ref(storage, `profile_photos/${Date.now()}_${profilePhotoFile.name}`);
+                const storageRef = ref(storage, `${schoolId}/profile_photos/${Date.now()}_${profilePhotoFile.name}`);
                 await uploadBytes(storageRef, profilePhotoFile);
                 photoUrl = await getDownloadURL(storageRef);
             }
 
             const admissionDocUrls = await Promise.all(
                 admissionDocs.map(async (file) => {
-                    const storageRef = ref(storage, `admission_docs/${Date.now()}_${file.name}`);
+                    const storageRef = ref(storage, `${schoolId}/admission_docs/${Date.now()}_${file.name}`);
                     await uploadBytes(storageRef, file);
                     return getDownloadURL(storageRef);
                 })
@@ -250,7 +258,7 @@ export default function StudentEnrolmentPage() {
             const parentName = `${values.parentFirstName} ${values.parentLastName}`;
             
             // Create student document
-            const studentDocRef = doc(collection(firestore, 'students'));
+            const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
             const studentData = {
                 id: studentDocRef.id,
                 name: studentName,
@@ -280,7 +288,7 @@ export default function StudentEnrolmentPage() {
             };
             
             // Create parent user document
-            const parentUserDocRef = doc(collection(firestore, 'users'));
+            const parentUserDocRef = doc(collection(firestore, 'schools', schoolId, 'users'));
             const parentUserData = {
                 id: parentUserDocRef.id,
                 name: parentName,
@@ -297,12 +305,12 @@ export default function StudentEnrolmentPage() {
             await setDoc(studentDocRef, studentData);
             await setDoc(parentUserDocRef, parentUserData);
             
-            await addDoc(collection(firestore, 'notifications'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'New Student Enrolment',
                 description: `${studentName} has a new enrolment application pending review.`,
                 createdAt: serverTimestamp(),
                 read: false,
-                href: '/admin/enrolment',
+                href: `/admin/enrolment?schoolId=${schoolId}`,
             });
 
             toast({
@@ -336,6 +344,10 @@ export default function StudentEnrolmentPage() {
 
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 10 }, (_, i) => (currentYear - i).toString());
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing. Please access this page through the developer dashboard.</div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -623,5 +635,3 @@ export default function StudentEnrolmentPage() {
     </div>
   );
 }
-
-    

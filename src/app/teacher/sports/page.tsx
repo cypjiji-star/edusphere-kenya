@@ -35,6 +35,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type SportsTeam = {
@@ -54,20 +55,23 @@ export default function SportsPage() {
   const [newTeamCoach, setNewTeamCoach] = React.useState('');
   const [newTeamIcon, setNewTeamIcon] = React.useState('');
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
 
    React.useEffect(() => {
+    if (!schoolId) return;
     setIsLoading(true);
-    const teamsQuery = query(collection(firestore, 'teams'));
+    const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'));
     const unsubscribe = onSnapshot(teamsQuery, (snapshot) => {
         const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SportsTeam));
         setSportsTeams(teamsData);
         setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const handleCreateTeam = async () => {
-    if (!newTeamName || !newTeamCoach || !newTeamIcon) {
+    if (!newTeamName || !newTeamCoach || !newTeamIcon || !schoolId) {
         toast({
             title: 'Missing Information',
             description: 'Please fill out all fields to create a team.',
@@ -83,7 +87,7 @@ export default function SportsPage() {
             members: 0,
             icon: newTeamIcon,
         };
-        await addDoc(collection(firestore, 'teams'), newTeamData);
+        await addDoc(collection(firestore, 'schools', schoolId, 'teams'), newTeamData);
 
         toast({
             title: 'Team Created!',
@@ -102,6 +106,10 @@ export default function SportsPage() {
         });
     }
   };
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing. Please access this page through the developer dashboard.</div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -185,7 +193,7 @@ export default function SportsPage() {
                 </CardContent>
                 <CardFooter>
                 <Button asChild variant="default" className="w-full">
-                    <Link href={`/teacher/sports/${team.id}`}>
+                    <Link href={`/admin/sports/${team.id}?schoolId=${schoolId}`}>
                         Manage Team
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
