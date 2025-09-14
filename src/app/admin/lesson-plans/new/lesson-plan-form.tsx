@@ -6,7 +6,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse, isValid } from 'date-fns';
-import { generateContentAction } from './actions';
+import { generateContentAction } from '@/app/admin/lesson-plans/new/actions';
 
 import { Button } from '@/components/ui/button';
 import {
