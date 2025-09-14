@@ -52,9 +52,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, firestore } from '@/lib/firebase';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -174,20 +175,36 @@ export default function UserManagementPage() {
 
     const handleCreateUser = async (values: any) => {
         if (!schoolId) return;
+
         try {
-            await addDoc(collection(firestore, 'schools', schoolId, 'users'), {
-                ...values,
+            // Create user in Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+            const user = userCredential.user;
+
+            // Create user document in Firestore
+            await setDoc(doc(firestore, 'schools', schoolId, 'users', user.uid), {
+                id: user.uid,
+                name: values.name,
+                email: values.email,
+                role: values.role,
                 status: 'Active',
                 createdAt: serverTimestamp(),
                 lastLogin: 'Never',
                 avatarUrl: `https://picsum.photos/seed/${values.email}/100`
             });
+            
             toast({
                 title: 'User Created',
-                description: 'A new user account has been created.',
+                description: 'A new user account has been created successfully.',
             });
-        } catch(e) {
-            toast({ title: 'Error', description: 'Could not create user.', variant: 'destructive'});
+        } catch(e: any) {
+             let errorMessage = 'Could not create user. Please try again.';
+            if (e.code === 'auth/email-already-in-use') {
+                errorMessage = 'This email is already in use by another account.';
+            } else if (e.code === 'auth/weak-password') {
+                errorMessage = 'Password is too weak. It must be at least 6 characters long.';
+            }
+            toast({ title: 'Error', description: errorMessage, variant: 'destructive'});
         }
     };
     
@@ -517,7 +534,7 @@ export default function UserManagementPage() {
                                             </div>
                                         </div>
                                         <DialogFooter>
-                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                                             <Button type="submit">Create User Account</Button>
                                         </DialogFooter>
                                     </form>
@@ -692,3 +709,5 @@ export default function UserManagementPage() {
         </div>
     );
 }
+
+    
