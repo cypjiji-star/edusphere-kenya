@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -87,7 +86,6 @@ type AttendanceRecord = {
 };
 
 const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
-const teachers = ['All Teachers', 'Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri'];
 const statuses: (AttendanceStatus | 'All Statuses')[] = ['All Statuses', 'Present', 'Absent', 'Late'];
 
 const getStatusBadge = (status: AttendanceStatus) => {
@@ -225,6 +223,17 @@ export default function AdminAttendancePage() {
   const [selectedTerm, setSelectedTerm] = React.useState('term2-2024');
   const { toast } = useToast();
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
+  const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
+
+  React.useEffect(() => {
+    if (!schoolId) return;
+    const q = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const teacherNames = snapshot.docs.map(doc => doc.data().name);
+        setTeachers(['All Teachers', ...teacherNames]);
+    });
+    return () => unsubscribe();
+  }, [schoolId]);
 
   React.useEffect(() => {
     setDate({
