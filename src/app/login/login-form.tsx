@@ -38,19 +38,15 @@ export function LoginForm() {
         }
 
         try {
-            // Step 1: Authenticate the user globally with Firebase Auth
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            let userRole: string | null = null;
-            let finalRedirectPath = '';
-            
-            // Step 2: Verify user's role and school membership in Firestore
+            let finalRedirectPath: string | null = null;
+
             if (role === 'developer') {
                 const devDocRef = doc(firestore, 'developers', user.uid);
                 const devDocSnap = await getDoc(devDocRef);
                 if (devDocSnap.exists()) {
-                    userRole = 'developer';
                     finalRedirectPath = '/developer';
                 }
             } else {
@@ -59,19 +55,16 @@ export function LoginForm() {
 
                 if (userDocSnap.exists()) {
                     const userData = userDocSnap.data();
-                    // Verify the role from the database matches the role selected in the form
-                    if (userData.role.toLowerCase() === role) {
-                        userRole = userData.role.toLowerCase();
-                        finalRedirectPath = `/${userRole}?schoolId=${schoolCode}`;
+                    if (userData.role?.toLowerCase() === role) {
+                        finalRedirectPath = `/${role}?schoolId=${schoolCode}`;
                     }
                 }
             }
 
-            // Step 3: Redirect if role is verified, otherwise show an error
-            if (userRole) {
+            if (finalRedirectPath) {
                 router.push(finalRedirectPath);
             } else {
-                 await auth.signOut(); // Sign out the user as they don't have the correct role/school access
+                 await auth.signOut();
                  toast({
                     title: 'Access Denied',
                     description: "Your credentials are correct, but you do not have access to this school with the selected role.",
