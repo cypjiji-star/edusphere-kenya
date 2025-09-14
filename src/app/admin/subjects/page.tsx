@@ -112,7 +112,7 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
 
         try {
             const assignmentRef = doc(firestore, 'schools', schoolId, 'class-assignments', schoolClass.id);
-            await setDoc(assignmentRef, { assignments });
+            await setDoc(assignmentRef, { assignments, schoolId: schoolId });
             // Optimistic update
             setClassAssignments(prev => ({ ...prev, [schoolClass.id]: assignments }));
         } catch (e) {
@@ -352,7 +352,7 @@ export default function ClassesAndSubjectsPage() {
 
         try {
             const assignmentRef = doc(firestore, `schools/${schoolId}/class-assignments`, classId);
-            await setDoc(assignmentRef, { assignments: updatedAssignments });
+            await setDoc(assignmentRef, { assignments: updatedAssignments, schoolId: schoolId }, { merge: true });
             toast({
                 title: 'Teacher Assigned',
                 description: `${teacherName} has been assigned to teach ${subject} in this class.`
