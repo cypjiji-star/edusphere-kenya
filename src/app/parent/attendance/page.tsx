@@ -58,6 +58,7 @@ import {
 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'next/navigation';
 
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
@@ -87,6 +88,8 @@ const getStatusBadge = (status: AttendanceStatus) => {
 
 
 export default function ParentAttendancePage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [childrenData, setChildrenData] = React.useState<Child[]>([]);
   const [attendanceRecords, setAttendanceRecords] = React.useState<AttendanceRecord[]>([]);
   const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
@@ -95,8 +98,10 @@ export default function ParentAttendancePage() {
   const { toast } = useToast();
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     // In a real app, you would filter by parent ID. For now, we fetch a few students.
-    const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+    const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
         setChildrenData(fetchedChildren);
@@ -109,13 +114,13 @@ export default function ParentAttendancePage() {
       to: new Date(),
     });
     return () => unsubscribe();
-  }, [selectedChild]);
+  }, [schoolId, selectedChild]);
 
   React.useEffect(() => {
-    if (!selectedChild) return;
+    if (!selectedChild || !schoolId) return;
     
     setIsLoading(true);
-    const q = query(collection(firestore, `attendance`), where('studentId', '==', selectedChild));
+    const q = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', selectedChild));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
       setAttendanceRecords(records);
@@ -123,7 +128,7 @@ export default function ParentAttendancePage() {
     });
 
     return () => unsubscribe();
-  }, [selectedChild]);
+  }, [selectedChild, schoolId]);
 
 
   const filteredRecords = attendanceRecords.filter(record => {
@@ -148,6 +153,10 @@ export default function ParentAttendancePage() {
         description: 'Your attendance report is being generated.',
     });
   };
+  
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing from URL.</div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
