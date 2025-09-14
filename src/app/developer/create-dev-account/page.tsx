@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -14,8 +15,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { auth, firestore } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function CreateDeveloperAccountPage() {
   const [name, setName] = React.useState('');
@@ -46,19 +48,23 @@ export default function CreateDeveloperAccountPage() {
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(firestore, 'developers'), {
-        name,
-        email,
-        // In a real application, never store plain text passwords.
-        // This is for demonstration purposes only.
-        password, 
+      // 1. Create the user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // 2. Create the developer document in Firestore with the UID
+      const developerRef = doc(firestore, 'developers', user.uid);
+      await setDoc(developerRef, {
+        uid: user.uid,
+        name: name,
+        email: email,
         role: 'developer',
         createdAt: serverTimestamp(),
       });
 
       toast({
         title: 'Developer Account Created',
-        description: 'The account has been successfully registered.',
+        description: 'You can now log in with these credentials.',
       });
       
       setName('');
@@ -66,10 +72,11 @@ export default function CreateDeveloperAccountPage() {
       setPassword('');
       setConfirmPassword('');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating developer account:', error);
       toast({
         title: 'Registration Failed',
+        description: error.message || 'An unknown error occurred.',
         variant: 'destructive',
       });
     } finally {
@@ -86,7 +93,7 @@ export default function CreateDeveloperAccountPage() {
             Create Initial Developer Account
           </CardTitle>
           <CardDescription>
-            This is a one-time setup page. This page should be deleted after the first account is created.
+            This is a one-time setup page. After creating your account, please ask me to delete this page.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleRegister}>
