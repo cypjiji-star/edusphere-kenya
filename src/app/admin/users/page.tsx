@@ -53,6 +53,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { initialRolePermissions } from '../permissions/roles-data';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -79,16 +81,6 @@ type User = {
     parents?: ParentLink[];
 };
 
-const mockUsersData: User[] = [
-    { id: 'usr-1', name: 'Admin User', email: 'admin@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100', role: 'Admin', status: 'Active', lastLogin: '2024-07-18T10:00:00Z', createdAt: '2024-01-15T09:00:00Z' },
-    { id: 'usr-2', name: 'Ms. Wanjiku', email: 'wanjiku@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-18T09:30:00Z', createdAt: '2024-01-20T11:00:00Z' },
-    { id: 'usr-3', name: 'Mr. Otieno', email: 'otieno@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100', role: 'Teacher', status: 'Active', lastLogin: '2024-07-17T14:00:00Z', createdAt: '2024-01-20T11:05:00Z' },
-    { id: 'usr-4', name: 'Student 1', email: 'student1@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f4-student1/100', role: 'Student', status: 'Active', lastLogin: '2024-07-16T11:20:00Z', createdAt: '2024-02-01T10:00:00Z', class: 'Form 4', parents: [{ id: 'usr-5', name: 'Joseph Kariuki', relationship: 'Father', contact: '0722123456' }] },
-    { id: 'usr-5', name: 'Joseph Kariuki', email: 'parent1@example.com', avatarUrl: 'https://picsum.photos/seed/parent1/100', role: 'Parent', status: 'Pending', lastLogin: 'Never', createdAt: '2024-02-01T10:01:00Z' },
-    { id: 'usr-6', name: 'Student 32', email: 'student32@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/f3-student1/100', role: 'Student', status: 'Suspended', lastLogin: '2024-06-10T08:00:00Z', createdAt: '2024-02-05T14:00:00Z', class: 'Form 3' },
-    { id: 'usr-7', name: 'Alumni Student', email: 'alumni.student@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/alumni1/100', role: 'Student', status: 'Graduated', lastLogin: '2023-11-20T08:00:00Z', createdAt: '2020-02-01T10:00:00Z', class: 'Alumni' },
-    { id: 'usr-8', name: 'Transferred Student', email: 'transfer.student@school.ac.ke', avatarUrl: 'https://picsum.photos/seed/transfer1/100', role: 'Student', status: 'Transferred', lastLogin: '2024-05-10T08:00:00Z', createdAt: '2022-02-01T10:00:00Z', class: 'Form 2' },
-];
 
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended', 'Transferred', 'Graduated'];
 const roles: UserRole[] = Object.keys(initialRolePermissions);
@@ -107,7 +99,7 @@ const getStatusBadge = (status: UserStatus) => {
 }
 
 export default function UserManagementPage() {
-    const [mockUsers, setMockUsers] = React.useState(mockUsersData);
+    const [users, setUsers] = React.useState<User[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'All Statuses'>('All Statuses');
     const [classFilter, setClassFilter] = React.useState('All Classes');
@@ -121,6 +113,11 @@ export default function UserManagementPage() {
     
     React.useEffect(() => {
         setClientReady(true);
+        const unsubscribe = onSnapshot(collection(firestore, 'users'), (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setUsers(usersData);
+        });
+        return () => unsubscribe();
     }, []);
 
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,11 +157,22 @@ export default function UserManagementPage() {
         }, 300);
     };
 
-    const handleCreateUser = () => {
-        toast({
-            title: 'User Created',
-            description: 'A new user account has been created and an invitation has been sent.',
-        });
+    const handleCreateUser = async (values: any) => {
+        try {
+            await addDoc(collection(firestore, 'users'), {
+                ...values,
+                status: 'Pending',
+                createdAt: serverTimestamp(),
+                lastLogin: 'Never',
+                avatarUrl: `https://picsum.photos/seed/${values.email}/100`
+            });
+            toast({
+                title: 'User Created',
+                description: 'A new user account has been created and an invitation has been sent.',
+            });
+        } catch(e) {
+            toast({ title: 'Error', description: 'Could not create user.', variant: 'destructive'});
+        }
     };
     
     const handleExport = (type: string) => {
@@ -174,22 +182,33 @@ export default function UserManagementPage() {
         });
     };
     
-    const handleSaveChanges = (userId: string, updatedData: Partial<User>) => {
-        setMockUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, ...updatedData } : u));
-        toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
+    const handleSaveChanges = async (userId: string, updatedData: Partial<User>) => {
+        const userRef = doc(firestore, 'users', userId);
+        try {
+            await updateDoc(userRef, updatedData);
+            toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
+        } catch (e) {
+            toast({ title: 'Error', description: 'Could not update user.', variant: 'destructive'});
+        }
     };
 
     const handleSendPasswordReset = () => {
         toast({ title: 'Password Reset Sent', description: 'A password reset link has been sent to the user\'s email.' });
     };
 
-    const handleDeleteUser = (userId: string) => {
-        setMockUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
-        toast({ title: 'User Deleted', description: 'The user account has been deleted.', variant: 'destructive' });
+    const handleDeleteUser = async (userId: string) => {
+        if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+            try {
+                await deleteDoc(doc(firestore, 'users', userId));
+                toast({ title: 'User Deleted', description: 'The user account has been deleted.', variant: 'destructive' });
+            } catch(e) {
+                toast({ title: 'Error', description: 'Could not delete user.', variant: 'destructive'});
+            }
+        }
     };
 
     const renderUserTable = (roleFilter: UserRole | 'All') => {
-        const filteredUsers = mockUsers.filter(user => {
+        const filteredUsers = users.filter(user => {
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch = user.name.toLowerCase().includes(searchLower) ||
                                   user.email.toLowerCase().includes(searchLower) ||
@@ -409,7 +428,7 @@ export default function UserManagementPage() {
                 </div>
                  <CardFooter className="px-0 pt-6">
                     <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredUsers.length}</strong> of <strong>{mockUsers.filter(u => roleFilter === 'All' || u.role === roleFilter).length}</strong> users.
+                        Showing <strong>{filteredUsers.length}</strong> of <strong>{users.filter(u => roleFilter === 'All' || u.role === roleFilter).length}</strong> users.
                     </div>
                 </CardFooter>
             </>
@@ -447,43 +466,43 @@ export default function UserManagementPage() {
                                             Fill in the details below to create a new user account.
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <div className="grid gap-6 py-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="role-create">User Role</Label>
-                                            <Select>
-                                                <SelectTrigger id="role-create">
-                                                    <SelectValue placeholder="Select a role" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                         <div className="grid grid-cols-2 gap-4">
+                                    <form onSubmit={(e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); handleCreateUser(Object.fromEntries(formData.entries())); }}>
+                                        <div className="grid gap-6 py-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="name-create">Full Name</Label>
-                                                <Input id="name-create" placeholder="e.g., John Doe" />
+                                                <Label htmlFor="role-create">User Role</Label>
+                                                <Select name="role">
+                                                    <SelectTrigger id="role-create">
+                                                        <SelectValue placeholder="Select a role" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="name-create">Full Name</Label>
+                                                    <Input name="name" id="name-create" placeholder="e.g., John Doe" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="email-create">Email Address</Label>
+                                                    <Input name="email" id="email-create" type="email" placeholder="user@example.com" />
+                                                </div>
+                                            </div>
+                                            <Separator />
                                             <div className="space-y-2">
-                                                <Label htmlFor="email-create">Email Address</Label>
-                                                <Input id="email-create" type="email" placeholder="user@example.com" />
+                                                <div className="flex items-center space-x-2">
+                                                    <Switch id="send-invite" defaultChecked />
+                                                    <Label htmlFor="send-invite">Send invitation link with auto-generated password</Label>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">The user will be prompted to set a new password on their first login.</p>
                                             </div>
                                         </div>
-                                        <Separator />
-                                        <div className="space-y-2">
-                                            <div className="flex items-center space-x-2">
-                                                <Switch id="send-invite" defaultChecked />
-                                                <Label htmlFor="send-invite">Send invitation link with auto-generated password</Label>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">The user will be prompted to set a new password on their first login.</p>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                        <DialogClose asChild>
-                                            <Button onClick={handleCreateUser}>Create & Send Invite</Button>
-                                        </DialogClose>
-                                    </DialogFooter>
+                                        <DialogFooter>
+                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                            <Button type="submit">Create & Send Invite</Button>
+                                        </DialogFooter>
+                                    </form>
                                 </DialogContent>
                             </Dialog>
                              <Dialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen}>
