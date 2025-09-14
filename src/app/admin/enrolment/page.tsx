@@ -6,6 +6,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
+import { firestore, storage } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { cn } from '@/lib/utils';
 import {
@@ -111,14 +114,9 @@ type RecentEnrolment = {
     studentName: string;
     class: string;
     parentName: string;
-    date: string;
+    date: string | Timestamp;
     status: 'Pending' | 'Approved' | 'Incomplete';
 };
-
-const initialRecentEnrolments: RecentEnrolment[] = [
-    { id: 'enr-1', studentName: 'Alice Johnson', class: 'Form 1', parentName: 'Mark Johnson', date: '2024-07-28', status: 'Approved' },
-    { id: 'enr-2', studentName: 'Brian Omondi', class: 'Form 1', parentName: 'Grace Omondi', date: '2024-07-27', status: 'Pending' },
-];
 
 const getStatusBadge = (status: RecentEnrolment['status']) => {
     switch (status) {
@@ -137,12 +135,14 @@ const classOptions = [
 export default function StudentEnrolmentPage() {
     const { toast } = useToast();
     const [bulkEnrolmentFile, setBulkEnrolmentFile] = React.useState<File | null>(null);
+    const [profilePhotoFile, setProfilePhotoFile] = React.useState<File | null>(null);
     const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
     const [admissionDocs, setAdmissionDocs] = React.useState<File[]>([]);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
-    const [recentEnrolments, setRecentEnrolments] = React.useState<RecentEnrolment[]>(initialRecentEnrolments);
+    const [recentEnrolments, setRecentEnrolments] = React.useState<RecentEnrolment[]>([]);
     const [isBulkDialogOpen, setIsBulkDialogOpen] = React.useState(false);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
 
     const form = useForm<EnrolmentFormValues>({
@@ -153,6 +153,25 @@ export default function StudentEnrolmentPage() {
         },
     });
     
+     React.useEffect(() => {
+        const q = query(collection(firestore, 'students'), orderBy('createdAt', 'desc'), limit(5));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedEnrolments = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    studentName: data.name,
+                    class: data.class,
+                    parentName: data.parentName,
+                    date: (data.createdAt as Timestamp)?.toDate().toLocaleDateString() || new Date().toLocaleDateString(),
+                    status: data.status,
+                } as RecentEnrolment
+            });
+            setRecentEnrolments(fetchedEnrolments);
+        });
+        return () => unsubscribe();
+    }, []);
+
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
             setBulkEnrolmentFile(event.target.files[0]);
@@ -194,6 +213,7 @@ export default function StudentEnrolmentPage() {
     const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
             const file = event.target.files[0];
+            setProfilePhotoFile(file);
             setProfilePhoto(URL.createObjectURL(file));
         }
     };
@@ -208,27 +228,83 @@ export default function StudentEnrolmentPage() {
         setAdmissionDocs(prev => prev.filter((_, i) => i !== index));
     };
 
-    function onSubmit(values: EnrolmentFormValues) {
-        console.log(values);
-        toast({
-            title: 'Enrolment Submitted',
-            description: `${values.studentFirstName} ${values.studentLastName} has been successfully submitted for enrolment.`,
-        });
+    async function onSubmit(values: EnrolmentFormValues) {
+        setIsSubmitting(true);
+        try {
+            let photoUrl = '';
+            if (profilePhotoFile) {
+                const storageRef = ref(storage, `profile_photos/${Date.now()}_${profilePhotoFile.name}`);
+                await uploadBytes(storageRef, profilePhotoFile);
+                photoUrl = await getDownloadURL(storageRef);
+            }
 
-        const newEnrolment: RecentEnrolment = {
-            id: `enr-${Date.now()}`,
-            studentName: `${values.studentFirstName} ${values.studentLastName}`,
-            class: classOptions.find(c => c.value === values.classId)?.label || 'Unknown',
-            parentName: `${values.parentFirstName} ${values.parentLastName}`,
-            date: new Date().toISOString().split('T')[0],
-            status: 'Pending',
-        };
+            const admissionDocUrls = await Promise.all(
+                admissionDocs.map(async (file) => {
+                    const storageRef = ref(storage, `admission_docs/${Date.now()}_${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    return getDownloadURL(storageRef);
+                })
+            );
 
-        setRecentEnrolments(prev => [newEnrolment, ...prev]);
+            const studentName = `${values.studentFirstName} ${values.studentLastName}`;
 
-        form.reset();
-        setProfilePhoto(null);
-        setAdmissionDocs([]);
+            const studentData = {
+                name: studentName,
+                firstName: values.studentFirstName,
+                lastName: values.studentLastName,
+                dateOfBirth: Timestamp.fromDate(values.dateOfBirth),
+                gender: values.gender,
+                admissionNumber: values.admissionNumber,
+                classId: values.classId,
+                class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
+                admissionYear: values.admissionYear,
+                parentName: `${values.parentFirstName} ${values.parentLastName}`,
+                parentFirstName: values.parentFirstName,
+                parentLastName: values.parentLastName,
+                parentRelationship: values.parentRelationship,
+                parentEmail: values.parentEmail,
+                parentPhone: values.parentPhone,
+                allergies: values.allergies,
+                medicalConditions: values.medicalConditions,
+                emergencyContactName: values.emergencyContactName,
+                emergencyContactPhone: values.emergencyContactPhone,
+                status: 'Pending',
+                createdAt: serverTimestamp(),
+                avatarUrl: photoUrl,
+                documents: admissionDocUrls,
+                role: 'Student'
+            };
+
+            await addDoc(collection(firestore, 'students'), studentData);
+            
+            await addDoc(collection(firestore, 'notifications'), {
+                title: 'New Student Enrolment',
+                description: `${studentName} has a new enrolment application pending review.`,
+                createdAt: serverTimestamp(),
+                read: false,
+                href: '/admin/enrolment',
+            });
+
+            toast({
+                title: 'Enrolment Submitted',
+                description: `${studentName} has been successfully submitted for enrolment.`,
+            });
+
+            form.reset();
+            setProfilePhoto(null);
+            setProfilePhotoFile(null);
+            setAdmissionDocs([]);
+
+        } catch (error) {
+            console.error("Error submitting enrolment:", error);
+            toast({
+                title: 'Submission Failed',
+                description: 'An error occurred. Please try again.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     }
     
     const handleSaveDraft = () => {
@@ -424,7 +500,7 @@ export default function StudentEnrolmentPage() {
                                         <AvatarFallback><UserPlus/></AvatarFallback>
                                     </Avatar>
                                     {profilePhoto ? (
-                                        <Button type="button" variant="destructive" className="w-full" onClick={() => setProfilePhoto(null)}>
+                                        <Button type="button" variant="destructive" className="w-full" onClick={() => {setProfilePhoto(null); setProfilePhotoFile(null);}}>
                                             <X className="mr-2 h-4 w-4" />
                                             Remove Photo
                                         </Button>
@@ -515,9 +591,8 @@ export default function StudentEnrolmentPage() {
                 <Button type="button" variant="secondary" className="w-full md:w-auto" onClick={handleSaveDraft}>
                     Save as Draft
                 </Button>
-                <Button type="submit" className="w-full md:w-auto">
-                    <Save className="mr-2 h-4 w-4"/>
-                    Submit Enrolment Application
+                <Button type="submit" className="w-full md:w-auto" disabled={isSubmitting}>
+                     {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : <><Save className="mr-2 h-4 w-4"/>Submit Enrolment Application</>}
                 </Button>
             </CardFooter>
         </form>
