@@ -29,7 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { auth, firestore } from '@/lib/firebase';
-import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { initialRolePermissions, initialPermissionStructure } from '@/app/admin/permissions/roles-data';
 import { periods as defaultPeriods } from '@/app/admin/timetable/timetable-data';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
