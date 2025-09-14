@@ -2,38 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Function to get the user's global role (e.g., 'developer')
-    function getUserRole(uid) {
-      return get(/databases/$(database)/documents/roles/$(uid)).data.role;
-    }
-    
-    // Function to get a user's role within a specific school
-    function getSchoolRole(schoolId, uid) {
-        return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(uid)).data.role;
-    }
-
-    // Developers have read/write access to everything
+    // WARNING: These rules are completely open for debugging purposes.
+    // They should be secured before deploying the application.
     match /{document=**} {
-      allow read, write: if getUserRole(request.auth.uid) == 'developer';
-    }
-
-    // School-specific data
-    match /schools/{schoolId}/{document=**} {
-        // Admins can read/write all data within their school
-        allow read, write: if getSchoolRole(schoolId, request.auth.uid) == 'admin';
-        
-        // Teachers can read/write their own data and data related to their classes
-        allow read, write: if getSchoolRole(schoolId, request.auth.uid) == 'teacher';
-        
-        // Parents can read data related to their children
-        allow read: if getSchoolRole(schoolId, request.auth.uid) == 'parent';
-    }
-    
-    // Allow an unauthenticated user to create the very first developer role document.
-    // This is a one-time operation to bootstrap the system.
-    match /roles/{userId} {
-      allow create: if request.auth == null && size(get(/databases/$(database)/documents/roles).data) == 0;
+      allow read, write: if true;
     }
   }
 }
