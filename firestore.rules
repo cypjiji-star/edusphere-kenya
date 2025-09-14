@@ -4,141 +4,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- Helper Functions ---
-    
-    function isDeveloper() {
-      return request.auth.token.role == 'developer';
-    }
-    
-    function isAdmin(schoolId) {
-      return request.auth.token.role == 'admin' && request.auth.token.schoolId == schoolId;
-    }
-    
-    function isTeacher(schoolId) {
-       return request.auth.token.role == 'teacher' && request.auth.token.schoolId == schoolId;
+    // Allow creating the first developer account only if the collection is empty.
+    // This provides a secure way to bootstrap the first super-admin user.
+    match /developers/{developerId} {
+      allow create: if !exists(/databases/$(database)/documents/developers);
     }
 
-    function isParent(schoolId) {
-       return request.auth.token.role == 'parent' && request.auth.token.schoolId == schoolId;
-    }
-
-    function isAuthenticated(schoolId) {
-      return request.auth != null && request.auth.token.schoolId == schoolId;
-    }
-
-    // --- Global Collections ---
-
-    // Developers can manage school instances.
-    match /schools/{schoolId} {
-      allow read, write: if isDeveloper();
-      allow get: if isAuthenticated(schoolId);
-    }
-
-    // Public profile information can be read by anyone (for login page branding).
-    match /schoolProfile/{profileId} {
-        allow read: if true;
-        allow write: if isDeveloper();
-    }
-    
-    // Settings can only be managed by developers.
-    match /platformSettings/{settingId} {
-        allow read, write: if isDeveloper();
-    }
-    
-    // --- School-Specific Subcollections ---
-    
-    match /schools/{schoolId}/{document=**} {
-        // Developer has full access to all school subcollections
-        allow read, write: if isDeveloper();
-    }
-
-    // Admins can manage most data within their own school.
-    // Teachers and Parents have more restricted access.
-    match /schools/{schoolId} {
-    
-        // Students: Admins manage, Teachers/Parents have read-only access.
-        match /students/{studentId} {
-            allow read: if isAuthenticated(schoolId);
-            allow write: if isAdmin(schoolId);
-
-            // Transactions & Grades: Admins manage, Parents of the student can read.
-            match /transactions/{transactionId} {
-                allow read: if isAdmin(schoolId) || (isParent(schoolId) && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)) && studentId in get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.children);
-                allow write: if isAdmin(schoolId);
-            }
-             match /grades/{gradeId} {
-                allow read: if isAdmin(schoolId) || isTeacher(schoolId) || (isParent(schoolId) && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)) && studentId in get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.children);
-                allow write: if isTeacher(schoolId);
-            }
-        }
-        
-        // Users: Admins manage fully.
-        match /users/{userId} {
-            allow read: if isAdmin(schoolId);
-            allow create, update, delete: if isAdmin(schoolId);
-        }
-
-        // Attendance: Admins can view all, Teachers can create/update for their classes.
-        match /attendance/{attendanceId} {
-            allow read: if isAdmin(schoolId) || isTeacher(schoolId);
-            allow create, update: if isTeacher(schoolId);
-            allow delete: if isAdmin(schoolId);
-        }
-
-        // Assignments: Teachers create, Admins oversee.
-        match /assignments/{assignmentId} {
-            allow read: if isAuthenticated(schoolId);
-            allow create, update: if isTeacher(schoolId);
-            allow delete: if isAdmin(schoolId);
-
-            match /submissions/{submissionId} {
-                allow read: if isAdmin(schoolId) || isTeacher(schoolId);
-                allow create, update: if isTeacher(schoolId); // Or student in a student portal
-            }
-        }
-        
-        // Lesson Plans: Teachers manage their own. Admins can view.
-        match /lesson-plans/{planId} {
-            allow read: if isAdmin(schoolId) || isTeacher(schoolId);
-            // Write rule assumes a 'teacherId' field on the lesson plan document.
-            allow create, update: if isTeacher(schoolId) && request.resource.data.teacherId == request.auth.uid;
-        }
-
-        // Announcements & Calendar: Admins and Teachers can create. All authenticated users can read.
-        match /announcements/{announcementId} {
-            allow read: if isAuthenticated(schoolId);
-            allow create, update, delete: if isAdmin(schoolId) || isTeacher(schoolId);
-        }
-        match /calendar-events/{eventId} {
-            allow read: if isAuthenticated(schoolId);
-            allow create, update, delete: if isAdmin(schoolId) || isTeacher(schoolId);
-        }
-        
-        // Chat/Messaging: Users can only read/write to conversations they are part of.
-        match /conversations/{conversationId} {
-            allow read, create: if isAuthenticated(schoolId); // Further rules needed for participant checks
-            
-            match /messages/{messageId} {
-                allow read, create: if isAuthenticated(schoolId); // Further rules needed
-            }
-        }
-
-        // Finance & School Settings: Only Admins can manage.
-        match /feeStructure/{itemId} { allow read, write: if isAdmin(schoolId); }
-        match /discounts/{discountId} { allow read, write: if isAdmin(schoolId); }
-        match /expenses/{expenseId} { allow read, write: if isAdmin(schoolId); }
-        match /teams/{teamId}/{document=**} { allow read, write: if isAdmin(schoolId) || isTeacher(schoolId); }
-        match /classes/{classId} { allow read, write: if isAdmin(schoolId); }
-        match /subjects/{subjectId} { allow read, write: if isAdmin(schoolId); }
-        match /class-assignments/{assignmentId} { allow read, write: if isAdmin(schoolId); }
-
-        // Logs and Notifications are read-only for admins, system writes them.
-        match /audit_logs/{logId} { allow read: if isAdmin(schoolId); allow write: if false; }
-        match /notifications/{notificationId} { allow read: if isAuthenticated(schoolId); allow write: if false; }
-        
-        // Support and Feedback
-        match /support-tickets/{ticketId} { allow read, write: if isAuthenticated(schoolId); }
-        match /feedback/{feedbackId} { allow create: if isAuthenticated(schoolId); allow read, update, delete: if isAdmin(schoolId); }
+    // Default deny all other reads and writes to the database.
+    // You should expand these rules as your application grows.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
