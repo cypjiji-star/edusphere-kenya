@@ -14,6 +14,7 @@ import {
   PlusCircle,
   ShieldCheck,
   FileClock,
+  UserPlus,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -54,6 +55,14 @@ export function DeveloperSidebar() {
               <Link href="/developer">
                 <LayoutDashboard />
                 <span>Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/developer/register')} tooltip={{ children: 'Register Developer' }}>
+              <Link href="/developer/register">
+                <UserPlus />
+                <span>Register Developer</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
