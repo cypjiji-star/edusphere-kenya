@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
@@ -15,6 +16,8 @@ export function useUserRole() {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AllowedRole>('unknown');
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
@@ -25,17 +28,29 @@ export function useUserRole() {
         return;
       }
 
+      setLoading(true);
       try {
-        // Check if user exists in developers collection
+        // Option 1: Check if user is a global developer
         const devDoc = await getDoc(doc(firestore, 'developers', authUser.uid));
         if (devDoc.exists()) {
           setRole('developer');
-          setLoading(false);
           return;
         }
 
-        // You can add additional checks here (e.g. school role) if needed
-        setRole('unknown');
+        // Option 2: Check for roles within a specific school, if schoolId is available
+        const schoolId = searchParams.get('schoolId');
+        if (schoolId) {
+          const userDoc = await getDoc(doc(firestore, 'schools', schoolId, 'users', authUser.uid));
+          if (userDoc.exists()) {
+            setRole(userDoc.data().role?.toLowerCase() as AllowedRole || 'unknown');
+          } else {
+            setRole('unknown');
+          }
+        } else if (pathname !== '/login' && pathname !== '/') {
+            // If there's no schoolId and we are not on a public page, role is unknown.
+            setRole('unknown');
+        }
+
       } catch (err) {
         console.error('Error fetching user role:', err);
         setRole('unknown');
@@ -45,7 +60,7 @@ export function useUserRole() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [pathname, searchParams]);
 
   return { user, role, loading };
 }
@@ -56,6 +71,13 @@ export function AuthCheck({ children, requiredRole }: { children: ReactNode; req
   const router = useRouter();
   const pathname = usePathname();
 
+  useEffect(() => {
+    // Wait until loading is false before making any decisions
+    if (!loading && !user && pathname !== '/login' && pathname !== '/') {
+      router.push('/login');
+    }
+  }, [user, loading, pathname, router]);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -64,19 +86,12 @@ export function AuthCheck({ children, requiredRole }: { children: ReactNode; req
     );
   }
 
-  if (!user) {
-    if (pathname !== '/login' && pathname !== '/') {
-      router.push('/login');
-    }
-    return null;
-  }
-
-  if (role !== requiredRole) {
+  if (user && role !== requiredRole) {
     return (
       <div className="flex h-screen flex-col items-center justify-center p-8 text-center">
         <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
         <p className="mt-2 text-muted-foreground">
-          Your role is listed as "{role}", but this page requires the "{requiredRole}" role.
+          Your role is "{role}", but this page requires the "{requiredRole}" role.
         </p>
         <Button
           onClick={() => auth.signOut().then(() => router.push('/login'))}
@@ -89,5 +104,12 @@ export function AuthCheck({ children, requiredRole }: { children: ReactNode; req
     );
   }
 
-  return <>{children}</>;
+  // If user is authenticated and has the correct role, or if still loading, render children
+  if(user && role === requiredRole) {
+    return <>{children}</>;
+  }
+
+  // Fallback for when no user is found and we are on a protected route already
+  // The useEffect above will handle the redirect.
+  return null;
 }
