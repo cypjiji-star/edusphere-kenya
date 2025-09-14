@@ -60,7 +60,7 @@ import { ClassAnalytics } from './class-analytics';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDoc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDoc, updateDoc, addDoc, getDocs } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
 
@@ -583,5 +583,3 @@ export default function StudentsPage() {
     </div>
   );
 }
-
-    
