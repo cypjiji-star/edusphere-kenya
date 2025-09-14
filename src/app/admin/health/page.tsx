@@ -72,6 +72,7 @@ import {
 } from '@/components/ui/chart';
 import { firestore, storage } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -149,6 +150,8 @@ const chartConfig = {
 
 export default function AdminHealthPage() {
     const { toast } = useToast();
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [allStudents, setAllStudents] = React.useState<TeacherStudent[]>([]);
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<string | null>(null);
     const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
@@ -173,19 +176,21 @@ export default function AdminHealthPage() {
     });
 
     React.useEffect(() => {
-        const studentsQuery = query(collection(firestore, 'students'));
+        if (!schoolId) return;
+
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
         const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
             setAllStudents(studentsData);
         });
 
-        const incidentsQuery = query(collection(firestore, 'incidents'), orderBy('date', 'desc'));
+        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), orderBy('date', 'desc'));
         const unsubscribeIncidents = onSnapshot(incidentsQuery, (snapshot) => {
             const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
             setIncidents(incidentsData);
         });
         
-        const medsQuery = query(collection(firestore, 'medications'), orderBy('time', 'desc'));
+        const medsQuery = query(collection(firestore, `schools/${schoolId}/medications`), orderBy('time', 'desc'));
         const unsubscribeMeds = onSnapshot(medsQuery, (snapshot) => {
             const medsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Medication));
             setMedicationLog(medsData);
@@ -196,11 +201,11 @@ export default function AdminHealthPage() {
             unsubscribeIncidents();
             unsubscribeMeds();
         }
-    }, []);
+    }, [schoolId]);
 
     React.useEffect(() => {
-        if (selectedHealthStudent) {
-            const studentRef = doc(firestore, 'students', selectedHealthStudent);
+        if (selectedHealthStudent && schoolId) {
+            const studentRef = doc(firestore, 'schools', schoolId, 'students', selectedHealthStudent);
             const unsubscribe = onSnapshot(studentRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
@@ -219,7 +224,7 @@ export default function AdminHealthPage() {
         } else {
             setCurrentHealthRecord(null);
         }
-    }, [selectedHealthStudent]);
+    }, [selectedHealthStudent, schoolId]);
     
     React.useEffect(() => {
         if (selectedIncident) {
@@ -257,11 +262,12 @@ export default function AdminHealthPage() {
 
 
     async function onSubmit(values: IncidentFormValues) {
+        if (!schoolId) return;
         setIsSubmitting(true);
         const student = allStudents.find(s => s.id === values.studentId);
         
         try {
-            await addDoc(collection(firestore, 'incidents'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'incidents'), {
                 ...values,
                 studentId: values.studentId,
                 studentName: student?.name || 'Unknown',
@@ -286,9 +292,9 @@ export default function AdminHealthPage() {
     }
     
     const handleUpdateIncident = async () => {
-        if (!selectedIncident || !updatedStatus) return;
+        if (!selectedIncident || !updatedStatus || !schoolId) return;
 
-        const incidentRef = doc(firestore, 'incidents', selectedIncident.id);
+        const incidentRef = doc(firestore, 'schools', schoolId, 'incidents', selectedIncident.id);
         try {
             await updateDoc(incidentRef, { status: updatedStatus });
             toast({
@@ -319,7 +325,8 @@ export default function AdminHealthPage() {
         setAttachedFile(null);
     };
 
-    const handleSaveMedication = () => {
+    const handleSaveMedication = async () => {
+        if (!schoolId) return;
         toast({
             title: "Medication Logged",
             description: "The medication administration has been saved."
@@ -334,6 +341,10 @@ export default function AdminHealthPage() {
         const matchesStatus = statusFilter === 'All Statuses' || incident.status === statusFilter;
         return matchesSearch && matchesType && matchesStatus;
     });
+
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing from URL.</div>
+    }
 
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
@@ -972,4 +983,4 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
-
+    
