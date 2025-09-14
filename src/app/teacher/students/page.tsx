@@ -59,16 +59,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ClassAnalytics } from './class-analytics';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-
-// A simple deterministic "random" number generator based on a seed
-const seededRandom = (seed: number) => {
-  const a = 1664525;
-  const c = 1013904223;
-  const m = 2 ** 32;
-  let state = seed;
-  state = (a * state + c) % m;
-  return state / m;
-};
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, getDocs, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDoc, updateDoc } from 'firebase/firestore';
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
@@ -80,76 +72,56 @@ export type Student = {
     overallGrade: string;
     attendance: AttendanceStatus;
     notes?: string;
+    classId: string;
 };
 
-
-// Mock data for students
-const initialStudents: Record<string, Student[]> = {
-  'f4-chem': Array.from({ length: 31 }, (_, i) => {
-    const random = seededRandom(i+1);
-    let attendance: AttendanceStatus = 'present';
-    if(random < 0.1) attendance = 'absent';
-    else if (random < 0.2) attendance = 'late';
-    return {
-      id: `f4-chem-${i + 1}`,
-      name: `Student ${i + 1}`,
-      rollNumber: `F4-00${i + 1}`,
-      avatarUrl: `https://picsum.photos/seed/f4-student${i + 1}/100`,
-      overallGrade: `${Math.floor(seededRandom(i + 1) * (85 - 60 + 1)) + 60}%`,
-      attendance,
-      notes: '',
-    };
-  }),
-  'f3-math': Array.from({ length: 28 }, (_, i) => {
-     const random = seededRandom(i+32);
-    let attendance: AttendanceStatus = 'present';
-    if(random < 0.05) attendance = 'absent';
-    else if (random < 0.1) attendance = 'late';
-    return {
-      id: `f3-math-${i + 1}`,
-      name: `Student ${i + 32}`,
-      rollNumber: `F3-00${i + 1}`,
-      avatarUrl: `https://picsum.photos/seed/f3-student${i + 1}/100`,
-      overallGrade: `${Math.floor(seededRandom(i + 32) * (90 - 65 + 1)) + 65}%`,
-      attendance: 'present',
-      notes: '',
-    };
-  }),
-  'f2-phys': Array.from({ length: 35 }, (_, i) => {
-     const random = seededRandom(i+60);
-    let attendance: AttendanceStatus = 'present';
-    if(random < 0.15) attendance = 'absent';
-    else if (random < 0.25) attendance = 'late';
-    return {
-      id: `f2-phys-${i + 1}`,
-      name: `Student ${i + 60}`,
-      rollNumber: `F2-00${i + 1}`,
-      avatarUrl: `https://picsum.photos/seed/f2-student${i + 1}/100`,
-      overallGrade: `${Math.floor(seededRandom(i + 60) * (80 - 55 + 1)) + 55}%`,
-      attendance: 'present',
-      notes: '',
-    };
-  }),
+export type TeacherClass = {
+  id: string;
+  name: string;
+  students: Student[];
 };
-
-// Mock data for teacher's classes
-export const teacherClasses = [
-  { id: 'f4-chem', name: 'Form 4 - Chemistry', students: initialStudents['f4-chem'] },
-  { id: 'f3-math', name: 'Form 3 - Mathematics', students: initialStudents['f3-math'] },
-  { id: 'f2-phys', name: 'Form 2 - Physics', students: initialStudents['f2-phys'] },
-];
 
 export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [activeTab, setActiveTab] = React.useState(teacherClasses[0].id);
+  const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+  const [activeTab, setActiveTab] = React.useState<string | undefined>();
   const { toast } = useToast();
   
-  const [allClassStudents, setAllClassStudents] = React.useState(initialStudents);
+  const [allClassStudents, setAllClassStudents] = React.useState<Record<string, Student[]>>({});
   const [newStudentName, setNewStudentName] = React.useState('');
   const [isAddStudentOpen, setIsAddStudentOpen] = React.useState(false);
   const [editingStudent, setEditingStudent] = React.useState<Student | null>(null);
 
-  const studentsForCurrentTab = allClassStudents[activeTab] || [];
+  React.useEffect(() => {
+    const teacherId = 'teacher-wanjiku'; // This should be dynamic
+    const q = query(collection(firestore, 'classes'), where('teacherId', '==', teacherId));
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+      const classesData: TeacherClass[] = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        students: []
+      }));
+      setTeacherClasses(classesData);
+      if (!activeTab && classesData.length > 0) {
+        setActiveTab(classesData[0].id);
+      }
+    });
+    return () => unsubscribe();
+  }, [activeTab]);
+
+  React.useEffect(() => {
+    if (!activeTab) return;
+
+    const studentsQuery = query(collection(firestore, 'students'), where('classId', '==', activeTab));
+    const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
+        const studentsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Student));
+        setAllClassStudents(prev => ({ ...prev, [activeTab]: studentsData }));
+    });
+
+    return () => unsubscribe();
+  }, [activeTab]);
+
+  const studentsForCurrentTab = allClassStudents[activeTab || ''] || [];
   
   const filteredStudents = 
     studentsForCurrentTab.filter(student =>
@@ -158,67 +130,95 @@ export default function StudentsPage() {
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setAllClassStudents(prevAllStudents => {
-      const newStudentsForClass = (prevAllStudents[activeTab] || []).map(s =>
+      const newStudentsForClass = (prevAllStudents[activeTab!] || []).map(s =>
         s.id === studentId ? { ...s, status } : s
       );
       return {
         ...prevAllStudents,
-        [activeTab]: newStudentsForClass,
+        [activeTab!]: newStudentsForClass,
       };
     });
   };
 
   const handleNotesChange = (studentId: string, notes: string) => {
     setAllClassStudents(prevAllStudents => {
-      const newStudentsForClass = (prevAllStudents[activeTab] || []).map(s =>
+      const newStudentsForClass = (prevAllStudents[activeTab!] || []).map(s =>
         s.id === studentId ? { ...s, notes } : s
       );
       return {
         ...prevAllStudents,
-        [activeTab]: newStudentsForClass,
+        [activeTab!]: newStudentsForClass,
       };
     });
   };
   
-  const handleSaveAttendance = () => {
-    // Here you would typically make an API call to save the attendance data.
-    // For this mock, we'll just show a success toast.
-    toast({
-      title: 'Attendance Saved!',
-      description: `Attendance for ${teacherClasses.find(c => c.id === activeTab)?.name} has been successfully updated.`,
+  const handleSaveAttendance = async () => {
+    if (!activeTab) return;
+
+    const batch = writeBatch(firestore);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const attendanceDate = Timestamp.fromDate(today);
+
+    studentsForCurrentTab.forEach(student => {
+        const attendanceRef = doc(collection(firestore, 'students', student.id, 'attendance'));
+        batch.set(attendanceRef, {
+            date: attendanceDate,
+            status: student.attendance,
+            notes: student.notes || '',
+        });
     });
+
+    try {
+        await batch.commit();
+        toast({
+            title: 'Attendance Saved!',
+            description: `Attendance for ${teacherClasses.find(c => c.id === activeTab)?.name} has been successfully updated.`,
+        });
+    } catch (e) {
+        console.error(e);
+        toast({
+            title: 'Error Saving Attendance',
+            description: 'Could not save attendance records. Please try again.',
+            variant: 'destructive',
+        });
+    }
   };
   
-  const handleAddNewStudent = () => {
-    if (!newStudentName.trim()) {
+  const handleAddNewStudent = async () => {
+    if (!newStudentName.trim() || !activeTab) {
         toast({
             variant: 'destructive',
-            title: 'Student name is required.',
+            title: 'Student name and class are required.',
         });
         return;
     }
 
-    const newStudent: Student = {
-        id: `new-${Date.now()}`,
-        name: newStudentName,
-        rollNumber: `TEMP-${Math.floor(Math.random() * 1000)}`,
-        avatarUrl: `https://picsum.photos/seed/${newStudentName}/100`,
-        overallGrade: 'N/A',
-        attendance: 'present',
-    };
+    try {
+        const newStudentRef = doc(collection(firestore, 'students'));
+        await setDoc(newStudentRef, {
+            id: newStudentRef.id,
+            name: newStudentName,
+            classId: activeTab,
+            role: 'Student', // default role
+            avatarUrl: `https://picsum.photos/seed/${newStudentRef.id}/100`,
+            overallGrade: 'N/A',
+            attendance: 'present',
+            createdAt: Timestamp.now(),
+        });
 
-    setAllClassStudents(prev => ({
-        ...prev,
-        [activeTab]: [newStudent, ...(prev[activeTab] || [])],
-    }));
+        toast({
+            title: 'Student Added',
+            description: `${newStudentName} has been added to ${teacherClasses.find(c => c.id === activeTab)?.name}.`,
+        });
 
-    toast({
-        title: 'Enrollment Request Sent',
-        description: `${newStudentName} has been temporarily added to the roster pending admin approval.`,
-    });
+        setNewStudentName('');
+        setIsAddStudentOpen(false);
 
-    setNewStudentName('');
-    setIsAddStudentOpen(false);
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Failed to add student.'})
+    }
   };
   
   const handleExport = (type: 'PDF' | 'CSV') => {
@@ -258,7 +258,7 @@ export default function StudentsPage() {
     }
   };
 
-  const handleUpdateStudent = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateStudent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingStudent) return;
 
@@ -266,21 +266,21 @@ export default function StudentsPage() {
     const updatedName = formData.get('name') as string;
     const updatedRollNumber = formData.get('rollNumber') as string;
 
-    setAllClassStudents(prevAllStudents => {
-      const newStudentsForClass = (prevAllStudents[activeTab] || []).map(s =>
-        s.id === editingStudent.id ? { ...s, name: updatedName, rollNumber: updatedRollNumber } : s
-      );
-      return {
-        ...prevAllStudents,
-        [activeTab]: newStudentsForClass,
-      };
-    });
-
-    toast({
-      title: 'Student Updated',
-      description: `Details for ${updatedName} have been saved.`,
-    });
-    setEditingStudent(null);
+    const studentRef = doc(firestore, 'students', editingStudent.id);
+    try {
+        await updateDoc(studentRef, {
+            name: updatedName,
+            rollNumber: updatedRollNumber,
+        });
+        toast({
+        title: 'Student Updated',
+        description: `Details for ${updatedName} have been saved.`,
+        });
+        setEditingStudent(null);
+    } catch(e) {
+        console.error(e);
+        toast({variant: 'destructive', title: 'Update failed'});
+    }
   }
 
   const getAttendanceBadge = (status: AttendanceStatus, isTrigger: boolean = false) => {
@@ -343,7 +343,7 @@ export default function StudentsPage() {
                              <DialogHeader>
                                 <DialogTitle>Add New Student</DialogTitle>
                                 <DialogDescription>
-                                    This will send an enrolment request to the admin.
+                                    This will create a new student in this class.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
@@ -356,7 +356,7 @@ export default function StudentsPage() {
                                 <DialogClose asChild>
                                     <Button variant="outline">Cancel</Button>
                                 </DialogClose>
-                                <Button onClick={handleAddNewStudent} disabled={!newStudentName.trim()}>Submit Request</Button>
+                                <Button onClick={handleAddNewStudent} disabled={!newStudentName.trim()}>Add Student</Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
@@ -371,7 +371,7 @@ export default function StudentsPage() {
                             <DropdownMenuItem asChild>
                                 <Link href="/teacher/attendance">
                                     <ClipboardCheck className="mr-2" />
-                                    Mark Full Attendance
+                                    View Full Attendance
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
