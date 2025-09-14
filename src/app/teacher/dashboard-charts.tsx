@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell, Loader2 } from 'recharts';
 import {
   Card,
   CardContent,
@@ -17,9 +17,12 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
-import { mockTimetableData, days } from '@/app/admin/timetable/timetable-data';
-import { allAssignments } from '@/app/teacher/assignments/page';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
+type TimetableData = Record<string, Record<string, { subject: { teacher: string } }>>;
+
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 const scheduleChartConfig = {
   classes: {
@@ -31,34 +34,72 @@ const scheduleChartConfig = {
 const assignmentChartConfig = {
     Ungraded: { label: 'Ungraded', color: 'hsl(var(--chart-2))' },
     Graded: { label: 'Graded', color: 'hsl(var(--chart-1))' },
-    'Not Handed In': { label: 'Not Handed In', color: 'hsl(var(--destructive))' },
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
 export function DashboardCharts() {
-  const scheduleData = React.useMemo(() => {
-    const teacherName = 'Ms. Wanjiku';
-    return days.map(day => {
-      const daySchedule = mockTimetableData[day];
-      if (!daySchedule) return { day: day.substring(0, 3), classes: 0 };
-      
-      const classCount = Object.values(daySchedule).filter(
-        entry => entry.subject.teacher === teacherName
-      ).length;
+    const [scheduleData, setScheduleData] = React.useState<any[]>([]);
+    const [assignmentData, setAssignmentData] = React.useState<any[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
 
-      return { day: day.substring(0, 3), classes: classCount };
-    });
-  }, []);
+    React.useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            const teacherId = 'teacher-wanjiku'; // Dynamic teacher ID
 
-  const assignmentData = React.useMemo(() => {
-    const graded = allAssignments.filter(a => a.submissions === a.totalStudents).length;
-    const ungraded = allAssignments.length - graded;
+            // Fetch Schedule Data
+            try {
+                const timetablesSnapshot = await getDocs(collection(firestore, 'timetables'));
+                const dailyCounts = days.map(day => {
+                    let classCount = 0;
+                    timetablesSnapshot.forEach(doc => {
+                        const timetable = doc.data() as TimetableData;
+                        const daySchedule = timetable[day];
+                        if (daySchedule) {
+                            classCount += Object.values(daySchedule).filter(
+                                lesson => lesson.subject.teacher === 'Ms. Wanjiku' // Hardcoded for now
+                            ).length;
+                        }
+                    });
+                    return { day: day.substring(0, 3), classes: classCount };
+                });
+                setScheduleData(dailyCounts);
 
-    return [
-        { status: 'Graded', value: graded, fill: 'hsl(var(--chart-1))' },
-        { status: 'Ungraded', value: ungraded, fill: 'hsl(var(--chart-2))' },
-    ].filter(item => item.value > 0);
-  }, []);
+                // Fetch Assignment Data
+                const assignmentsSnapshot = await getDocs(query(collection(firestore, 'assignments'), where('teacherId', '==', teacherId)));
+                let graded = 0;
+                let ungraded = 0;
+                assignmentsSnapshot.forEach(doc => {
+                    const assignment = doc.data();
+                    if (assignment.submissions === assignment.totalStudents) {
+                        graded++;
+                    } else {
+                        ungraded++;
+                    }
+                });
 
+                setAssignmentData([
+                    { status: 'Graded', value: graded, fill: 'hsl(var(--chart-1))' },
+                    { status: 'Ungraded', value: ungraded, fill: 'hsl(var(--chart-2))' },
+                ].filter(item => item.value > 0));
+
+            } catch (error) {
+                console.error("Error fetching chart data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div className="grid gap-6 md:grid-cols-2">
+                <Card><CardHeader><CardTitle>Weekly Schedule</CardTitle></CardHeader><CardContent className="flex items-center justify-center h-[150px]"><Loader2 className="h-8 w-8 animate-spin text-primary"/></CardContent></Card>
+                <Card><CardHeader><CardTitle>Assignments Overview</CardTitle></CardHeader><CardContent className="flex items-center justify-center h-[200px]"><Loader2 className="h-8 w-8 animate-spin text-primary"/></CardContent></Card>
+            </div>
+        )
+    }
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
