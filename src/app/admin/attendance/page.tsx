@@ -113,23 +113,64 @@ const allTrendData = {
     ]
 }
 
-const lowAttendanceAlerts = [
-    { class: 'Form 2', teacher: 'Ms. Njeri', rate: 68 },
-    { class: 'Form 1', teacher: 'Mr. Kamau', rate: 65 },
-]
-
 const chartConfig = {
     rate: { label: 'Attendance Rate', color: 'hsl(var(--primary))' },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-function LowAttendanceAlerts() {
+function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord[], dateRange?: DateRange }) {
     const { toast } = useToast();
+
+    const lowAttendanceAlerts = React.useMemo(() => {
+        if (!records.length) return [];
+
+        const recordsInPeriod = records.filter(record => {
+            const recordDate = record.date.toDate();
+            const isDateInRange = dateRange?.from && dateRange?.to ? recordDate >= dateRange.from && recordDate <= dateRange.to : true;
+            return isDateInRange;
+        });
+
+        const classData: Record<string, { present: number, total: number, teacher: string }> = {};
+
+        recordsInPeriod.forEach(record => {
+            if (!classData[record.class]) {
+                classData[record.class] = { present: 0, total: 0, teacher: record.teacher };
+            }
+            classData[record.class].total++;
+            if (record.status === 'Present' || record.status === 'Late') {
+                classData[record.class].present++;
+            }
+        });
+
+        return Object.entries(classData)
+            .map(([className, data]) => ({
+                class: className,
+                teacher: data.teacher,
+                rate: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0,
+            }))
+            .filter(item => item.rate < 70);
+
+    }, [records, dateRange]);
+
 
     const handleSendReminder = (teacher: string) => {
         toast({
             title: 'Reminder Sent',
             description: `A reminder notification has been sent to ${teacher}.`,
         });
+    }
+
+    if (lowAttendanceAlerts.length === 0) {
+        return (
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <UserCheck className="h-6 w-6 text-green-600"/>
+                        No Attendance Alerts
+                    </CardTitle>
+                    <CardDescription>Attendance is above 70% for all classes in the selected period.</CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     return (
@@ -175,7 +216,6 @@ export default function AdminAttendancePage() {
   const [teacherFilter, setTeacherFilter] = React.useState('All Teachers');
   const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'All Statuses'>('All Statuses');
   const [selectedTerm, setSelectedTerm] = React.useState('term2-2024');
-  const [dailyTrendData, setDailyTrendData] = React.useState(allTrendData['term2-2024']);
   const { toast } = useToast();
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
 
@@ -194,10 +234,34 @@ export default function AdminAttendancePage() {
     return () => unsubscribe();
   }, [])
   
-  const handleTermChange = (term: keyof typeof allTrendData) => {
-    setSelectedTerm(term);
-    setDailyTrendData(allTrendData[term]);
-  };
+  const dailyTrendData = React.useMemo(() => {
+    if (!allRecords.length) return [];
+    
+    // This is a simplified version. A real app would filter by term dates.
+    const termRecords = allRecords.slice(0, 500); // Use a subset for performance demo
+
+    const dailyData: Record<string, { present: number, total: number }> = {};
+
+    termRecords.forEach(record => {
+      const day = format(record.date.toDate(), 'MMM d');
+      if (!dailyData[day]) {
+        dailyData[day] = { present: 0, total: 0 };
+      }
+      dailyData[day].total++;
+      if (record.status === 'Present' || record.status === 'Late') {
+        dailyData[day].present++;
+      }
+    });
+
+    return Object.entries(dailyData)
+      .map(([date, data]) => ({
+        date,
+        rate: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0,
+      }))
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-5); // Get last 5 days for trend
+      
+  }, [allRecords, selectedTerm]);
   
   const handleCompare = () => {
     toast({
@@ -292,7 +356,7 @@ export default function AdminAttendancePage() {
                 </div>
             </CardContent>
         </Card>
-        <LowAttendanceAlerts />
+        <LowAttendanceAlerts records={allRecords} dateRange={date} />
       </div>
 
 
@@ -307,7 +371,7 @@ export default function AdminAttendancePage() {
                         </div>
                     </div>
                      <div className="flex w-full md:w-auto items-center gap-2">
-                         <Select value={selectedTerm} onValueChange={(value: keyof typeof allTrendData) => handleTermChange(value)}>
+                         <Select value={selectedTerm} onValueChange={(v) => setSelectedTerm(v)}>
                             <SelectTrigger className="w-full md:w-auto">
                                 <SelectValue placeholder="Select term" />
                             </SelectTrigger>
