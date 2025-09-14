@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { firestore, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { cn } from '@/lib/utils';
@@ -82,6 +82,7 @@ import {
   HeartPulse,
   X,
   Loader2,
+  KeyRound,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -99,12 +100,12 @@ const enrolmentSchema = z.object({
   parentRelationship: z.string({ required_error: 'Relationship is required.' }),
   parentEmail: z.string().email('Invalid email address.'),
   parentPhone: z.string().min(10, 'A valid phone number is required.'),
+  parentPassword: z.string().min(8, 'Password must be at least 8 characters.'),
   allergies: z.string().optional(),
   medicalConditions: z.string().optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
   generateInvoice: z.boolean().default(true),
-  sendInvite: z.boolean().default(true),
 });
 
 type EnrolmentFormValues = z.infer<typeof enrolmentSchema>;
@@ -149,7 +150,6 @@ export default function StudentEnrolmentPage() {
         resolver: zodResolver(enrolmentSchema),
         defaultValues: {
             generateInvoice: true,
-            sendInvite: true,
         },
     });
     
@@ -247,8 +247,12 @@ export default function StudentEnrolmentPage() {
             );
 
             const studentName = `${values.studentFirstName} ${values.studentLastName}`;
-
+            const parentName = `${values.parentFirstName} ${values.parentLastName}`;
+            
+            // Create student document
+            const studentDocRef = doc(collection(firestore, 'students'));
             const studentData = {
+                id: studentDocRef.id,
                 name: studentName,
                 firstName: values.studentFirstName,
                 lastName: values.studentLastName,
@@ -258,7 +262,7 @@ export default function StudentEnrolmentPage() {
                 classId: values.classId,
                 class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
                 admissionYear: values.admissionYear,
-                parentName: `${values.parentFirstName} ${values.parentLastName}`,
+                parentName: parentName,
                 parentFirstName: values.parentFirstName,
                 parentLastName: values.parentLastName,
                 parentRelationship: values.parentRelationship,
@@ -274,8 +278,24 @@ export default function StudentEnrolmentPage() {
                 documents: admissionDocUrls,
                 role: 'Student'
             };
+            
+            // Create parent user document
+            const parentUserDocRef = doc(collection(firestore, 'users'));
+            const parentUserData = {
+                id: parentUserDocRef.id,
+                name: parentName,
+                email: values.parentEmail,
+                // In a real app, hash the password before storing
+                password: values.parentPassword, 
+                role: 'Parent',
+                status: 'Active',
+                createdAt: serverTimestamp(),
+                avatarUrl: `https://picsum.photos/seed/${values.parentEmail}/100`,
+                children: [studentDocRef.id],
+            };
 
-            await addDoc(collection(firestore, 'students'), studentData);
+            await setDoc(studentDocRef, studentData);
+            await setDoc(parentUserDocRef, parentUserData);
             
             await addDoc(collection(firestore, 'notifications'), {
                 title: 'New Student Enrolment',
@@ -286,8 +306,8 @@ export default function StudentEnrolmentPage() {
             });
 
             toast({
-                title: 'Enrolment Submitted',
-                description: `${studentName} has been successfully submitted for enrolment.`,
+                title: 'Enrolment Submitted & Parent Account Created',
+                description: `${studentName} has been submitted for enrolment and a portal account for ${parentName} has been created.`,
             });
 
             form.reset();
@@ -455,16 +475,20 @@ export default function StudentEnrolmentPage() {
                     </Card>
                      <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Guardian Details</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Parent/Guardian Details & Login</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="parentFirstName" render={({ field }) => ( <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="e.g., Mark" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                                 <FormField control={form.control} name="parentLastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="e.g., Johnson" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                                 <FormField control={form.control} name="parentRelationship" render={({ field }) => ( <FormItem><FormLabel>Relationship to Student</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a relationship" /></SelectTrigger></FormControl><SelectContent><SelectItem value="father">Father</SelectItem><SelectItem value="mother">Mother</SelectItem><SelectItem value="guardian">Guardian</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
-                                <FormField control={form.control} name="parentEmail" render={({ field }) => ( <FormItem><FormLabel>Email Address</FormLabel><FormControl><Input type="email" placeholder="guardian@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                                 <FormField control={form.control} name="parentPhone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             </div>
+                            <Separator className="my-6" />
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField control={form.control} name="parentEmail" render={({ field }) => ( <FormItem><FormLabel>Parent's Login Email</FormLabel><FormControl><Input type="email" placeholder="parent@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="parentPassword" render={({ field }) => ( <FormItem><FormLabel>Set Initial Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                             </div>
                         </CardContent>
                     </Card>
                     <Card>
@@ -486,7 +510,7 @@ export default function StudentEnrolmentPage() {
                 <div className="lg:col-span-1 space-y-6">
                      <Card>
                         <CardHeader>
-                            <CardTitle>Academic &amp; Administrative</CardTitle>
+                            <CardTitle>Academic & Administrative</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                              <FormField control={form.control} name="classId" render={({ field }) => ( <FormItem><FormLabel>Assign to Class</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a class" /></SelectTrigger></FormControl><SelectContent>{classOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )}/>
@@ -553,7 +577,6 @@ export default function StudentEnrolmentPage() {
                             </div>
                             <Separator />
                              <FormField control={form.control} name="generateInvoice" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Generate Pro-forma Invoice</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
-                             <FormField control={form.control} name="sendInvite" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Send Portal Invitation</FormLabel><FormDescription>Sends a welcome email to the parent/guardian with a secure link to set up their portal account.</FormDescription></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)}/>
                         </CardContent>
                     </Card>
 
@@ -600,3 +623,5 @@ export default function StudentEnrolmentPage() {
     </div>
   );
 }
+
+    
