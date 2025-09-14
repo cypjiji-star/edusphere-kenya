@@ -31,32 +31,28 @@ export function AuthCheck({
       if (authUser) {
         setUser(authUser);
         let fetchedRole: string | null = null;
-        let roleFound = false;
-
+        
         try {
-          // Check for developer role first, as it's a platform-level role.
-          const devQuery = query(collection(firestore, 'developers'), where('uid', '==', authUser.uid));
-          const devSnapshot = await getDocs(devQuery);
-          if (!devSnapshot.empty) {
-            fetchedRole = devSnapshot.docs[0].data().role;
-            if (fetchedRole === 'developer') {
-              roleFound = true;
+            // Check for developer role first
+            const devQuery = query(collection(firestore, 'developers'), where('uid', '==', authUser.uid));
+            const devSnapshot = await getDocs(devQuery);
+            if (!devSnapshot.empty) {
+                fetchedRole = devSnapshot.docs[0].data().role;
             }
-          }
 
-          // If not a developer, check for school-level roles.
-          if (!roleFound) {
-            const schoolId = searchParams.get('schoolId');
-            if (schoolId) {
-              const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
-              const userDocSnap = await getDoc(userDocRef);
-              if (userDocSnap.exists()) {
-                fetchedRole = userDocSnap.data().role;
-              }
+            // If not a developer, check for school-level roles
+            if (!fetchedRole) {
+                const schoolId = searchParams.get('schoolId');
+                if (schoolId) {
+                    const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
+                    const userDocSnap = await getDoc(userDocRef);
+                    if (userDocSnap.exists()) {
+                        fetchedRole = userDocSnap.data().role;
+                    }
+                }
             }
-          }
         } catch (error) {
-          console.error('Error fetching user role:', error);
+            console.error('Error fetching user role:', error);
         }
 
         setUserRole(fetchedRole);
