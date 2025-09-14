@@ -5,6 +5,8 @@ import * as React from 'react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
 
 import { cn } from '@/lib/utils';
 import {
@@ -78,22 +80,9 @@ type AttendanceRecord = {
   studentAvatar: string;
   class: string;
   teacher: string;
-  date: string;
+  date: Timestamp;
   status: AttendanceStatus;
 };
-
-// --- Mock Data ---
-
-const MOCK_RECORDS: AttendanceRecord[] = [
-  { id: 'rec-1', studentName: 'Student 1', studentAvatar: 'https://picsum.photos/seed/f4-student1/100', class: 'Form 4', teacher: 'Ms. Wanjiku', date: '2024-07-18', status: 'Absent' },
-  { id: 'rec-2', studentName: 'Student 2', studentAvatar: 'https://picsum.photos/seed/f4-student2/100', class: 'Form 4', teacher: 'Ms. Wanjiku', date: '2024-07-18', status: 'Present' },
-  { id: 'rec-3', studentName: 'Student 32', studentAvatar: 'https://picsum.photos/seed/f3-student1/100', class: 'Form 3', teacher: 'Mr. Otieno', date: '2024-07-18', status: 'Late' },
-  { id: 'rec-4', studentName: 'Student 33', studentAvatar: 'https://picsum.photos/seed/f3-student2/100', class: 'Form 3', teacher: 'Mr. Otieno', date: '2024-07-17', status: 'Present' },
-  { id: 'rec-5', studentName: 'Student 60', studentAvatar: 'https://picsum.photos/seed/f2-student1/100', class: 'Form 2', teacher: 'Ms. Njeri', date: '2024-07-17', status: 'Absent' },
-  { id: 'rec-6', studentName: 'Student 61', studentAvatar: 'https://picsum.photos/seed/f2-student2/100', class: 'Form 2', teacher: 'Ms. Njeri', date: '2024-07-16', status: 'Present' },
-  { id: 'rec-7', studentName: 'Student 62', studentAvatar: 'https://picsum.photos/seed/f2-student3/100', class: 'Form 2', teacher: 'Ms. Njeri', date: '2024-07-16', status: 'Present' },
-  { id: 'rec-8', studentName: 'Student 3', studentAvatar: 'https://picsum.photos/seed/f4-student3/100', class: 'Form 4', teacher: 'Ms. Wanjiku', date: '2024-07-15', status: 'Present' },
-];
 
 const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
 const teachers = ['All Teachers', 'Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri'];
@@ -188,12 +177,21 @@ export default function AdminAttendancePage() {
   const [selectedTerm, setSelectedTerm] = React.useState('term2-2024');
   const [dailyTrendData, setDailyTrendData] = React.useState(allTrendData['term2-2024']);
   const { toast } = useToast();
+  const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
 
   React.useEffect(() => {
     setDate({
         from: new Date(),
         to: new Date()
     })
+    
+    const q = query(collection(firestore, 'attendance'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+        setAllRecords(records);
+    });
+
+    return () => unsubscribe();
   }, [])
   
   const handleTermChange = (term: keyof typeof allTrendData) => {
@@ -215,8 +213,8 @@ export default function AdminAttendancePage() {
     });
   };
 
-  const filteredRecords = MOCK_RECORDS.filter(record => {
-      const recordDate = new Date(record.date);
+  const filteredRecords = allRecords.filter(record => {
+      const recordDate = record.date.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
       const matchesSearch = record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClass = classFilter === 'All Classes' || record.class === classFilter;
@@ -471,7 +469,7 @@ export default function AdminAttendancePage() {
                       </TableCell>
                       <TableCell>{record.class}</TableCell>
                       <TableCell>{record.teacher}</TableCell>
-                      <TableCell>{record.date}</TableCell>
+                      <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
                     </TableRow>
                   ))
@@ -488,7 +486,7 @@ export default function AdminAttendancePage() {
         </CardContent>
          <CardFooter>
             <div className="text-xs text-muted-foreground">
-                Showing <strong>{filteredRecords.length}</strong> of <strong>{MOCK_RECORDS.length}</strong> records.
+                Showing <strong>{filteredRecords.length}</strong> of <strong>{allRecords.length}</strong> records.
             </div>
         </CardFooter>
       </Card>
