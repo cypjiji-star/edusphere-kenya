@@ -4,7 +4,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAuth } from 'firebase/auth';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   "projectId": "studio-8322695498-589c5",
   "appId": "1:853801330881:web:025112dc4e29e784024c40",
   "storageBucket": "studio-8322695498-589c5.appspot.com",

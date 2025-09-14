@@ -52,10 +52,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { auth, firestore } from '@/lib/firebase';
+import { auth, firestore, firebaseConfig } from '@/lib/firebase';
+import { initializeApp, deleteApp } from 'firebase/app';
 import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -176,9 +177,12 @@ export default function UserManagementPage() {
     const handleCreateUser = async (values: any) => {
         if (!schoolId) return;
 
+        const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
+        const secondaryAuth = getAuth(secondaryApp);
+
         try {
-            // Create user in Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+            // Create user in Firebase Auth using the secondary instance
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, values.email, values.password);
             const user = userCredential.user;
 
             // Create user document in Firestore
@@ -206,6 +210,8 @@ export default function UserManagementPage() {
                 errorMessage = 'Password is too weak. It must be at least 6 characters long.';
             }
             toast({ title: 'Error', description: errorMessage, variant: 'destructive'});
+        } finally {
+            await deleteApp(secondaryApp);
         }
     };
     

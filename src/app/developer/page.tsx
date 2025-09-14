@@ -28,11 +28,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { auth, firestore } from '@/lib/firebase';
+import { auth, firestore, firebaseConfig } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { initialRolePermissions, initialPermissionStructure } from '@/app/admin/permissions/roles-data';
 import { periods as defaultPeriods } from '@/app/admin/timetable/timetable-data';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { initializeApp, deleteApp } from 'firebase/app';
 
 
 type School = {
@@ -73,12 +74,16 @@ export default function DeveloperDashboard() {
         return;
     }
     setIsCreating(true);
+
+    const secondaryApp = initializeApp(firebaseConfig, `secondary-creation-${Date.now()}`);
+    const secondaryAuth = getAuth(secondaryApp);
+
     try {
         // Generate a 6-digit numeric school code
         const schoolCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // 1. Create the admin user in Firebase Auth
-        const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
+        // 1. Create the admin user in Firebase Auth using the secondary instance
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, adminEmail, adminPassword);
         const adminUid = userCredential.user.uid;
 
         const batch = writeBatch(firestore);
@@ -154,6 +159,7 @@ export default function DeveloperDashboard() {
         console.error(e);
     } finally {
         setIsCreating(false);
+        await deleteApp(secondaryApp);
     }
   };
 
