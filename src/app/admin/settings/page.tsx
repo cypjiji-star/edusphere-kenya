@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { firestore } from '@/lib/firebase';
 import { doc, onSnapshot, setDoc, collection, query, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 const formatTimeAgo = (timestamp: Timestamp | undefined) => {
@@ -48,6 +49,8 @@ const formatTimeAgo = (timestamp: Timestamp | undefined) => {
 }
 
 export default function SettingsPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
     const [isLoading, setIsLoading] = React.useState(true);
     
@@ -112,11 +115,15 @@ export default function SettingsPage() {
     };
     
      React.useEffect(() => {
+        if (!schoolId) {
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         const settingDocs = ['notifications', 'general', 'data', 'security', 'maintenance', 'ai'];
         
         const unsubscribers = settingDocs.map(docId => {
-            const docRef = doc(firestore, 'systemSettings', docId);
+            const docRef = doc(firestore, 'schools', schoolId, 'settings', docId);
             return onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
                     settingUpdaters[docId]?.(docSnap.data());
@@ -124,7 +131,7 @@ export default function SettingsPage() {
             });
         });
         
-        const changesQuery = query(collection(firestore, 'notifications'), orderBy('createdAt', 'desc'), limit(3));
+        const changesQuery = query(collection(firestore, 'schools', schoolId, 'notifications'), orderBy('createdAt', 'desc'), limit(3));
         const unsubChanges = onSnapshot(changesQuery, (snapshot) => {
             const changes = snapshot.docs.map(doc => {
                 const data = doc.data();
@@ -143,11 +150,12 @@ export default function SettingsPage() {
             unsubChanges();
         }
 
-    }, []);
+    }, [schoolId]);
 
-    const handleSettingChange = async (collection: string, key: string, value: any) => {
+    const handleSettingChange = async (collectionName: string, key: string, value: any) => {
+        if (!schoolId) return;
         try {
-            const docRef = doc(firestore, 'systemSettings', collection);
+            const docRef = doc(firestore, 'schools', schoolId, 'settings', collectionName);
             await setDoc(docRef, { [key]: value }, { merge: true });
             toast({
                 title: 'Setting Saved',
@@ -202,6 +210,10 @@ export default function SettingsPage() {
             </div>
         );
     }
+    
+    if (!schoolId) {
+      return <div className="p-8">Error: School ID is missing.</div>;
+    }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -229,7 +241,7 @@ export default function SettingsPage() {
                                 <p className="text-xs text-muted-foreground">This is managed in the School Profile section.</p>
                             </div>
                             <Button asChild variant="secondary">
-                                <Link href="/admin/profile">
+                                <Link href={`/admin/profile?schoolId=${schoolId}`}>
                                     <Edit className="mr-2 h-4 w-4" />
                                     Edit Profile
                                 </Link>
@@ -659,7 +671,7 @@ export default function SettingsPage() {
                 </CardContent>
                 <CardFooter className="flex-wrap gap-2">
                     <Button asChild variant="secondary">
-                        <Link href="/admin/logs">
+                        <Link href={`/admin/logs?schoolId=${schoolId}`}>
                             View Full Audit Log
                             <ArrowRight className="ml-2 h-4 w-4"/>
                         </Link>
