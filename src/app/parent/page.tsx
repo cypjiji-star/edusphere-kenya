@@ -14,11 +14,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardCheck, FileText, Megaphone, Percent, User, Users } from 'lucide-react';
+import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardCheck, FileText, Megaphone, Percent, User, Users, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { isPast } from 'date-fns';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -44,7 +44,7 @@ type Announcement = {
     title: string;
     content: string;
     sentAt: Timestamp;
-    read: boolean;
+    readBy?: string[];
 };
 
 type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event' | 'Sports' | 'Trip';
@@ -83,7 +83,7 @@ const getAttendanceColor = (attendance: number) => {
     return 'text-red-600';
 }
 
-function AnnouncementsWidget({ schoolId }: { schoolId: string }) {
+function AnnouncementsWidget({ schoolId, currentUserId }: { schoolId: string, currentUserId: string }) {
     const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
 
     React.useEffect(() => {
@@ -105,11 +105,13 @@ function AnnouncementsWidget({ schoolId }: { schoolId: string }) {
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {announcements.map((ann, index) => (
+                {announcements.map((ann, index) => {
+                    const isRead = ann.readBy?.includes(currentUserId);
+                    return (
                      <div key={ann.id}>
                         <Link href={`/parent/announcements?schoolId=${schoolId}`} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
                             <div className="flex items-start gap-3">
-                                {!ann.read && <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
+                                {!isRead && <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
                                 <div className="flex-1 space-y-1">
                                     <p className="font-semibold text-sm">{ann.title}</p>
                                     <p className="text-sm text-muted-foreground truncate">{ann.content}</p>
@@ -119,7 +121,7 @@ function AnnouncementsWidget({ schoolId }: { schoolId: string }) {
                         </Link>
                         {index < announcements.length - 1 && <Separator className="mt-4" />}
                     </div>
-                ))}
+                )})}
                  {announcements.length === 0 && (
                     <div className="text-center text-muted-foreground py-4">
                         <p>No recent announcements.</p>
@@ -211,31 +213,81 @@ function CalendarWidget({ schoolId }: { schoolId: string }) {
 export default function ParentDashboard() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const parentId = 'parent-user-id'; // Placeholder for logged-in user
   const [schoolName, setSchoolName] = React.useState('');
   const [childrenData, setChildrenData] = React.useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = React.useState<Child | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (!schoolId) return;
-
-    const schoolRef = doc(firestore, 'schools', schoolId);
-    getDoc(schoolRef).then(docSnap => {
-        if(docSnap.exists()) {
-            setSchoolName(docSnap.data().name);
-        }
+    if (!schoolId) {
+        setIsLoading(false);
+        return;
+    }
+    
+    getDoc(doc(firestore, 'schools', schoolId)).then(docSnap => {
+        if(docSnap.exists()) setSchoolName(docSnap.data().name);
     });
 
-    // In a real app, you would filter by the logged-in parent's ID.
-    const q = query(collection(firestore, `schools/${schoolId}/students`));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
+    const childrenQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+    const unsubscribe = onSnapshot(childrenQuery, async (snapshot) => {
+      const fetchedChildren = await Promise.all(snapshot.docs.map(async (studentDoc) => {
+          const studentData = studentDoc.data();
+          const studentId = studentDoc.id;
+
+          // Fetch attendance
+          const termStartDate = new Date(); // In real app, get from academic calendar
+          termStartDate.setMonth(termStartDate.getMonth() - 3);
+          const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', studentId), where('date', '>=', Timestamp.fromDate(termStartDate)));
+          const attendanceSnapshot = await getDocs(attendanceQuery);
+          const totalDays = attendanceSnapshot.size;
+          const presentDays = attendanceSnapshot.docs.filter(d => ['Present', 'Late'].includes(d.data().status)).length;
+          const attendancePercentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+          
+          // Fetch grades
+          const gradesQuery = query(collection(firestore, `schools/${schoolId}/students/${studentId}/grades`), orderBy('date', 'desc'), limit(3));
+          const gradesSnapshot = await getDocs(gradesQuery);
+          const recentGrades = gradesSnapshot.docs.map(d => {
+              const gradeData = d.data();
+              return {
+                  subject: gradeData.assessmentTitle, // Or fetch assessment for subject name
+                  grade: gradeData.grade,
+                  date: (gradeData.date as Timestamp).toDate().toLocaleDateString('en-GB'),
+              }
+          });
+          
+          // Calculate overall grade
+          const allGradesQuery = query(collection(firestore, `schools/${schoolId}/students/${studentId}/grades`));
+          const allGradesSnapshot = await getDocs(allGradesQuery);
+          const numericScores = allGradesSnapshot.docs.map(d => parseInt(d.data().grade)).filter(score => !isNaN(score));
+          const overallGrade = numericScores.length > 0 ? Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length) : 0;
+          
+          return { 
+              id: studentId, 
+              name: studentData.name,
+              class: studentData.class,
+              avatarUrl: studentData.avatarUrl,
+              attendance: attendancePercentage,
+              overallGrade: overallGrade,
+              feeStatus: {
+                total: studentData.totalFee || 0,
+                paid: studentData.amountPaid || 0,
+                balance: studentData.balance || 0,
+                status: studentData.balance <= 0 ? 'Paid' : 'Partial', // Simplified
+                dueDate: (studentData.dueDate as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
+              },
+              recentGrades: recentGrades,
+          } as Child;
+      }));
+      
       setChildrenData(fetchedChildren);
       if (!selectedChild && fetchedChildren.length > 0) {
         setSelectedChild(fetchedChildren[0]);
       }
+      setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [selectedChild, schoolId]);
+  }, [schoolId, parentId]);
   
   const getFeeStatus = (feeStatus: Child['feeStatus']) => {
     if (feeStatus.balance <= 0) return 'Paid';
@@ -243,8 +295,12 @@ export default function ParentDashboard() {
     return 'Partial';
   }
 
-  if (!selectedChild || !schoolId) {
-    return <div className="p-8">Loading dashboard...</div>;
+  if (isLoading || !selectedChild || !schoolId) {
+    return (
+        <div className="flex h-[calc(100vh-200px)] items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+    );
   }
 
   return (
@@ -256,7 +312,7 @@ export default function ParentDashboard() {
 
        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <Card>
-                <CardHeader>
+                <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4 text-muted-foreground"/>
                         Attendance
@@ -268,19 +324,19 @@ export default function ParentDashboard() {
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader>
+                <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                          <Percent className="h-4 w-4 text-muted-foreground"/>
                         Overall Grade
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{selectedChild.overallGrade || 88}%</div>
+                    <div className="text-2xl font-bold">{selectedChild.overallGrade || 0}%</div>
                     <p className="text-xs text-muted-foreground">Term 2 Average</p>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader>
+                <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                         <CircleDollarSign className="h-4 w-4 text-muted-foreground"/>
                         Fee Balance
@@ -341,7 +397,7 @@ export default function ParentDashboard() {
                     ))}
                 </CardContent>
             </Card>
-             <AnnouncementsWidget schoolId={schoolId} />
+             <AnnouncementsWidget schoolId={schoolId} currentUserId={parentId} />
         </div>
 
         <div className="lg:col-span-2 space-y-8">

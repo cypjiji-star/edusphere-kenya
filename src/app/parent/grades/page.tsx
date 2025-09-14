@@ -61,7 +61,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDocs } from 'firebase/firestore';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -77,7 +77,7 @@ type GradeData = {
       overall: string;
       rank: string;
       classSize: number;
-      trend: 'up' | 'down';
+      trend: 'up' | 'down' | 'stable';
       trendValue: string;
       highest: string;
       lowest: string;
@@ -88,10 +88,6 @@ type GradeData = {
 type SubjectData = { 
     id: string;
     name: string; 
-    cat1: number; 
-    midTerm: number; 
-    cat2: number; 
-    final: number; 
     average: number; 
     grade: string; 
     comment: string; 
@@ -159,11 +155,10 @@ export default function ParentGradesPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
   const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
+  const parentId = 'parent-user-id'; // Placeholder for logged-in user
 
   React.useEffect(() => {
     if (!schoolId) return;
-    // Fetch children associated with the parent
-    const parentId = 'parent-user-id'; // This would be the actual logged-in parent's ID.
     const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
@@ -173,76 +168,66 @@ export default function ParentGradesPage() {
         }
     });
     return () => unsubscribe();
-  }, [selectedChild, schoolId]);
+  }, [selectedChild, schoolId, parentId]);
 
   React.useEffect(() => {
     if (!selectedChild || !schoolId) return;
     setIsLoading(true);
 
-    const fetchGradeData = async () => {
-        const studentDocRef = doc(firestore, 'schools', schoolId, 'students', selectedChild);
-        
-        const gradesQuery = query(collection(studentDocRef, 'grades'));
-        
-        const unsubGrades = onSnapshot(gradesQuery, (gradesSnapshot) => {
-            const grades = gradesSnapshot.docs.map(doc => doc.data());
-            
-            // This is a simplified aggregation. In a real app, this logic might be more complex
-            // or handled by backend functions. For now, we mock the subject aggregation.
-            const subjectScores: Record<string, { scores: number[], count: number }> = {};
-            
-            grades.forEach(grade => {
-                const subject = grade.assessmentTitle.split(' ')[0]; // Simple way to group by subject
-                if (!subjectScores[subject]) {
-                    subjectScores[subject] = { scores: [], count: 0 };
-                }
-                const score = parseInt(grade.grade, 10);
-                if (!isNaN(score)) {
-                    subjectScores[subject].scores.push(score);
-                    subjectScores[subject].count++;
-                }
-            });
+    const gradesQuery = query(collection(firestore, 'schools', schoolId, 'students', selectedChild, 'grades'));
+    const unsubGrades = onSnapshot(gradesQuery, async (gradesSnapshot) => {
+        const gradesBySubject: Record<string, number[]> = {};
+        const assessmentDetails: Record<string, {title: string, type: string, date: string}> = {};
 
-            const subjects: SubjectData[] = Object.entries(subjectScores).map(([name, data], index) => {
-                const avg = data.scores.length > 0 ? Math.round(data.scores.reduce((a,b) => a+b, 0) / data.scores.length) : 0;
-                return {
-                    id: `${index}`,
-                    name: name,
-                    cat1: data.scores[0] || 0,
-                    midTerm: data.scores[1] || 0,
-                    cat2: data.scores[2] || 0,
-                    final: data.scores[3] || 0,
-                    average: avg,
-                    grade: avg >= 80 ? 'A' : avg >= 65 ? 'B' : 'C', // simplified
-                    comment: 'Good effort shown throughout the term.',
-                    teacher: 'Teacher Name'
-                };
-            });
-            
-            const overallScores = subjects.map(s => s.average).filter(s => s > 0);
-            const overallAvg = overallScores.length > 0 ? Math.round(overallScores.reduce((a, b) => a + b, 0) / overallScores.length) : 0;
-            
-            const newGradeData: GradeData = {
-                summary: {
-                    overall: `${overallAvg}%`,
-                    rank: 'N/A', // Rank would require fetching all students in class
-                    classSize: 0,
-                    trend: 'up',
-                    trendValue: '2%',
-                    highest: subjects.length > 0 ? subjects.reduce((max, s) => s.average > max.average ? s : max).name : 'N/A',
-                    lowest: subjects.length > 0 ? subjects.reduce((min, s) => s.average < min.average ? s : min).name : 'N/A',
-                },
-                subjects: subjects
+        for (const gradeDoc of gradesSnapshot.docs) {
+            const grade = gradeDoc.data();
+            const score = parseInt(grade.grade, 10);
+            if (isNaN(score)) continue;
+
+            if (!assessmentDetails[grade.assessmentId]) {
+                 const assessmentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'assessments', grade.assessmentId));
+                 if(assessmentDoc.exists()) {
+                     assessmentDetails[grade.assessmentId] = assessmentDoc.data() as any;
+                 }
+            }
+            const subjectName = assessmentDetails[grade.assessmentId]?.title.split(' ')[0] || 'Unknown';
+            if (!gradesBySubject[subjectName]) {
+                gradesBySubject[subjectName] = [];
+            }
+            gradesBySubject[subjectName].push(score);
+        }
+
+        const subjects: SubjectData[] = Object.entries(gradesBySubject).map(([name, scores], index) => {
+            const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+            return {
+                id: `${index}`,
+                name: name,
+                average: avg,
+                grade: avg >= 80 ? 'A' : avg >= 65 ? 'B' : 'C', // Simplified
+                comment: 'Good effort shown throughout the term.', // Mock
+                teacher: 'Teacher Name' // Mock
             };
-            
-            setGradeData(newGradeData);
-            setIsLoading(false);
         });
 
-        return () => unsubGrades();
-    };
+        const overallScores = subjects.map(s => s.average).filter(s => s > 0);
+        const overallAvg = overallScores.length > 0 ? Math.round(overallScores.reduce((a, b) => a + b, 0) / overallScores.length) : 0;
 
-    fetchGradeData();
+        setGradeData({
+            summary: {
+                overall: `${overallAvg}%`,
+                rank: '5th',
+                classSize: 32,
+                trend: 'up',
+                trendValue: '2%',
+                highest: subjects.length > 0 ? subjects.reduce((max, s) => s.average > max.average ? s : max).name : 'N/A',
+                lowest: subjects.length > 0 ? subjects.reduce((min, s) => s.average < min.average ? s : min).name : 'N/A',
+            },
+            subjects: subjects
+        });
+        setIsLoading(false);
+    });
+
+    return () => unsubGrades();
   }, [selectedChild, schoolId]);
 
   const handleDownload = () => {
@@ -303,16 +288,6 @@ export default function ParentGradesPage() {
                     <SelectContent>
                         <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
                         <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Select>
-                    <SelectTrigger className="w-full md:w-auto">
-                        <SelectValue placeholder="All Exams" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Exams</SelectItem>
-                        <SelectItem value="midterm">Mid-Term</SelectItem>
-                        <SelectItem value="endterm">End-Term</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -384,10 +359,6 @@ export default function ParentGradesPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Subject</TableHead>
-                                <TableHead className="text-center">CAT 1</TableHead>
-                                <TableHead className="text-center">Mid-Term</TableHead>
-                                <TableHead className="text-center">CAT 2</TableHead>
-                                <TableHead className="text-center">Final Exam</TableHead>
                                 <TableHead className="text-center font-bold">Average</TableHead>
                                 <TableHead className="text-center font-bold">Grade</TableHead>
                                 <TableHead>Teacher's Comment</TableHead>
@@ -397,10 +368,6 @@ export default function ParentGradesPage() {
                             {gradeData.subjects.map(subject => (
                                 <TableRow key={subject.id}>
                                     <TableCell className="font-medium">{subject.name}</TableCell>
-                                    <TableCell className="text-center">{subject.cat1}</TableCell>
-                                    <TableCell className="text-center">{subject.midTerm}</TableCell>
-                                    <TableCell className="text-center">{subject.cat2}</TableCell>
-                                    <TableCell className="text-center">{subject.final}</TableCell>
                                     <TableCell className="text-center font-bold">
                                         <Badge variant="secondary">{subject.average}</Badge>
                                     </TableCell>
