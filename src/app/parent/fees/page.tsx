@@ -55,6 +55,7 @@ import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, Timestamp, writeBatch, addDoc } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 type Child = {
     id: string;
@@ -100,6 +101,8 @@ const getFeeStatusBadge = (status: 'Paid' | 'Partial' | 'Overdue') => {
 }
 
 export default function ParentFeesPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [childrenData, setChildrenData] = React.useState<Child[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [feeSummary, setFeeSummary] = React.useState<FeeSummary | null>(null);
@@ -113,9 +116,10 @@ export default function ParentFeesPage() {
     const { toast } = useToast();
 
     React.useEffect(() => {
+        if (!schoolId) return;
         setClientReady(true);
         // In a real app, filter by parent ID. For now, we fetch a few students.
-        const q = query(collection(firestore, 'students'), where('role', '==', 'Student'));
+        const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -124,12 +128,12 @@ export default function ParentFeesPage() {
             }
         });
         return () => unsubscribe();
-    }, [selectedChild]);
+    }, [schoolId, selectedChild]);
 
     React.useEffect(() => {
-        if (!selectedChild) return;
+        if (!selectedChild || !schoolId) return;
 
-        const studentDocRef = doc(firestore, 'students', selectedChild);
+        const studentDocRef = doc(firestore, `schools/${schoolId}/students`, selectedChild);
         const unsubStudent = onSnapshot(studentDocRef, (studentSnap) => {
             if (studentSnap.exists()) {
                 const studentData = studentSnap.data() as DocumentData;
@@ -145,7 +149,7 @@ export default function ParentFeesPage() {
             }
         });
         
-        const transactionsQuery = query(collection(firestore, 'students', selectedChild, 'transactions'), orderBy('date', 'desc'));
+        const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students`, selectedChild, 'transactions'), orderBy('date', 'desc'));
         const unsubTransactions = onSnapshot(transactionsQuery, (snapshot) => {
             const fetchedLedger = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
             setLedger(fetchedLedger);
@@ -167,7 +171,7 @@ export default function ParentFeesPage() {
             unsubTransactions();
         }
 
-    }, [selectedChild]);
+    }, [selectedChild, schoolId]);
 
     if (!clientReady || !feeSummary) {
         return (
@@ -187,14 +191,14 @@ export default function ParentFeesPage() {
     };
 
     const handleMpesaPayment = async () => {
-        if (!selectedChild || paymentAmount <= 0) {
-            toast({ variant: 'destructive', title: 'Invalid amount' });
+        if (!selectedChild || paymentAmount <= 0 || !schoolId) {
+            toast({ variant: 'destructive', title: 'Invalid amount or missing information.' });
             return;
         }
 
         setIsProcessingPayment(true);
         
-        const studentRef = doc(firestore, 'students', selectedChild);
+        const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedChild);
 
         try {
             const studentDoc = await getDoc(studentRef);
@@ -212,7 +216,7 @@ export default function ParentFeesPage() {
                 feeStatus: newBalance <= 0 ? 'Paid' : 'Partial'
             });
 
-            const transactionRef = doc(collection(firestore, 'students', selectedChild, 'transactions'));
+            const transactionRef = doc(collection(firestore, `schools/${schoolId}/students`, selectedChild, 'transactions'));
             batch.set(transactionRef, {
                 date: Timestamp.now(),
                 description: 'M-PESA Payment via Parent Portal',
@@ -337,3 +341,5 @@ export default function ParentFeesPage() {
         </div>
     );
 }
+
+    
