@@ -50,7 +50,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useSearchParams } from 'next/navigation';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const studentGradeSchema = z.object({
@@ -91,10 +91,16 @@ export function GradeEntryForm() {
   const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
   const [studentsByClass, setStudentsByClass] = React.useState<Record<string, Student[]>>({});
   const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
+  const [user, setUser] = React.useState(auth.currentUser);
+
+  React.useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(setUser);
+    return () => unsubscribe();
+  }, []);
   
   React.useEffect(() => {
-    if (!schoolId) return;
-    const teacherId = 'teacher-wanjiku'; // Dynamic teacher ID
+    if (!schoolId || !user) return;
+    const teacherId = user.uid;
     const q = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
@@ -104,7 +110,7 @@ export function GradeEntryForm() {
         }
     });
     return () => unsubscribe();
-  }, [schoolId, selectedClass]);
+  }, [schoolId, selectedClass, user]);
 
   React.useEffect(() => {
     if (!schoolId || teacherClasses.length === 0) return;
