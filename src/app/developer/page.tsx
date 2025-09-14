@@ -28,16 +28,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
+import { auth, firestore } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch } from 'firebase/firestore';
 import { initialRolePermissions, initialPermissionStructure } from '@/app/admin/permissions/roles-data';
 import { periods as defaultPeriods } from '@/app/admin/timetable/timetable-data';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 
 type School = {
   id: string;
   name: string;
-  domain: string;
+  schoolCode: string;
   admin: string;
   status: 'Active' | 'Provisioning';
   logoUrl: string;
@@ -51,8 +52,8 @@ export default function DeveloperDashboard() {
   const [isCreating, setIsCreating] = React.useState(false);
 
   const [schoolName, setSchoolName] = React.useState('');
-  const [subdomain, setSubdomain] = React.useState('');
   const [adminEmail, setAdminEmail] = React.useState('');
+  const [adminPassword, setAdminPassword] = React.useState('');
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -67,20 +68,27 @@ export default function DeveloperDashboard() {
   }, []);
 
   const handleCreateSchool = async () => {
-    if (!schoolName || !subdomain || !adminEmail) {
+    if (!schoolName || !adminEmail || !adminPassword) {
         toast({ title: 'Missing Information', description: 'Please fill out all fields.', variant: 'destructive' });
         return;
     }
     setIsCreating(true);
     try {
+        // Generate a 6-digit numeric school code
+        const schoolCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // 1. Create the admin user in Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
+        const adminUid = userCredential.user.uid;
+
         const batch = writeBatch(firestore);
         
-        // 1. Create main school document
-        const schoolRef = doc(collection(firestore, 'schools'));
+        // 2. Create main school document
+        const schoolRef = doc(firestore, 'schools', schoolCode); // Use schoolCode as document ID
         batch.set(schoolRef, {
-            id: schoolRef.id,
+            id: schoolCode,
             name: schoolName,
-            domain: `${subdomain}.school.app`,
+            schoolCode: schoolCode,
             admin: adminEmail,
             status: 'Provisioning',
             logoUrl: `https://picsum.photos/seed/${schoolName}/100`,
@@ -88,18 +96,30 @@ export default function DeveloperDashboard() {
             createdAt: serverTimestamp(),
         });
 
-        // 2. Add default roles
+        // 3. Add default roles for the new school
         Object.entries(initialRolePermissions).forEach(([roleName, roleData]) => {
-            const roleRef = doc(firestore, 'schools', schoolRef.id, 'roles', roleName);
+            const roleRef = doc(firestore, 'schools', schoolCode, 'roles', roleName);
             batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore, userCount: 0 });
         });
+        
+        // 4. Create the admin's user document in the school's users subcollection
+        const adminUserRef = doc(firestore, 'schools', schoolCode, 'users', adminUid);
+        batch.set(adminUserRef, {
+            id: adminUid,
+            name: 'School Admin', // Placeholder name
+            email: adminEmail,
+            role: 'Admin',
+            status: 'Active',
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp()
+        });
 
-        // 3. Add default timetable periods
-        const periodsRef = doc(firestore, 'schools', schoolRef.id, 'timetableSettings', 'periods');
+        // 5. Add default timetable periods
+        const periodsRef = doc(firestore, 'schools', schoolCode, 'timetableSettings', 'periods');
         batch.set(periodsRef, { periods: defaultPeriods });
 
-        // 4. Add default fee structure item
-        const feeStructureRef = doc(collection(firestore, 'schools', schoolRef.id, 'feeStructure'));
+        // 6. Add default fee structure item
+        const feeStructureRef = doc(collection(firestore, 'schools', schoolCode, 'feeStructure'));
         batch.set(feeStructureRef, {
             category: 'Tuition Fee',
             appliesTo: 'All Students',
@@ -110,7 +130,7 @@ export default function DeveloperDashboard() {
         
         toast({
             title: 'School Provisioned!',
-            description: `${schoolName} is being set up with default data.`,
+            description: `${schoolName} is being set up. School Code: ${schoolCode}`,
         });
 
         // Simulate status change from Provisioning to Active
@@ -118,12 +138,18 @@ export default function DeveloperDashboard() {
              updateDoc(schoolRef, { status: 'Active' });
         }, 3000);
 
-
         setSchoolName('');
-        setSubdomain('');
         setAdminEmail('');
-    } catch(e) {
-        toast({ title: 'Error', description: 'Could not create school instance.', variant: 'destructive'});
+        setAdminPassword('');
+
+    } catch(e: any) {
+        let errorMessage = 'Could not create school instance. Please try again.';
+        if (e.code === 'auth/email-already-in-use') {
+            errorMessage = 'This email is already in use by another account.';
+        } else if (e.code === 'auth/weak-password') {
+            errorMessage = 'The password is too weak. Please use at least 6 characters.';
+        }
+        toast({ title: 'Error', description: errorMessage, variant: 'destructive'});
         console.error(e);
     } finally {
         setIsCreating(false);
@@ -152,7 +178,7 @@ export default function DeveloperDashboard() {
             <DialogHeader>
               <DialogTitle>Provision New School</DialogTitle>
               <DialogDescription>
-                Fill in the details to set up a new school instance.
+                Fill in the details to set up a new school instance and its first administrator.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -161,15 +187,12 @@ export default function DeveloperDashboard() {
                 <Input id="school-name" placeholder="e.g., Lakeview International School" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="school-domain">Subdomain</Label>
-                <div className="flex items-center gap-2">
-                  <Input id="school-domain" placeholder="e.g., lakeview" value={subdomain} onChange={(e) => setSubdomain(e.target.value)} />
-                  <span className="text-sm text-muted-foreground">.school.app</span>
-                </div>
-              </div>
-               <div className="space-y-2">
                 <Label htmlFor="admin-email">Initial Admin Email</Label>
                 <Input id="admin-email" type="email" placeholder="principal@lakeview.ac.ke" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-password">Set Admin Password</Label>
+                <Input id="admin-password" type="password" placeholder="Must be at least 6 characters" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} />
               </div>
             </div>
             <DialogFooter>
@@ -206,7 +229,7 @@ export default function DeveloperDashboard() {
                         </Badge>
                     </div>
                     <CardTitle className="pt-4 font-headline text-xl">{school.name}</CardTitle>
-                    <CardDescription>{school.domain}</CardDescription>
+                    <CardDescription>School Code: <span className="font-bold text-foreground">{school.schoolCode}</span></CardDescription>
                     </CardHeader>
                     <CardContent>
                     <div className="space-y-2 text-sm">
