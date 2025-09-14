@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -52,7 +53,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDoc, Timestamp, writeBatch, addDoc } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 
 type Child = {
@@ -74,8 +75,7 @@ type Transaction = {
     date: Timestamp;
     description: string;
     type: 'Charge' | 'Payment';
-    charge: number;
-    payment: number;
+    amount: number;
     balance: number;
 };
 
@@ -129,10 +129,8 @@ export default function ParentFeesPage() {
     React.useEffect(() => {
         if (!selectedChild) return;
 
-        const fetchFeeData = async () => {
-            const studentDocRef = doc(firestore, 'students', selectedChild);
-            const studentSnap = await getDoc(studentDocRef);
-
+        const studentDocRef = doc(firestore, 'students', selectedChild);
+        const unsubStudent = onSnapshot(studentDocRef, (studentSnap) => {
             if (studentSnap.exists()) {
                 const studentData = studentSnap.data() as DocumentData;
                  const summary: FeeSummary = {
@@ -140,29 +138,35 @@ export default function ParentFeesPage() {
                     totalPaid: studentData.amountPaid || 0,
                     balance: studentData.balance || 0,
                     dueDate: studentData.dueDate || new Date().toISOString(),
-                    status: studentData.feeStatus || 'Paid',
+                    status: studentData.balance <= 0 ? 'Paid' : 'Partial',
                 };
                 setFeeSummary(summary);
                 setPaymentAmount(summary.balance);
             }
-
-            const transactionsQuery = query(collection(firestore, 'students', selectedChild, 'transactions'), orderBy('date', 'desc'));
-            const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
-                const fetchedLedger = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
-                setLedger(fetchedLedger);
-            });
+        });
+        
+        const transactionsQuery = query(collection(firestore, 'students', selectedChild, 'transactions'), orderBy('date', 'desc'));
+        const unsubTransactions = onSnapshot(transactionsQuery, (snapshot) => {
+            const fetchedLedger = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+            setLedger(fetchedLedger);
             
-             // Mocking payment history for now
-            const mockHistory: PaymentHistory[] = [
-                { id: 'ph-1', term: 'Term 1, 2024', date: '2024-01-20', amount: 105000, method: 'Bank Transfer' },
-            ];
-            setPaymentHistory(mockHistory);
+            const fetchedHistory = fetchedLedger
+                .filter(t => t.type === 'Payment')
+                .map(t => ({
+                    id: t.id,
+                    term: 'Term 2, 2024', // This would be dynamic in a real app
+                    date: t.date.toDate().toLocaleDateString('en-GB'),
+                    amount: Math.abs(t.amount),
+                    method: 'M-PESA', // This would also be dynamic
+                }));
+            setPaymentHistory(fetchedHistory);
+        });
 
+        return () => {
+            unsubStudent();
+            unsubTransactions();
+        }
 
-            return () => unsubscribeTransactions();
-        };
-
-        fetchFeeData();
     }, [selectedChild]);
 
     if (!clientReady || !feeSummary) {
@@ -173,7 +177,6 @@ export default function ParentFeesPage() {
         );
     }
     
-    const daysUntilDue = differenceInDays(new Date(feeSummary.dueDate), new Date());
     const isOverdue = isPast(new Date(feeSummary.dueDate)) && feeSummary.balance > 0;
 
     const handleCardPayment = () => {
@@ -183,16 +186,55 @@ export default function ParentFeesPage() {
         });
     };
 
-    const handleMpesaPayment = () => {
+    const handleMpesaPayment = async () => {
+        if (!selectedChild || paymentAmount <= 0) {
+            toast({ variant: 'destructive', title: 'Invalid amount' });
+            return;
+        }
+
         setIsProcessingPayment(true);
-        setTimeout(() => {
-            setIsProcessingPayment(false);
-            setIsMpesaDialogOpen(false);
+        
+        const studentRef = doc(firestore, 'students', selectedChild);
+
+        try {
+            const studentDoc = await getDoc(studentRef);
+            if (!studentDoc.exists()) throw new Error("Student not found");
+            const studentData = studentDoc.data();
+            
+            const newAmountPaid = (studentData.amountPaid || 0) + paymentAmount;
+            const newBalance = (studentData.balance || 0) - paymentAmount;
+
+            const batch = writeBatch(firestore);
+            
+            batch.update(studentRef, {
+                amountPaid: newAmountPaid,
+                balance: newBalance,
+                feeStatus: newBalance <= 0 ? 'Paid' : 'Partial'
+            });
+
+            const transactionRef = doc(collection(firestore, 'students', selectedChild, 'transactions'));
+            batch.set(transactionRef, {
+                date: Timestamp.now(),
+                description: 'M-PESA Payment via Parent Portal',
+                type: 'Payment',
+                amount: -paymentAmount,
+                balance: newBalance,
+                recordedBy: 'Parent Portal',
+            });
+
+            await batch.commit();
+
             toast({
                 title: 'Payment Successful',
                 description: `A payment of ${formatCurrency(paymentAmount)} has been processed.`,
             });
-        }, 2500);
+        } catch (error) {
+            console.error("Error processing payment:", error);
+            toast({ variant: 'destructive', title: 'Payment Failed', description: 'Could not process payment. Please try again.' });
+        } finally {
+            setIsProcessingPayment(false);
+            setIsMpesaDialogOpen(false);
+        }
     };
     
     const finalStatus = isOverdue ? 'Overdue' : feeSummary.status;
@@ -227,19 +269,11 @@ export default function ParentFeesPage() {
                 </CardHeader>
             </Card>
 
-            {feeSummary.balance > 0 && (
-                <Alert variant={isOverdue ? "destructive" : "default"}>
+            {feeSummary.balance > 0 && isOverdue && (
+                <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>
-                        {isOverdue
-                        ? 'Fee Balance Overdue'
-                        : `Upcoming Payment Due`}
-                    </AlertTitle>
-                    <AlertDescription>
-                        {isOverdue
-                        ? 'The fee balance for this term is overdue. Please make a payment as soon as possible.'
-                        : `The outstanding fee balance is due in ${daysUntilDue} days.`}
-                    </AlertDescription>
+                    <AlertTitle>Fee Balance Overdue</AlertTitle>
+                    <AlertDescription>The fee balance for this term is overdue. Please make a payment as soon as possible.</AlertDescription>
                 </Alert>
             )}
 
@@ -250,208 +284,52 @@ export default function ParentFeesPage() {
                 </TabsList>
                 <TabsContent value="statement" className="mt-6">
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardDescription>Outstanding Balance</CardDescription>
-                                <CardTitle className={`text-4xl ${feeSummary.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(feeSummary.balance)}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-xs text-muted-foreground">
-                                    Due: {new Date(feeSummary.dueDate).toLocaleDateString('en-GB')}
-                                </div>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardDescription>Total Billed (Term 2)</CardDescription>
-                                <CardTitle className="text-2xl">{formatCurrency(feeSummary.totalBilled)}</CardTitle>
-                            </CardHeader>
-                        </Card>
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardDescription>Total Paid (Term 2)</CardDescription>
-                                <CardTitle className="text-2xl">{formatCurrency(feeSummary.totalPaid)}</CardTitle>
-                            </CardHeader>
-                        </Card>
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardDescription>Payment Status</CardDescription>
-                                <CardTitle className="text-2xl">{getFeeStatusBadge(finalStatus)}</CardTitle>
-                            </CardHeader>
-                        </Card>
+                        <Card><CardHeader className="pb-2"><CardDescription>Outstanding Balance</CardDescription><CardTitle className={`text-4xl ${feeSummary.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(feeSummary.balance)}</CardTitle></CardHeader><CardContent><div className="text-xs text-muted-foreground">Due: {new Date(feeSummary.dueDate).toLocaleDateString('en-GB')}</div></CardContent></Card>
+                        <Card><CardHeader className="pb-2"><CardDescription>Total Billed (Term 2)</CardDescription><CardTitle className="text-2xl">{formatCurrency(feeSummary.totalBilled)}</CardTitle></CardHeader></Card>
+                        <Card><CardHeader className="pb-2"><CardDescription>Total Paid (Term 2)</CardDescription><CardTitle className="text-2xl">{formatCurrency(feeSummary.totalPaid)}</CardTitle></CardHeader></Card>
+                        <Card><CardHeader className="pb-2"><CardDescription>Payment Status</CardDescription><CardTitle className="text-2xl">{getFeeStatusBadge(finalStatus)}</CardTitle></CardHeader></Card>
                     </div>
                     
                     <div className="grid gap-6 lg:grid-cols-3 mt-6">
                         <Card className="lg:col-span-2">
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <CardTitle>Fee Statement (Term 2, 2024)</CardTitle>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" className="w-full sm:w-auto">
-                                                <FileDown className="mr-2 h-4 w-4" />
-                                                Export
-                                                <ChevronDown className="ml-2 h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            <DropdownMenuItem><Printer className="mr-2"/> Print Statement</DropdownMenuItem>
-                                            <DropdownMenuItem><FileDown className="mr-2"/> Export as PDF</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                                <CardDescription>A detailed transaction history for the current term.</CardDescription>
-                            </CardHeader>
+                            <CardHeader><div className="flex items-center justify-between"><CardTitle>Fee Statement (Term 2, 2024)</CardTitle><DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="w-full sm:w-auto"><FileDown className="mr-2 h-4 w-4" />Export<ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem><Printer className="mr-2"/> Print Statement</DropdownMenuItem><DropdownMenuItem><FileDown className="mr-2"/> Export as PDF</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div><CardDescription>A detailed transaction history for the current term.</CardDescription></CardHeader>
                             <CardContent>
                                 <div className="w-full overflow-auto rounded-lg border">
                                     <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Description</TableHead>
-                                            <TableHead className="text-right">Charges (KES)</TableHead>
-                                            <TableHead className="text-right">Payments (KES)</TableHead>
-                                            <TableHead className="text-right">Balance (KES)</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
+                                        <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Charges (KES)</TableHead><TableHead className="text-right">Payments (KES)</TableHead><TableHead className="text-right">Balance (KES)</TableHead></TableRow></TableHeader>
                                         <TableBody>
-                                            {ledger.map(item => (
-                                                <TableRow key={item.id}>
-                                                    <TableCell>{item.date.toDate().toLocaleDateString('en-GB')}</TableCell>
-                                                    <TableCell className="font-medium">{item.description}</TableCell>
-                                                    <TableCell className="text-right text-destructive">
-                                                        {item.charge > 0 ? formatCurrency(item.charge) : '—'}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-green-600">
-                                                        {item.payment > 0 ? formatCurrency(item.payment) : '—'}
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                            {ledger.length === 0 && (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="h-24 text-center">No transactions for this term yet.</TableCell>
-                                                </TableRow>
-                                            )}
+                                            {ledger.map(item => (<TableRow key={item.id}><TableCell>{item.date.toDate().toLocaleDateString('en-GB')}</TableCell><TableCell className="font-medium">{item.description}</TableCell><TableCell className="text-right text-destructive">{item.amount > 0 ? formatCurrency(item.amount) : '—'}</TableCell><TableCell className="text-right text-green-600">{item.amount < 0 ? formatCurrency(Math.abs(item.amount)) : '—'}</TableCell><TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell></TableRow>))}
+                                            {ledger.length === 0 && (<TableRow><TableCell colSpan={5} className="h-24 text-center">No transactions for this term yet.</TableCell></TableRow>)}
                                         </TableBody>
                                     </Table>
                                 </div>
                             </CardContent>
                         </Card>
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Payment Options</CardTitle>
-                                <CardDescription>Select your preferred payment method.</CardDescription>
-                            </CardHeader>
+                            <CardHeader><CardTitle>Payment Options</CardTitle><CardDescription>Select your preferred payment method.</CardDescription></CardHeader>
                             <CardContent className="space-y-6">
                                 <Dialog open={isMpesaDialogOpen} onOpenChange={setIsMpesaDialogOpen}>
-                                    <DialogTrigger asChild>
-                                         <Button className="w-full" disabled={feeSummary.balance <= 0}>
-                                            <div className="h-5 w-5 bg-contain bg-no-repeat bg-center mr-2" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg')" }}/>
-                                            Pay with M-Pesa
-                                        </Button>
-                                    </DialogTrigger>
+                                    <DialogTrigger asChild><Button className="w-full" disabled={feeSummary.balance <= 0}><div className="h-5 w-5 bg-contain bg-no-repeat bg-center mr-2" style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/1/15/M-PESA_LOGO-01.svg')" }}/>Pay with M-Pesa</Button></DialogTrigger>
                                     <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>M-Pesa Express Payment</DialogTitle>
-                                            <DialogDescription>
-                                                Enter your M-Pesa registered phone number to receive a payment prompt.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="py-4 space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="phone-number">Phone Number</Label>
-                                                <Input id="phone-number" value={mpesaPhoneNumber} onChange={(e) => setMpesaPhoneNumber(e.target.value)} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="amount">Amount to Pay (KES)</Label>
-                                                <Input id="amount" type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))}/>
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <DialogClose asChild>
-                                                <Button variant="outline">Cancel</Button>
-                                            </DialogClose>
-                                            <Button onClick={handleMpesaPayment} disabled={isProcessingPayment}>
-                                                {isProcessingPayment ? (
-                                                    <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        Processing...
-                                                    </>
-                                                ) : 'Confirm Payment'}
-                                            </Button>
-                                        </DialogFooter>
+                                        <DialogHeader><DialogTitle>M-Pesa Express Payment</DialogTitle><DialogDescription>Enter your M-Pesa registered phone number to receive a payment prompt.</DialogDescription></DialogHeader>
+                                        <div className="py-4 space-y-4"><div className="space-y-2"><Label htmlFor="phone-number">Phone Number</Label><Input id="phone-number" value={mpesaPhoneNumber} onChange={(e) => setMpesaPhoneNumber(e.target.value)} /></div><div className="space-y-2"><Label htmlFor="amount">Amount to Pay (KES)</Label><Input id="amount" type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(Number(e.target.value))}/></div></div>
+                                        <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleMpesaPayment} disabled={isProcessingPayment}>{isProcessingPayment ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>) : 'Confirm Payment'}</Button></DialogFooter>
                                     </DialogContent>
                                 </Dialog>
-
                                 <Separator />
-                                <div className="space-y-4">
-                                    <h4 className="font-semibold text-sm">Pay with Card</h4>
-                                    <Button className="w-full" variant="outline" onClick={handleCardPayment} disabled={feeSummary.balance <= 0}>
-                                        <CreditCard className="mr-2 h-4 w-4"/>
-                                        Visa / Mastercard
-                                    </Button>
-                                </div>
+                                <div className="space-y-4"><h4 className="font-semibold text-sm">Pay with Card</h4><Button className="w-full" variant="outline" onClick={handleCardPayment} disabled={feeSummary.balance <= 0}><CreditCard className="mr-2 h-4 w-4"/>Visa / Mastercard</Button></div>
                                 <Separator />
-                                <div className="space-y-4">
-                                    <h4 className="font-semibold text-sm">Bank Transfer</h4>
-                                    <div className="text-xs space-y-1 text-muted-foreground bg-muted/50 p-3 rounded-md">
-                                        <p>Bank: <span className="font-bold">Kenya Commercial Bank</span></p>
-                                        <p>Account: <span className="font-bold">1122334455</span></p>
-                                        <p>Branch: <span className="font-bold">University Way</span></p>
-                                        <p>Account Name: <span className="font-bold">EduSphere High School</span></p>
-                                    </div>
-                                    <Button className="w-full" variant="outline" disabled>
-                                        <Upload className="mr-2 h-4 w-4"/>
-                                        Upload Proof of Payment
-                                    </Button>
-                                </div>
+                                <div className="space-y-4"><h4 className="font-semibold text-sm">Bank Transfer</h4><div className="text-xs space-y-1 text-muted-foreground bg-muted/50 p-3 rounded-md"><p>Bank: <span className="font-bold">Kenya Commercial Bank</span></p><p>Account: <span className="font-bold">1122334455</span></p><p>Branch: <span className="font-bold">University Way</span></p><p>Account Name: <span className="font-bold">EduSphere High School</span></p></div><Button className="w-full" variant="outline" disabled><Upload className="mr-2 h-4 w-4"/>Upload Proof of Payment</Button></div>
                             </CardContent>
                         </Card>
                     </div>
                 </TabsContent>
                 <TabsContent value="history" className="mt-6">
                      <Card>
-                        <CardHeader>
-                            <CardTitle>Overall Payment History</CardTitle>
-                            <CardDescription>A record of all payments made for {childrenData.find(c => c.id === selectedChild)?.name}.</CardDescription>
-                        </CardHeader>
+                        <CardHeader><CardTitle>Overall Payment History</CardTitle><CardDescription>A record of all payments made for {childrenData.find(c => c.id === selectedChild)?.name}.</CardDescription></CardHeader>
                         <CardContent>
-                            <Card className="mb-6 bg-muted/50">
-                                <CardHeader>
-                                    <CardDescription>Total Amount Paid to Date</CardDescription>
-                                    <CardTitle className="text-3xl">{formatCurrency(paymentHistory.reduce((sum, p) => sum + p.amount, 0))}</CardTitle>
-                                </CardHeader>
-                            </Card>
-                            <div className="w-full overflow-auto rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Term</TableHead>
-                                            <TableHead>Payment Date</TableHead>
-                                            <TableHead>Method</TableHead>
-                                            <TableHead className="text-right">Amount (KES)</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {paymentHistory.map(item => (
-                                            <TableRow key={item.id}>
-                                                <TableCell className="font-medium">{item.term}</TableCell>
-                                                <TableCell>{new Date(item.date).toLocaleDateString('en-GB')}</TableCell>
-                                                <TableCell><Badge variant="outline">{item.method}</Badge></TableCell>
-                                                <TableCell className="text-right font-semibold">{formatCurrency(item.amount)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {paymentHistory.length === 0 && (
-                                            <TableRow>
-                                                <TableCell colSpan={4} className="h-24 text-center">
-                                                    No payment history for previous terms found.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                            <Card className="mb-6 bg-muted/50"><CardHeader><CardDescription>Total Amount Paid to Date</CardDescription><CardTitle className="text-3xl">{formatCurrency(paymentHistory.reduce((sum, p) => sum + p.amount, 0))}</CardTitle></CardHeader></Card>
+                            <div className="w-full overflow-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Term</TableHead><TableHead>Payment Date</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount (KES)</TableHead></TableRow></TableHeader><TableBody>{paymentHistory.map(item => (<TableRow key={item.id}><TableCell className="font-medium">{item.term}</TableCell><TableCell>{item.date}</TableCell><TableCell><Badge variant="outline">{item.method}</Badge></TableCell><TableCell className="text-right font-semibold">{formatCurrency(item.amount)}</TableCell></TableRow>))}</TableBody></Table></div>
                         </CardContent>
                     </Card>
                 </TabsContent>
