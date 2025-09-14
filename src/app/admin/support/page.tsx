@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, orderBy, where, Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 const faqs = [
@@ -133,6 +134,8 @@ function StarRating({ rating, setRating }: { rating: number; setRating: (rating:
 }
 
 export default function SupportPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
     const [faqSearchTerm, setFaqSearchTerm] = React.useState('');
     const [feedbackRating, setFeedbackRating] = React.useState(0);
@@ -155,13 +158,15 @@ export default function SupportPage() {
     const [categoryFilter, setCategoryFilter] = React.useState<'all' | TicketCategory>('all');
 
     React.useEffect(() => {
-        const q = query(collection(firestore, 'support-tickets'), orderBy('lastUpdate', 'desc'));
+        if (!schoolId) return;
+
+        const q = query(collection(firestore, 'schools', schoolId, 'support-tickets'), orderBy('lastUpdate', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket));
             setAllTickets(tickets);
         });
         return () => unsubscribe();
-    }, []);
+    }, [schoolId]);
 
     const filteredFaqs = React.useMemo(() => {
         if (!faqSearchTerm) return faqs;
@@ -196,6 +201,11 @@ export default function SupportPage() {
     };
 
     const handleSubmitTicket = async () => {
+        if (!schoolId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'School ID not found.' });
+            return;
+        }
+
         if (!subject || !description || !category || !priority) {
             toast({
                 variant: 'destructive',
@@ -206,7 +216,7 @@ export default function SupportPage() {
         }
 
         try {
-            await addDoc(collection(firestore, 'support-tickets'), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'support-tickets'), {
                 subject,
                 description,
                 category,
@@ -239,6 +249,11 @@ export default function SupportPage() {
     };
     
     const handleFeedbackSubmit = async () => {
+        if (!schoolId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'School ID not found.' });
+            return;
+        }
+
         if (feedbackRating === 0 && !feedbackText) {
             toast({
                 variant: 'destructive',
@@ -249,7 +264,7 @@ export default function SupportPage() {
         }
 
         try {
-             await addDoc(collection(firestore, 'feedback'), {
+             await addDoc(collection(firestore, 'schools', schoolId, 'feedback'), {
                 rating: feedbackRating,
                 comment: feedbackText,
                 isAnonymous,
@@ -271,6 +286,10 @@ export default function SupportPage() {
             toast({ variant: 'destructive', title: 'Could not submit feedback.'});
         }
     };
+
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing.</div>;
+    }
 
     return (
     <Dialog onOpenChange={(open) => !open && setSelectedTicket(null)}>
