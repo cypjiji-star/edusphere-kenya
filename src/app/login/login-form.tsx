@@ -10,6 +10,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { auth, firestore } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -37,13 +38,46 @@ export function LoginForm() {
         }
 
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            // Step 1: Authenticate the user globally with Firebase Auth
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            let userRole: string | null = null;
+            let finalRedirectPath = '';
             
-            // On successful sign-in, redirect to the appropriate portal.
-            // The AuthCheck component in each portal's layout will handle role verification.
-            const portalPath = `/${role}`;
-            const queryParams = role === 'developer' ? '' : `?schoolId=${schoolCode}`;
-            router.push(portalPath + queryParams);
+            // Step 2: Verify user's role and school membership in Firestore
+            if (role === 'developer') {
+                const devDocRef = doc(firestore, 'developers', user.uid);
+                const devDocSnap = await getDoc(devDocRef);
+                if (devDocSnap.exists()) {
+                    userRole = 'developer';
+                    finalRedirectPath = '/developer';
+                }
+            } else {
+                const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+
+                if (userDocSnap.exists()) {
+                    const userData = userDocSnap.data();
+                    // Verify the role from the database matches the role selected in the form
+                    if (userData.role.toLowerCase() === role) {
+                        userRole = userData.role.toLowerCase();
+                        finalRedirectPath = `/${userRole}?schoolId=${schoolCode}`;
+                    }
+                }
+            }
+
+            // Step 3: Redirect if role is verified, otherwise show an error
+            if (userRole) {
+                router.push(finalRedirectPath);
+            } else {
+                 await auth.signOut(); // Sign out the user as they don't have the correct role/school access
+                 toast({
+                    title: 'Access Denied',
+                    description: "Your credentials are correct, but you do not have access to this school with the selected role.",
+                    variant: 'destructive',
+                });
+            }
 
         } catch (error: any) {
             console.error("Login Error Code:", error.code);
