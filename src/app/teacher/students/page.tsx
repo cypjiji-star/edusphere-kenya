@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -76,6 +75,7 @@ export type Student = {
     attendance: AttendanceStatus;
     notes?: string;
     classId: string;
+    createdAt?: Timestamp;
 };
 
 export type TeacherClass = {
@@ -97,12 +97,15 @@ export default function StudentsPage() {
   const teacherId = 'teacher-wanjiku'; // This should be dynamic
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'all'>('all');
+  const [yearFilter, setYearFilter] = React.useState('All Years');
+  const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i).toString());
 
   // Effect to fetch the teacher's classes
   React.useEffect(() => {
     if (!schoolId) {
-        setIsLoading(false);
-        return;
+      setIsLoading(false);
+      return;
     }
 
     const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
@@ -121,8 +124,7 @@ export default function StudentsPage() {
     });
 
     return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolId, teacherId]);
+  }, [schoolId, teacherId, activeTab]);
 
   // Effect to fetch students for the active class
   React.useEffect(() => {
@@ -167,7 +169,9 @@ export default function StudentsPage() {
   
   const filteredStudents = 
     studentsForCurrentTab.filter(student =>
-      student.name.toLowerCase().includes(searchTerm.toLowerCase())
+      (student.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (statusFilter === 'all' || student.attendance === statusFilter) &&
+      (yearFilter === 'All Years' || (student.createdAt && student.createdAt.toDate().getFullYear().toString() === yearFilter))
     );
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
