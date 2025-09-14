@@ -20,14 +20,21 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp } from 'firebase/firestore';
 
 
 type BorrowedItem = {
     id: string;
     title: string;
-    borrowedDate: string;
-    dueDate: string;
+    borrowedDate: Timestamp;
+    dueDate: Timestamp;
+};
+
+type HistoryItem = {
+    id: string;
+    title: string;
+    borrowedDate: Timestamp;
+    returnedDate: Timestamp;
 };
 
 type RequestItem = {
@@ -39,7 +46,7 @@ type RequestItem = {
 export default function MyLibraryPage() {
     const [clientReady, setClientReady] = React.useState(false);
     const [borrowedItems, setBorrowedItems] = React.useState<BorrowedItem[]>([]);
-    const [historyItems, setHistoryItems] = React.useState<any[]>([]);
+    const [historyItems, setHistoryItems] = React.useState<HistoryItem[]>([]);
     const [requestItems, setRequestItems] = React.useState<RequestItem[]>([]);
     const [newRequestTitle, setNewRequestTitle] = React.useState('');
     const { toast } = useToast();
@@ -56,7 +63,7 @@ export default function MyLibraryPage() {
 
         const historyQuery = query(collection(firestore, 'users', teacherId, 'borrowing-history'));
         const unsubHistory = onSnapshot(historyQuery, (snapshot) => {
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HistoryItem));
             setHistoryItems(items);
         });
         
@@ -75,11 +82,11 @@ export default function MyLibraryPage() {
 
     const handleRenew = async (item: BorrowedItem) => {
         const itemRef = doc(firestore, 'users', teacherId, 'borrowed-items', item.id);
-        const newDueDate = new Date(item.dueDate);
+        const newDueDate = new Date(item.dueDate.toDate());
         newDueDate.setDate(newDueDate.getDate() + 14); // Extend by 2 weeks
 
         try {
-            await updateDoc(itemRef, { dueDate: newDueDate.toISOString() });
+            await updateDoc(itemRef, { dueDate: Timestamp.fromDate(newDueDate) });
             toast({
                 title: 'Renewal Successful',
                 description: `The due date for "${item.title}" has been extended.`,
@@ -99,8 +106,8 @@ export default function MyLibraryPage() {
 
         const tableData = historyItems.map(item => [
             item.title,
-            new Date(item.borrowedDate).toLocaleDateString(),
-            new Date(item.returnedDate).toLocaleDateString(),
+            item.borrowedDate.toDate().toLocaleDateString(),
+            item.returnedDate.toDate().toLocaleDateString(),
         ]);
 
         (doc as any).autoTable({
@@ -178,7 +185,7 @@ export default function MyLibraryPage() {
                                         <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                             <div>
                                                 <p className="font-semibold">{item.title}</p>
-                                                {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {new Date(item.borrowedDate).toLocaleDateString()} | Due: {new Date(item.dueDate).toLocaleDateString()}</p>}
+                                                {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {item.borrowedDate.toDate().toLocaleDateString()} | Due: {item.dueDate.toDate().toLocaleDateString()}</p>}
                                             </div>
                                             <Button variant="outline" size="sm" onClick={() => handleRenew(item)}>
                                                 <RotateCw className="mr-2 h-4 w-4" />
@@ -239,7 +246,7 @@ export default function MyLibraryPage() {
                                      <Card key={item.id} className="bg-muted/50">
                                         <CardContent className="p-4">
                                             <p className="font-semibold">{item.title}</p>
-                                            {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {new Date(item.borrowedDate).toLocaleDateString()} | Returned: {new Date(item.returnedDate).toLocaleDateString()}</p>}
+                                            {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {item.borrowedDate.toDate().toLocaleDateString()} | Returned: {item.returnedDate.toDate().toLocaleDateString()}</p>}
                                         </CardContent>
                                     </Card>
                                 ))}
