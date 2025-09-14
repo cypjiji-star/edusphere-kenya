@@ -70,6 +70,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
+import { firestore, storage } from '@/lib/firebase';
+import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -77,57 +79,18 @@ type IncidentStatus = 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
 
 type Incident = {
   id: string;
+  studentId: string;
   studentName: string;
   studentAvatar: string;
   class: string;
   type: IncidentType;
   description: string;
-  date: string;
+  date: Timestamp;
   reportedBy: string;
   status: IncidentStatus;
 };
 
-const MOCK_INCIDENTS_DATA: Incident[] = [
-    { id: 'inc-1', studentName: 'Student 1', studentAvatar: 'https://picsum.photos/seed/f4-student1/100', class: 'Form 4', type: 'Health', description: 'Complained of a headache and feeling dizzy during the chemistry lesson.', date: '2024-07-15', reportedBy: 'Ms. Wanjiku', status: 'Under Review' },
-    { id: 'inc-2', studentName: 'Student 32', studentAvatar: 'https://picsum.photos/seed/f3-student1/100', class: 'Form 3', type: 'Accident', description: 'Slipped and fell during break time. Minor scrape on the knee.', date: '2024-07-12', reportedBy: 'Mr. Otieno', status: 'Resolved' },
-    { id: 'inc-3', studentName: 'Student 60', studentAvatar: 'https://picsum.photos/seed/f2-student1/100', class: 'Form 2', type: 'Discipline', description: 'Skipped afternoon classes.', date: '2024-07-10', reportedBy: 'Mr. Kamau', status: 'Resolved' },
-];
-
-const students = [
-  { id: 'f4-chem-1', name: 'Student 1', class: 'Form 4' },
-  { id: 'f4-chem-2', name: 'Student 2', class: 'Form 4' },
-  { id: 'f3-math-1', name: 'Student 32', class: 'Form 3' },
-];
-
-const studentHealthRecords = {
-    'f4-chem-1': {
-        studentName: 'Student 1',
-        allergies: ['Peanuts', 'Pollen'],
-        conditions: ['Asthma (mild)'],
-        emergencyContact: { name: 'Joseph Kariuki', relationship: 'Father', phone: '0722 123 456' }
-    },
-    'f4-chem-2': {
-        studentName: 'Student 2',
-        allergies: ['None known'],
-        conditions: ['None known'],
-        emergencyContact: { name: 'Mary Wambui', relationship: 'Mother', phone: '0722 987 654' }
-    },
-    'f3-math-1': {
-        studentName: 'Student 32',
-        allergies: ['Lactose Intolerance'],
-        conditions: ['None known'],
-        emergencyContact: { name: 'David Omondi', relationship: 'Father', phone: '0711 555 888' }
-    }
-}
-
-const getStatusBadge = (status: IncidentStatus) => {
-    switch (status) {
-        case 'Reported': return <Badge variant="secondary">Reported</Badge>;
-        case 'Under Review': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
-        case 'Resolved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
-        case 'Archived': return <Badge variant="outline">Archived</Badge>;
-    }
-}
+type TeacherStudent = { id: string; name: string; class: string; };
 
 const incidentSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
@@ -142,6 +105,31 @@ const incidentSchema = z.object({
 
 type IncidentFormValues = z.infer<typeof incidentSchema>;
 
+type HealthRecord = {
+    allergies: string[];
+    conditions: string[];
+    emergencyContact: { name: string; relationship: string; phone: string };
+};
+
+type Medication = {
+    id: string;
+    studentName: string;
+    medication: string;
+    dosage: string;
+    time: string;
+    givenBy: string;
+};
+
+
+const getStatusBadge = (status: IncidentStatus) => {
+    switch (status) {
+        case 'Reported': return <Badge variant="secondary">Reported</Badge>;
+        case 'Under Review': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
+        case 'Resolved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
+        case 'Archived': return <Badge variant="outline">Archived</Badge>;
+    }
+}
+
 const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
     switch (urgency) {
         case 'Critical': return 'bg-red-700 text-white';
@@ -151,22 +139,6 @@ const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
     }
 }
 
-const incidentsByTypeData = [
-  { name: 'Health', count: 8 },
-  { name: 'Accident', count: 12 },
-  { name: 'Discipline', count: 3 },
-  { name: 'Bullying', count: 1 },
-  { name: 'Safety', count: 2 },
-];
-
-const incidentsByLocationData = [
-  { name: 'Playground', count: 7 },
-  { name: 'Classroom', count: 9 },
-  { name: 'Cafeteria', count: 4 },
-  { name: 'Hallways', count: 5 },
-  { name: 'Sports Field', count: 1 },
-];
-
 const chartConfig = {
   count: {
     label: 'Incidents',
@@ -174,24 +146,23 @@ const chartConfig = {
   },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-const medicationLog = [
-    { id: 'med-1', studentName: 'Student 1', medication: 'Asthma Inhaler', dosage: '2 puffs', time: '2024-07-15 10:30 AM', givenBy: 'Nurse Joy' },
-    { id: 'med-2', studentName: 'Student 32', medication: 'Paracetamol', dosage: '1 tablet', time: '2024-07-14 09:00 AM', givenBy: 'Admin User' },
-];
 
 export default function AdminHealthPage() {
-    const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<keyof typeof studentHealthRecords | null>(null);
+    const { toast } = useToast();
+    const [allStudents, setAllStudents] = React.useState<TeacherStudent[]>([]);
+    const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<string | null>(null);
+    const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
+    const [incidents, setIncidents] = React.useState<Incident[]>([]);
+    const [medicationLog, setMedicationLog] = React.useState<Medication[]>([]);
+    
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const [updatedStatus, setUpdatedStatus] = React.useState<IncidentStatus | undefined>();
-    const [mockIncidents, setMockIncidents] = React.useState(MOCK_INCIDENTS_DATA);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [typeFilter, setTypeFilter] = React.useState<IncidentType | 'All Types'>('All Types');
     const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
     const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-    const currentHealthRecord = selectedHealthStudent ? studentHealthRecords[selectedHealthStudent] : null;
-    const { toast } = useToast();
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
         defaultValues: {
@@ -202,55 +173,133 @@ export default function AdminHealthPage() {
     });
 
     React.useEffect(() => {
+        const studentsQuery = query(collection(firestore, 'students'));
+        const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
+            const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
+            setAllStudents(studentsData);
+        });
+
+        const incidentsQuery = query(collection(firestore, 'incidents'), orderBy('date', 'desc'));
+        const unsubscribeIncidents = onSnapshot(incidentsQuery, (snapshot) => {
+            const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
+            setIncidents(incidentsData);
+        });
+        
+        const medsQuery = query(collection(firestore, 'medications'), orderBy('time', 'desc'));
+        const unsubscribeMeds = onSnapshot(medsQuery, (snapshot) => {
+            const medsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Medication));
+            setMedicationLog(medsData);
+        });
+
+        return () => {
+            unsubscribeStudents();
+            unsubscribeIncidents();
+            unsubscribeMeds();
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (selectedHealthStudent) {
+            const studentRef = doc(firestore, 'students', selectedHealthStudent);
+            const unsubscribe = onSnapshot(studentRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    setCurrentHealthRecord({
+                        allergies: data.allergies || ['None known'],
+                        conditions: data.medicalConditions ? [data.medicalConditions] : ['None known'],
+                        emergencyContact: {
+                            name: data.emergencyContactName || 'N/A',
+                            relationship: data.parentRelationship || 'Guardian',
+                            phone: data.parentPhone || 'N/A',
+                        }
+                    });
+                }
+            });
+            return () => unsubscribe();
+        } else {
+            setCurrentHealthRecord(null);
+        }
+    }, [selectedHealthStudent]);
+    
+    React.useEffect(() => {
         if (selectedIncident) {
             setUpdatedStatus(selectedIncident.status);
         }
     }, [selectedIncident]);
 
+    const dashboardData = React.useMemo(() => {
+        const today = new Date();
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+        const monthlyIncidents = incidents.filter(i => i.date.toDate() >= startOfMonth);
+
+        const incidentsByType = monthlyIncidents.reduce((acc, incident) => {
+            acc[incident.type] = (acc[incident.type] || 0) + 1;
+            return acc;
+        }, {} as Record<IncidentType, number>);
+
+        const incidentsByLocation = monthlyIncidents.reduce((acc, incident) => {
+            if (incident.location) {
+                acc[incident.location] = (acc[incident.location] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+        return {
+            activeIncidents: incidents.filter(i => i.status === 'Reported' || i.status === 'Under Review').length,
+            studentsWithAllergies: allStudents.length, // This is a placeholder
+            studentsWithConditions: allStudents.length, // Placeholder
+            medicationsToday: medicationLog.filter(m => new Date(m.time).toDateString() === today.toDateString()).length,
+            incidentsByTypeData: Object.entries(incidentsByType).map(([name, count]) => ({ name, count })),
+            incidentsByLocationData: Object.entries(incidentsByLocation).map(([name, count]) => ({ name, count })),
+        };
+    }, [incidents, allStudents, medicationLog]);
+
+
     async function onSubmit(values: IncidentFormValues) {
         setIsSubmitting(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        const student = allStudents.find(s => s.id === values.studentId);
         
-        console.log(values);
-        toast({
-            title: 'Incident Reported',
-            description: 'The incident has been logged and relevant parties have been notified.',
-        });
-        
-        const student = students.find(s => s.id === values.studentId);
-        const newIncident: Incident = {
-            id: `inc-${Date.now()}`,
-            studentName: student?.name || 'Unknown Student',
-            studentAvatar: 'https://picsum.photos/seed/new-incident/100',
-            class: student?.class || 'Unknown',
-            type: values.incidentType,
-            description: values.description,
-            date: format(values.incidentDate, 'yyyy-MM-dd'),
-            reportedBy: 'Admin User', // Replace with actual user
-            status: 'Reported',
-        };
+        try {
+            await addDoc(collection(firestore, 'incidents'), {
+                ...values,
+                studentId: values.studentId,
+                studentName: student?.name || 'Unknown',
+                studentAvatar: `https://picsum.photos/seed/${values.studentId}/100`,
+                class: student?.class || 'Unknown',
+                date: Timestamp.fromDate(values.incidentDate),
+                reportedBy: 'Admin User',
+                status: 'Reported',
+            });
 
-        setMockIncidents(prev => [newIncident, ...prev]);
-        form.reset();
-        setIsSubmitting(false);
+            toast({
+                title: 'Incident Reported',
+                description: 'The incident has been logged and relevant parties have been notified.',
+            });
+            form.reset();
+        } catch (e) {
+            console.error("Error submitting incident:", e);
+            toast({ variant: 'destructive', title: 'Submission Failed' });
+        } finally {
+            setIsSubmitting(false);
+        }
     }
     
-    const handleUpdateIncident = () => {
+    const handleUpdateIncident = async () => {
         if (!selectedIncident || !updatedStatus) return;
 
-        setMockIncidents(prev => 
-            prev.map(inc => 
-                inc.id === selectedIncident.id ? { ...inc, status: updatedStatus } : inc
-            )
-        );
-
-        toast({
-            title: 'Incident Updated',
-            description: `The status for incident #${selectedIncident.id} has been set to "${updatedStatus}".`
-        });
-
-        setSelectedIncident(null);
+        const incidentRef = doc(firestore, 'incidents', selectedIncident.id);
+        try {
+            await updateDoc(incidentRef, { status: updatedStatus });
+            toast({
+                title: 'Incident Updated',
+                description: `The status for incident #${selectedIncident.id.substring(0,6)} has been set to "${updatedStatus}".`
+            });
+            setSelectedIncident(null);
+        } catch (e) {
+            console.error("Error updating incident:", e);
+            toast({ variant: 'destructive', title: 'Update Failed' });
+        }
     };
 
     const handleExport = () => {
@@ -277,7 +326,7 @@ export default function AdminHealthPage() {
         });
     };
 
-    const filteredIncidents = mockIncidents.filter(incident => {
+    const filteredIncidents = incidents.filter(incident => {
         const matchesSearch = incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               incident.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               incident.reportedBy.toLowerCase().includes(searchTerm.toLowerCase());
@@ -319,7 +368,7 @@ export default function AdminHealthPage() {
                                             <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">{mockIncidents.filter(i => i.status === 'Under Review' || i.status === 'Reported').length}</div>
+                                            <div className="text-2xl font-bold">{dashboardData.activeIncidents}</div>
                                             <p className="text-xs text-muted-foreground">Currently under review</p>
                                         </CardContent>
                                     </Card>
@@ -329,7 +378,7 @@ export default function AdminHealthPage() {
                                             <Users className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">{Object.values(studentHealthRecords).filter(r => r.allergies.length > 0 && r.allergies[0] !== 'None known').length}</div>
+                                            <div className="text-2xl font-bold">{dashboardData.studentsWithAllergies}</div>
                                             <p className="text-xs text-muted-foreground">Across all classes</p>
                                         </CardContent>
                                     </Card>
@@ -339,7 +388,7 @@ export default function AdminHealthPage() {
                                             <Stethoscope className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                             <div className="text-2xl font-bold">{Object.values(studentHealthRecords).filter(r => r.conditions.length > 0 && r.conditions[0] !== 'None known').length}</div>
+                                             <div className="text-2xl font-bold">{dashboardData.studentsWithConditions}</div>
                                             <p className="text-xs text-muted-foreground">e.g., Asthma, Diabetes</p>
                                         </CardContent>
                                     </Card>
@@ -349,8 +398,8 @@ export default function AdminHealthPage() {
                                             <Pill className="h-4 w-4 text-muted-foreground" />
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">{medicationLog.filter(m => new Date(m.time).toDateString() === new Date().toDateString()).length}</div>
-                                            <p className="text-xs text-muted-foreground">{medicationLog.filter(m => new Date(m.time).toDateString() === new Date().toDateString()).length} administered today</p>
+                                            <div className="text-2xl font-bold">{dashboardData.medicationsToday}</div>
+                                            <p className="text-xs text-muted-foreground">{dashboardData.medicationsToday} administered today</p>
                                         </CardContent>
                                     </Card>
                                 </div>
@@ -358,11 +407,11 @@ export default function AdminHealthPage() {
                                 <div className="grid gap-6 lg:grid-cols-2">
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Incidents by Type (Term 2)</CardTitle>
+                                            <CardTitle>Incidents by Type (This Month)</CardTitle>
                                         </CardHeader>
                                         <CardContent>
                                             <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                                                <BarChart data={incidentsByTypeData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                                                <BarChart data={dashboardData.incidentsByTypeData} layout="vertical" margin={{ left: 10, right: 30 }}>
                                                     <CartesianGrid horizontal={false} />
                                                     <XAxis type="number" hide />
                                                     <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
@@ -376,11 +425,11 @@ export default function AdminHealthPage() {
                                     </Card>
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Incidents by Location (Term 2)</CardTitle>
+                                            <CardTitle>Incidents by Location (This Month)</CardTitle>
                                         </CardHeader>
                                         <CardContent>
                                             <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                                                <BarChart data={incidentsByLocationData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                                                <BarChart data={dashboardData.incidentsByLocationData} layout="vertical" margin={{ left: 10, right: 30 }}>
                                                     <CartesianGrid horizontal={false} />
                                                     <XAxis type="number" hide />
                                                     <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
@@ -420,7 +469,7 @@ export default function AdminHealthPage() {
                                                             </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
-                                                            {students.map((s) => (
+                                                            {allStudents.map((s) => (
                                                                 <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
                                                             ))}
                                                             </SelectContent>
@@ -704,7 +753,7 @@ export default function AdminHealthPage() {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>{incident.type}</Badge></TableCell>
-                                                        <TableCell>{incident.date}</TableCell>
+                                                        <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell>
                                                         <TableCell>{incident.class}</TableCell>
                                                         <TableCell>{incident.reportedBy}</TableCell>
                                                         <TableCell>{getStatusBadge(incident.status)}</TableCell>
@@ -727,12 +776,12 @@ export default function AdminHealthPage() {
                             <CardContent>
                                 <div className="max-w-md mb-6">
                                     <Label htmlFor="student-health-select">Select a Student</Label>
-                                    <Select onValueChange={(value: keyof typeof studentHealthRecords) => setSelectedHealthStudent(value)}>
+                                    <Select onValueChange={(value: string) => setSelectedHealthStudent(value)}>
                                         <SelectTrigger id="student-health-select">
                                             <SelectValue placeholder="Search and select a student..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {students.map((s) => (
+                                            {allStudents.map((s) => (
                                                 <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -743,7 +792,7 @@ export default function AdminHealthPage() {
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <User className="h-5 w-5 text-primary" />
-                                                {currentHealthRecord.studentName}
+                                                {allStudents.find(s => s.id === selectedHealthStudent)?.name}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-6">
@@ -751,7 +800,7 @@ export default function AdminHealthPage() {
                                                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4>
                                                 <div className="space-x-2">
                                                     {currentHealthRecord.allergies.map(allergy => (
-                                                        <Badge key={allergy} variant={allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>
+                                                        <Badge key={allergy} variant={allergy !== "None" && allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>
                                                     ))}
                                                 </div>
                                             </div>
@@ -813,7 +862,7 @@ export default function AdminHealthPage() {
                                                         <SelectValue placeholder="Select a student" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {students.map((s) => (
+                                                        {allStudents.map((s) => (
                                                             <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -858,7 +907,7 @@ export default function AdminHealthPage() {
                                                             <TableCell>{log.medication}</TableCell>
                                                             <TableCell>{log.time}</TableCell>
                                                         </TableRow>
-                                                    ))}
+                                                     ))}
                                                      {medicationLog.length === 0 && (
                                                         <TableRow>
                                                             <TableCell colSpan={3} className="h-24 text-center">No records for today.</TableCell>

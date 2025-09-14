@@ -293,7 +293,7 @@ export default function HealthPage() {
                 status: 'Reported',
                 studentName: student?.name || 'Unknown',
                 class: student?.class || 'Unknown',
-                studentAvatar: `https://picsum.photos/seed/${student?.id || 'default'}/100`,
+                studentAvatar: `https://picsum.photos/seed/${values.studentId}/100`,
             });
 
             toast({
@@ -477,7 +477,7 @@ export default function HealthPage() {
                                 <div className="grid gap-6 lg:grid-cols-2 mt-6">
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Incidents by Type (Term 2)</CardTitle>
+                                            <CardTitle>Incidents by Type (This Month)</CardTitle>
                                         </CardHeader>
                                         <CardContent>
                                             <ChartContainer config={chartConfig} className="h-[250px] w-full">
@@ -495,7 +495,7 @@ export default function HealthPage() {
                                     </Card>
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Incidents by Location (Term 2)</CardTitle>
+                                            <CardTitle>Incidents by Location (This Month)</CardTitle>
                                         </CardHeader>
                                         <CardContent>
                                             <ChartContainer config={chartConfig} className="h-[250px] w-full">
@@ -801,8 +801,8 @@ export default function HealthPage() {
                     <TabsContent value="log">
                         <Card className="mt-4">
                             <CardHeader>
-                                <CardTitle>Incident Log</CardTitle>
-                                <CardDescription>A log of all reported incidents for your classes.</CardDescription>
+                                <CardTitle>My Incident Log</CardTitle>
+                                <CardDescription>A log of all incidents you have reported.</CardDescription>
                                 <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
                                     <div className="relative w-full md:max-w-sm">
                                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -849,7 +849,6 @@ export default function HealthPage() {
                                             <TableRow>
                                                 <TableHead>Student</TableHead>
                                                 <TableHead>Type</TableHead>
-                                                <TableHead>Description</TableHead>
                                                 <TableHead>Date</TableHead>
                                                 <TableHead>Status</TableHead>
                                             </TableRow>
@@ -870,7 +869,6 @@ export default function HealthPage() {
                                                         <TableCell>
                                                             <Badge variant={incident.type === 'Health' ? 'destructive' : 'secondary'}>{incident.type}</Badge>
                                                         </TableCell>
-                                                        <TableCell className="max-w-xs truncate">{incident.description}</TableCell>
                                                         <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell>
                                                         <TableCell>{getStatusBadge(incident.status)}</TableCell>
                                                     </TableRow>
@@ -1074,5 +1072,3 @@ export default function HealthPage() {
         </Dialog>
     );
 }
-
-    
