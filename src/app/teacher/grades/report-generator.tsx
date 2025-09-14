@@ -115,15 +115,16 @@ export function ReportGenerator() {
   const [assessmentsForClass, setAssessmentsForClass] = React.useState<Assessment[]>([]);
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !selectedClass) return;
 
+    // Listener for students in the selected class
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
     const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
         const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
             const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
             const gradesQuery = query(collection(firestore, 'schools', schoolId, 'students', student.studentId, 'grades'));
             const gradesSnapshot = await getDocs(gradesQuery);
-            const grades = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
+            const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
             const numericScores = grades.map(g => parseInt(String(g.score))).filter(s => !isNaN(s));
             const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a+b, 0) / numericScores.length) : 0;
             return { ...student, grades, overall };
@@ -131,6 +132,7 @@ export function ReportGenerator() {
         setStudentsInClass(studentsData);
     });
 
+    // Listener for assessments for the selected class
     const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
     const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
         const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
@@ -142,6 +144,7 @@ export function ReportGenerator() {
         unsubAssessments();
     }
   }, [selectedClass, schoolId]);
+
 
   React.useEffect(() => {
     setSelectedStudent(null);

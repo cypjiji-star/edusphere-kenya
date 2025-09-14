@@ -108,34 +108,27 @@ export default function GradesPage() {
 
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !selectedClass) return;
 
         setIsLoading(true);
-        const teacherId = 'teacher-wanjiku'; // Placeholder
+
+        // Listener for assessments for the selected class
         const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
         const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
             const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
             setCurrentAssessments(assessments);
         });
 
+        // Listener for students in the selected class
         const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
         const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
             const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
                 const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
                 
-                const grades: Grade[] = [];
-                const submissionsSnapshot = await getDocs(query(collection(firestore, 'schools', schoolId, `assignments`), where('classId', '==', selectedClass)));
-
-                for (const asgDoc of submissionsSnapshot.docs) {
-                    const submissionQuery = query(collection(firestore, 'schools', schoolId, `assignments/${asgDoc.id}/submissions`), where('studentRef', '==', doc(firestore, 'schools', schoolId, 'students', student.studentId)));
-                    const submissionSnap = await getDocs(submissionQuery);
-                    if (!submissionSnap.empty) {
-                        const submissionData = submissionSnap.docs[0].data();
-                        if (submissionData.grade) {
-                            grades.push({ assessmentId: asgDoc.id, score: submissionData.grade });
-                        }
-                    }
-                }
+                // Fetch all grades for this student at once
+                const gradesQuery = query(collection(firestore, `schools/${schoolId}/students/${student.studentId}/grades`));
+                const gradesSnapshot = await getDocs(gradesQuery);
+                const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
                 
                 const numericScores = grades.map(g => parseInt(String(g.score))).filter(s => !isNaN(s));
                 const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a+b, 0) / numericScores.length) : 0;
@@ -420,5 +413,3 @@ export default function GradesPage() {
     </div>
   );
 }
-
-    
