@@ -25,6 +25,9 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { firestore } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, query, onSnapshot, orderBy, where, Timestamp } from 'firebase/firestore';
+
 
 const faqs = [
   {
@@ -84,14 +87,9 @@ type Ticket = {
     category: TicketCategory; 
     priority: TicketPriority; 
     status: TicketStatus; 
-    lastUpdate: string 
+    lastUpdate: Timestamp; 
+    user: { name: string; avatarUrl: string; };
 };
-
-const initialMockTickets: Ticket[] = [
-    { id: 'TKT-001', subject: 'Unable to export student list to PDF', category: 'Technical Issue', priority: 'High', status: 'In Progress', lastUpdate: '2024-07-28' },
-    { id: 'TKT-002', subject: 'Feature Request: Add SMS notifications for library books', category: 'Feature Request', priority: 'Medium', status: 'Open', lastUpdate: '2024-07-27' },
-    { id: 'TKT-003', subject: 'Question about billing for Term 2', category: 'Billing', priority: 'Low', status: 'Resolved', lastUpdate: '2024-07-26' },
-];
 
 const mockConversation = [
     { user: 'Admin User', text: 'I am unable to export the student list for Form 4 to PDF. The button is disabled.', time: 'Jul 28, 10:00 AM' },
@@ -140,7 +138,9 @@ export default function SupportPage() {
     const [feedbackRating, setFeedbackRating] = React.useState(0);
     const [feedbackText, setFeedbackText] = React.useState('');
     const [isAnonymous, setIsAnonymous] = React.useState(false);
-    const [mockTickets, setMockTickets] = React.useState(initialMockTickets);
+    const [allTickets, setAllTickets] = React.useState<Ticket[]>([]);
+    
+    // State for new ticket form
     const [category, setCategory] = React.useState<TicketCategory | undefined>();
     const [priority, setPriority] = React.useState<TicketPriority | undefined>();
     const [subject, setSubject] = React.useState('');
@@ -148,10 +148,20 @@ export default function SupportPage() {
     const [attachment, setAttachment] = React.useState<File | null>(null);
     const { toast } = useToast();
     
+    // State for filtering ticket dashboard
     const [ticketSearchTerm, setTicketSearchTerm] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState<'all' | TicketStatus>('all');
     const [priorityFilter, setPriorityFilter] = React.useState<'all' | TicketPriority>('all');
     const [categoryFilter, setCategoryFilter] = React.useState<'all' | TicketCategory>('all');
+
+    React.useEffect(() => {
+        const q = query(collection(firestore, 'support-tickets'), orderBy('lastUpdate', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket));
+            setAllTickets(tickets);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const filteredFaqs = React.useMemo(() => {
         if (!faqSearchTerm) return faqs;
@@ -166,14 +176,14 @@ export default function SupportPage() {
     }, [faqSearchTerm]);
     
     const filteredTickets = React.useMemo(() => {
-        return mockTickets.filter(ticket => {
+        return allTickets.filter(ticket => {
             const matchesSearch = ticket.subject.toLowerCase().includes(ticketSearchTerm.toLowerCase()) || ticket.id.toLowerCase().includes(ticketSearchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
             const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
             const matchesCategory = categoryFilter === 'all' || ticket.category === categoryFilter;
             return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
         });
-    }, [mockTickets, ticketSearchTerm, statusFilter, priorityFilter, categoryFilter]);
+    }, [allTickets, ticketSearchTerm, statusFilter, priorityFilter, categoryFilter]);
     
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -185,7 +195,7 @@ export default function SupportPage() {
         setAttachment(null);
     };
 
-    const handleSubmitTicket = () => {
+    const handleSubmitTicket = async () => {
         if (!subject || !description || !category || !priority) {
             toast({
                 variant: 'destructive',
@@ -195,31 +205,40 @@ export default function SupportPage() {
             return;
         }
 
-        const newTicket: Ticket = {
-            id: `TKT-00${mockTickets.length + 4}`,
-            subject,
-            category,
-            priority,
-            status: 'Open',
-            lastUpdate: new Date().toISOString().split('T')[0],
-        };
+        try {
+            await addDoc(collection(firestore, 'support-tickets'), {
+                subject,
+                description,
+                category,
+                priority,
+                status: 'Open',
+                lastUpdate: serverTimestamp(),
+                user: {
+                    name: 'Admin User',
+                    avatarUrl: 'https://picsum.photos/seed/admin-avatar/100',
+                },
+                // In a real app, you would upload the attachment to Firebase Storage
+            });
 
-        setMockTickets(prev => [newTicket, ...prev]);
-        
-        // Reset form
-        setSubject('');
-        setDescription('');
-        setCategory(undefined);
-        setPriority(undefined);
-        setAttachment(null);
+            toast({
+                title: 'Ticket Submitted!',
+                description: 'Our support team will get back to you shortly.',
+            });
+            
+            // Reset form
+            setSubject('');
+            setDescription('');
+            setCategory(undefined);
+            setPriority(undefined);
+            setAttachment(null);
 
-        toast({
-            title: 'Ticket Submitted!',
-            description: 'Our support team will get back to you shortly.',
-        });
+        } catch(e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Submission failed.'})
+        }
     };
     
-    const handleFeedbackSubmit = () => {
+    const handleFeedbackSubmit = async () => {
         if (feedbackRating === 0 && !feedbackText) {
             toast({
                 variant: 'destructive',
@@ -229,15 +248,28 @@ export default function SupportPage() {
             return;
         }
 
-        toast({
-            title: 'Feedback Submitted!',
-            description: 'Thank you for helping us improve.',
-        });
+        try {
+             await addDoc(collection(firestore, 'feedback'), {
+                rating: feedbackRating,
+                comment: feedbackText,
+                isAnonymous,
+                submittedBy: isAnonymous ? 'Anonymous' : 'Admin User',
+                submittedAt: serverTimestamp(),
+            });
 
-        // Reset form
-        setFeedbackRating(0);
-        setFeedbackText('');
-        setIsAnonymous(false);
+            toast({
+                title: 'Feedback Submitted!',
+                description: 'Thank you for helping us improve.',
+            });
+
+            // Reset form
+            setFeedbackRating(0);
+            setFeedbackText('');
+            setIsAnonymous(false);
+        } catch(e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Could not submit feedback.'});
+        }
     };
 
     return (
@@ -448,7 +480,7 @@ export default function SupportPage() {
                                                     <TableCell><Badge variant="outline">{ticket.category}</Badge></TableCell>
                                                     <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
                                                     <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                                                    <TableCell>{ticket.lastUpdate}</TableCell>
+                                                    <TableCell>{ticket.lastUpdate.toDate().toLocaleDateString()}</TableCell>
                                                 </TableRow>
                                             </DialogTrigger>
                                         ))}
@@ -583,11 +615,11 @@ export default function SupportPage() {
                         <Label htmlFor="reply-textarea" className="font-semibold">Your Reply</Label>
                         <Textarea id="reply-textarea" placeholder="Type your response here..." className="min-h-[120px]" />
                         <div className="flex justify-between items-center">
-                            <Button variant="outline" size="sm" disabled>
+                            <Button variant="outline" size="sm">
                                 <Paperclip className="mr-2 h-4 w-4"/>
                                 Attach File
                             </Button>
-                             <Button disabled>
+                             <Button>
                                 <Send className="mr-2 h-4 w-4"/>
                                 Send Reply
                             </Button>

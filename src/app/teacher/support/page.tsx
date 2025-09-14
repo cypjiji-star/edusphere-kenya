@@ -22,6 +22,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { firestore } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, query, onSnapshot, where, Timestamp, orderBy } from 'firebase/firestore';
+
 
 const faqs = [
   {
@@ -67,14 +71,8 @@ type Ticket = {
     subject: string; 
     priority: TicketPriority; 
     status: TicketStatus; 
-    lastUpdate: string 
+    lastUpdate: Timestamp;
 };
-
-// Mock data filtered for the current user
-const mockTickets: Ticket[] = [
-    { id: 'TKT-004', subject: 'Cannot view report card for Student X', priority: 'High', status: 'Open', lastUpdate: '2024-07-28' },
-    { id: 'TKT-005', subject: 'Suggestion: Add a "copy to calendar" button for assignments', priority: 'Low', status: 'Resolved', lastUpdate: '2024-07-25' },
-];
 
 const mockConversation = [
     { user: 'Ms. Wanjiku', text: 'I am unable to view the generated report card for Student X. It shows a loading error.', time: 'Jul 28, 11:00 AM' },
@@ -102,6 +100,60 @@ const getPriorityBadge = (priority: TicketPriority) => {
 
 export default function TeacherSupportPage() {
     const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
+    const [myTickets, setMyTickets] = React.useState<Ticket[]>([]);
+    const { toast } = useToast();
+    
+    const [subject, setSubject] = React.useState('');
+    const [description, setDescription] = React.useState('');
+
+    React.useEffect(() => {
+        const teacherId = 'teacher-wanjiku'; // This would be dynamic
+        const q = query(collection(firestore, 'support-tickets'), where('user.id', '==', teacherId), orderBy('lastUpdate', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket));
+            setMyTickets(tickets);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleSubmitTicket = async () => {
+        if (!subject || !description) {
+            toast({
+                variant: 'destructive',
+                title: 'Missing Information',
+                description: 'Please provide a subject and a description.',
+            });
+            return;
+        }
+
+        try {
+            await addDoc(collection(firestore, 'support-tickets'), {
+                subject,
+                description,
+                category: 'Technical Issue', // default for now
+                priority: 'Medium', // default for now
+                status: 'Open',
+                lastUpdate: serverTimestamp(),
+                user: {
+                    id: 'teacher-wanjiku',
+                    name: 'Ms. Wanjiku',
+                    avatarUrl: 'https://picsum.photos/seed/teacher-avatar/100',
+                }
+            });
+
+             toast({
+                title: 'Ticket Submitted!',
+                description: 'Our support team will get back to you shortly.',
+            });
+
+            setSubject('');
+            setDescription('');
+
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Submission Failed' });
+        }
+    };
 
     return (
     <Dialog onOpenChange={(open) => !open && setSelectedTicket(null)}>
@@ -119,16 +171,16 @@ export default function TeacherSupportPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-primary"/>Submit a Ticket</CardTitle>
-                            <CardDescription>Use this form to report a technical issue, ask a question, or provide feedback.</CardDescription>
+                            <CardDescription>Use this form to report a technical issue or ask a question.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
                                 <Label htmlFor="ticket-subject">Subject</Label>
-                                <Input id="ticket-subject" placeholder="e.g., Unable to export student list" />
+                                <Input id="ticket-subject" placeholder="e.g., Unable to export student list" value={subject} onChange={(e) => setSubject(e.target.value)} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="ticket-description">Description</Label>
-                                <Textarea id="ticket-description" placeholder="Please provide as much detail as possible..." className="min-h-[150px]" />
+                                <Textarea id="ticket-description" placeholder="Please provide as much detail as possible..." className="min-h-[150px]" value={description} onChange={(e) => setDescription(e.target.value)} />
                             </div>
                              <div className="space-y-2">
                                 <Label>Attach Screenshot/File</Label>
@@ -144,7 +196,7 @@ export default function TeacherSupportPage() {
                             </div>
                         </CardContent>
                         <CardFooter>
-                            <Button disabled>Submit Ticket</Button>
+                            <Button onClick={handleSubmitTicket}>Submit Ticket</Button>
                         </CardFooter>
                     </Card>
                     
@@ -166,14 +218,14 @@ export default function TeacherSupportPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {mockTickets.map(ticket => (
+                                        {myTickets.map(ticket => (
                                             <DialogTrigger asChild key={ticket.id}>
                                                 <TableRow className="cursor-pointer" onClick={() => setSelectedTicket(ticket)}>
                                                     <TableCell className="font-medium">{ticket.id}</TableCell>
                                                     <TableCell>{ticket.subject}</TableCell>
                                                     <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
                                                     <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                                                    <TableCell>{ticket.lastUpdate}</TableCell>
+                                                    <TableCell>{ticket.lastUpdate.toDate().toLocaleDateString()}</TableCell>
                                                 </TableRow>
                                             </DialogTrigger>
                                         ))}
