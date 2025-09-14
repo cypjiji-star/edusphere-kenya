@@ -1,138 +1,92 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // =================================
-    // Default Security (Deny All)
-    // =================================
-    // By default, no one can read or write to any document.
-    // Specific rules below will grant access.
+
+    // Helper functions to check user roles from their auth token
+    function isDeveloper() {
+      return request.auth.token.role == 'developer';
+    }
+
+    function isSchoolAdmin(schoolId) {
+      return request.auth.token.schoolId == schoolId && request.auth.token.role == 'admin';
+    }
+
+    function isTeacher(schoolId) {
+      return request.auth.token.schoolId == schoolId && request.auth.token.role == 'teacher';
+    }
+
+    function isParent(schoolId) {
+        return request.auth.token.schoolId == schoolId && request.auth.token.role == 'parent';
+    }
+
+    function isSignedIn(schoolId) {
+      return request.auth != null && request.auth.token.schoolId == schoolId;
+    }
+
+    // Allow developers to read/write anything in the database.
+    // This rule is checked first. If a user is a developer, they pass.
     match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // =================================
-    // Platform-Level Rules (Developers)
-    // =================================
-    
-    // The 'users' collection stores developer and platform admin accounts.
-    match /users/{userId} {
-      // Allow a user to read and write to their own user document.
-      allow read, write: if request.auth.uid == userId;
-    }
-
-    // The 'schools' collection contains all school instances.
-    match /schools/{schoolId} {
-      // Developers have god-mode access to manage any school.
-      function isDeveloper() {
-        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Developer';
-      }
-
-      // Allow developers to read, create, update, and delete school documents.
       allow read, write: if isDeveloper();
+    }
+    
+    // Allow public read access for school profiles (for login page branding)
+    match /schoolProfile/{profileId} {
+      allow read: if true;
+      allow write: if isDeveloper() || isSchoolAdmin(profileId); // Only admins of that school or devs can write
+    }
 
-      // Delegate rules for subcollections within a school.
-      match /{subcollection}/{docId=**} {
-        allow read, write: if isDeveloper();
+    // Rules for school-specific data. All paths are nested under /schools/{schoolId}.
+    // This is the core of the multi-tenant security model.
+    match /schools/{schoolId} {
+      // Allow any signed-in user of a school to read the main school document.
+      allow read: if isSignedIn(schoolId);
+      // Only admins of that school can update the main school document.
+      allow update: if isSchoolAdmin(schoolId);
+
+      // --- Nested Subcollections ---
+
+      // Students & their subcollections (grades, attendance, etc.)
+      match /students/{studentId} {
+        allow read: if isTeacher(schoolId); // Teachers can read student profiles
+        allow write: if isSchoolAdmin(schoolId); // Admins can create/edit students
+
+        // Parents can only read their own child's data
+        allow read: if isParent(schoolId) && studentId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.children;
+      }
+      
+      // Allow all authenticated users of a school to read teachers and classes
+      match /users/{userId} {
+        allow read: if isSignedIn(schoolId);
+        allow write: if isSchoolAdmin(schoolId);
+      }
+
+      match /classes/{classId} {
+        allow read: if isSignedIn(schoolId);
+        allow write: if isSchoolAdmin(schoolId);
+      }
+      
+      // Assignments, Attendance, etc.
+      // Teachers can create/read/update their own, Admins have full access.
+      match /assignments/{assignmentId} {
+        allow read: if isTeacher(schoolId);
+        allow create, update: if isTeacher(schoolId) && request.resource.data.teacherId == request.auth.uid;
+        allow delete, update: if isSchoolAdmin(schoolId);
+      }
+      
+       match /attendance/{attendanceId} {
+        allow read: if isTeacher(schoolId);
+        allow create, update: if isTeacher(schoolId) && request.resource.data.teacherId == request.auth.uid;
+        allow delete, update: if isSchoolAdmin(schoolId);
+      }
+
+      // Generic rule for most other school-specific collections
+      match /{collection}/{docId} {
+        allow read: if isSignedIn(schoolId);
+        allow write: if isSchoolAdmin(schoolId) || isTeacher(schoolId); // Allow teachers to write to other collections if needed
       }
     }
-
-    // =================================
-    // School-Level Rules (Admins, Teachers, Parents)
-    // =================================
-    match /schools/{schoolId}/documents {
-
-        // --- Helper Functions ---
-        function isSignedIn() {
-          return request.auth != null;
-        }
-
-        function isUserOfThisSchool() {
-          return isSignedIn() && request.auth.token.schoolId == schoolId;
-        }
-
-        function isRole(role) {
-          return isUserOfThisSchool() && request.auth.token.role == role;
-        }
-        
-        function isAdmin() {
-          return isRole('Admin');
-        }
-        
-        function isTeacher() {
-          return isRole('Teacher');
-        }
-
-        function isParent() {
-          return isRole('Parent');
-        }
-        
-        function isMyRecord(recordUserId) {
-          return isSignedIn() && request.auth.uid == recordUserId;
-        }
-
-        // --- Rules for School Subcollections ---
-
-        // Admins, teachers, and staff user accounts for a specific school
-        match /users/{userId} {
-          allow read: if isUserOfThisSchool();
-          allow write: if isAdmin();
-        }
-        
-        // Student records
-        match /students/{studentId} {
-          allow read: if isUserOfThisSchool();
-          allow write: if isAdmin() || isTeacher(); // Teachers can update grades, attendance etc.
-        }
-
-        // Announcements, Calendar Events, etc. (Public within the school)
-        match /announcements/{announcementId} {
-          allow read: if isUserOfThisSchool();
-          allow write: if isAdmin() || isTeacher();
-        }
-        match /calendar-events/{eventId} {
-          allow read: if isUserOfThisSchool();
-          allow write: if isAdmin();
-        }
-
-        // Academic records like classes, subjects, assignments
-        match /classes/{classId} {
-          allow read: if isUserOfThisSchool();
-          allow write: if isAdmin();
-        }
-        match /subjects/{subjectId} {
-          allow read: if isUserOfThisSchool();
-          allow write: if isAdmin();
-        }
-        match /assignments/{assignmentId} {
-          allow read: if isUserOfThisSchool();
-          allow write: if isTeacher(); // Teachers can create assignments
-        }
-        
-        // Granular control for assignment submissions
-        match /assignments/{assignmentId}/submissions/{submissionId} {
-           allow read, write: if isTeacher(); // Teachers can grade
-        }
-
-        // Financial Records
-        match /feeStructure/{itemId} {
-          allow read, write: if isAdmin();
-        }
-        match /expenses/{expenseId} {
-          allow read, write: if isAdmin();
-        }
-        match /students/{studentId}/transactions/{transactionId} {
-            allow read: if isAdmin() || (isParent() && studentId in get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.children);
-            allow write: if isAdmin();
-        }
-
-        // Incident Reports
-        match /incidents/{incidentId} {
-          allow read: if isAdmin() || isTeacher();
-          allow write: if isTeacher(); // Teachers can create reports
-        }
-    }
+    
+    // Deny all other reads/writes by default.
+    // This is implicitly handled by having no general "allow" rule.
   }
 }
