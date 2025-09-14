@@ -34,6 +34,7 @@ import { firestore, storage } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 
 
 const ColorPicker = ({ label, color, setColor }: { label: string, color: string, setColor: (color: string) => void }) => (
@@ -70,6 +71,8 @@ const versionHistory = [
 ];
 
 export default function BrandingPage() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
     const [isLoading, setIsLoading] = React.useState(false);
     const [isUploadingLogo, setIsUploadingLogo] = React.useState(false);
@@ -85,23 +88,16 @@ export default function BrandingPage() {
     const form = useForm();
     
     React.useEffect(() => {
+        if (!schoolId) return;
+        
         const fetchBranding = async () => {
-            const profileRef = doc(firestore, 'schoolProfile', 'main');
-            const brandingRef = doc(firestore, 'schoolProfile', 'branding');
-            
-            const [profileSnap, brandingSnap] = await Promise.all([
-                getDoc(profileRef),
-                getDoc(brandingRef)
-            ]);
-
-            if (profileSnap.exists()) {
-                const data = profileSnap.data();
-                if (data.logoUrl) setLogoUrl(data.logoUrl);
-                if (data.coverImageUrl) setCoverImageUrl(data.coverImageUrl);
-            }
+            const brandingRef = doc(firestore, 'schoolProfile', schoolId);
+            const brandingSnap = await getDoc(brandingRef);
 
             if (brandingSnap.exists()) {
                 const data = brandingSnap.data();
+                setLogoUrl(data.logoUrl || "https://picsum.photos/seed/school-logo/200");
+                setCoverImageUrl(data.coverImageUrl || "https://picsum.photos/seed/login-bg/1200/1800");
                 setPrimaryColor(data.primaryColor || defaultTheme.primaryColor);
                 setAccentColor(data.accentColor || defaultTheme.accentColor);
                 setBackgroundColor(data.backgroundColor || defaultTheme.backgroundColor);
@@ -110,7 +106,7 @@ export default function BrandingPage() {
             }
         };
         fetchBranding();
-    }, []);
+    }, [schoolId]);
 
     const previewStyle = {
         '--preview-primary': primaryColor,
@@ -150,19 +146,19 @@ export default function BrandingPage() {
     
     const handleLogoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file) return;
+        if (!file || !schoolId) return;
 
         setIsUploadingLogo(true);
         toast({ title: 'Uploading Logo...', description: 'Please wait while the new logo is being uploaded.' });
 
         try {
-            const storagePath = `school_assets/logo_${Date.now()}`;
+            const storagePath = `schools/${schoolId}/assets/logo_${Date.now()}`;
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
 
             setLogoUrl(downloadURL);
-            await setDoc(doc(firestore, 'schoolProfile', 'main'), { logoUrl: downloadURL }, { merge: true });
+            await setDoc(doc(firestore, 'schoolProfile', schoolId), { logoUrl: downloadURL }, { merge: true });
 
             toast({ title: 'Logo Updated!', description: 'The new school logo has been saved.' });
         } catch (error) {
@@ -175,19 +171,19 @@ export default function BrandingPage() {
     
     const handleCoverImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file) return;
+        if (!file || !schoolId) return;
 
         setIsUploadingCover(true);
         toast({ title: 'Uploading Cover Image...', description: 'This may take a moment.' });
 
         try {
-            const storagePath = `school_assets/cover_${Date.now()}`;
+            const storagePath = `schools/${schoolId}/assets/cover_${Date.now()}`;
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
 
             setCoverImageUrl(downloadURL);
-            await setDoc(doc(firestore, 'schoolProfile', 'main'), { coverImageUrl: downloadURL }, { merge: true });
+            await setDoc(doc(firestore, 'schoolProfile', schoolId), { coverImageUrl: downloadURL }, { merge: true });
 
             toast({ title: 'Cover Image Updated!', description: 'The new login page cover has been saved.' });
         } catch (error) {
@@ -199,6 +195,7 @@ export default function BrandingPage() {
     };
 
     const handleSaveTheme = async () => {
+        if (!schoolId) return;
         setIsLoading(true);
         const brandingData = {
             primaryColor,
@@ -209,7 +206,7 @@ export default function BrandingPage() {
         };
 
         try {
-            await setDoc(doc(firestore, 'schoolProfile', 'branding'), brandingData);
+            await setDoc(doc(firestore, 'schoolProfile', schoolId), brandingData, { merge: true });
 
             toast({
                 title: 'Theme Saved!',
@@ -229,6 +226,9 @@ export default function BrandingPage() {
         }
     };
 
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing from URL.</div>
+    }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -449,3 +449,5 @@ export default function BrandingPage() {
     </div>
   );
 }
+
+  

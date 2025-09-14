@@ -27,6 +27,7 @@ import {
   } from '@/components/ui/select';
 import { firestore } from '@/lib/firebase';
 import { collection, query, getDocs } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 const distributionChartConfig = {
@@ -37,17 +38,21 @@ const distributionChartConfig = {
 };
 
 export function GradeAnalysisCharts() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [selectedTerm, setSelectedTerm] = React.useState('Term 1, 2024');
   const [distributionData, setDistributionData] = React.useState<any[]>([]);
   const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
+    if (!schoolId) return;
+
     const fetchData = async () => {
         setIsLoading(true);
         try {
             // Simplified aggregation. A real app would use backend functions for this.
-            const submissionsSnapshot = await getDocs(query(collection(firestore, 'submissions')));
+            const submissionsSnapshot = await getDocs(query(collection(firestore, `schools/${schoolId}/submissions`)));
             
             // Grade Distribution
             const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
@@ -89,7 +94,7 @@ export function GradeAnalysisCharts() {
         }
     };
     fetchData();
-  }, [selectedTerm]);
+  }, [selectedTerm, schoolId]);
   
   return (
      <div className="grid gap-6">
@@ -148,7 +153,7 @@ export function GradeAnalysisCharts() {
         </Card>
         <div className="grid gap-6 md:grid-cols-3">
              <Card asChild className="md:col-span-2 h-full hover:bg-muted/50 transition-colors">
-                <Link href="/admin/grades">
+                <Link href={`/admin/grades?schoolId=${schoolId}`}>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><BookCopy className="h-5 w-5 text-primary"/>Subject Performance</CardTitle>
                         <CardDescription>Average scores by subject and trend from previous exam.</CardDescription>
@@ -173,7 +178,7 @@ export function GradeAnalysisCharts() {
              </Card>
              <div className="space-y-6">
                 <Card asChild className="hover:bg-muted/50 transition-colors">
-                    <Link href="/admin/grades">
+                    <Link href={`/admin/grades?schoolId=${schoolId}`}>
                         <CardHeader>
                             <CardTitle>Top Performing Class</CardTitle>
                             <CardDescription>Form 4 (Avg. 82%)</CardDescription>
@@ -181,7 +186,7 @@ export function GradeAnalysisCharts() {
                     </Link>
                  </Card>
                  <Card asChild className="hover:bg-muted/50 transition-colors">
-                    <Link href="/admin/grades">
+                    <Link href={`/admin/grades?schoolId=${schoolId}`}>
                         <CardHeader>
                             <CardTitle>Lowest Performing Class</CardTitle>
                             <CardDescription>Form 1 (Avg. 68%)</CardDescription>
@@ -189,7 +194,7 @@ export function GradeAnalysisCharts() {
                     </Link>
                  </Card>
                  <Button asChild variant="outline" className="w-full">
-                    <Link href="/admin/grades">
+                    <Link href={`/admin/grades?schoolId=${schoolId}`}>
                         Generate Full Report
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
@@ -200,4 +205,4 @@ export function GradeAnalysisCharts() {
   );
 }
 
-    
+  

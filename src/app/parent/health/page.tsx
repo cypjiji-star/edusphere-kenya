@@ -99,7 +99,7 @@ export default function ParentHealthPage() {
     React.useEffect(() => {
         if (!schoolId) return;
         // In a real app, you would filter by parent ID. For now, we fetch a few students.
-        const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
+        const q = query(collection(firestore, 'schools', schoolId, 'students'), where('role', '==', 'Student'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -132,12 +132,12 @@ export default function ParentHealthPage() {
             setIsLoading(false);
         });
 
-        const incidentsQuery = query(collection(firestore, 'schools', schoolId, 'students', selectedChild, 'incidents'), orderBy('date', 'desc'));
+        const incidentsQuery = query(collection(firestore, 'schools', schoolId, 'incidents'), where('studentId', '==', selectedChild), orderBy('date', 'desc'));
         const unsubIncidents = onSnapshot(incidentsQuery, (snapshot) => {
             setIncidents(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Incident)));
         });
 
-        const medsQuery = query(collection(firestore, 'schools', schoolId, 'students', selectedChild, 'medications'), orderBy('date', 'desc'));
+        const medsQuery = query(collection(firestore, 'schools', schoolId, 'medications'), where('studentId', '==', selectedChild), orderBy('date', 'desc'));
         const unsubMeds = onSnapshot(medsQuery, (snapshot) => {
             setMedications(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Medication)));
         });
@@ -193,6 +193,10 @@ export default function ParentHealthPage() {
             <Loader2 className="h-10 w-10 animate-spin text-primary"/>
         </div>
       )
+    }
+
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing from URL.</div>
     }
 
     return (
@@ -476,3 +480,5 @@ export default function ParentHealthPage() {
         </Dialog>
     );
 }
+
+  
