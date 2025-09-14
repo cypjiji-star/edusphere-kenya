@@ -844,7 +844,7 @@ export default function HealthPage() {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <Badge variant={incident.type === 'Health' ? 'destructive' : incident.type === 'Accident' ? 'secondary' : 'default'}>{incident.type}</Badge>
+                                                            <Badge variant={incident.type === 'Health' ? 'destructive' : 'secondary'}>{incident.type}</Badge>
                                                         </TableCell>
                                                         <TableCell className="max-w-xs truncate">{incident.description}</TableCell>
                                                         <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell>
@@ -891,7 +891,7 @@ export default function HealthPage() {
                                                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4>
                                                 <div className="space-x-2">
                                                     {currentHealthRecord.allergies.map(allergy => (
-                                                        <Badge key={allergy} variant={allergy !== "None" &amp;&amp; allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>
+                                                        <Badge key={allergy} variant={allergy !== "None" && allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>
                                                     ))}
                                                 </div>
                                             </div>
@@ -985,7 +985,7 @@ export default function HealthPage() {
                                                             <TableCell>{log.time}</TableCell>
                                                         </TableRow>
                                                     ))}
-                                                     {medicationLog.length === 0 &amp;&amp; (
+                                                     {medicationLog.length === 0 && (
                                                         <TableRow>
                                                             <TableCell colSpan={3} className="h-24 text-center">No records for today.</TableCell>
                                                         </TableRow>
@@ -1000,7 +1000,7 @@ export default function HealthPage() {
                     </TabsContent>
                 </Tabs>
 
-                {selectedIncident &amp;&amp; (
+                {selectedIncident && (
                     <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
                             <DialogTitle>Incident Details</DialogTitle>
