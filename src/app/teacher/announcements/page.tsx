@@ -34,6 +34,7 @@ import { translateText } from '@/ai/flows/translate-text';
 import { firestore, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useSearchParams } from 'next/navigation';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -64,6 +65,8 @@ const announcementSchema = z.object({
 type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 
 export default function AnnouncementsPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
   const [pastAnnouncements, setPastAnnouncements] = React.useState<Announcement[]>([]);
@@ -81,13 +84,14 @@ export default function AnnouncementsPage() {
   const { toast } = useToast();
 
    React.useEffect(() => {
-    const q = query(collection(firestore, 'announcements'), where('sender.name', '==', 'Ms. Wanjiku'), orderBy('sentAt', 'desc'));
+    if (!schoolId) return;
+    const q = query(collection(firestore, 'schools', schoolId, 'announcements'), where('sender.name', '==', 'Ms. Wanjiku'), orderBy('sentAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
         setPastAnnouncements(fetchedAnnouncements);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const handleTranslate = async () => {
     const message = form.getValues('message');
@@ -135,12 +139,16 @@ export default function AnnouncementsPage() {
   };
 
   async function onSubmit(values: AnnouncementFormValues) {
+    if (!schoolId) {
+        toast({ title: 'Error', description: 'School ID is missing.', variant: 'destructive'});
+        return;
+    }
     setIsSubmitting(true);
     let attachmentUrl, attachmentName;
 
     try {
       if (attachedFile) {
-        const storageRef = ref(storage, `announcements/${Date.now()}_${attachedFile.name}`);
+        const storageRef = ref(storage, `schools/${schoolId}/announcements/${Date.now()}_${attachedFile.name}`);
         const uploadTask = await uploadBytes(storageRef, attachedFile);
         attachmentUrl = await getDownloadURL(uploadTask.ref);
         attachmentName = attachedFile.name;
@@ -159,7 +167,7 @@ export default function AnnouncementsPage() {
           ...(attachmentUrl && { attachmentUrl, attachmentName }),
       };
 
-      await addDoc(collection(firestore, 'announcements'), newAnnouncement);
+      await addDoc(collection(firestore, 'schools', schoolId, 'announcements'), newAnnouncement);
       
       form.reset();
       setAttachedFile(null);
@@ -183,6 +191,10 @@ export default function AnnouncementsPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (!schoolId) {
+      return <div className="p-8">Error: School ID missing from URL.</div>
   }
 
   return (
@@ -394,3 +406,4 @@ export default function AnnouncementsPage() {
   );
 }
 
+    
