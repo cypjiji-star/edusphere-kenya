@@ -184,6 +184,7 @@ export default function UserManagementPage() {
             // Create user document in Firestore
             await setDoc(doc(firestore, 'schools', schoolId, 'users', user.uid), {
                 id: user.uid,
+                schoolId: schoolId,
                 name: values.name,
                 email: values.email,
                 role: values.role,
@@ -709,5 +710,3 @@ export default function UserManagementPage() {
         </div>
     );
 }
-
-    
