@@ -1,92 +1,124 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions to check user roles from their auth token
+    // --- Helper Functions ---
+    // Checks if the user has the 'developer' role in their custom token.
     function isDeveloper() {
       return request.auth.token.role == 'developer';
     }
 
-    function isSchoolAdmin(schoolId) {
+    // Checks if the user is an admin for a specific school.
+    function isAdmin(schoolId) {
       return request.auth.token.schoolId == schoolId && request.auth.token.role == 'admin';
     }
 
+    // Checks if the user is a teacher in a specific school.
     function isTeacher(schoolId) {
       return request.auth.token.schoolId == schoolId && request.auth.token.role == 'teacher';
     }
 
+    // Checks if the user is a parent in a specific school.
     function isParent(schoolId) {
-        return request.auth.token.schoolId == schoolId && request.auth.token.role == 'parent';
+      return request.auth.token.schoolId == schoolId && request.auth.token.role == 'parent';
     }
 
-    function isSignedIn(schoolId) {
+    // Checks if the authenticated user belongs to the school they are trying to access.
+    function isUserInSchool(schoolId) {
       return request.auth != null && request.auth.token.schoolId == schoolId;
     }
 
-    // Allow developers to read/write anything in the database.
-    // This rule is checked first. If a user is a developer, they pass.
-    match /{document=**} {
+    // --- Global Collections ---
+
+    // The `schools` collection can only be read or written to by a developer.
+    // This protects the list of all schools.
+    match /schools/{schoolId} {
       allow read, write: if isDeveloper();
     }
     
-    // Allow public read access for school profiles (for login page branding)
+    // The `schoolProfile` collection contains public branding info.
+    // Allow anyone to read it for the login page, but only developers can write to it.
     match /schoolProfile/{profileId} {
-      allow read: if true;
-      allow write: if isDeveloper() || isSchoolAdmin(profileId); // Only admins of that school or devs can write
+      allow get, list: if true;
+      allow write: if isDeveloper();
     }
 
-    // Rules for school-specific data. All paths are nested under /schools/{schoolId}.
-    // This is the core of the multi-tenant security model.
-    match /schools/{schoolId} {
-      // Allow any signed-in user of a school to read the main school document.
-      allow read: if isSignedIn(schoolId);
-      // Only admins of that school can update the main school document.
-      allow update: if isSchoolAdmin(schoolId);
+    // --- School-Specific Subcollections ---
+    
+    // By default, deny all access to documents nested under a school.
+    // Specific rules below will grant access.
+    match /schools/{schoolId}/{document=**} {
+      allow read, write: if false;
+    }
 
-      // --- Nested Subcollections ---
+    // Rules for students, classes, users, etc., within a school.
+    // Access is granted only if the user belongs to the school.
+    match /schools/{schoolId}/students/{studentId} {
+      allow get, list: if isUserInSchool(schoolId);
+      allow create, update, delete: if isAdmin(schoolId);
+    }
 
-      // Students & their subcollections (grades, attendance, etc.)
-      match /students/{studentId} {
-        allow read: if isTeacher(schoolId); // Teachers can read student profiles
-        allow write: if isSchoolAdmin(schoolId); // Admins can create/edit students
+    match /schools/{schoolId}/users/{userId} {
+      allow get, list: if isUserInSchool(schoolId);
+      allow create, update, delete: if isAdmin(schoolId);
+    }
 
-        // Parents can only read their own child's data
-        allow read: if isParent(schoolId) && studentId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.children;
-      }
-      
-      // Allow all authenticated users of a school to read teachers and classes
-      match /users/{userId} {
-        allow read: if isSignedIn(schoolId);
-        allow write: if isSchoolAdmin(schoolId);
-      }
-
-      match /classes/{classId} {
-        allow read: if isSignedIn(schoolId);
-        allow write: if isSchoolAdmin(schoolId);
-      }
-      
-      // Assignments, Attendance, etc.
-      // Teachers can create/read/update their own, Admins have full access.
-      match /assignments/{assignmentId} {
-        allow read: if isTeacher(schoolId);
-        allow create, update: if isTeacher(schoolId) && request.resource.data.teacherId == request.auth.uid;
-        allow delete, update: if isSchoolAdmin(schoolId);
-      }
-      
-       match /attendance/{attendanceId} {
-        allow read: if isTeacher(schoolId);
-        allow create, update: if isTeacher(schoolId) && request.resource.data.teacherId == request.auth.uid;
-        allow delete, update: if isSchoolAdmin(schoolId);
-      }
-
-      // Generic rule for most other school-specific collections
-      match /{collection}/{docId} {
-        allow read: if isSignedIn(schoolId);
-        allow write: if isSchoolAdmin(schoolId) || isTeacher(schoolId); // Allow teachers to write to other collections if needed
-      }
+    match /schools/{schoolId}/classes/{classId} {
+      allow get, list: if isUserInSchool(schoolId);
+      allow create, update, delete: if isAdmin(schoolId);
     }
     
-    // Deny all other reads/writes by default.
-    // This is implicitly handled by having no general "allow" rule.
+    match /schools/{schoolId}/subjects/{subjectId} {
+      allow get, list: if isUserInSchool(schoolId);
+      allow create, update, delete: if isAdmin(schoolId);
+    }
+
+    match /schools/{schoolId}/assignments/{assignmentId} {
+      allow get, list: if isUserInSchool(schoolId);
+      allow create, update, delete: if isTeacher(schoolId) || isAdmin(schoolId);
+    }
+    
+    match /schools/{schoolId}/assignments/{assignmentId}/submissions/{submissionId} {
+        allow read, write: if isTeacher(schoolId) || isAdmin(schoolId);
+    }
+
+    match /schools/{schoolId}/attendance/{attendanceId} {
+      allow read, write: if isTeacher(schoolId) || isAdmin(schoolId);
+    }
+
+    match /schools/{schoolId}/announcements/{announcementId} {
+      allow read: if isUserInSchool(schoolId);
+      allow create, update, delete: if isAdmin(schoolId) || isTeacher(schoolId);
+    }
+    
+    match /schools/{schoolId}/calendar-events/{eventId} {
+      allow read: if isUserInSchool(schoolId);
+      allow create, update, delete: if isAdmin(schoolId);
+    }
+
+    match /schools/{schoolId}/conversations/{conversationId}/{message=**} {
+      // More complex rules needed here based on participants, but this is a safe start.
+      allow read, write: if isUserInSchool(schoolId);
+    }
+
+    // --- Role-Specific Rules ---
+    
+    // `roles` collection can be read by admins, but only changed by developers.
+    match /roles/{roleId} {
+      allow get: if isDeveloper() || isAdmin(request.auth.token.schoolId);
+      allow list, write: if isDeveloper();
+    }
+    
+    // `audit_logs` are read-only for admins and developers. No one can write them directly.
+    match /audit_logs/{logId} {
+        allow read: if isDeveloper() || isAdmin(request.auth.token.schoolId);
+        allow write: if false;
+    }
+    
+     // Any other top-level collection is locked down unless specified above.
+    match /{path=**} {
+      allow read, write: if false;
+    }
   }
 }
