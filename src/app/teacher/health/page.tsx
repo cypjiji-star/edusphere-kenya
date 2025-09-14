@@ -228,10 +228,10 @@ export default function HealthPage() {
                     const data = docSnap.data();
                     setCurrentHealthRecord({
                         allergies: data.allergies || ['None known'],
-                        conditions: data.medicalConditions || ['None known'],
+                        conditions: data.medicalConditions ? [data.medicalConditions] : ['None known'],
                         emergencyContact: {
                             name: data.emergencyContactName || 'N/A',
-                            relationship: data.parentRelationship || 'Guardian',
+                            relationship: 'Parent/Guardian',
                             phone: data.parentPhone || 'N/A',
                         }
                     });
@@ -1064,5 +1064,3 @@ export default function HealthPage() {
         </Dialog>
     );
 }
-
-    
