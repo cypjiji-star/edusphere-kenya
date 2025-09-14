@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye, Printer, FileDown, ChevronDown, Star, ScanLine } from 'lucide-react';
+import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye, Printer, FileDown, ChevronDown, Star, ScanLine, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -31,20 +31,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, where } from 'firebase/firestore';
 
-
-export const mockResources: Resource[] = [
-  { id: 'res-1', title: 'Form 4 Chemistry Textbook', type: 'Textbook', subject: 'Chemistry', grade: 'Form 4', status: 'Available', author: 'Kenya Literature Bureau', description: 'The official KCSE curriculum chemistry textbook for form 4 students, covering all topics for the final year.', recommended: true },
-  { id: 'res-2', title: '2023 KCSE Mathematics Paper 1', type: 'Past Paper', subject: 'Mathematics', grade: 'Form 4', status: 'Digital', author: 'KNEC', description: 'The official 2023 Kenya Certificate of Secondary Education (KCSE) Mathematics Paper 1 for revision.', recommended: true },
-  { id: 'res-3', title: 'History & Government Curriculum', type: 'Curriculum Guide', subject: 'History', grade: 'All Grades', status: 'Digital', author: 'KICD', description: 'The complete curriculum guide for History & Government for all secondary school levels.' },
-  { id: 'res-4', title: 'Journal of African History Vol. 65', type: 'Journal', subject: 'History', grade: 'Senior School', status: 'Out', dueDate: '2024-08-05', author: 'Cambridge University Press', description: 'A scholarly journal focusing on the history of the African continent.' },
-  { id: 'res-5', title: 'Physics for Secondary Schools F2', type: 'Textbook', subject: 'Physics', grade: 'Form 2', status: 'Available', author: 'Longhorn Publishers', description: 'A comprehensive textbook for Form 2 Physics, aligned with the current syllabus.' },
-  { id: 'res-6', title: 'The River and The Source Novel', type: 'Textbook', subject: 'English', grade: 'Form 3', status: 'Out', dueDate: '2024-07-30', author: 'Margaret Ogola', description: 'The award-winning novel, a set book for Form 3 English literature.', recommended: true },
-];
 
 const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 const subjects = ['All Subjects', 'Chemistry', 'Mathematics', 'History', 'Physics', 'English'];
@@ -63,37 +55,74 @@ const statusConfig: Record<Resource['status'], { label: string; className: strin
 }
 
 export default function LibraryPage() {
+  const [resources, setResources] = React.useState<Resource[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filteredType, setFilteredType] = React.useState('All Types');
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [selectedResource, setSelectedResource] = React.useState<Resource | null>(null);
   const [clientReady, setClientReady] = React.useState(false);
   const { toast } = useToast();
+  const teacherId = 'teacher-wanjiku'; // Placeholder
 
   React.useEffect(() => {
     setClientReady(true);
+    setIsLoading(true);
+    const q = query(collection(firestore, 'library-resources'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const resourcesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Resource));
+        setResources(resourcesData);
+        setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
-  const filteredResources = mockResources.filter(res => 
+  const filteredResources = resources.filter(res => 
     res.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (filteredType === 'All Types' || res.type === filteredType) &&
     (filteredSubject === 'All Subjects' || res.subject === filteredSubject)
   );
   
-  const handleActionClick = (e: React.MouseEvent, action: 'borrow' | 'reserve', title: string) => {
+  const handleActionClick = async (e: React.MouseEvent, action: 'borrow' | 'reserve', resource: Resource) => {
     e.stopPropagation();
-    toast({
-        title: `${action === 'borrow' ? 'Item Borrowed' : 'Item Reserved'} (Simulation)`,
-        description: `${title} has been marked as ${action === 'borrow' ? 'borrowed' : 'reserved'} in your name.`
-    })
+    const resourceRef = doc(firestore, 'library-resources', resource.id);
+    
+    if (action === 'borrow') {
+        try {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 14); // 2 week loan period
+            await updateDoc(resourceRef, { status: 'Out', dueDate: dueDate.toISOString() });
+
+            // Add to user's borrowed items
+            await addDoc(collection(firestore, 'users', teacherId, 'borrowed-items'), {
+                resourceId: resource.id,
+                title: resource.title,
+                borrowedDate: serverTimestamp(),
+                dueDate: dueDate.toISOString(),
+            });
+
+            toast({
+                title: 'Item Borrowed',
+                description: `"${resource.title}" has been checked out in your name.`,
+            });
+        } catch (error) {
+            console.error("Error borrowing item:", error);
+            toast({ variant: 'destructive', title: 'Action Failed' });
+        }
+    } else { // reserve
+         toast({
+            title: 'Item Reserved (Simulation)',
+            description: `${resource.title} has been reserved. You'll be notified when it's available.`,
+        });
+    }
   }
 
   const renderActionButton = (resource: Resource) => {
     switch (resource.status) {
         case 'Available':
-            return <Button variant="outline" size="sm" onClick={(e) => handleActionClick(e, 'borrow', resource.title)}><Bookmark className="mr-2 h-4 w-4" />Borrow</Button>;
+            return <Button variant="outline" size="sm" onClick={(e) => handleActionClick(e, 'borrow', resource)}><Bookmark className="mr-2 h-4 w-4" />Borrow</Button>;
         case 'Out':
-            return <Button variant="outline" size="sm" onClick={(e) => handleActionClick(e, 'reserve', resource.title)}><Clock className="mr-2 h-4 w-4" />Reserve</Button>;
+            return <Button variant="outline" size="sm" onClick={(e) => handleActionClick(e, 'reserve', resource)}><Clock className="mr-2 h-4 w-4" />Reserve</Button>;
         case 'Digital':
              return <Button variant="outline" size="sm" onClick={() => setSelectedResource(resource)}><Eye className="mr-2 h-4 w-4" />View</Button>;
     }
@@ -227,7 +256,11 @@ export default function LibraryPage() {
           </div>
         </CardHeader>
         <CardContent>
-            {filteredResources.length > 0 ? (
+            {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </div>
+            ) : filteredResources.length > 0 ? (
                 <>
                 {/* Desktop Table */}
                 <div className="w-full overflow-auto rounded-lg border hidden md:block">

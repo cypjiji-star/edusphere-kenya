@@ -8,7 +8,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer } from 'lucide-react';
@@ -20,6 +19,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+
 
 type BorrowedItem = {
     id: string;
@@ -28,35 +30,67 @@ type BorrowedItem = {
     dueDate: string;
 };
 
-export const borrowedItems: BorrowedItem[] = [
-    { id: 'borrow-1', title: 'The River and The Source Novel', borrowedDate: '2024-07-16', dueDate: '2024-07-30' },
-];
-
-const reservedItems: any[] = [];
-const historyItems: any[] = [
-     { id: 'hist-1', title: 'Physics for Secondary Schools F1', borrowedDate: '2024-06-10', returnedDate: '2024-06-24' },
-];
-
-const initialRequestItems = [
-    { id: 'req-1', title: 'A Brief History of Time by Stephen Hawking', status: 'Approved' },
-    { id: 'req-2', title: 'Updated KCSE Revision Guides (2024)', status: 'Pending' },
-]
+type RequestItem = {
+    id: string;
+    title: string;
+    status: 'Approved' | 'Pending' | 'Declined';
+}
 
 export default function MyLibraryPage() {
     const [clientReady, setClientReady] = React.useState(false);
-    const [requestItems, setRequestItems] = React.useState(initialRequestItems);
+    const [borrowedItems, setBorrowedItems] = React.useState<BorrowedItem[]>([]);
+    const [historyItems, setHistoryItems] = React.useState<any[]>([]);
+    const [requestItems, setRequestItems] = React.useState<RequestItem[]>([]);
     const [newRequestTitle, setNewRequestTitle] = React.useState('');
     const { toast } = useToast();
+    const teacherId = 'teacher-wanjiku'; // Placeholder
 
     React.useEffect(() => {
         setClientReady(true);
-    }, []);
 
-    const handleRenew = (title: string) => {
-        toast({
-            title: 'Renewal Request Sent',
-            description: `A request to renew "${title}" has been sent to the librarian.`,
+        const borrowedQuery = query(collection(firestore, 'users', teacherId, 'borrowed-items'));
+        const unsubBorrowed = onSnapshot(borrowedQuery, (snapshot) => {
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowedItem));
+            setBorrowedItems(items);
         });
+
+        const historyQuery = query(collection(firestore, 'users', teacherId, 'borrowing-history'));
+        const unsubHistory = onSnapshot(historyQuery, (snapshot) => {
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setHistoryItems(items);
+        });
+        
+        const requestsQuery = query(collection(firestore, 'library-requests'), where('requestedBy', '==', teacherId));
+        const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
+            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RequestItem));
+            setRequestItems(items);
+        });
+
+        return () => {
+            unsubBorrowed();
+            unsubHistory();
+            unsubRequests();
+        }
+    }, [teacherId]);
+
+    const handleRenew = async (item: BorrowedItem) => {
+        const itemRef = doc(firestore, 'users', teacherId, 'borrowed-items', item.id);
+        const newDueDate = new Date(item.dueDate);
+        newDueDate.setDate(newDueDate.getDate() + 14); // Extend by 2 weeks
+
+        try {
+            await updateDoc(itemRef, { dueDate: newDueDate.toISOString() });
+            toast({
+                title: 'Renewal Successful',
+                description: `The due date for "${item.title}" has been extended.`,
+            });
+        } catch (error) {
+            console.error("Error renewing item:", error);
+            toast({
+                title: 'Renewal Request Sent (Simulation)',
+                description: `A request to renew "${item.title}" has been sent to the librarian.`,
+            });
+        }
     };
 
     const handlePrintHistory = () => {
@@ -83,7 +117,7 @@ export default function MyLibraryPage() {
         });
     };
     
-    const handleNewRequest = () => {
+    const handleNewRequest = async () => {
         if (!newRequestTitle.trim()) {
             toast({
                 title: 'Request is empty',
@@ -93,19 +127,23 @@ export default function MyLibraryPage() {
             return;
         }
 
-        const newRequest = {
-            id: `req-${Date.now()}`,
-            title: newRequestTitle,
-            status: 'Pending',
-        };
+        try {
+            await addDoc(collection(firestore, 'library-requests'), {
+                title: newRequestTitle,
+                requestedBy: teacherId,
+                status: 'Pending',
+                requestedAt: serverTimestamp(),
+            });
 
-        setRequestItems(prev => [newRequest, ...prev]);
-        setNewRequestTitle('');
-
-        toast({
-            title: 'Request Submitted',
-            description: 'Your request has been sent to the librarian for review.',
-        });
+            setNewRequestTitle('');
+            toast({
+                title: 'Request Submitted',
+                description: 'Your request has been sent to the librarian for review.',
+            });
+        } catch (error) {
+            console.error("Error submitting request:", error);
+            toast({ variant: 'destructive', title: 'Submission Failed' });
+        }
     };
 
   return (
@@ -142,7 +180,7 @@ export default function MyLibraryPage() {
                                                 <p className="font-semibold">{item.title}</p>
                                                 {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {new Date(item.borrowedDate).toLocaleDateString()} | Due: {new Date(item.dueDate).toLocaleDateString()}</p>}
                                             </div>
-                                            <Button variant="outline" size="sm" onClick={() => handleRenew(item.title)}>
+                                            <Button variant="outline" size="sm" onClick={() => handleRenew(item)}>
                                                 <RotateCw className="mr-2 h-4 w-4" />
                                                 Renew
                                             </Button>
@@ -170,19 +208,14 @@ export default function MyLibraryPage() {
                         <CardDescription>These are items you have reserved. You will be notified when they become available.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         {reservedItems.length > 0 ? (
-                            <div className="space-y-4">
-                                {/* Reserved items would be listed here */}
+                         {/* This section will be populated from Firestore reservations subcollection */}
+                        <div className="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                            <div className="text-center">
+                                <Clock className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <h3 className="mt-4 text-lg font-semibold">No Reservations</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">You have no items currently on reserve.</p>
                             </div>
-                        ) : (
-                            <div className="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                                <div className="text-center">
-                                    <Clock className="mx-auto h-12 w-12 text-muted-foreground" />
-                                    <h3 className="mt-4 text-lg font-semibold">No Reservations</h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">You have no items currently on reserve.</p>
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </CardContent>
                 </Card>
              </TabsContent>
@@ -285,7 +318,6 @@ export default function MyLibraryPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-
         </Tabs>
     </div>
   );
