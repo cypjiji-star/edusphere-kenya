@@ -12,19 +12,17 @@ import { GraduationCap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoginForm } from './login-form';
 import { Suspense } from 'react';
-import { getSchoolProfile } from './get-school-profile';
 
-// Wrap the functional component with Suspense to handle streaming
-function LoginPageContent({ schoolId }: { schoolId?: string }) {
-    return (
-        <Suspense fallback={<LoginPageSkeleton />}>
-            <LoginPageWithData schoolId={schoolId} />
-        </Suspense>
-    );
-}
+const defaultProfile = {
+    name: 'EduSphere Kenya',
+    motto: 'Empowering Education for All',
+    logoUrl: 'https://picsum.photos/seed/default-logo/200',
+    coverImageUrl: 'https://picsum.photos/seed/default-cover/1200/1800',
+};
 
-async function LoginPageWithData({ schoolId }: { schoolId?: string }) {
-    const profile = await getSchoolProfile(schoolId);
+
+function LoginPageContent() {
+    const profile = defaultProfile;
 
     return (
         <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
@@ -82,34 +80,6 @@ async function LoginPageWithData({ schoolId }: { schoolId?: string }) {
     );
 }
 
-function LoginPageSkeleton() {
-    return (
-        <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
-            <div className="relative hidden lg:flex flex-col items-center justify-between bg-muted p-8 text-white">
-                <div className="absolute inset-0 bg-gray-700 animate-pulse" />
-                <Link href="/" className="relative z-20 flex items-center text-lg font-medium">
-                    <GraduationCap className="h-6 w-6 mr-2" /> EduSphere Kenya
-                </Link>
-                <div className="relative z-20 mt-auto text-center">
-                    <div className="h-20 w-20 bg-gray-600 rounded-full mx-auto mb-4 animate-pulse"></div>
-                    <div className="h-8 w-64 bg-gray-600 rounded-md mx-auto mb-2 animate-pulse"></div>
-                    <div className="h-6 w-80 bg-gray-600 rounded-md mx-auto animate-pulse"></div>
-                </div>
-            </div>
-             <div className="flex items-center justify-center p-6 bg-background">
-                <div className="mx-auto grid w-full max-w-sm items-center gap-6">
-                    <div className="text-center">
-                        <h1 className="text-3xl font-bold font-headline text-primary">Sign In</h1>
-                        <p className="text-muted-foreground">Enter your credentials to access the portal</p>
-                    </div>
-                    <Card className="shadow-none border-none"><CardContent className="p-0"><LoginForm /></CardContent></Card>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-
-export default function Page({ searchParams }: { searchParams: { schoolId?: string } }) {
-    return <LoginPageContent schoolId={searchParams.schoolId} />;
+export default function Page() {
+    return <Suspense><LoginPageContent /></Suspense>;
 }

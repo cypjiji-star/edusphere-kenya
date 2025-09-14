@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,57 +11,68 @@ import Link from 'next/link';
 
 export function LoginForm() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const [role, setRole] = React.useState('admin');
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
-    
-    // The schoolId is now primarily read from the URL
-    const schoolId = searchParams.get('schoolId');
+    const [schoolCode, setSchoolCode] = React.useState('');
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (role !== 'developer' && !schoolCode) {
+            alert('Please enter your school code.');
+            return;
+        }
+
         const portalPath = `/${role}`;
         
-        // In a real app, you would get a token from your auth provider
-        // and would not pass the role in the URL.
+        // In a real app, you would get a token from your auth provider.
         // For this demo, we pass the role and schoolId to simulate an authenticated session.
         if (role === 'developer') {
              router.push(`${portalPath}?role=developer`);
-        } else if (schoolId) {
-            router.push(`${portalPath}?schoolId=${schoolId}&role=${role}`);
         } else {
-            // Handle case where schoolId is required but not provided
-            alert('A School ID is required. Please access the login page via your school-specific URL (e.g., /login?schoolId=your-school-id).');
+            router.push(`${portalPath}?schoolId=${schoolCode}&role=${role}`);
         }
     };
 
     return (
         <form className="grid gap-4" onSubmit={handleLogin}>
             <div className="grid gap-2">
-            <Label htmlFor="email">Email or Login ID</Label>
-            <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-            />
+                <Label htmlFor="schoolCode">School Code</Label>
+                <Input
+                    id="schoolCode"
+                    type="text"
+                    placeholder="Enter your school's unique code"
+                    required={role !== 'developer'}
+                    value={schoolCode}
+                    onChange={(e) => setSchoolCode(e.target.value)}
+                    disabled={role === 'developer'}
+                />
             </div>
             <div className="grid gap-2">
-            <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                href="#"
-                className="ml-auto inline-block text-sm underline text-muted-foreground hover:text-primary"
-                >
-                Forgot your password?
-                </Link>
+                <Label htmlFor="email">Email or Login ID</Label>
+                <Input
+                    id="email"
+                    type="email"
+                    placeholder="m@example.com"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                />
             </div>
-            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <div className="grid gap-2">
+                <div className="flex items-center">
+                    <Label htmlFor="password">Password</Label>
+                    <Link
+                    href="#"
+                    className="ml-auto inline-block text-sm underline text-muted-foreground hover:text-primary"
+                    >
+                    Forgot your password?
+                    </Link>
+                </div>
+                <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
-                <div className="grid gap-4">
+            <div className="grid gap-4">
                 <Select value={role} onValueChange={setRole}>
                     <SelectTrigger>
                         <SelectValue placeholder="Login as..." />
