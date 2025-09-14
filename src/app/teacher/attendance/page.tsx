@@ -117,28 +117,29 @@ export default function AttendancePage() {
   }, [schoolId, selectedClass]);
 
   React.useEffect(() => {
-    if (!selectedClass || !date?.from || !schoolId) return;
+    if (!selectedClass || !date?.from || !schoolId || isRange) {
+        if (isRange) setStudents([]);
+        return;
+    }
+    
+    setIsLoading(true);
 
-    const fetchAttendance = async () => {
-        setIsLoading(true);
+    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
+    const unsubStudents = onSnapshot(studentsQuery, (studentsSnapshot) => {
+        const classStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
+        
         const targetDate = startOfToday();
         if (selectedDate) {
             targetDate.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
         }
 
-        try {
-            // Fetch students for the class
-            const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
-            const studentsSnapshot = await getDocs(studentsQuery);
-            const classStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
+        const attendanceQuery = query(
+            collection(firestore, 'schools', schoolId, 'attendance'),
+            where('classId', '==', selectedClass),
+            where('date', '==', Timestamp.fromDate(targetDate))
+        );
 
-            // Fetch attendance records for these students for the selected date
-            const attendanceQuery = query(
-                collection(firestore, 'schools', schoolId, 'attendance'),
-                where('classId', '==', selectedClass),
-                where('date', '==', Timestamp.fromDate(targetDate))
-            );
-            const attendanceSnapshot = await getDocs(attendanceQuery);
+        const unsubAttendance = onSnapshot(attendanceQuery, (attendanceSnapshot) => {
             const attendanceMap = new Map();
             attendanceSnapshot.forEach(doc => {
                 const data = doc.data();
@@ -150,24 +151,15 @@ export default function AttendancePage() {
                 status: attendanceMap.get(student.id)?.status || 'unmarked',
                 notes: attendanceMap.get(student.id)?.notes || '',
             }));
-
             setStudents(studentAttendance);
-
-        } catch(e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Error fetching data.' });
-        } finally {
             setIsLoading(false);
-        }
-    }
+        });
+        
+        return () => unsubAttendance();
+    });
 
-    if (!isRange) {
-      fetchAttendance();
-    } else {
-      setStudents([]);
-    }
-
-  }, [selectedClass, date, isRange, toast, schoolId, selectedDate]);
+    return () => unsubStudents();
+  }, [selectedClass, date, schoolId, isRange, selectedDate]);
 
   const handleSaveAttendance = React.useCallback(async () => {
     if (!isEditable || !selectedClass || !date?.from || !schoolId) return;
@@ -175,9 +167,11 @@ export default function AttendancePage() {
     const batch = writeBatch(firestore);
     const attendanceDate = startOfToday();
     attendanceDate.setFullYear(date.from.getFullYear(), date.from.getMonth(), date.from.getDate());
+    
+    const attendanceDateKey = format(attendanceDate, 'yyyy-MM-dd');
 
-    students.forEach(student => {
-        const docId = `${student.id}_${selectedClass}_${format(attendanceDate, 'yyyy-MM-dd')}`;
+    for (const student of students) {
+        const docId = `${student.id}_${attendanceDateKey}`;
         const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
 
         batch.set(attendanceRef, {
@@ -187,8 +181,8 @@ export default function AttendancePage() {
             status: student.status,
             notes: student.notes || '',
             teacherId: 'teacher-wanjiku' // This should be dynamic
-        });
-    });
+        }, { merge: true });
+    }
 
     try {
         await batch.commit();
@@ -593,5 +587,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    

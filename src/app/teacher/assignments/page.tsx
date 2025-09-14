@@ -54,7 +54,10 @@ export default function AssignmentsPage() {
   const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+        setIsLoading(false);
+        return;
+    }
 
     setClientReady(true);
     const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
