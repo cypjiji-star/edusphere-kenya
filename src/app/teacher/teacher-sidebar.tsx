@@ -46,7 +46,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { allAssignments } from './assignments/page';
 
 
 const navGroups = [
@@ -91,6 +90,8 @@ export function TeacherSidebar() {
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
 
   React.useEffect(() => {
+    const teacherId = 'teacher-wanjiku'; // Placeholder for logged-in teacher
+    
     // Unread messages count
     const unreadMessagesQuery = query(collection(firestore, 'conversations'), where('unread', '==', true));
     const unsubscribeMessages = onSnapshot(unreadMessagesQuery, (snapshot) => {
@@ -98,11 +99,23 @@ export function TeacherSidebar() {
     });
 
     // Ungraded assignments count
-    const ungradedCount = allAssignments.filter(a => a.submissions < a.totalStudents).length;
-    setDynamicBadges(prev => ({...prev, ungradedAssignments: ungradedCount}));
+    const assignmentsQuery = query(collection(firestore, 'assignments'), where('teacherId', '==', teacherId));
+    const unsubscribeAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
+        let ungradedCount = 0;
+        snapshot.forEach(doc => {
+            const assignment = doc.data();
+            if (assignment.submissions < assignment.totalStudents) {
+                ungradedCount++;
+            }
+        });
+        setDynamicBadges(prev => ({ ...prev, ungradedAssignments: ungradedCount }));
+    });
 
-    // Cleanup listener on component unmount
-    return () => unsubscribeMessages();
+    // Cleanup listeners on component unmount
+    return () => {
+        unsubscribeMessages();
+        unsubscribeAssignments();
+    };
   }, []);
 
   return (
