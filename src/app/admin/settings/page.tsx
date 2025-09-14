@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -495,7 +494,7 @@ export default function SettingsPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>API Key</Label>
-                                                <Input type="password" defaultValue="xxxxxxxxxxxx" />
+                                                <Input type="password" placeholder="Enter your API key..." />
                                             </div>
                                         </CardContent>
                                      </Card>
@@ -513,6 +512,10 @@ export default function SettingsPage() {
                                                         <SelectItem value="mailgun">Mailgun</SelectItem>
                                                     </SelectContent>
                                                 </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>API Key</Label>
+                                                <Input type="password" placeholder="Enter your API key..." />
                                             </div>
                                         </CardContent>
                                      </Card>
@@ -688,4 +691,5 @@ export default function SettingsPage() {
        </div>
     </div>
   );
-}
+
+    
