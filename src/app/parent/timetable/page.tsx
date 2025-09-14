@@ -43,7 +43,7 @@ import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/fire
 type Child = {
     id: string;
     name: string;
-    classId: string; // e.g., 'form-4-a'
+    classId: string; 
 };
 
 type Lesson = {
@@ -54,18 +54,11 @@ type Lesson = {
 
 type TimetableData = Record<string, Record<string, Lesson>>;
 
-
-const periods = [
-    { time: '08:00 - 09:00' },
-    { time: '09:00 - 10:00' },
-    { time: '10:00 - 11:00' },
-    { time: '11:00 - 11:30', isBreak: true, title: 'Short Break' },
-    { time: '11:30 - 12:30' },
-    { time: '12:30 - 13:30' },
-    { time: '13:30 - 14:30', isBreak: true, title: 'Lunch Break' },
-    { time: '14:30 - 15:30' },
-    { time: '15:30 - 16:30' },
-];
+type PeriodData = { 
+    time: string; 
+    isBreak?: boolean; 
+    title?: string 
+};
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -84,6 +77,7 @@ export default function ParentTimetablePage() {
     const [childrenData, setChildrenData] = React.useState<Child[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [timetableData, setTimetableData] = React.useState<TimetableData>({});
+    const [periods, setPeriods] = React.useState<PeriodData[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [clientReady, setClientReady] = React.useState(false);
     const { toast } = useToast();
@@ -110,15 +104,22 @@ export default function ParentTimetablePage() {
             const child = childrenData.find(c => c.id === selectedChild);
             if (child?.classId) {
                 const timetableRef = doc(firestore, 'timetables', child.classId);
-                const docSnap = await getDoc(timetableRef);
-                if (docSnap.exists()) {
-                    setTimetableData(docSnap.data() as TimetableData);
+                const timetableSnap = await getDoc(timetableRef);
+                if (timetableSnap.exists()) {
+                    setTimetableData(timetableSnap.data() as TimetableData);
                 } else {
                     setTimetableData({}); // No timetable found for this class
                 }
             } else {
                 setTimetableData({});
             }
+            
+            const periodsRef = doc(firestore, 'timetableSettings', 'periods');
+            const periodsSnap = await getDoc(periodsRef);
+            if(periodsSnap.exists()) {
+                setPeriods(periodsSnap.data().periods);
+            }
+
             setIsLoading(false);
         };
 
@@ -202,10 +203,10 @@ export default function ParentTimetablePage() {
                                 {todaysLessons.length > 0 ? todaysLessons.map(lesson => (
                                     <Card key={lesson.time} className="bg-muted/30">
                                         <CardContent className="p-4">
-                                            <p className="font-bold">{lesson.subject}</p>
-                                            <p className="text-sm text-muted-foreground">{lesson.time}</p>
+                                            <p className="font-bold">{lesson.title}</p>
+                                            <p className="text-sm text-muted-foreground">{lesson.startTime} - {lesson.endTime}</p>
                                             <p className="text-sm text-muted-foreground">Teacher: {lesson.teacher.name}</p>
-                                            <p className="text-sm text-muted-foreground">Room: {lesson.room}</p>
+                                            <p className="text-sm text-muted-foreground">Room: {lesson.location}</p>
                                         </CardContent>
                                     </Card>
                                 )) : (
@@ -229,6 +230,8 @@ export default function ParentTimetablePage() {
                                                 <TableCell className="font-semibold text-center text-primary">{period.time}</TableCell>
                                                 {days.map(day => {
                                                     const entry = timetableData[day]?.[period.time];
+                                                    const subject = entry ? (entry as any).subject?.name || entry.subject : null;
+
                                                     return (
                                                         <TableCell key={`${day}-${period.time}`} className="text-center p-1">
                                                             {period.isBreak ? (
@@ -238,15 +241,15 @@ export default function ParentTimetablePage() {
                                                             ) : entry ? (
                                                                 <Popover>
                                                                     <PopoverTrigger asChild>
-                                                                        <div className={`p-2 rounded-md cursor-pointer transition-transform hover:scale-105 ${subjectDetails[entry.subject as keyof typeof subjectDetails]?.color || 'bg-gray-100 text-gray-800'}`}>
-                                                                            <p className="font-bold text-sm">{entry.subject}</p>
+                                                                        <div className={`p-2 rounded-md cursor-pointer transition-transform hover:scale-105 ${subjectDetails[subject as keyof typeof subjectDetails]?.color || 'bg-gray-100 text-gray-800'}`}>
+                                                                            <p className="font-bold text-sm">{subject}</p>
                                                                         </div>
                                                                     </PopoverTrigger>
                                                                     <PopoverContent className="w-80">
                                                                         <div className="space-y-4">
                                                                             <h4 className="font-medium leading-none flex items-center gap-2">
                                                                                 <BookOpen className="h-5 w-5 text-primary" />
-                                                                                {entry.subject}
+                                                                                {subject}
                                                                             </h4>
                                                                             <div className="flex items-center gap-3">
                                                                                 <Avatar className="h-9 w-9">
