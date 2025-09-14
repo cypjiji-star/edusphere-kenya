@@ -14,22 +14,25 @@ export default function DeveloperLayout({
 }) {
   const pathname = usePathname();
 
+  // Allow access to developer create page without auth
+  if (pathname === '/developer/create-dev-account') {
+      return <Suspense>{children}</Suspense>;
+  }
+
   return (
-    <Suspense>
-      <AuthCheck requiredRole="developer">
-        <SidebarProvider>
-          <Sidebar>
-            <Suspense>
-              <DeveloperSidebar />
-            </Suspense>
-          </Sidebar>
-          <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
-            <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
-              {children}
-            </main>
-          </SidebarInset>
-        </SidebarProvider>
-      </AuthCheck>
-    </Suspense>
+    <AuthCheck requiredRole="developer">
+      <SidebarProvider>
+        <Sidebar>
+          <Suspense>
+            <DeveloperSidebar />
+          </Suspense>
+        </Sidebar>
+        <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
+          <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </AuthCheck>
   );
 }

@@ -10,21 +10,19 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense>
-      <AuthCheck requiredRole="admin">
-        <SidebarProvider>
-          <Sidebar>
-            <Suspense>
-              <AdminSidebar />
-            </Suspense>
-          </Sidebar>
-          <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
-            <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
-              {children}
-            </main>
-          </SidebarInset>
-        </SidebarProvider>
-      </AuthCheck>
-    </Suspense>
+    <AuthCheck requiredRole="admin">
+      <SidebarProvider>
+        <Sidebar>
+          <Suspense>
+            <AdminSidebar />
+          </Suspense>
+        </Sidebar>
+        <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
+          <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </AuthCheck>
   );
 }

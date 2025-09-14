@@ -10,21 +10,19 @@ export default function TeacherLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense>
-      <AuthCheck requiredRole="teacher">
-        <SidebarProvider>
-          <Sidebar>
-            <Suspense>
-              <TeacherSidebar />
-            </Suspense>
-          </Sidebar>
-          <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
-            <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
-              {children}
-            </main>
-          </SidebarInset>
-        </SidebarProvider>
-      </AuthCheck>
-    </Suspense>
+    <AuthCheck requiredRole="teacher">
+      <SidebarProvider>
+        <Sidebar>
+          <Suspense>
+            <TeacherSidebar />
+          </Suspense>
+        </Sidebar>
+        <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
+          <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </AuthCheck>
   );
 }
