@@ -85,16 +85,31 @@ export default function BrandingPage() {
     const form = useForm();
     
     React.useEffect(() => {
-        const fetchProfile = async () => {
+        const fetchBranding = async () => {
             const profileRef = doc(firestore, 'schoolProfile', 'main');
-            const profileSnap = await getDoc(profileRef);
+            const brandingRef = doc(firestore, 'schoolProfile', 'branding');
+            
+            const [profileSnap, brandingSnap] = await Promise.all([
+                getDoc(profileRef),
+                getDoc(brandingRef)
+            ]);
+
             if (profileSnap.exists()) {
                 const data = profileSnap.data();
                 if (data.logoUrl) setLogoUrl(data.logoUrl);
                 if (data.coverImageUrl) setCoverImageUrl(data.coverImageUrl);
             }
+
+            if (brandingSnap.exists()) {
+                const data = brandingSnap.data();
+                setPrimaryColor(data.primaryColor || defaultTheme.primaryColor);
+                setAccentColor(data.accentColor || defaultTheme.accentColor);
+                setBackgroundColor(data.backgroundColor || defaultTheme.backgroundColor);
+                setHeadlineFont(data.headlineFont || defaultTheme.headlineFont);
+                setBodyFont(data.bodyFont || defaultTheme.bodyFont);
+            }
         };
-        fetchProfile();
+        fetchBranding();
     }, []);
 
     const previewStyle = {
@@ -185,21 +200,33 @@ export default function BrandingPage() {
 
     const handleSaveTheme = async () => {
         setIsLoading(true);
-        // This is a mock save. In a real application, you would make an API call
-        // to a backend service that would modify the globals.css file or update
-        // a database record with the new theme values.
-        setTimeout(() => {
-            setIsLoading(false);
+        const brandingData = {
+            primaryColor,
+            accentColor,
+            backgroundColor,
+            headlineFont,
+            bodyFont
+        };
+
+        try {
+            await setDoc(doc(firestore, 'schoolProfile', 'branding'), brandingData);
+
             toast({
                 title: 'Theme Saved!',
-                description: 'Your new branding colors have been applied. The page will now reload.',
+                description: 'Your new branding has been applied. Reloading to see changes.',
             });
-
-            // In a real app, you might not need to reload, but for this demo, it ensures
-            // that if we were changing CSS variables, they would be applied everywhere.
             setTimeout(() => window.location.reload(), 1500);
 
-        }, 1500);
+        } catch (error) {
+            console.error("Error saving theme:", error);
+            toast({
+                title: 'Save Failed',
+                description: 'Could not save the theme to the database.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
 
