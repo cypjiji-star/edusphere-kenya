@@ -24,6 +24,12 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 
 type CalendarView = 'month' | 'week' | 'day';
