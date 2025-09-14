@@ -54,15 +54,18 @@ import {
   FileDown,
   ChevronDown,
   ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LessonPlanCalendar } from './lesson-plan-calendar';
 import { useSearchParams } from 'next/navigation';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, query, Timestamp } from 'firebase/firestore';
 
 
 type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
 
-type LessonPlanSubmission = {
+type LessonPlan = {
   id: string;
   topic: string;
   teacher: {
@@ -71,23 +74,9 @@ type LessonPlanSubmission = {
   };
   class: string;
   subject: string;
-  date: string;
+  date: Timestamp;
   status: LessonPlanStatus;
 };
-
-// --- Mock Data ---
-const MOCK_SUBMISSIONS: LessonPlanSubmission[] = [
-  { id: 'lp-1', topic: 'Introduction to Algebra', teacher: { name: 'Mr. Otieno', avatarUrl: 'https://picsum.photos/seed/teacher-otieno/100' }, class: 'Form 1', subject: 'Mathematics', date: '2024-07-22', status: 'Published' },
-  { id: 'lp-2', topic: 'The River and The Source: Themes', teacher: { name: 'Ms. Njeri', avatarUrl: 'https://picsum.photos/seed/teacher-njeri/100' }, class: 'Form 3', subject: 'English', date: '2024-07-22', status: 'Published' },
-  { id: 'lp-3', topic: 'Acid-Base Titration', teacher: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' }, class: 'Form 4', subject: 'Chemistry', date: '2024-07-21', status: 'In Progress' },
-  { id: 'lp-4', topic: 'Photosynthesis', teacher: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-wanjiku/100' }, class: 'Form 2', subject: 'Biology', date: '2024-07-20', status: 'Completed' },
-  { id: 'lp-5', topic: 'The Scramble for Africa', teacher: { name: 'Mr. Kamau', avatarUrl: 'https://picsum.photos/seed/teacher-kamau/100' }, class: 'Form 2', subject: 'History', date: '2024-07-19', status: 'Draft' },
-  { id: 'lp-6', topic: 'Newton\'s Laws of Motion', teacher: { name: 'Mr. Kamau', avatarUrl: 'https://picsum.photos/seed/teacher-kamau/100' }, class: 'Form 2', subject: 'Physics', date: '2024-07-18', status: 'Skipped' },
-];
-
-const teachers = ['All Teachers', 'Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri', 'Mr. Kamau'];
-const classes = ['All Classes', 'Form 4', 'Form 3', 'Form 2', 'Form 1'];
-const subjects = ['All Subjects', 'Mathematics', 'English', 'Chemistry', 'Biology', 'History', 'Physics'];
 
 const getStatusBadge = (status: LessonPlanStatus) => {
     switch (status) {
@@ -103,6 +92,12 @@ const getStatusBadge = (status: LessonPlanStatus) => {
 export default function AdminLessonPlansPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const [lessonPlans, setLessonPlans] = React.useState<LessonPlan[]>([]);
+  const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
+  const [classes, setClasses] = React.useState<string[]>(['All Classes']);
+  const [subjects, setSubjects] = React.useState<string[]>(['All Subjects']);
+  const [isLoading, setIsLoading] = React.useState(true);
+
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [teacherFilter, setTeacherFilter] = React.useState('All Teachers');
@@ -111,11 +106,42 @@ export default function AdminLessonPlansPage() {
   const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
-    setClientReady(true);
-  }, []);
+    if (!schoolId) {
+      setIsLoading(false);
+      return;
+    };
 
-  const filteredSubmissions = MOCK_SUBMISSIONS.filter(submission => {
-      const recordDate = new Date(submission.date);
+    setClientReady(true);
+    setIsLoading(true);
+
+    const plansUnsub = onSnapshot(query(collection(firestore, `schools/${schoolId}/lesson-plans`)), (snapshot) => {
+        setLessonPlans(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as LessonPlan)));
+        setIsLoading(false);
+    });
+
+    const teachersUnsub = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher')), (snapshot) => {
+        setTeachers(['All Teachers', ...snapshot.docs.map(d => d.data().name)]);
+    });
+
+    const classesUnsub = onSnapshot(collection(firestore, 'schools', schoolId, 'classes'), (snapshot) => {
+        setClasses(['All Classes', ...snapshot.docs.map(d => `${d.data().name} ${d.data().stream || ''}`.trim())]);
+    });
+    
+    const subjectsUnsub = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
+        setSubjects(['All Subjects', ...snapshot.docs.map(d => d.data().name)]);
+    });
+
+    return () => {
+        plansUnsub();
+        teachersUnsub();
+        classesUnsub();
+        subjectsUnsub();
+    };
+
+  }, [schoolId]);
+
+  const filteredSubmissions = lessonPlans.filter(submission => {
+      const recordDate = submission.date.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
       const matchesSearch = submission.topic.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesTeacher = teacherFilter === 'All Teachers' || submission.teacher.name === teacherFilter;
@@ -241,6 +267,9 @@ export default function AdminLessonPlansPage() {
                 </div>
               </CardHeader>
               <CardContent>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                ) : (
                 <div className="w-full overflow-auto rounded-lg border">
                   <Table>
                     <TableHeader>
@@ -271,7 +300,7 @@ export default function AdminLessonPlansPage() {
                                 <div>{submission.class}</div>
                                 <div className="text-sm text-muted-foreground">{submission.subject}</div>
                             </TableCell>
-                            <TableCell>{clientReady ? new Date(submission.date).toLocaleDateString() : ''}</TableCell>
+                            <TableCell>{clientReady ? new Date(submission.date.toDate()).toLocaleDateString() : ''}</TableCell>
                             <TableCell>{getStatusBadge(submission.status)}</TableCell>
                             <TableCell className="text-right">
                                 <Button asChild variant="outline" size="sm">
@@ -293,10 +322,11 @@ export default function AdminLessonPlansPage() {
                     </TableBody>
                   </Table>
                 </div>
+                )}
               </CardContent>
               <CardFooter>
                   <div className="text-xs text-muted-foreground">
-                      Showing <strong>{filteredSubmissions.length}</strong> of <strong>{MOCK_SUBMISSIONS.length}</strong> total lesson plans.
+                      Showing <strong>{filteredSubmissions.length}</strong> of <strong>{lessonPlans.length}</strong> total lesson plans.
                   </div>
               </CardFooter>
             </Card>
@@ -308,11 +338,12 @@ export default function AdminLessonPlansPage() {
                     <CardDescription>A monthly overview of all scheduled lesson plans.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <LessonPlanCalendar lessonPlans={MOCK_SUBMISSIONS} />
+                    <LessonPlanCalendar lessonPlans={lessonPlans} />
                 </CardContent>
              </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
-}
+
+    
