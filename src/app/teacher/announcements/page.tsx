@@ -31,7 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { translateText } from '@/ai/flows/translate-text';
-import { firestore, storage } from '@/lib/firebase';
+import { firestore, storage, auth } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
@@ -73,6 +73,7 @@ export default function AnnouncementsPage() {
   const [isTranslating, setIsTranslating] = React.useState(false);
   const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const user = auth.currentUser;
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -84,14 +85,14 @@ export default function AnnouncementsPage() {
   const { toast } = useToast();
 
    React.useEffect(() => {
-    if (!schoolId) return;
-    const q = query(collection(firestore, 'schools', schoolId, 'announcements'), where('sender.name', '==', 'Ms. Wanjiku'), orderBy('sentAt', 'desc'));
+    if (!schoolId || !user) return;
+    const q = query(collection(firestore, 'schools', schoolId, 'announcements'), where('sender.id', '==', user.uid), orderBy('sentAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
         setPastAnnouncements(fetchedAnnouncements);
     });
     return () => unsubscribe();
-  }, [schoolId]);
+  }, [schoolId, user]);
 
   const handleTranslate = async () => {
     const message = form.getValues('message');
@@ -139,8 +140,8 @@ export default function AnnouncementsPage() {
   };
 
   async function onSubmit(values: AnnouncementFormValues) {
-    if (!schoolId) {
-        toast({ title: 'Error', description: 'School ID is missing.', variant: 'destructive'});
+    if (!schoolId || !user) {
+        toast({ title: 'Error', description: 'Authentication or School ID is missing.', variant: 'destructive'});
         return;
     }
     setIsSubmitting(true);
@@ -159,7 +160,7 @@ export default function AnnouncementsPage() {
           content: values.message,
           audience: values.audience,
           category: values.category,
-          sender: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-avatar/100' },
+          sender: { id: user.uid, name: user.displayName || 'Teacher', avatarUrl: user.photoURL || 'https://picsum.photos/seed/teacher-avatar/100' },
           sentAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
           readBy: [],
           readCount: 0,
@@ -405,5 +406,3 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
-
-    

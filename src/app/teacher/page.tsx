@@ -18,7 +18,7 @@ import { AbsentStudentsWidget } from './absent-students-widget';
 import { MessagesWidget } from './messages-widget';
 import { DashboardCharts } from './dashboard-charts';
 import { LibraryNoticesWidget } from './library-notices-widget';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -31,6 +31,12 @@ export default function TeacherDashboard() {
     const [attendancePercentage, setAttendancePercentage] = React.useState(0);
     const [avgScore, setAvgScore] = React.useState(0);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [user, setUser] = React.useState(auth.currentUser);
+
+    React.useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(setUser);
+        return () => unsubscribe();
+    }, []);
 
     React.useEffect(() => {
         if (!schoolId) return;
@@ -123,7 +129,7 @@ export default function TeacherDashboard() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="font-headline text-3xl font-bold">Welcome, Ms. Wanjiku!</h1>
+        <h1 className="font-headline text-3xl font-bold">Welcome, {user?.displayName || 'Teacher'}!</h1>
         <p className="text-muted-foreground">Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
       </div>
 

@@ -38,7 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import * as React from 'react';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
 
@@ -60,6 +60,13 @@ export function ParentSidebar() {
   const schoolId = searchParams.get('schoolId');
   const isActive = (href: string) => pathname.startsWith(href);
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
+  const [user, setUser] = React.useState(auth.currentUser);
+
+  React.useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(setUser);
+    return () => unsubscribe();
+  }, []);
+
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -127,11 +134,11 @@ export function ParentSidebar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="https://picsum.photos/seed/parent1/100" alt="Parent" />
-                <AvatarFallback>P</AvatarFallback>
+                <AvatarImage src={user?.photoURL || "https://picsum.photos/seed/parent1/100"} alt="Parent" />
+                <AvatarFallback>{user?.displayName?.charAt(0) || 'P'}</AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <p className="text-sm font-medium">Mr. Omondi</p>
+                <p className="text-sm font-medium">{user?.displayName || 'Parent'}</p>
                 <p className="text-xs text-muted-foreground">Parent</p>
               </div>
               <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
@@ -140,9 +147,9 @@ export function ParentSidebar() {
           <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Mr. Omondi</p>
+                <p className="text-sm font-medium leading-none">{user?.displayName || 'Parent'}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  parent@example.com
+                  {user?.email || 'parent@example.com'}
                 </p>
               </div>
             </DropdownMenuLabel>
