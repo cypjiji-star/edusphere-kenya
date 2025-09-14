@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -53,7 +52,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc, Timestamp, writeBatch, addDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDoc, Timestamp, writeBatch, addDoc, orderBy } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -75,9 +74,10 @@ type Transaction = {
     id: string;
     date: Timestamp;
     description: string;
-    type: 'Charge' | 'Payment';
+    type: 'Charge' | 'Payment' | 'Waiver' | 'Refund';
     amount: number;
     balance: number;
+    recordedBy: string;
 };
 
 type PaymentHistory = {
@@ -114,12 +114,13 @@ export default function ParentFeesPage() {
     const [mpesaPhoneNumber, setMpesaPhoneNumber] = React.useState('0722123456');
     const [paymentAmount, setPaymentAmount] = React.useState(0);
     const { toast } = useToast();
+    const parentId = 'parent-user-id'; // This should be dynamic based on logged-in user
 
     React.useEffect(() => {
         if (!schoolId) return;
         setClientReady(true);
         // In a real app, filter by parent ID. For now, we fetch a few students.
-        const q = query(collection(firestore, `schools/${schoolId}/students`), where('role', '==', 'Student'));
+        const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -128,7 +129,7 @@ export default function ParentFeesPage() {
             }
         });
         return () => unsubscribe();
-    }, [schoolId, selectedChild]);
+    }, [schoolId, selectedChild, parentId]);
 
     React.useEffect(() => {
         if (!selectedChild || !schoolId) return;
