@@ -246,7 +246,7 @@ export function ChatLayout() {
 
     const newConvoData = {
         name: contact.name,
-        avatar: contact.avatar,
+        avatar: contact.avatar || `https://picsum.photos/seed/${contact.id}/100`,
         icon: 'User', // Storing string instead of component
         lastMessage: 'New conversation started.',
         timestamp: serverTimestamp(),
@@ -576,8 +576,3 @@ export function ChatLayout() {
     </div>
   );
 }
-
-    
-
-    
-
