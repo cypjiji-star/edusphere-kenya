@@ -47,7 +47,8 @@ import { subjects, views } from './timetable-data';
 import type { Subject } from './timetable-data';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 
 type Period = { id: number; time: string; isBreak?: boolean; title?: string };
@@ -96,6 +97,8 @@ function DroppableCell({ day, periodId, children }: { day: string; periodId: num
 }
 
 export function TimetableBuilder() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
   const [view, setView] = React.useState(views[0]);
   const [selectedItem, setSelectedItem] = React.useState<string | undefined>();
   const [timetable, setTimetable] = React.useState<TimetableData>({});
@@ -107,7 +110,9 @@ export function TimetableBuilder() {
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const unsubClasses = onSnapshot(collection(firestore, 'classes'), (snapshot) => {
+    if (!schoolId) return;
+
+    const unsubClasses = onSnapshot(collection(firestore, `schools/${schoolId}/classes`), (snapshot) => {
         const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
         setAllClasses(classesData);
         if (!selectedItem && classesData.length > 0) {
@@ -116,10 +121,12 @@ export function TimetableBuilder() {
     });
 
     // Mock fetching teachers and rooms for now
-    setAllTeachers(['Ms. Wanjiku', 'Mr. Otieno', 'Ms. Njeri', 'Mr. Kamau']);
+    const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher')), (snapshot) => {
+        setAllTeachers(snapshot.docs.map(doc => doc.data().name));
+    });
     setAllRooms(['Science Lab', 'Room 12A', 'Room 10B', 'Staff Room']);
 
-    const unsubPeriods = onSnapshot(doc(firestore, 'timetableSettings', 'periods'), (docSnap) => {
+    const unsubPeriods = onSnapshot(doc(firestore, `schools/${schoolId}/timetableSettings`, 'periods'), (docSnap) => {
         if (docSnap.exists()) {
             setPeriods(docSnap.data().periods);
         }
@@ -128,13 +135,14 @@ export function TimetableBuilder() {
     return () => {
         unsubClasses();
         unsubPeriods();
+        unsubTeachers();
     }
-  }, [selectedItem]);
+  }, [schoolId, selectedItem]);
 
   React.useEffect(() => {
-    if (!selectedItem) return;
+    if (!selectedItem || !schoolId) return;
     setIsLoading(true);
-    const timetableRef = doc(firestore, 'timetables', selectedItem);
+    const timetableRef = doc(firestore, `schools/${schoolId}/timetables`, selectedItem);
     const unsubTimetable = onSnapshot(timetableRef, (docSnap) => {
         if (docSnap.exists()) {
             setTimetable(docSnap.data() as TimetableData);
@@ -145,7 +153,7 @@ export function TimetableBuilder() {
     });
 
     return () => unsubTimetable();
-  }, [selectedItem]);
+  }, [selectedItem, schoolId]);
 
   const addPeriod = () => {
     const newId = periods.length > 0 ? Math.max(...periods.map(p => p.id)) + 1 : 1;
@@ -225,13 +233,13 @@ export function TimetableBuilder() {
   }
 
   const handleSave = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !schoolId) return;
     try {
-        const timetableRef = doc(firestore, 'timetables', selectedItem);
+        const timetableRef = doc(firestore, `schools/${schoolId}/timetables`, selectedItem);
         await setDoc(timetableRef, timetable);
         toast({
             title: 'Timetable Saved',
-            description: `The timetable for ${selectedItem} has been saved.`,
+            description: `The timetable for the selected view has been saved.`,
         });
     } catch (e) {
         console.error(e);
@@ -242,13 +250,14 @@ export function TimetableBuilder() {
   const handlePublish = () => {
      toast({
         title: 'Timetable Published',
-        description: `The timetable for ${selectedItem} is now live and visible to relevant users.`,
+        description: `The timetable is now live and visible to relevant users.`,
     })
   }
   
   const handleSavePeriods = async () => {
+    if (!schoolId) return;
     try {
-        await setDoc(doc(firestore, 'timetableSettings', 'periods'), { periods });
+        await setDoc(doc(firestore, `schools/${schoolId}/timetableSettings`, 'periods'), { periods });
         toast({
             title: 'Periods Saved',
             description: 'The school day periods have been updated for all timetables.',
@@ -266,8 +275,19 @@ export function TimetableBuilder() {
     });
   };
 
-  if (!selectedItem) {
+  if (!selectedItem && !isLoading) {
     return (
+        <Card>
+            <CardHeader>
+                <CardTitle>No Classes Found</CardTitle>
+                <CardDescription>Please add a class before creating a timetable.</CardDescription>
+            </CardHeader>
+        </Card>
+    );
+  }
+  
+  if (isLoading || !selectedItem) {
+     return (
         <Card>
             <CardHeader>
                 <CardTitle>Loading Timetable Data...</CardTitle>
@@ -499,3 +519,5 @@ export function TimetableBuilder() {
     </DndContext>
   );
 }
+
+    
