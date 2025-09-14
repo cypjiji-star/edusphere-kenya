@@ -108,7 +108,7 @@ export default function GradesPage() {
     React.useEffect(() => {
         setIsLoading(true);
         const teacherId = 'teacher-wanjiku'; // Placeholder
-        const assessmentsQuery = query(collection(firestore, 'assessments'), where('classId', '==', selectedClass), where('teacherId', '==', teacherId));
+        const assessmentsQuery = query(collection(firestore, 'assessments'), where('classId', '==', selectedClass));
         const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
             const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
             setCurrentAssessments(assessments);
@@ -118,9 +118,20 @@ export default function GradesPage() {
         const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
             const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
                 const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
-                const gradesQuery = query(collection(firestore, 'submissions'), where('studentId', '==', student.studentId));
-                const gradesSnapshot = await getDocs(gradesQuery);
-                const grades = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
+                
+                const grades: Grade[] = [];
+                const submissionsSnapshot = await getDocs(query(collection(firestore, `assignments`), where('classId', '==', selectedClass)));
+
+                for (const asgDoc of submissionsSnapshot.docs) {
+                    const submissionQuery = query(collection(firestore, `assignments/${asgDoc.id}/submissions`), where('studentRef', '==', doc(firestore, 'students', student.studentId)));
+                    const submissionSnap = await getDocs(submissionQuery);
+                    if (!submissionSnap.empty) {
+                        const submissionData = submissionSnap.docs[0].data();
+                        if (submissionData.grade) {
+                            grades.push({ assessmentId: asgDoc.id, score: submissionData.grade });
+                        }
+                    }
+                }
                 
                 const numericScores = grades.map(g => parseInt(String(g.score))).filter(s => !isNaN(s));
                 const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a+b, 0) / numericScores.length) : 0;
@@ -398,5 +409,3 @@ export default function GradesPage() {
     </div>
   );
 }
-
-    
