@@ -48,23 +48,7 @@ export default function PermissionsPage() {
         snapshot.forEach(doc => {
             roles[doc.id] = doc.data() as Role;
         });
-        
-        // This part is tricky without a way to query all users across all schools easily.
-        // For a developer portal, we'd often rely on aggregated data or a simplified view.
-        // We will mock the user count for this developer-level view.
-        const mockUserCounts: Record<string, number> = {
-            'Admin': 10,
-            'Teacher': 250,
-            'Parent': 2000,
-            'Student': 3500,
-        };
-
-        const updatedRoles = { ...roles };
-        for (const roleName in updatedRoles) {
-            updatedRoles[roleName].userCount = mockUserCounts[roleName] || 0;
-        }
-
-        setRolePermissions(updatedRoles);
+        setRolePermissions(roles);
         setIsLoading(false);
     });
 
@@ -240,8 +224,7 @@ export default function PermissionsPage() {
                     )}
                     </div>
                     <CardDescription className="flex items-center gap-2 pt-1">
-                        <Users2 className="h-4 w-4"/>
-                        {roleData.userCount} users assigned
+                        {roleData.isCore ? 'Core system role' : 'Custom role'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
