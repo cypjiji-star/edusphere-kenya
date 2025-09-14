@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell, Loader2 } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell } from 'recharts';
 import {
   Card,
   CardContent,
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/chart';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
 type TimetableData = Record<string, Record<string, { subject: { teacher: string } }>>;
 
