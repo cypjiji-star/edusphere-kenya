@@ -80,7 +80,7 @@ const mediaHighlights = [
 ];
 
 export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
-  const { teamId } = React.use(params);
+  const { teamId } = params;
   const { toast } = useToast();
 
   const [teamDetails, setTeamDetails] = React.useState<TeamDetails | null>(null);
@@ -175,7 +175,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
         if (!studentDoc.exists()) throw new Error("Student document not found");
 
         const studentData = studentDoc.data();
-        const newMember: Omit<StudentMember, 'id'> = {
+        const newMemberData = {
             name: studentData.name,
             class: studentData.class,
             avatarUrl: studentData.avatarUrl,
@@ -183,7 +183,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
         };
 
         // Use the student's main ID as the ID for the member document for consistency
-        await addDoc(collection(firestore, 'teams', teamId, 'members'), newMember);
+        await setDoc(doc(firestore, 'teams', teamId, 'members', student.id), newMemberData);
         
         // Also update member count on team doc
         const teamRef = doc(firestore, 'teams', teamId);
