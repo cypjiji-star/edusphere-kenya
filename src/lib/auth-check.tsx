@@ -30,7 +30,7 @@ export function AuthCheck({ children, requiredRole }: { children: ReactNode, req
           if (requiredRole === 'developer') {
             const devDocRef = doc(firestore, 'developers', authUser.uid);
             const devDoc = await getDoc(devDocRef);
-            if (devDoc.exists() && devDoc.data().role === 'developer') {
+            if (devDoc.exists()) {
               userRole = 'developer';
             }
           } else if (schoolId) {
