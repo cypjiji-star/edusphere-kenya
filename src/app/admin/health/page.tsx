@@ -89,6 +89,7 @@ type Incident = {
   date: Timestamp;
   reportedBy: string;
   status: IncidentStatus;
+  location?: string;
 };
 
 type TeacherStudent = { id: string; name: string; class: string; };
@@ -983,4 +984,6 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
+    
+
     
