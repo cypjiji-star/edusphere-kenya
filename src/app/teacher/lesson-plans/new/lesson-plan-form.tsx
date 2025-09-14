@@ -34,9 +34,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
-import { useAtom } from 'jotai';
-import { lessonPlansAtom } from '../data';
-import type { LessonPlan } from '../data';
+import { firestore } from '@/lib/firebase';
+import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 
 
 export const lessonPlanSchema = z.object({
@@ -73,7 +72,6 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(!!lessonPlanId);
-  const [allLessonPlans, setAllLessonPlans] = useAtom(lessonPlansAtom);
 
   const form = useForm<LessonPlanFormValues>({
     resolver: zodResolver(lessonPlanSchema),
@@ -85,78 +83,69 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate }: LessonPlanFormPr
       materials: '',
       activities: '',
       assessment: '',
-      date: prefilledDate && isValid(parse(prefilledDate, 'yyyy-MM-dd', new Date())) ? parse(prefilledDate, 'yyyy-MM-dd', new Date()) : undefined,
+      date: prefilledDate && isValid(parse(prefilledDate, 'yyyy-MM-dd', new Date())) ? parse(prefilledDate, 'yyyy-MM-dd', new Date()) : new Date(),
     },
   });
 
    useEffect(() => {
     if (lessonPlanId) {
-      const lessonPlanToEdit = allLessonPlans.find(lp => lp.id === lessonPlanId);
-      if (lessonPlanToEdit) {
-        setIsEditMode(true);
-        form.reset({
-            topic: lessonPlanToEdit.topic,
-            subject: lessonPlanToEdit.subject,
-            grade: lessonPlanToEdit.gradeLevel,
-            date: new Date(lessonPlanToEdit.lastUpdated),
-            objectives: lessonPlanToEdit.objectives || `Define ${lessonPlanToEdit.topic} and explain its importance.`,
-            activities: lessonPlanToEdit.activities || `1. Introduction to ${lessonPlanToEdit.topic}.\n2. Group discussion.`,
-            assessment: lessonPlanToEdit.assessment || `Short quiz on the key concepts of ${lessonPlanToEdit.topic}.`,
-            materials: lessonPlanToEdit.materials || 'Textbook, whiteboard, markers.'
-        });
+      const fetchLessonPlan = async () => {
+        const docRef = doc(firestore, 'lesson-plans', lessonPlanId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          form.reset({
+            ...data,
+            date: data.date.toDate(),
+          });
+        }
       }
+      fetchLessonPlan();
+      setIsEditMode(true);
     }
-  }, [lessonPlanId, form, allLessonPlans]);
+  }, [lessonPlanId, form]);
   
   const formState = useWatch({ control: form.control });
 
   async function onSubmit(values: LessonPlanFormValues) {
     setIsLoading(true);
 
-    if (isEditMode && lessonPlanId) {
-        // Update existing lesson plan
-        setAllLessonPlans(prevPlans => prevPlans.map(p => p.id === lessonPlanId ? {
-            ...p,
-            topic: values.topic,
-            subject: values.subject,
-            gradeLevel: values.grade,
-            lastUpdated: format(values.date, 'yyyy-MM-dd'),
-            objectives: values.objectives,
-            activities: values.activities,
-            assessment: values.assessment,
-            materials: values.materials,
-        } : p));
-        toast({
-            title: `Lesson Plan Updated!`,
-            description: `"${values.topic}" has been successfully updated.`,
-        });
-    } else {
-        // Create new lesson plan
-        const newPlan: LessonPlan = {
-            id: `lp-${Date.now()}`,
-            topic: values.topic,
-            subject: values.subject,
-            gradeLevel: values.grade,
-            lastUpdated: format(values.date, 'yyyy-MM-dd'),
-            status: 'Draft',
-            objectives: values.objectives,
-            activities: values.activities,
-            assessment: values.assessment,
-            materials: values.materials,
-        };
-        setAllLessonPlans(prevPlans => [newPlan, ...prevPlans]);
-        toast({
-            title: `Lesson Plan Saved!`,
-            description: `"${values.topic}" has been successfully saved.`,
-        });
-        form.reset({
-            ...form.getValues(),
-            topic: '',
-            objectives: '',
-            activities: '',
-            assessment: '',
-            materials: ''
-        });
+    try {
+        if (isEditMode && lessonPlanId) {
+            // Update existing lesson plan
+            const docRef = doc(firestore, 'lesson-plans', lessonPlanId);
+            await updateDoc(docRef, {
+                ...values,
+                teacherId: 'teacher-wanjiku' // Placeholder
+            });
+            toast({
+                title: `Lesson Plan Updated!`,
+                description: `"${values.topic}" has been successfully updated.`,
+            });
+        } else {
+            // Create new lesson plan
+            await addDoc(collection(firestore, 'lesson-plans'), {
+                ...values,
+                teacherId: 'teacher-wanjiku', // Placeholder
+                status: 'Draft',
+                createdAt: serverTimestamp(),
+            });
+            toast({
+                title: `Lesson Plan Saved!`,
+                description: `"${values.topic}" has been successfully saved.`,
+            });
+            form.reset({
+                ...form.getValues(),
+                topic: '',
+                objectives: '',
+                activities: '',
+                assessment: '',
+                materials: ''
+            });
+        }
+    } catch (e) {
+        console.error("Error saving lesson plan:", e);
+        toast({ variant: 'destructive', title: 'Save failed!' });
     }
     
     setIsLoading(false);

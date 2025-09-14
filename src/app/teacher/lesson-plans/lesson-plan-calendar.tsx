@@ -21,7 +21,7 @@ import { ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import type { LessonPlan } from './data';
+import type { LessonPlan } from './page';
 
 interface LessonPlanCalendarProps {
     lessonPlans: LessonPlan[];
@@ -67,7 +67,7 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
         <div className="grid grid-cols-7">
           {weeks.map(weekStart =>
             eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map(day => {
-              const plansForDay = lessonPlans.filter(p => isSameDay(new Date(p.lastUpdated), day));
+              const plansForDay = lessonPlans.filter(p => isSameDay(p.date.toDate(), day));
               return (
                 <div
                   key={day.toString()}

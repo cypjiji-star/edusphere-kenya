@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, BookOpen, ArrowRight, Search, FileDown, Filter, ChevronDown } from 'lucide-react';
+import { PlusCircle, BookOpen, ArrowRight, Search, FileDown, Filter, ChevronDown, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -26,10 +26,20 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LessonPlanCalendar } from './lesson-plan-calendar';
 import { cn } from '@/lib/utils';
-import { useAtom } from 'jotai';
-import { lessonPlansAtom } from './data';
-import type { LessonPlan, LessonPlanStatus } from './data';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 
+
+export type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
+
+export type LessonPlan = {
+  id: string;
+  topic: string;
+  subject: string;
+  grade: string;
+  date: Timestamp;
+  status: LessonPlanStatus;
+};
 
 const subjects = ['All Subjects', 'Biology', 'Chemistry', 'English', 'History', 'Mathematics', 'Physics'];
 const grades = ['All Grades', 'Grade 6', 'Form 1', 'Form 2', 'Form 3', 'Form 4'];
@@ -44,15 +54,34 @@ const statusColors: Record<LessonPlanStatus, string> = {
 
 
 export default function LessonPlansPage() {
-  const [allLessonPlans] = useAtom(lessonPlansAtom);
+  const [allLessonPlans, setAllLessonPlans] = React.useState<LessonPlan[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [filteredGrade, setFilteredGrade] = React.useState('All Grades');
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+    const teacherId = 'teacher-wanjiku'; // Placeholder
+    const q = query(collection(firestore, 'lesson-plans'), where('teacherId', '==', teacherId));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LessonPlan));
+        setAllLessonPlans(plans);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching lesson plans:", error);
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const lessonPlans = allLessonPlans.filter(plan => 
     (plan.topic.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (filteredSubject === 'All Subjects' || plan.subject === filteredSubject) &&
-    (filteredGrade === 'All Grades' || plan.gradeLevel === filteredGrade)
+    (filteredGrade === 'All Grades' || plan.grade === filteredGrade)
   );
 
   return (
@@ -73,7 +102,7 @@ export default function LessonPlansPage() {
             </Button>
         </div>
 
-      <Tabs defaultValue="calendar-view" className="w-full">
+      <Tabs defaultValue="list-view" className="w-full">
         <div className="flex items-center justify-between">
             <TabsList>
                 <TabsTrigger value="list-view">List View</TabsTrigger>
@@ -113,7 +142,7 @@ export default function LessonPlansPage() {
                             </Select>
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full md:w-auto">
+                                <Button variant="outline" className="w-full md:w-auto" disabled>
                                 Export
                                 <ChevronDown className="ml-2 h-4 w-4" />
                                 </Button>
@@ -129,7 +158,11 @@ export default function LessonPlansPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {lessonPlans.length > 0 ? (
+                    {isLoading ? (
+                         <div className="flex items-center justify-center h-64">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                        </div>
+                    ) : lessonPlans.length > 0 ? (
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {lessonPlans.map((plan) => (
                             <Card key={plan.id}>
@@ -140,11 +173,11 @@ export default function LessonPlansPage() {
                                         {plan.status}
                                     </Badge>
                                 </div>
-                                <CardDescription>{plan.subject} - {plan.gradeLevel}</CardDescription>
+                                <CardDescription>{plan.subject} - {plan.grade}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground">
-                                    Last Updated: {new Date(plan.lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
+                                    Lesson Date: {clientReady ? plan.date.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric'}) : ''}
                                 </p>
                             </CardContent>
                             <CardFooter>
