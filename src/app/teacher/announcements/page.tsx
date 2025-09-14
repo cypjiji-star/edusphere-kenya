@@ -31,6 +31,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { translateText } from '@/ai/flows/translate-text';
+import { firestore, storage } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -45,40 +48,17 @@ type Announcement = {
     id: string;
     sender: { name: string; avatarUrl: string };
     content: string;
+    title: string;
     audience: string;
-    sentAt: string;
-    views: number;
-    totalRecipients: number;
+    sentAt: Timestamp;
     category: AnnouncementCategory;
 };
 
-const initialAnnouncements: Announcement[] = [
-    {
-        id: 'ann-1',
-        sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
-        content: 'Reminder: Staff meeting today at 3:00 PM in the staff room. Please be punctual.',
-        audience: 'All Staff',
-        sentAt: '2024-07-18 09:00 AM',
-        views: 28,
-        totalRecipients: 30,
-        category: 'Urgent' as AnnouncementCategory,
-    },
-    {
-        id: 'ann-2',
-        sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
-        content: 'The school will be closed tomorrow for the public holiday. Classes will resume on Friday.',
-        audience: 'All Students, All Parents',
-        sentAt: '2024-07-17 02:30 PM',
-        views: 850,
-        totalRecipients: 900,
-        category: 'General' as AnnouncementCategory,
-    },
-];
-
 const announcementSchema = z.object({
+    title: z.string().min(5, 'Title must be at least 5 characters long.'),
     message: z.string().min(10, 'Message must be at least 10 characters.'),
     audience: z.string({ required_error: 'Please select an audience.' }),
-    category: z.string({ required_error: 'Please select a category.' }),
+    category: z.nativeEnum(announcementCategories),
 });
 
 type AnnouncementFormValues = z.infer<typeof announcementSchema>;
@@ -86,17 +66,28 @@ type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 export default function AnnouncementsPage() {
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
-  const [pastAnnouncements, setPastAnnouncements] = React.useState(initialAnnouncements);
+  const [pastAnnouncements, setPastAnnouncements] = React.useState<Announcement[]>([]);
   const [isTranslating, setIsTranslating] = React.useState(false);
   const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
     defaultValues: {
+        title: '',
         message: '',
     }
   });
   const { toast } = useToast();
+
+   React.useEffect(() => {
+    const q = query(collection(firestore, 'announcements'), where('sender.name', '==', 'Ms. Wanjiku'), orderBy('sentAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
+        setPastAnnouncements(fetchedAnnouncements);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleTranslate = async () => {
     const message = form.getValues('message');
@@ -143,34 +134,52 @@ export default function AnnouncementsPage() {
     setAttachedFile(null);
   };
 
-  function onSubmit(values: AnnouncementFormValues) {
-    const newAnnouncement: Announcement = {
-        id: `ann-${Date.now()}`,
-        sender: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-avatar/100' },
-        content: values.message,
-        audience: values.audience,
-        sentAt: format(scheduledDate || new Date(), 'yyyy-MM-dd h:mm a'),
-        views: 0,
-        totalRecipients: 150, // Mock total for a class
-        category: values.category as AnnouncementCategory,
-    };
-    setPastAnnouncements(prev => [newAnnouncement, ...prev]);
-    form.reset();
-    setAttachedFile(null);
-    
-    if (isScheduling && scheduledDate) {
-        toast({
-            title: 'Announcement Scheduled!',
-            description: `Your message will be sent on ${format(scheduledDate, 'PPP')} at ${format(scheduledDate, 'h:mm a')}.`,
-        });
-    } else {
-        toast({
-            title: 'Announcement Sent!',
-            description: 'Your message has been broadcast to the selected audience.',
-        });
+  async function onSubmit(values: AnnouncementFormValues) {
+    setIsSubmitting(true);
+    let attachmentUrl, attachmentName;
+
+    try {
+      if (attachedFile) {
+        const storageRef = ref(storage, `announcements/${Date.now()}_${attachedFile.name}`);
+        const uploadTask = await uploadBytes(storageRef, attachedFile);
+        attachmentUrl = await getDownloadURL(uploadTask.ref);
+        attachmentName = attachedFile.name;
+      }
+      
+      const newAnnouncement = {
+          title: values.title,
+          content: values.message,
+          audience: values.audience,
+          category: values.category,
+          sender: { name: 'Ms. Wanjiku', avatarUrl: 'https://picsum.photos/seed/teacher-avatar/100' },
+          sentAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
+          ...(attachmentUrl && { attachmentUrl, attachmentName }),
+      };
+
+      await addDoc(collection(firestore, 'announcements'), newAnnouncement);
+      
+      form.reset();
+      setAttachedFile(null);
+      
+      if (isScheduling && scheduledDate) {
+          toast({
+              title: 'Announcement Scheduled!',
+              description: `Your message will be sent on ${format(scheduledDate, 'PPP')} at ${format(scheduledDate, 'h:mm a')}.`,
+          });
+      } else {
+          toast({
+              title: 'Announcement Sent!',
+              description: 'Your message has been broadcast to the selected audience.',
+          });
+      }
+      setIsScheduling(false);
+      setScheduledDate(undefined);
+    } catch (error) {
+      console.error('Error submitting announcement', error);
+      toast({ title: 'Submission Failed', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsScheduling(false);
-    setScheduledDate(undefined);
   }
 
   return (
@@ -190,6 +199,19 @@ export default function AnnouncementsPage() {
                     <CardDescription>Draft and send a new broadcast message.</CardDescription>
                 </CardHeader>
                   <CardContent className="space-y-6">
+                       <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Title</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., Reminder about upcoming CAT" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                       />
                       <FormField
                         control={form.control}
                         name="message"
@@ -249,11 +271,9 @@ export default function AnnouncementsPage() {
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="All Students, Parents & Staff">All Students, Parents & Staff</SelectItem>
-                                            <SelectItem value="All Students">All Students</SelectItem>
-                                            <SelectItem value="All Parents">All Parents</SelectItem>
-                                            <SelectItem value="All Staff">All Staff</SelectItem>
-                                            <SelectItem value="form-4-chem">Form 4 - Chemistry</SelectItem>
+                                            <SelectItem value="All My Students">All My Students</SelectItem>
+                                            <SelectItem value="form-4-chem">Form 4 - Chemistry Students</SelectItem>
+                                            <SelectItem value="form-4-chem-parents">Form 4 - Chemistry Parents</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -274,7 +294,7 @@ export default function AnnouncementsPage() {
                                         </FormControl>
                                         <SelectContent>
                                             {Object.entries(announcementCategories).map(([key, {label}]) => (
-                                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                                                <SelectItem key={key} value={key as AnnouncementCategory}>{label}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -323,34 +343,10 @@ export default function AnnouncementsPage() {
                                   </Popover>
                               )}
                           </div>
-                        <Separator />
-                      <div className="space-y-4">
-                          <Alert>
-                              <Bell className="h-4 w-4" />
-                              <AlertTitle>Notification Channels</AlertTitle>
-                              <AlertDescription>
-                                  Choose how this announcement will be delivered.
-                              </AlertDescription>
-                          </Alert>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                              <div className="flex items-center space-x-2">
-                                  <Switch id="notify-app" defaultChecked />
-                                  <Label htmlFor="notify-app">In-App Notification</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                  <Switch id="notify-email" />
-                                  <Label htmlFor="notify-email">Send as Email</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                  <Switch id="notify-sms" />
-                                  <Label htmlFor="notify-sms">Send as SMS</Label>
-                              </div>
-                          </div>
-                      </div>
                   </CardContent>
                 <CardFooter>
-                    <Button type="submit">
-                        <Send className="mr-2 h-4 w-4" />
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4" />}
                         {isScheduling ? 'Schedule Announcement' : 'Send Announcement'}
                     </Button>
                 </CardFooter>
@@ -364,65 +360,29 @@ export default function AnnouncementsPage() {
                     <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <History className="h-5 w-5 text-primary" />
-                            Sent History
+                            My Sent History
                         </CardTitle>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" disabled>
-                                    Export
-                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
-                                <DropdownMenuItem disabled><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
-                                <DropdownMenuItem disabled><Archive className="mr-2 h-4 w-4" />Archive All</DropdownMenuItem>
-                            </DropdownMenuContent>
-                         </DropdownMenu>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {pastAnnouncements.map((ann) => (
                         <div key={ann.id}>
                             <div className="space-y-3">
-                                 <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-9 w-9">
-                                            <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
-                                            <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="text-sm font-semibold">{ann.sender.name}</p>
-                                            <p className="text-xs text-muted-foreground">To: {ann.audience}</p>
-                                        </div>
-                                    </div>
-                                    <Badge className={cn(announcementCategories[ann.category].color, 'ml-auto')}>
-                                        {announcementCategories[ann.category].label}
-                                    </Badge>
-                                </div>
-
-                                <p className="text-sm leading-relaxed pl-12">{ann.content}</p>
-                                
-                                <div className="text-xs text-muted-foreground flex items-center justify-end">
-                                    <span>{ann.sentAt}</span>
-                                </div>
-
-                                <Separator className="my-2"/>
-                                 <div className="flex items-center justify-between text-xs text-muted-foreground pl-12">
-                                    <div className="flex items-center gap-1.5" title="Views">
-                                        <Eye className="h-4 w-4" />
-                                        <span className="font-medium">{ann.totalRecipients > 0 ? Math.round((ann.views / ann.totalRecipients) * 100) : 0}% viewed</span>
-                                    </div>
-                                    <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs">
-                                        <Link href="#">
-                                            View Details
-                                            <ArrowRight className="ml-1 h-3 w-3" />
-                                        </Link>
-                                    </Button>
+                                <p className="text-sm font-semibold">{ann.title}</p>
+                                <p className="text-sm leading-relaxed text-muted-foreground">{ann.content}</p>
+                                <div className="text-xs text-muted-foreground flex items-center justify-between">
+                                    <span>To: {ann.audience}</span>
+                                    <span>{ann.sentAt?.toDate().toLocaleString()}</span>
                                 </div>
                             </div>
+                             <Separator className="mt-4"/>
                         </div>
                     ))}
+                    {pastAnnouncements.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                            <p>You haven't sent any announcements yet.</p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -430,3 +390,5 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
+
+    

@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, Timestamp, getDocs, startAfter, collectionGroup } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, Timestamp, getDocs, startAfter, arrayUnion } from 'firebase/firestore';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -39,8 +39,9 @@ type Announcement = {
     audience: string;
     sentAt: Timestamp;
     category: AnnouncementCategory;
-    read: boolean;
-    attachments?: { name: string; size: string }[];
+    readBy: string[];
+    attachmentUrl?: string;
+    attachmentName?: string;
 }
 
 export default function ParentAnnouncementsPage() {
@@ -52,6 +53,7 @@ export default function ParentAnnouncementsPage() {
   const [lastVisible, setLastVisible] = React.useState<any>(null);
   const [hasMore, setHasMore] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const currentUserId = 'parent-user-id'; // This should be dynamic
 
   React.useEffect(() => {
     setIsLoading(true);
@@ -80,7 +82,9 @@ export default function ParentAnnouncementsPage() {
   const handleMarkAsRead = async (id: string) => {
     const announcementRef = doc(firestore, 'announcements', id);
     try {
-        await updateDoc(announcementRef, { read: true });
+        await updateDoc(announcementRef, { 
+            readBy: arrayUnion(currentUserId),
+        });
         toast({ title: 'Marked as Read' });
     } catch(e) {
         console.error("Error marking as read:", e);
@@ -89,7 +93,8 @@ export default function ParentAnnouncementsPage() {
   }
   
   const filteredAnnouncements = announcements.filter(ann => {
-      const matchesFilter = filter === 'All' || (filter === 'Read' && ann.read) || (filter === 'Unread' && !ann.read);
+      const isRead = ann.readBy.includes(currentUserId);
+      const matchesFilter = filter === 'All' || (filter === 'Read' && isRead) || (filter === 'Unread' && !isRead);
       const matchesSearch = searchTerm === '' || ann.content.toLowerCase().includes(searchTerm.toLowerCase()) || ann.sender.name.toLowerCase().includes(searchTerm.toLowerCase()) || ann.title.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesFilter && matchesSearch;
   });
@@ -118,7 +123,8 @@ export default function ParentAnnouncementsPage() {
     setIsLoadingMore(false);
   };
 
-  const handleAttachmentClick = (fileName: string) => {
+  const handleAttachmentClick = (attachmentUrl: string, fileName: string) => {
+    window.open(attachmentUrl, '_blank');
     toast({
         title: 'Downloading Attachment',
         description: `Your download for "${fileName}" will start shortly.`,
@@ -170,33 +176,33 @@ export default function ParentAnnouncementsPage() {
             ) : (
             <>
                 <CardContent className="space-y-6 pt-6">
-                    {filteredAnnouncements.length > 0 ? filteredAnnouncements.map((ann) => (
-                        <Card key={ann.id} className={cn(!ann.read && 'border-primary/50')}>
+                    {filteredAnnouncements.length > 0 ? filteredAnnouncements.map((ann) => {
+                        const isRead = ann.readBy.includes(currentUserId);
+                        return (
+                        <Card key={ann.id} className={cn(!isRead && 'border-primary/50')}>
                             <CardHeader className="flex flex-row items-start justify-between gap-4">
                                 <div className="flex-1">
                                     <CardTitle className="font-headline text-xl flex items-center gap-2">
-                                        {!ann.read ? <div className="h-2.5 w-2.5 rounded-full bg-primary" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
+                                        {!isRead ? <div className="h-2.5 w-2.5 rounded-full bg-primary" /> : <CheckCircle className="h-5 w-5 text-green-500" />}
                                         {ann.title}
                                     </CardTitle>
                                     <CardDescription>Posted: {ann.sentAt.toDate().toLocaleString()}</CardDescription>
                                 </div>
-                                <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category].color)}>
-                                    {announcementCategories[ann.category].label}
+                                <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category]?.color)}>
+                                    {announcementCategories[ann.category]?.label}
                                 </Badge>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <p className="text-sm leading-relaxed">{ann.content}</p>
 
-                                {ann.attachments && ann.attachments.length > 0 && (
+                                {ann.attachmentUrl && ann.attachmentName && (
                                     <div>
                                         <h4 className="font-semibold text-sm mb-2">Attachments</h4>
                                         <div className="space-y-2">
-                                            {ann.attachments.map((file, index) => (
-                                                <Button key={index} variant="outline" size="sm" className="w-full justify-start" onClick={() => handleAttachmentClick(file.name)}>
-                                                    <Paperclip className="mr-2 h-4 w-4"/>
-                                                    {file.name} ({file.size})
-                                                </Button>
-                                            ))}
+                                            <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => handleAttachmentClick(ann.attachmentUrl!, ann.attachmentName!)}>
+                                                <Paperclip className="mr-2 h-4 w-4"/>
+                                                {ann.attachmentName}
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
@@ -212,7 +218,7 @@ export default function ParentAnnouncementsPage() {
                                     </div>
                                 </div>
                             </CardContent>
-                            {!ann.read && (
+                            {!isRead && (
                                 <CardFooter>
                                     <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id)}>
                                         <Check className="mr-2 h-4 w-4"/>
@@ -221,7 +227,7 @@ export default function ParentAnnouncementsPage() {
                                 </CardFooter>
                             )}
                         </Card>
-                    )) : (
+                    )}) : (
                             <Card>
                                 <CardContent className="text-center text-muted-foreground py-16">
                                     <p className="font-semibold">No Announcements Found</p>
@@ -250,3 +256,4 @@ export default function ParentAnnouncementsPage() {
   );
 }
 
+    

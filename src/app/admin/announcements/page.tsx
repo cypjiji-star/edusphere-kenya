@@ -43,7 +43,9 @@ import { useToast } from '@/hooks/use-toast';
 import { translateText } from '@/ai/flows/translate-text';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-
+import { firestore, storage } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -56,56 +58,24 @@ const announcementCategories: Record<AnnouncementCategory, { label: string; colo
 
 type Announcement = {
     id: string;
+    title: string;
     sender: { name: string; avatarUrl: string };
     content: string;
     audience: string;
-    sentAt: string;
-    views: number;
-    totalRecipients: number;
+    sentAt: Timestamp;
     category: AnnouncementCategory;
     channels: { app: boolean; email: boolean; sms: boolean };
+    readCount: number;
+    totalRecipients: number;
+    attachmentUrl?: string;
+    attachmentName?: string;
 };
 
-const initialAnnouncements: Announcement[] = [
-    {
-        id: 'ann-1',
-        sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
-        content: 'Reminder: The school will be closed on Friday for the public holiday. Classes will resume on Monday.',
-        audience: 'All Students, All Parents, All Staff',
-        sentAt: '2024-07-18 09:00 AM',
-        views: 1250,
-        totalRecipients: 1800,
-        category: 'General' as AnnouncementCategory,
-        channels: { app: true, email: true, sms: false },
-    },
-    {
-        id: 'ann-2',
-        sender: { name: 'Principal\'s Office', avatarUrl: 'https://picsum.photos/seed/principal/100' },
-        content: 'The PTA meeting scheduled for this Saturday has been postponed. A new date will be communicated soon.',
-        audience: 'All Parents',
-        sentAt: '2024-07-17 02:30 PM',
-        views: 600,
-        totalRecipients: 780,
-        category: 'Event' as AnnouncementCategory,
-        channels: { app: true, email: false, sms: false },
-    },
-    {
-        id: 'ann-3',
-        sender: { name: 'Admin Office', avatarUrl: 'https://picsum.photos/seed/admin/100' },
-        content: 'Fee payment deadline for Term 2 is this Friday. Please ensure all outstanding balances are cleared.',
-        audience: 'All Parents',
-        sentAt: '2024-07-15 11:00 AM',
-        views: 750,
-        totalRecipients: 780,
-        category: 'Urgent' as AnnouncementCategory,
-        channels: { app: true, email: true, sms: true },
-    }
-];
-
 const announcementSchema = z.object({
+    title: z.string().min(5, 'Title must be at least 5 characters long.'),
     message: z.string().min(10, 'Message must be at least 10 characters.'),
     audience: z.string({ required_error: 'Please select an audience.' }),
-    category: z.string({ required_error: 'Please select a category.' }),
+    category: z.nativeEnum(announcementCategories),
     notifyApp: z.boolean().default(true),
     notifyEmail: z.boolean().default(false),
     notifySms: z.boolean().default(false),
@@ -115,7 +85,7 @@ type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 
 function StatsDialog({ announcement, open, onOpenChange }: { announcement: Announcement | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     if (!announcement) return null;
-    const viewRate = announcement.totalRecipients > 0 ? Math.round((announcement.views / announcement.totalRecipients) * 100) : 0;
+    const viewRate = announcement.totalRecipients > 0 ? Math.round((announcement.readCount / announcement.totalRecipients) * 100) : 0;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -123,7 +93,7 @@ function StatsDialog({ announcement, open, onOpenChange }: { announcement: Annou
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5 text-primary"/>Delivery Statistics</DialogTitle>
                     <DialogDescription>
-                        Stats for the announcement sent on {announcement.sentAt}.
+                        Stats for the announcement sent on {announcement.sentAt.toDate().toLocaleString()}.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
@@ -133,8 +103,8 @@ function StatsDialog({ announcement, open, onOpenChange }: { announcement: Annou
                             <p className="text-sm text-muted-foreground">Total Recipients</p>
                         </div>
                         <div>
-                            <p className="text-2xl font-bold">{announcement.views}</p>
-                            <p className="text-sm text-muted-foreground">Views</p>
+                            <p className="text-2xl font-bold">{announcement.readCount}</p>
+                            <p className="text-sm text-muted-foreground">Views/Reads</p>
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-primary">{viewRate}%</p>
@@ -144,7 +114,7 @@ function StatsDialog({ announcement, open, onOpenChange }: { announcement: Annou
                     <Separator/>
                     <div className="text-sm space-y-2">
                         <p><span className="font-semibold">Audience:</span> {announcement.audience}</p>
-                        <p><span className="font-semibold">Category:</span> {announcementCategories[announcement.category].label}</p>
+                        <p><span className="font-semibold">Category:</span> {announcement.category}</p>
                         <div className="space-y-1">
                              <p className="font-semibold">Channels Used:</p>
                              <div className="flex flex-wrap gap-2">
@@ -169,14 +139,16 @@ function StatsDialog({ announcement, open, onOpenChange }: { announcement: Annou
 export default function AdminAnnouncementsPage() {
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
-  const [pastAnnouncements, setPastAnnouncements] = React.useState(initialAnnouncements);
+  const [pastAnnouncements, setPastAnnouncements] = React.useState<Announcement[]>([]);
   const [isTranslating, setIsTranslating] = React.useState(false);
   const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
   const [selectedAnnouncementForStats, setSelectedAnnouncementForStats] = React.useState<Announcement | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
     defaultValues: {
+        title: '',
         message: '',
         notifyApp: true,
         notifyEmail: false,
@@ -184,6 +156,15 @@ export default function AdminAnnouncementsPage() {
     }
   });
   const { toast } = useToast();
+
+   React.useEffect(() => {
+    const q = query(collection(firestore, 'announcements'), orderBy('sentAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
+        setPastAnnouncements(fetchedAnnouncements);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleTranslate = async () => {
     const message = form.getValues('message');
@@ -239,7 +220,7 @@ export default function AdminAnnouncementsPage() {
     doc.text("Announcement History", 14, 16);
     
     const tableData = pastAnnouncements.map(ann => [
-      ann.sentAt,
+      ann.sentAt.toDate().toLocaleString(),
       ann.sender.name,
       ann.audience,
       ann.category,
@@ -261,39 +242,61 @@ export default function AdminAnnouncementsPage() {
   }
 
 
-  function onSubmit(values: AnnouncementFormValues) {
-    const newAnnouncement: Announcement = {
-        id: `ann-${Date.now()}`,
-        sender: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' },
-        content: values.message,
-        audience: values.audience,
-        sentAt: format(scheduledDate || new Date(), 'yyyy-MM-dd h:mm a'),
-        views: 0,
-        totalRecipients: 1800, // Mock total
-        category: values.category as AnnouncementCategory,
-        channels: {
-            app: values.notifyApp,
-            email: values.notifyEmail,
-            sms: values.notifySms
+  async function onSubmit(values: AnnouncementFormValues) {
+    setIsSubmitting(true);
+    let attachmentUrl, attachmentName;
+
+    try {
+        if (attachedFile) {
+            const storageRef = ref(storage, `announcements/${Date.now()}_${attachedFile.name}`);
+            const uploadTask = await uploadBytes(storageRef, attachedFile);
+            attachmentUrl = await getDownloadURL(uploadTask.ref);
+            attachmentName = attachedFile.name;
         }
-    };
-    setPastAnnouncements(prev => [newAnnouncement, ...prev]);
-    form.reset({ message: '', audience: undefined, category: undefined, notifyApp: true, notifyEmail: false, notifySms: false });
-    setAttachedFile(null);
-    
-    if (isScheduling && scheduledDate) {
-        toast({
-            title: 'Announcement Scheduled!',
-            description: `Your message will be sent on ${format(scheduledDate, 'PPP')} at ${format(scheduledDate, 'h:mm a')}.`,
-        });
-    } else {
-        toast({
-            title: 'Announcement Sent!',
-            description: 'Your message has been broadcast to the selected audience.',
-        });
+
+        const newAnnouncement = {
+            title: values.title,
+            content: values.message,
+            audience: values.audience,
+            category: values.category,
+            sender: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' },
+            sentAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
+            channels: {
+                app: values.notifyApp,
+                email: values.notifyEmail,
+                sms: values.notifySms
+            },
+            readCount: 0,
+            totalRecipients: 1800, // This would be calculated dynamically in a real app
+            ...(attachmentUrl && { attachmentUrl, attachmentName }),
+            readBy: [],
+        };
+        
+        await addDoc(collection(firestore, 'announcements'), newAnnouncement);
+        
+        form.reset();
+        setAttachedFile(null);
+        
+        if (isScheduling && scheduledDate) {
+            toast({
+                title: 'Announcement Scheduled!',
+                description: `Your message will be sent on ${format(scheduledDate, 'PPP')} at ${format(scheduledDate, 'h:mm a')}.`,
+            });
+        } else {
+            toast({
+                title: 'Announcement Sent!',
+                description: 'Your message has been broadcast to the selected audience.',
+            });
+        }
+        setIsScheduling(false);
+        setScheduledDate(undefined);
+
+    } catch (e) {
+        console.error("Error saving announcement: ", e);
+        toast({ title: 'Submission Failed', variant: 'destructive'});
+    } finally {
+        setIsSubmitting(false);
     }
-    setIsScheduling(false);
-    setScheduledDate(undefined);
   }
 
   return (
@@ -319,6 +322,19 @@ export default function AdminAnnouncementsPage() {
                     <CardDescription>Draft and send a new broadcast message to selected groups.</CardDescription>
                 </CardHeader>
                   <CardContent className="space-y-6">
+                       <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Title</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., School Closure for Public Holiday" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                       />
                       <FormField
                         control={form.control}
                         name="message"
@@ -403,7 +419,7 @@ export default function AdminAnnouncementsPage() {
                                         </FormControl>
                                         <SelectContent>
                                             {Object.entries(announcementCategories).map(([key, {label}]) => (
-                                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                                                <SelectItem key={key} value={key as AnnouncementCategory}>{label}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -496,8 +512,8 @@ export default function AdminAnnouncementsPage() {
                       </div>
                   </CardContent>
                 <CardFooter>
-                    <Button type="submit">
-                        <Send className="mr-2 h-4 w-4" />
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4" />}
                         {isScheduling ? 'Schedule Announcement' : 'Send Announcement'}
                     </Button>
                 </CardFooter>
@@ -542,22 +558,22 @@ export default function AdminAnnouncementsPage() {
                                             <p className="text-xs text-muted-foreground">To: {ann.audience}</p>
                                         </div>
                                     </div>
-                                    <Badge className={cn(announcementCategories[ann.category].color, 'ml-auto')}>
-                                        {announcementCategories[ann.category].label}
+                                    <Badge className={cn(announcementCategories[ann.category]?.color, 'ml-auto')}>
+                                        {announcementCategories[ann.category]?.label}
                                     </Badge>
                                 </div>
 
                                 <p className="text-sm leading-relaxed pl-12">{ann.content}</p>
                                 
                                 <div className="text-xs text-muted-foreground flex items-center justify-end">
-                                    <span>{ann.sentAt}</span>
+                                    <span>{ann.sentAt?.toDate().toLocaleString()}</span>
                                 </div>
 
                                 <Separator className="my-2"/>
                                  <div className="flex items-center justify-between text-xs text-muted-foreground pl-12">
                                     <div className="flex items-center gap-2" title="Views">
                                         <Eye className="h-4 w-4" />
-                                        <span className="font-medium">{ann.totalRecipients > 0 ? Math.round((ann.views / ann.totalRecipients) * 100) : 0}% view rate</span>
+                                        <span className="font-medium">{ann.totalRecipients > 0 ? Math.round((ann.readCount / ann.totalRecipients) * 100) : 0}% view rate</span>
                                     </div>
                                      <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => handleViewStats(ann)}>
                                         View Stats
@@ -575,3 +591,5 @@ export default function AdminAnnouncementsPage() {
     </>
   );
 }
+
+    
