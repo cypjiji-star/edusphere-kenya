@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, ArrowRight, Trophy } from 'lucide-react';
+import { PlusCircle, Users, ArrowRight, Trophy, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -33,56 +33,40 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { firestore } from '@/lib/firebase';
+import { collection, addDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 
-// Mock data for sports teams
-const initialSportsTeams = [
-  {
-    id: 'boys-football',
-    name: 'Football (Boys)',
-    coach: 'Mr. David Otieno',
-    members: 22,
-    icon: '⚽',
-  },
-  {
-    id: 'girls-volleyball',
-    name: 'Volleyball (Girls)',
-    coach: 'Ms. Grace Njeri',
-    members: 16,
-    icon: '🏐',
-  },
-  {
-    id: 'athletics-club',
-    name: 'Athletics Club (Mixed)',
-    coach: 'Mr. Paul Kimani',
-    members: 35,
-    icon: '🏃',
-  },
-  {
-    id: 'basketball-team',
-    name: 'Basketball Team',
-    coach: 'Mr. Ben Carter',
-    members: 18,
-    icon: '🏀',
-  },
-  {
-    id: 'chess-club',
-    name: 'Chess Club',
-    coach: 'Ms. Fatuma Ali',
-    members: 25,
-    icon: '♟️',
-  },
-];
+
+type SportsTeam = {
+    id: string;
+    name: string;
+    coach: string;
+    members: number;
+    icon: string;
+};
 
 const mockCoaches = ['Mr. David Otieno', 'Ms. Grace Njeri', 'Mr. Paul Kimani', 'Mr. Ben Carter', 'Ms. Fatuma Ali'];
 
 export default function SportsPage() {
-  const [sportsTeams, setSportsTeams] = React.useState(initialSportsTeams);
+  const [sportsTeams, setSportsTeams] = React.useState<SportsTeam[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [newTeamName, setNewTeamName] = React.useState('');
   const [newTeamCoach, setNewTeamCoach] = React.useState('');
   const [newTeamIcon, setNewTeamIcon] = React.useState('');
   const { toast } = useToast();
 
-  const handleCreateTeam = () => {
+   React.useEffect(() => {
+    setIsLoading(true);
+    const teamsQuery = query(collection(firestore, 'teams'));
+    const unsubscribe = onSnapshot(teamsQuery, (snapshot) => {
+        const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SportsTeam));
+        setSportsTeams(teamsData);
+        setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleCreateTeam = async () => {
     if (!newTeamName || !newTeamCoach || !newTeamIcon) {
         toast({
             title: 'Missing Information',
@@ -92,25 +76,31 @@ export default function SportsPage() {
         return;
     }
 
-    const newTeam = {
-        id: newTeamName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        name: newTeamName,
-        coach: newTeamCoach,
-        members: 0,
-        icon: newTeamIcon,
-    };
+    try {
+        const newTeamData = {
+            name: newTeamName,
+            coach: newTeamCoach,
+            members: 0,
+            icon: newTeamIcon,
+        };
+        await addDoc(collection(firestore, 'teams'), newTeamData);
 
-    setSportsTeams(prev => [...prev, newTeam]);
+        toast({
+            title: 'Team Created!',
+            description: `${newTeamName} has been successfully created.`,
+        });
 
-    toast({
-        title: 'Team Created!',
-        description: `${newTeamName} has been successfully created.`,
-    });
-
-    // Reset form
-    setNewTeamName('');
-    setNewTeamCoach('');
-    setNewTeamIcon('');
+        setNewTeamName('');
+        setNewTeamCoach('');
+        setNewTeamIcon('');
+    } catch (error) {
+        console.error("Error creating team:", error);
+        toast({
+            title: 'Error',
+            description: 'Failed to create the new team. Please try again.',
+            variant: 'destructive',
+        });
+    }
   };
 
   return (
@@ -172,33 +162,39 @@ export default function SportsPage() {
           </Dialog>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {sportsTeams.map((team) => (
-          <Card key={team.id} className="flex flex-col">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="text-5xl">{team.icon}</div>
-              </div>
-              <CardTitle className="font-headline text-xl pt-2">{team.name}</CardTitle>
-              <CardDescription>Coached by {team.coach}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow">
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Users className="mr-2 h-4 w-4" />
-                <span>{team.members} members</span>
-              </div>
-            </CardContent>
-            <CardFooter>
-               <Button asChild variant="default" className="w-full">
-                  <Link href={`/teacher/sports/${team.id}`}>
-                      Manage Team
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+       {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {sportsTeams.map((team) => (
+            <Card key={team.id} className="flex flex-col">
+                <CardHeader>
+                <div className="flex items-start justify-between">
+                    <div className="text-5xl">{team.icon}</div>
+                </div>
+                <CardTitle className="font-headline text-xl pt-2">{team.name}</CardTitle>
+                <CardDescription>Coached by {team.coach}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                <div className="flex items-center text-sm text-muted-foreground">
+                    <Users className="mr-2 h-4 w-4" />
+                    <span>{team.members} members</span>
+                </div>
+                </CardContent>
+                <CardFooter>
+                <Button asChild variant="default" className="w-full">
+                    <Link href={`/teacher/sports/${team.id}`}>
+                        Manage Team
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+                </CardFooter>
+            </Card>
+            ))}
+        </div>
+      )}
     </div>
   );
 }
