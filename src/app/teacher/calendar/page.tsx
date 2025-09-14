@@ -11,9 +11,17 @@ import {
 import { FullCalendar } from './full-calendar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Bell } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 
 export default function CalendarPage() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
+
+  if (!schoolId) {
+    return <div className="p-8">Error: School ID is missing.</div>
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
@@ -31,7 +39,7 @@ export default function CalendarPage() {
 
       <Card>
         <CardContent className="p-4">
-            <FullCalendar />
+            <FullCalendar schoolId={schoolId} />
         </CardContent>
       </Card>
     </div>

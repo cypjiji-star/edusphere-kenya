@@ -18,7 +18,7 @@ import {
   isToday,
   parse,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Bell, Clock, Users, Printer, FileDown, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, Printer, FileDown, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -51,15 +51,16 @@ const eventColors: Record<CalendarEvent['type'], string> = {
 };
 
 
-export function FullCalendar() {
+export function FullCalendar({ schoolId }: { schoolId: string }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [clientReady, setClientReady] = React.useState(false);
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
 
   React.useEffect(() => {
+    if (!schoolId) return;
     setClientReady(true);
-    const q = query(collection(firestore, 'calendar-events'));
+    const q = query(collection(firestore, `schools/${schoolId}/calendar-events`));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fetchedEvents = querySnapshot.docs.map(doc => {
             const data = doc.data();
@@ -72,7 +73,7 @@ export function FullCalendar() {
         setEvents(fetchedEvents);
     });
     return () => unsubscribe();
-  }, []);
+  }, [schoolId]);
 
   const handlePrev = () => {
     const newDate = sub(currentDate, { [view === 'month' ? 'months' : view === 'week' ? 'weeks' : 'days']: 1 });
