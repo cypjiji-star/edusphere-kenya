@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -13,13 +12,13 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save, FileDown, Printer, CheckCircle, Clock, XCircle, Edit } from 'lucide-react';
+import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save, FileDown, Printer, CheckCircle, Clock, XCircle, Edit, UserPlus, Trash2, Filter, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
@@ -176,7 +175,7 @@ export default function StudentsPage() {
   
   const filteredStudents = 
     studentsForCurrentTab.filter(student =>
-      (student.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (student.name && student.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
       (statusFilter === 'all' || student.attendance === statusFilter) &&
       (yearFilter === 'All Years' || (student.createdAt && student.createdAt.toDate().getFullYear().toString() === yearFilter))
     );
@@ -626,3 +625,5 @@ export default function StudentsPage() {
         </div>
     );
 }
+
+    
