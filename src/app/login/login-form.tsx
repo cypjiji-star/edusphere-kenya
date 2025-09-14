@@ -12,8 +12,6 @@ import { auth, firestore } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-
 
 export function LoginForm() {
     const router = useRouter();
@@ -39,39 +37,23 @@ export function LoginForm() {
         }
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-
-            let userRole = '';
-            let userSchoolId = schoolCode;
-
-            if (role === 'developer') {
-                const devDocRef = doc(firestore, 'developers', user.uid);
-                const devDocSnap = await getDoc(devDocRef);
-                if (devDocSnap.exists() && devDocSnap.data().role === 'developer') {
-                    userRole = 'developer';
-                }
-            } else {
-                 const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-                 const userDocSnap = await getDoc(userDocRef);
-                 if (userDocSnap.exists()) {
-                    userRole = userDocSnap.data().role;
-                 }
-            }
+            await signInWithEmailAndPassword(auth, email, password);
             
-            if (userRole === role) {
-                const portalPath = `/${role}`;
-                const queryParams = role === 'developer' ? '' : `?schoolId=${schoolCode}`;
-                router.push(portalPath + queryParams);
-            } else {
-                 throw new Error("Role mismatch or user not found.");
-            }
+            // On successful sign-in, redirect to the appropriate portal.
+            // The AuthCheck component in each portal's layout will handle role verification.
+            const portalPath = `/${role}`;
+            const queryParams = role === 'developer' ? '' : `?schoolId=${schoolCode}`;
+            router.push(portalPath + queryParams);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            let description = 'Invalid credentials or network error. Please try again.';
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                description = 'The email or password you entered is incorrect.';
+            }
             toast({
                 title: 'Login Failed',
-                description: 'Invalid credentials or user role mismatch. Please try again.',
+                description: description,
                 variant: 'destructive',
             });
         } finally {

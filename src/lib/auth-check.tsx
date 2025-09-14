@@ -33,14 +33,15 @@ export function AuthCheck({
         let fetchedRole: string | null = null;
         
         try {
-            // 1. Check for a global developer role first.
-            const roleDocRef = doc(firestore, 'roles', authUser.uid);
-            const roleDocSnap = await getDoc(roleDocRef);
-
-            if (roleDocSnap.exists()) {
-                fetchedRole = roleDocSnap.data().role;
+            if (requiredRole === 'developer') {
+                // For developers, check the global `roles` collection.
+                const roleDocRef = doc(firestore, 'roles', authUser.uid);
+                const roleDocSnap = await getDoc(roleDocRef);
+                if (roleDocSnap.exists()) {
+                    fetchedRole = roleDocSnap.data().role;
+                }
             } else {
-                // 2. If not a global role, check for a school-specific role.
+                // For all other roles, check within the specific school's `users` collection.
                 const schoolId = searchParams.get('schoolId');
                 if (schoolId) {
                     const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
@@ -63,7 +64,7 @@ export function AuthCheck({
     });
 
     return () => unsubscribe();
-  }, [searchParams, pathname]);
+  }, [searchParams, pathname, requiredRole]);
 
   if (isLoading) {
     return (
