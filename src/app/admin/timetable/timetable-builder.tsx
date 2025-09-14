@@ -112,48 +112,47 @@ export function TimetableBuilder() {
   React.useEffect(() => {
     if (!schoolId) return;
 
+    let unsubTimetable = () => {};
+
     const unsubClasses = onSnapshot(collection(firestore, `schools/${schoolId}/classes`), (snapshot) => {
-        const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-        setAllClasses(classesData);
-        if (!selectedItem && classesData.length > 0) {
-            setSelectedItem(classesData[0].id);
-        }
+      const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+      setAllClasses(classesData);
+      if (!selectedItem && classesData.length > 0) {
+        setSelectedItem(classesData[0].id);
+      }
     });
 
-    // Mock fetching teachers and rooms for now
     const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher')), (snapshot) => {
-        setAllTeachers(snapshot.docs.map(doc => doc.data().name));
+      setAllTeachers(snapshot.docs.map(doc => doc.data().name));
     });
     setAllRooms(['Science Lab', 'Room 12A', 'Room 10B', 'Staff Room']);
 
     const unsubPeriods = onSnapshot(doc(firestore, `schools/${schoolId}/timetableSettings`, 'periods'), (docSnap) => {
-        if (docSnap.exists()) {
-            setPeriods(docSnap.data().periods);
-        }
+      if (docSnap.exists()) {
+        setPeriods(docSnap.data().periods);
+      }
     });
-    
-    return () => {
-        unsubClasses();
-        unsubPeriods();
-        unsubTeachers();
-    }
-  }, [schoolId, selectedItem]);
 
-  React.useEffect(() => {
-    if (!selectedItem || !schoolId) return;
-    setIsLoading(true);
-    const timetableRef = doc(firestore, `schools/${schoolId}/timetables`, selectedItem);
-    const unsubTimetable = onSnapshot(timetableRef, (docSnap) => {
+    if (selectedItem) {
+      setIsLoading(true);
+      const timetableRef = doc(firestore, `schools/${schoolId}/timetables`, selectedItem);
+      unsubTimetable = onSnapshot(timetableRef, (docSnap) => {
         if (docSnap.exists()) {
-            setTimetable(docSnap.data() as TimetableData);
+          setTimetable(docSnap.data() as TimetableData);
         } else {
-            setTimetable({});
+          setTimetable({});
         }
         setIsLoading(false);
-    });
+      });
+    }
 
-    return () => unsubTimetable();
-  }, [selectedItem, schoolId]);
+    return () => {
+      unsubClasses();
+      unsubPeriods();
+      unsubTeachers();
+      unsubTimetable();
+    }
+  }, [schoolId, selectedItem]);
 
   const addPeriod = () => {
     const newId = periods.length > 0 ? Math.max(...periods.map(p => p.id)) + 1 : 1;
