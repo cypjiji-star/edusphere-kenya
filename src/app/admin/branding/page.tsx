@@ -31,7 +31,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { firestore, storage } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -90,10 +90,8 @@ export default function BrandingPage() {
     React.useEffect(() => {
         if (!schoolId) return;
         
-        const fetchBranding = async () => {
-            const brandingRef = doc(firestore, 'schoolProfile', schoolId);
-            const brandingSnap = await getDoc(brandingRef);
-
+        const brandingRef = doc(firestore, 'schoolProfile', schoolId);
+        const unsubscribe = onSnapshot(brandingRef, (brandingSnap) => {
             if (brandingSnap.exists()) {
                 const data = brandingSnap.data();
                 setLogoUrl(data.logoUrl || "https://picsum.photos/seed/school-logo/200");
@@ -104,8 +102,9 @@ export default function BrandingPage() {
                 setHeadlineFont(data.headlineFont || defaultTheme.headlineFont);
                 setBodyFont(data.bodyFont || defaultTheme.bodyFont);
             }
-        };
-        fetchBranding();
+        });
+
+        return () => unsubscribe();
     }, [schoolId]);
 
     const previewStyle = {
@@ -451,3 +450,5 @@ export default function BrandingPage() {
 }
 
   
+
+    

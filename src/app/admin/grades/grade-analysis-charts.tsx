@@ -26,7 +26,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { firestore } from '@/lib/firebase';
-import { collection, query, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -48,52 +48,50 @@ export function GradeAnalysisCharts() {
   React.useEffect(() => {
     if (!schoolId) return;
 
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            // Simplified aggregation. A real app would use backend functions for this.
-            const submissionsSnapshot = await getDocs(query(collection(firestore, `schools/${schoolId}/submissions`)));
-            
-            // Grade Distribution
-            const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
-            submissionsSnapshot.forEach(doc => {
-                const grade = doc.data().grade;
-                if (grade >= 80) gradeCounts['A']++;
-                else if (grade >= 75) gradeCounts['A-']++;
-                else if (grade >= 70) gradeCounts['B+']++;
-                else if (grade >= 65) gradeCounts['B']++;
-                else if (grade >= 60) gradeCounts['B-']++;
-                else if (grade >= 55) gradeCounts['C+']++;
-                else if (grade >= 45) gradeCounts['C/C-']++;
-                else gradeCounts['D/E']++;
-            });
-            setDistributionData(Object.entries(gradeCounts).map(([name, students]) => ({ name, students })));
+    setIsLoading(true);
+    const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`));
+    
+    const unsubscribe = onSnapshot(submissionsQuery, (submissionsSnapshot) => {
+        // Grade Distribution
+        const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
+        submissionsSnapshot.forEach(doc => {
+            const grade = doc.data().grade;
+            if (grade >= 80) gradeCounts['A']++;
+            else if (grade >= 75) gradeCounts['A-']++;
+            else if (grade >= 70) gradeCounts['B+']++;
+            else if (grade >= 65) gradeCounts['B']++;
+            else if (grade >= 60) gradeCounts['B-']++;
+            else if (grade >= 55) gradeCounts['C+']++;
+            else if (grade >= 45) gradeCounts['C/C-']++;
+            else gradeCounts['D/E']++;
+        });
+        setDistributionData(Object.entries(gradeCounts).map(([name, students]) => ({ name, students })));
 
-            // Subject Performance
-            const subjectScores: Record<string, { total: number, count: number }> = {};
-            submissionsSnapshot.forEach(doc => {
-                const submission = doc.data();
-                if (!subjectScores[submission.subject]) {
-                    subjectScores[submission.subject] = { total: 0, count: 0 };
-                }
-                subjectScores[submission.subject].total += parseInt(submission.grade, 10);
-                subjectScores[submission.subject].count++;
-            });
+        // Subject Performance
+        const subjectScores: Record<string, { total: number, count: number }> = {};
+        submissionsSnapshot.forEach(doc => {
+            const submission = doc.data();
+            if (!subjectScores[submission.subject]) {
+                subjectScores[submission.subject] = { total: 0, count: 0 };
+            }
+            subjectScores[submission.subject].total += parseInt(submission.grade, 10);
+            subjectScores[submission.subject].count++;
+        });
 
-            const performance = Object.entries(subjectScores).map(([subject, data]) => ({
-                subject: subject,
-                avg: Math.round(data.total / data.count),
-                trend: 'stable', // Trend calculation would require historical data
-            }));
-            setSubjectPerformanceData(performance);
+        const performance = Object.entries(subjectScores).map(([subject, data]) => ({
+            subject: subject,
+            avg: Math.round(data.total / data.count),
+            trend: 'stable', // Trend calculation would require historical data
+        }));
+        setSubjectPerformanceData(performance);
 
-        } catch (error) {
-            console.error("Error fetching analysis data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    fetchData();
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching analysis data:", error);
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [selectedTerm, schoolId]);
   
   return (
@@ -206,3 +204,5 @@ export function GradeAnalysisCharts() {
 }
 
   
+
+    
