@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import {
   MessageCircle,
   Search,
@@ -17,6 +16,7 @@ import {
   User,
   Loader2,
   X,
+  Mic,
 } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage, firestore } from '@/lib/firebase';
@@ -543,5 +543,3 @@ export function ChatLayout() {
     </div>
   );
 }
-
-    
