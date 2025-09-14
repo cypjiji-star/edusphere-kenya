@@ -33,15 +33,14 @@ export function AuthCheck({
         let fetchedRole: string | null = null;
         
         try {
-            // Check for a role in the top-level 'roles' collection first
+            // 1. Check for a global developer role first.
             const roleDocRef = doc(firestore, 'roles', authUser.uid);
             const roleDocSnap = await getDoc(roleDocRef);
+
             if (roleDocSnap.exists()) {
                 fetchedRole = roleDocSnap.data().role;
-            }
-
-            // If not a global role, check for a school-specific role
-            if (!fetchedRole) {
+            } else {
+                // 2. If not a global role, check for a school-specific role.
                 const schoolId = searchParams.get('schoolId');
                 if (schoolId) {
                     const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
@@ -73,12 +72,6 @@ export function AuthCheck({
       </div>
     );
   }
-
-  // Allow access to developer create page without auth
-  if (pathname === '/developer/create-dev-account') {
-      return <>{children}</>;
-  }
-
 
   if (user && userRole === requiredRole) {
     return <>{children}</>;
@@ -129,5 +122,3 @@ export function AuthCheck({
     </div>
   );
 }
-
-    
