@@ -376,12 +376,6 @@ export default function ExpensesPage() {
                 description: `The expense has been marked as ${status}.`
             });
             
-            // This is the new notification toast
-            toast({
-                title: 'Submitter Notified',
-                description: `A notification has been sent to the submitter about the status change.`
-            });
-
             await addDoc(collection(firestore, 'notifications'), {
                 title: `Expense ${status}`,
                 description: `Your expense report for ${formatCurrency(expenses.find(e => e.id === expenseId)?.amount || 0)} has been ${status.toLowerCase()}.`,
@@ -402,6 +396,7 @@ export default function ExpensesPage() {
         const monthlyBudget = 1500000;
 
         const monthlyExpenses = expenses.filter(exp => {
+            if (!exp.date) return false;
             const expDate = exp.date.toDate();
             return expDate.getMonth() === thisMonth && expDate.getFullYear() === thisYear;
         });
@@ -469,7 +464,7 @@ export default function ExpensesPage() {
     const handleExport = (type: 'PDF' | 'CSV') => {
         const doc = new jsPDF();
         const tableData = filteredExpenses.map(exp => [
-            clientReady ? exp.date.toDate().toLocaleDateString() : '',
+            clientReady && exp.date ? exp.date.toDate().toLocaleDateString() : '',
             exp.category,
             exp.description,
             exp.submittedBy,
@@ -532,7 +527,7 @@ export default function ExpensesPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pending Reimbursements</CardTitle>
+                        <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
                         <Hourglass className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -553,7 +548,7 @@ export default function ExpensesPage() {
                             {formatCurrency(Math.abs(dashboardStats.budgetVariance))}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            {dashboardStats.budgetVariance >= 0 ? 'Under budget for this month' : 'Over budget for this month'}
+                            {dashboardStats.budgetVariance >= 0 ? 'Under budget this month' : 'Over budget this month'}
                         </p>
                     </CardContent>
                 </Card>
@@ -821,7 +816,7 @@ export default function ExpensesPage() {
                             <TableBody>
                                 {filteredExpenses.map(expense => (
                                     <TableRow key={expense.id}>
-                                        <TableCell>{clientReady ? expense.date.toDate().toLocaleDateString() : ''}</TableCell>
+                                        <TableCell>{clientReady && expense.date ? expense.date.toDate().toLocaleDateString() : ''}</TableCell>
                                         <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
                                         <TableCell className="font-medium flex items-center gap-2">
                                             {expense.description}
@@ -876,5 +871,3 @@ export default function ExpensesPage() {
         </div>
     );
 }
-
-    
