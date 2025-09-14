@@ -8,7 +8,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, firestore } from './firebase';
 
 type AllowedRole = 'admin' | 'teacher' | 'parent' | 'developer';
@@ -32,22 +32,27 @@ export function AuthCheck({
         setUser(authUser);
         let fetchedRole: string | null = null;
         
-        if (requiredRole === 'developer') {
-          const devDocRef = doc(firestore, 'developers', authUser.uid);
-          const devDocSnap = await getDoc(devDocRef);
-          if (devDocSnap.exists()) {
-            fetchedRole = devDocSnap.data().role;
-          }
-        } else {
-          const schoolId = searchParams.get('schoolId');
-          if (schoolId) {
-            const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists()) {
-              fetchedRole = userDocSnap.data().role;
+        try {
+            if (requiredRole === 'developer') {
+              const devQuery = query(collection(firestore, 'developers'), where('uid', '==', authUser.uid));
+              const devSnapshot = await getDocs(devQuery);
+              if (!devSnapshot.empty) {
+                fetchedRole = devSnapshot.docs[0].data().role;
+              }
+            } else {
+              const schoolId = searchParams.get('schoolId');
+              if (schoolId) {
+                const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                  fetchedRole = userDocSnap.data().role;
+                }
+              }
             }
-          }
+        } catch (error) {
+            console.error("Error fetching user role:", error);
         }
+
         setUserRole(fetchedRole);
       } else {
         setUser(null);
@@ -71,24 +76,49 @@ export function AuthCheck({
     return <>{children}</>;
   }
 
+  // Handle case where user is logged in but role doesn't match
+  if (user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-center gap-2">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+              Access Denied
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              Your role is listed as "{userRole || 'Unknown'}", but this page requires the "{requiredRole}" role.
+            </p>
+            <Button asChild className="mt-6">
+              <Link href="/login">Return to Login</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Handle case where user is not logged in at all
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md text-center">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-destructive" />
-            Access Denied
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            You are not authorized to view this page. This page requires the "{requiredRole}" role.
-          </p>
-          <Button asChild className="mt-6">
-            <Link href="/login">Return to Login</Link>
-          </Button>
-        </CardContent>
-      </Card>
+     <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
+        <Card className="w-full max-w-md text-center">
+            <CardHeader>
+            <CardTitle className="flex items-center justify-center gap-2">
+                <AlertTriangle className="h-6 w-6 text-destructive" />
+                Authentication Required
+            </CardTitle>
+            </CardHeader>
+            <CardContent>
+            <p className="text-muted-foreground">
+                You must be logged in to access this page.
+            </p>
+            <Button asChild className="mt-6">
+                <Link href="/login">Return to Login</Link>
+            </Button>
+            </CardContent>
+        </Card>
     </div>
   );
 }
