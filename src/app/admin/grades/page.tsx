@@ -79,7 +79,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -105,6 +105,13 @@ type Submission = {
     status: SubmissionStatus;
     lastUpdated: Timestamp;
 };
+
+type StudentGrade = {
+    id: string;
+    studentName: string;
+    avatarUrl: string;
+    grade: string;
+}
 
 
 const statusColors: Record<ExamStatus, string> = {
@@ -138,12 +145,6 @@ const initialGradingScale = [
     { grade: 'E', min: 0, max: 29 },
 ]
 
-const mockStudentGrades = [
-    { id: 'std-1', name: 'Student 1', avatar: 'https://picsum.photos/seed/f4-student1/100', score: 85 },
-    { id: 'std-2', name: 'Student 2', avatar: 'https://picsum.photos/seed/f4-student2/100', score: 78 },
-    { id: 'std-3', name: 'Student 3', avatar: 'https://picsum.photos/seed/f4-student3/100', score: 92 },
-];
-
 
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
@@ -155,6 +156,8 @@ export default function AdminGradesPage() {
     const [submissionClassFilter, setSubmissionClassFilter] = React.useState('All Classes');
     const [gradingScale, setGradingScale] = React.useState(initialGradingScale);
     const [viewingSubmission, setViewingSubmission] = React.useState<Submission | null>(null);
+    const [viewingGrades, setViewingGrades] = React.useState<StudentGrade[]>([]);
+    const [isFetchingGrades, setIsFetchingGrades] = React.useState(false);
     const { toast } = useToast();
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [submissions, setSubmissions] = React.useState<Submission[]>([]);
@@ -162,6 +165,9 @@ export default function AdminGradesPage() {
     
     const currentYear = new Date().getFullYear();
     const academicTerms = [
+        `Term 1, ${currentYear-1}`,
+        `Term 2, ${currentYear-1}`,
+        `Term 3, ${currentYear-1}`,
         `Term 1, ${currentYear}`,
         `Term 2, ${currentYear}`,
         `Term 3, ${currentYear}`,
@@ -171,7 +177,7 @@ export default function AdminGradesPage() {
 
     // State for the create exam dialog
     const [newExamTitle, setNewExamTitle] = React.useState('');
-    const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[1]);
+    const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[4]);
     const [newExamClass, setNewExamClass] = React.useState<string | undefined>();
     const [newExamNotes, setNewExamNotes] = React.useState('');
     const [isSavingExam, setIsSavingExam] = React.useState(false);
@@ -303,11 +309,47 @@ export default function AdminGradesPage() {
         }
     };
 
+    const handleViewGrades = async (submission: Submission) => {
+        if (!schoolId) return;
+        setViewingSubmission(submission);
+        setIsFetchingGrades(true);
+        try {
+            const grades: StudentGrade[] = [];
+            // We need to find all students in the class and then find their grade for this specific assessment.
+            // This is inefficient. A better data model would be to have grades under the submission itself.
+            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('class', '==', submission.class));
+            const studentsSnapshot = await getDocs(studentsQuery);
+
+            for (const studentDoc of studentsSnapshot.docs) {
+                const studentData = studentDoc.data();
+                const gradeQuery = query(collection(firestore, `schools/${schoolId}/students/${studentDoc.id}/grades`), where('assessmentId', '==', submission.examId));
+                const gradeSnapshot = await getDocs(gradeQuery);
+
+                if (!gradeSnapshot.empty) {
+                    const gradeData = gradeSnapshot.docs[0].data();
+                    grades.push({
+                        id: studentDoc.id,
+                        studentName: studentData.name,
+                        avatarUrl: studentData.avatarUrl,
+                        grade: gradeData.grade,
+                    });
+                }
+            }
+            setViewingGrades(grades);
+        } catch (error) {
+            console.error("Error fetching grades for submission:", error);
+            toast({ variant: 'destructive', title: 'Failed to fetch grades.' });
+        } finally {
+            setIsFetchingGrades(false);
+        }
+    };
+
     return (
         <Dialog onOpenChange={(open) => {
             if (!open) {
                 setSelectedExam(null);
                 setViewingSubmission(null);
+                setViewingGrades([]);
             }
         }}>
         <div className="p-4 sm:p-6 lg:p-8">
@@ -542,8 +584,7 @@ export default function AdminGradesPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="All Classes">All Classes</SelectItem>
-                                            <SelectItem value="Form 4">Form 4</SelectItem>
-                                            <SelectItem value="Form 3">Form 3</SelectItem>
+                                            {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -570,7 +611,7 @@ export default function AdminGradesPage() {
                                                 <TableCell>{clientReady && submission.lastUpdated ? submission.lastUpdated.toDate().toLocaleDateString() : 'N/A'}</TableCell>
                                                 <TableCell className="text-right">
                                                     <DialogTrigger asChild>
-                                                        <Button variant="outline" size="sm" disabled={submission.status === 'Pending'} onClick={() => setViewingSubmission(submission)}>
+                                                        <Button variant="outline" size="sm" disabled={submission.status === 'Pending'} onClick={() => handleViewGrades(submission)}>
                                                             View Grades
                                                         </Button>
                                                     </DialogTrigger>
@@ -700,6 +741,7 @@ export default function AdminGradesPage() {
                     <DialogDescription>Submitted by {viewingSubmission.teacher} for {viewingSubmission.class}.</DialogDescription>
                 </DialogHeader>
                  <div className="py-4">
+                    {isFetchingGrades ? <div className="h-48 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div> :
                      <div className="w-full overflow-auto rounded-lg border max-h-[60vh]">
                         <Table>
                             <TableHeader>
@@ -709,25 +751,26 @@ export default function AdminGradesPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {mockStudentGrades.map(grade => (
+                                {viewingGrades.map(grade => (
                                     <TableRow key={grade.id}>
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-9 w-9">
-                                                    <AvatarImage src={grade.avatar} alt={grade.name} />
-                                                    <AvatarFallback>{grade.name.charAt(0)}</AvatarFallback>
+                                                    <AvatarImage src={grade.avatarUrl} alt={grade.studentName} />
+                                                    <AvatarFallback>{grade.studentName.charAt(0)}</AvatarFallback>
                                                 </Avatar>
-                                                <span className="font-medium">{grade.name}</span>
+                                                <span className="font-medium">{grade.studentName}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Badge variant="secondary">{grade.score}%</Badge>
+                                            <Badge variant="secondary">{grade.grade}%</Badge>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     </div>
+                    }
                  </div>
                 <DialogFooter>
                     <Button variant="secondary">Request Changes</Button>
