@@ -26,7 +26,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -63,27 +63,30 @@ export function GradeAnalysisCharts() {
         const assessmentsQuery = query(collection(firestore, `schools/${schoolId}/assesments`), where('term', '==', term));
         const assessmentsSnapshot = await getDocs(assessmentsQuery);
 
-        // Filter for major exams like "Mid-Term" or "End-Term"
         const majorExams = assessmentsSnapshot.docs.filter(doc => 
             doc.data().title.toLowerCase().includes('mid-term') || 
             doc.data().title.toLowerCase().includes('end-term')
         );
         
-        const examToAnalyze = majorExams.length > 0 ? majorExams[0] : assessmentsSnapshot.docs[0];
+        const examToAnalyze = majorExams.length > 0 ? majorExams[0] : (assessmentsSnapshot.docs.length > 0 ? assessmentsSnapshot.docs[0] : null);
 
         if (!examToAnalyze) {
-             return { submissions: [], title: `No exams found for ${term}` };
+             return { submissions: [], title: `No exams found for ${term}`, assessmentDetails: {} };
         }
         
-        const assessmentIds = [examToAnalyze.id];
+        const assessmentId = examToAnalyze.id;
         const title = examToAnalyze.data().title;
 
-        const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), where('examId', 'in', assessmentIds));
+        // Fetch all submissions for that one major exam
+        const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), where('examId', '==', assessmentId));
         const submissionsSnapshot = await getDocs(submissionsQuery);
-        return { submissions: submissionsSnapshot.docs.map(doc => doc.data()), title };
+        
+        const assessmentDetails = { [assessmentId]: examToAnalyze.data() };
+
+        return { submissions: submissionsSnapshot.docs.map(doc => doc.data()), title, assessmentDetails };
     }
 
-    const processData = (submissions: any[]) => {
+    const processData = (submissions: any[], assessmentDetails: Record<string, any>) => {
         // Grade Distribution
         const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
         submissions.forEach(submission => {
@@ -102,11 +105,17 @@ export function GradeAnalysisCharts() {
         // Subject Performance
         const subjectScores: Record<string, { total: number, count: number }> = {};
         submissions.forEach(submission => {
-            if (!subjectScores[submission.subject]) {
-                subjectScores[submission.subject] = { total: 0, count: 0 };
+            const subjectName = submission.subject;
+            if (!subjectName) return;
+
+            if (!subjectScores[subjectName]) {
+                subjectScores[subjectName] = { total: 0, count: 0 };
             }
-            subjectScores[submission.subject].total += parseInt(submission.grade, 10);
-            subjectScores[submission.subject].count++;
+            const score = parseInt(submission.grade, 10);
+            if (!isNaN(score)) {
+                subjectScores[subjectName].total += score;
+                subjectScores[subjectName].count++;
+            }
         });
 
         const performance = Object.entries(subjectScores).map(([subject, data]) => ({
@@ -121,8 +130,11 @@ export function GradeAnalysisCharts() {
             if (!classScores[submission.class]) {
                 classScores[submission.class] = { total: 0, count: 0 };
             }
-             classScores[submission.class].total += parseInt(submission.grade, 10);
-             classScores[submission.class].count++;
+            const score = parseInt(submission.grade, 10);
+            if(!isNaN(score)) {
+                 classScores[submission.class].total += score;
+                 classScores[submission.class].count++;
+            }
         });
         const classAvgs = Object.entries(classScores).map(([className, data]) => ({
             name: className,
@@ -144,6 +156,16 @@ export function GradeAnalysisCharts() {
     const loadData = async () => {
         setIsLoading(true);
         const { submissions, title } = await fetchDataForTerm(selectedTerm);
+
+        if (submissions.length === 0) {
+            setDistributionData([]);
+            setSubjectPerformanceData([]);
+            setClassPerformance({ top: 'N/A', lowest: 'N/A', topAvg: 0, lowestAvg: 0 });
+            setExamTitle(title);
+            setIsLoading(false);
+            return;
+        }
+        
         setExamTitle(title);
         const processedData = processData(submissions);
         setDistributionData(processedData.distributionData);
@@ -246,6 +268,7 @@ export function GradeAnalysisCharts() {
                                     </div>
                                 </div>
                             ))}
+                             {subjectPerformanceData.length === 0 && <div className="text-muted-foreground col-span-full text-center">No subject data for this exam.</div>}
                         </div>
                         }
                     </CardContent>
