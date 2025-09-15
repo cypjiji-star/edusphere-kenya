@@ -178,6 +178,7 @@ export function AdminChatLayout() {
     const unsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
         const convoMessages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
         setMessages(prev => ({ ...prev, [selectedConvo.id]: convoMessages }));
+        
         const unreadMessages = convoMessages.filter(msg => msg.sender !== user.uid && !msg.read);
         if (unreadMessages.length > 0) {
           markMessagesAsRead(unreadMessages);
@@ -219,7 +220,6 @@ export function AdminChatLayout() {
       const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
       await updateDoc(convoRef, { lastMessage: message.trim().substring(0, 100), timestamp: serverTimestamp(), lastMessageSender: user.uid });
       setMessage('');
-      toast({ title: 'Message Sent!' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Action Failed' });
     } finally {
@@ -300,7 +300,7 @@ export function AdminChatLayout() {
                       {!isUserSender && (<Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback><User/></AvatarFallback></Avatar>)}
                       <div className="group relative max-w-xs lg:max-w-md">
                         <div className={cn("rounded-2xl p-3 text-sm shadow-sm", isUserSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none')}>
-                          <p className="font-semibold text-xs mb-1">{msg.senderName}</p>
+                           {msg.senderName && <p className="font-semibold text-xs mb-1">{msg.senderName}</p>}
                           <p className="whitespace-pre-wrap">{msg.text}</p>
                           <div className={cn("text-xs mt-2 flex items-center gap-2", isUserSender ? 'text-primary-foreground/70' : 'text-slate-400')}>
                             <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
