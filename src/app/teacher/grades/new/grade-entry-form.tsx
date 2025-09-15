@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -31,11 +30,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
   Table,
   TableBody,
   TableCell,
@@ -43,14 +37,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Calendar } from '@/components/ui/calendar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CalendarIcon, Loader2, Save, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { useSearchParams } from 'next/navigation';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
@@ -302,7 +291,7 @@ export function GradeEntryForm() {
                             render={({ field }) => (
                               <FormItem>
                                 <FormControl>
-                                  <Input {...field} className="max-w-[120px] ml-auto text-right" placeholder="e.g., 85% or A-"/>
+                                  <Input {...field} className="max-w-[120px] ml-auto text-right" placeholder="e.g., 85"/>
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -318,9 +307,7 @@ export function GradeEntryForm() {
           </div>
         </div>
         
-        <Separator />
-
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-4">
           <Button type="submit" disabled={isLoading}>
             {isLoading ? (
               <>

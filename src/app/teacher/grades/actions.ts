@@ -1,10 +1,9 @@
 
-
 'use server';
 
 import { z } from 'zod';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, doc, writeBatch, serverTimestamp, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { collection, writeBatch, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { gradeEntrySchema, type GradeEntryFormValues } from './types';
 

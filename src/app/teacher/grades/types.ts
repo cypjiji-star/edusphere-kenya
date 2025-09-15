@@ -1,10 +1,9 @@
 
-
 import { z } from 'zod';
 
 const studentGradeSchema = z.object({
   studentId: z.string(),
-  grade: z.string().min(1, { message: "Grade is required" }),
+  grade: z.string().optional(),
 });
 
 export const gradeEntrySchema = z.object({
