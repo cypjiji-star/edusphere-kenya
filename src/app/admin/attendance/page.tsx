@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, collectionGroup, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
@@ -241,8 +241,7 @@ export default function AdminAttendancePage() {
         });
 
         const attendanceQuery = query(
-            collectionGroup(firestore, 'records'),
-            where('schoolId', '==', schoolId)
+            collection(firestore, 'schools', schoolId, 'attendance')
         );
         const unsubscribe = onSnapshot(attendanceQuery, (snapshot) => {
             const records = snapshot.docs.map(doc => {
@@ -251,9 +250,9 @@ export default function AdminAttendancePage() {
                 return {
                     id: doc.id,
                     studentId: data.studentId,
-                    studentName: student?.name || 'Unknown Student',
+                    studentName: student?.name || data.studentName || 'Unknown Student',
                     studentAvatar: student?.avatarUrl || `https://picsum.photos/seed/${data.studentId}/100`,
-                    class: student?.class || 'Unknown Class',
+                    class: student?.class || data.className || 'Unknown Class',
                     teacher: data.teacher,
                     date: data.date,
                     status: data.status,
@@ -616,3 +615,4 @@ export default function AdminAttendancePage() {
   );
 }
 
+    

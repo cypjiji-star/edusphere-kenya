@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -13,6 +12,7 @@ import {
   doc,
   Timestamp,
   getDocs,
+  addDoc,
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -298,8 +298,7 @@ export default function AttendancePage() {
       const endOfDay = new Date(today.setHours(23, 59, 59, 999));
       
       const attendanceQuery = query(
-          collectionGroup(firestore, 'records'),
-          where('schoolId', '==', schoolId),
+          collection(firestore, 'schools', schoolId, 'attendance'),
           where('classId', '==', selectedClass),
           where('date', '>=', Timestamp.fromDate(startOfDay)),
           where('date', '<=', Timestamp.fromDate(endOfDay))
@@ -348,10 +347,10 @@ export default function AttendancePage() {
       if (student.status === "unmarked") continue;
 
       const attendanceDate = Timestamp.fromDate(selectedDate);
-      const recordDateString = format(selectedDate, 'yyyy-MM-dd');
       
-      // Use a consistent doc ID to allow for updates
-      const attendanceRef = doc(firestore, `schools/${schoolId}/attendance/${student.id}/records`, recordDateString);
+      // Since we can't easily query for a doc to update, we'll add new ones. 
+      // A more robust solution might involve a unique doc ID like `studentId_date`.
+      const attendanceRef = doc(collection(firestore, `schools/${schoolId}/attendance`));
       
       batch.set(attendanceRef, {
         studentId: student.id,
@@ -409,3 +408,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
