@@ -21,22 +21,19 @@ import { LibraryNoticesWidget } from './library-notices-widget';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 export default function TeacherDashboard() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const { user } = useAuth();
     const [schoolName, setSchoolName] = React.useState('');
+    const [teacherName, setTeacherName] = React.useState('Teacher');
     const [totalStudents, setTotalStudents] = React.useState(0);
     const [ungradedAssignments, setUngradedAssignments] = React.useState(0);
     const [attendancePercentage, setAttendancePercentage] = React.useState(0);
     const [avgScore, setAvgScore] = React.useState(0);
     const [isLoading, setIsLoading] = React.useState(true);
-    const [user, setUser] = React.useState(auth.currentUser);
-
-    React.useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(setUser);
-        return () => unsubscribe();
-    }, []);
 
     React.useEffect(() => {
         if (!schoolId || !user) {
@@ -51,6 +48,13 @@ export default function TeacherDashboard() {
         const unsubSchool = onSnapshot(schoolRef, (docSnap) => {
             if(docSnap.exists()) {
                 setSchoolName(docSnap.data().name);
+            }
+        });
+        
+        const userDocRef = doc(firestore, `schools/${schoolId}/users`, teacherId);
+        const unsubUser = onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setTeacherName(docSnap.data().name || 'Teacher');
             }
         });
 
@@ -96,6 +100,7 @@ export default function TeacherDashboard() {
 
         return () => {
             unsubSchool();
+            unsubUser();
             unsubStudents();
             unsubAssignments();
         };
@@ -132,7 +137,7 @@ export default function TeacherDashboard() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="font-headline text-3xl font-bold">Welcome, {user?.displayName || 'Teacher'}!</h1>
+        <h1 className="font-headline text-3xl font-bold">Welcome, {teacherName}!</h1>
         <p className="text-muted-foreground">Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
       </div>
 
