@@ -9,7 +9,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -99,12 +98,14 @@ export type Exam = {
     startDate: Timestamp;
     endDate: Timestamp;
     status: ExamStatus;
+    classId?: string;
 };
 
 type Submission = {
     id: string;
     examId: string;
     subject: string;
+    teacherId: string;
     teacher: string;
     class: string;
     status: SubmissionStatus;
@@ -118,6 +119,11 @@ type StudentGrade = {
     grade: string;
     overall?: number;
     rollNumber?: string;
+}
+
+type Teacher = {
+    id: string;
+    name: string;
 }
 
 
@@ -169,6 +175,7 @@ export default function AdminGradesPage() {
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [submissions, setSubmissions] = React.useState<Submission[]>([]);
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
+    const [teachers, setTeachers] = React.useState<Teacher[]>([]);
     
     const [activeTab, setActiveTab] = React.useState('schedules');
     const [examForAnalysis, setExamForAnalysis] = React.useState<Exam | null>(null);
@@ -203,9 +210,23 @@ export default function AdminGradesPage() {
             }
         });
 
+        const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher'));
+        const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
+            const fetchedTeachers = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as Teacher));
+            setTeachers(fetchedTeachers);
+        });
+
         const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), orderBy('lastUpdated', 'desc'));
         const unsubSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
-            const fetchedSubmissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Submission));
+            const fetchedSubmissions = snapshot.docs.map(doc => {
+                const data = doc.data();
+                const teacher = teachers.find(t => t.id === data.teacherId);
+                return { 
+                    id: doc.id, 
+                    ...data,
+                    teacher: teacher?.name || 'N/A'
+                } as Submission
+            });
             setSubmissions(fetchedSubmissions);
         });
 
@@ -219,8 +240,9 @@ export default function AdminGradesPage() {
             unsubExams();
             unsubSubmissions();
             unsubClasses();
+            unsubTeachers();
         };
-    }, [schoolId, submissionExamFilter]);
+    }, [schoolId, submissionExamFilter, teachers]);
     
      React.useEffect(() => {
         if (!examForAnalysis) return;
