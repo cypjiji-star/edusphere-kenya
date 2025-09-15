@@ -336,6 +336,8 @@ export default function AttendancePage() {
     
     for (const student of students) {
       if (student.status === "unmarked") continue;
+      
+      // Correctly reference the nested subcollection
       const attendanceRef = doc(firestore, "schools", schoolId, "students", student.id, "attendance", attendanceDocId);
       
       batch.set(attendanceRef, {
@@ -346,9 +348,10 @@ export default function AttendancePage() {
         teacherId: user.uid,
         classId: selectedClass,
         className: currentClass?.name || "Unknown",
-        schoolId: schoolId,
-        studentName: student.name,
-        studentAvatar: student.avatarUrl
+        schoolId: schoolId, // Ensure schoolId is saved
+        studentId: student.id, // Save studentId for easier querying
+        studentName: student.name, // Save denormalized name
+        studentAvatar: student.avatarUrl // Save denormalized avatar
       });
     }
 

@@ -237,13 +237,24 @@ export default function AdminAttendancePage() {
     
     const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
     const unsubClasses = onSnapshot(qClasses, (snapshot) => {
-        const classNames = snapshot.docs.map(doc => doc.data().name);
+        const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
         setClasses(['All Classes', ...new Set(classNames)]);
     });
     
     const qAttendance = query(collectionGroup(firestore, 'attendance'), where('schoolId', '==', schoolId));
     const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
-        const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+        const records = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                studentName: data.studentName,
+                studentAvatar: data.studentAvatar,
+                class: data.className,
+                teacher: data.teacher,
+                date: data.date,
+                status: data.status,
+            } as AttendanceRecord;
+        });
         setAllRecords(records);
     });
 
@@ -303,7 +314,14 @@ export default function AdminAttendancePage() {
 
   const filteredRecords = allRecords.filter(record => {
       const recordDate = record.date.toDate();
-      const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
+      
+      let isDateInRange = true;
+      if (date?.from) {
+        const fromDate = new Date(date.from.setHours(0,0,0,0));
+        const toDate = date.to ? new Date(date.to.setHours(23,59,59,999)) : fromDate;
+        isDateInRange = recordDate >= fromDate && recordDate <= toDate;
+      }
+
       const matchesSearch = record.studentName && record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClass = classFilter === 'All Classes' || record.class === classFilter;
       const matchesTeacher = teacherFilter === 'All Teachers' || record.teacher === teacherFilter;
