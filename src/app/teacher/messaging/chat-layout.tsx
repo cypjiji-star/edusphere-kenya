@@ -119,7 +119,9 @@ export function TeacherChatLayout() {
     setMessages(prev => [...prev, userMessage]);
     
     if (chatState === 'ai') {
-        const result = await supportChatbot({ history: [...messages, userMessage] });
+        const historyForAI = [...messages, userMessage].map(m => ({ role: m.role, content: m.content }));
+        const result = await supportChatbot({ history: historyForAI });
+        
         const aiResponse: Message = {
             role: 'model',
             content: result.response || 'Sorry, I am unable to respond right now.',
@@ -209,5 +211,3 @@ export function TeacherChatLayout() {
     </div>
   );
 }
-
-    
