@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -6,7 +5,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, getDocs, collectionGroup } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
@@ -73,7 +72,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 
+// Define both lowercase and title case status types
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
+type AttendanceStatusLower = 'present' | 'absent' | 'late';
 
 type AttendanceRecord = {
   id: string;
@@ -88,11 +89,22 @@ type AttendanceRecord = {
 
 const statuses: (AttendanceStatus | 'All Statuses')[] = ['All Statuses', 'Present', 'Absent', 'Late'];
 
+// Function to convert lowercase status to title case
+const normalizeStatus = (status: string): AttendanceStatus => {
+  switch (status.toLowerCase()) {
+    case 'present': return 'Present';
+    case 'absent': return 'Absent';
+    case 'late': return 'Late';
+    default: return 'Present'; // Default fallback
+  }
+};
+
 const getStatusBadge = (status: AttendanceStatus) => {
     switch (status) {
         case 'Present': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Present</Badge>;
         case 'Absent': return <Badge variant="destructive">Absent</Badge>;
         case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Late</Badge>;
+        default: return <Badge variant="outline">Unknown</Badge>;
     }
 }
 
@@ -210,74 +222,90 @@ export default function AdminAttendancePage() {
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
 
-
+  // Fetch all attendance records from the correct database structure
   React.useEffect(() => {
     if (!schoolId) {
-        setIsLoading(false);
-        return;
+      setIsLoading(false);
+      return;
     }
 
-    const fetchData = async () => {
-        setIsLoading(true);
-
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
-        const studentsSnapshot = await getDocs(studentsQuery);
-        const studentsMap = new Map();
-        studentsSnapshot.forEach(doc => {
-            studentsMap.set(doc.id, doc.data());
-        });
-
-        const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
-        const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
-            const teacherNames = snapshot.docs.map(doc => doc.data().name);
-            setTeachers(['All Teachers', ...teacherNames]);
-        });
+    const fetchAllAttendance = async () => {
+      setIsLoading(true);
+      
+      try {
+        // Get all attendance records from the top-level attendance collection
+        const attendanceQuery = query(
+          collection(firestore, `schools/${schoolId}/attendance`),
+          orderBy('date', 'desc')
+        );
         
-        const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
-        const unsubClasses = onSnapshot(qClasses, (snapshot) => {
-            const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
-            setClasses(['All Classes', ...new Set(classNames)]);
-        });
-
-        const attendanceQuery = query(collection(firestore, 'schools', schoolId, 'attendance'));
-        const unsubscribe = onSnapshot(attendanceQuery, (snapshot) => {
-            const records = snapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    studentId: data.studentId,
-                    studentName: data.studentName,
-                    studentAvatar: `https://picsum.photos/seed/${data.studentId}/100`,
-                    class: data.className,
-                    teacher: data.teacher,
-                    date: data.date,
-                    status: data.status,
-                } as AttendanceRecord;
+        const unsubscribe = onSnapshot(attendanceQuery, async (snapshot) => {
+          const records: AttendanceRecord[] = [];
+          
+          for (const doc of snapshot.docs) {
+            const data = doc.data();
+            
+            // Normalize the status to title case
+            const normalizedStatus = normalizeStatus(data.status || 'present');
+            
+            records.push({
+              id: doc.id,
+              studentId: data.studentId,
+              studentName: data.studentName,
+              studentAvatar: data.avatarUrl || `https://picsum.photos/seed/${data.studentId}/100`,
+              class: data.className,
+              teacher: data.teacher,
+              date: data.date,
+              status: normalizedStatus,
             });
-            setAllRecords(records);
-            setIsLoading(false);
+          }
+          
+          setAllRecords(records);
+          setIsLoading(false);
         });
 
-        return () => {
-            unsubscribe();
-            unsubTeachers();
-            unsubClasses();
-        };
+        return unsubscribe;
+
+      } catch (error) {
+        console.error('Error fetching attendance records:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load attendance records',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+      }
     };
 
-    const unsubscribePromise = fetchData();
+    const unsubscribePromise = fetchAllAttendance();
 
-    setDate({ from: new Date(), to: new Date() });
+    // Set up real-time listeners for teachers and classes
+    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
+      const teacherNames = snapshot.docs.map(doc => doc.data().name);
+      setTeachers(['All Teachers', ...teacherNames]);
+    });
+    
+    const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
+    const unsubClasses = onSnapshot(qClasses, (snapshot) => {
+      const classNames = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return `${data.name} ${data.stream || ''}`.trim();
+      });
+      setClasses(['All Classes', ...new Set(classNames)]);
+    });
 
     return () => {
-        unsubscribePromise.then(unsub => unsub && unsub());
+      unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+      unsubTeachers();
+      unsubClasses();
     };
-  }, [schoolId]);
+  }, [schoolId, toast]);
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
     
-    const termRecords = allRecords.slice(0, 500); 
+    const termRecords = allRecords.slice(0, 500); // Limit for performance
 
     const dailyData: Record<string, { present: number, total: number }> = {};
 

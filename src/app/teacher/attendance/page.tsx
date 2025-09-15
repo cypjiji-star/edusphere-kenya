@@ -1,8 +1,7 @@
-
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { firestore, auth } from "@/lib/firebase";
+import { firestore } from "@/lib/firebase";
 import {
   collection,
   query,
@@ -12,6 +11,8 @@ import {
   doc,
   Timestamp,
   getDocs,
+  getDoc,
+  orderBy,
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,6 @@ const getAttendanceBadge = (status: AttendanceStatus) => {
     }
 }
 
-// --- Main Page Component ---
 export default function AttendancePage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -80,9 +80,7 @@ export default function AttendancePage() {
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  
   const [students, setStudents] = useState<Student[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [teacherName, setTeacherName] = useState('Teacher');
@@ -118,70 +116,117 @@ export default function AttendancePage() {
     return () => unsub();
   }, [user, schoolId, selectedClassId]);
 
-  // Main data fetching effect
+  // Main data fetching effect with REAL-TIME LISTENERS
   useEffect(() => {
     if (!schoolId || !selectedClassId || !selectedDate) {
         setIsLoading(false);
         return;
-    };
+    }
 
     setIsLoading(true);
 
     const fetchData = async () => {
+      try {
         // 1. Fetch the list of students for the class
         const studentsQuery = query(
-            collection(firestore, "schools", schoolId, "students"),
-            where("classId", "==", selectedClassId)
+          collection(firestore, "schools", schoolId, "students"),
+          where("classId", "==", selectedClassId),
+          orderBy("rollNumber")
         );
         const studentsSnapshot = await getDocs(studentsQuery);
         const studentList: Student[] = studentsSnapshot.docs.map(d => {
-            const data = d.data();
-            return {
-                id: d.id,
-                name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-                avatarUrl: data.avatarUrl,
-                status: "unmarked",
-                notes: "",
-                ...data
-            } as Student;
+          const data = d.data();
+          return {
+            id: d.id,
+            name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+            rollNumber: data.rollNumber || '',
+            avatarUrl: data.avatarUrl || '',
+            status: "unmarked",
+            notes: "",
+          } as Student;
         });
 
-        // 2. Fetch attendance for that day and class
+        // 2. Check for existing attendance records for the selected date
         const startOfDay = new Date(selectedDate);
         startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
+        const attendanceDate = Timestamp.fromDate(startOfDay);
+        
         const attendanceQuery = query(
-            collection(firestore, 'schools', schoolId, 'attendance'),
-            where('classId', '==', selectedClassId),
-            where('date', '>=', Timestamp.fromDate(startOfDay)),
-            where('date', '<=', Timestamp.fromDate(endOfDay))
+          collection(firestore, "schools", schoolId, "attendance"),
+          where("classId", "==", selectedClassId),
+          where("date", "==", attendanceDate)
         );
+
         const attendanceSnapshot = await getDocs(attendanceQuery);
-        const attendanceMap = new Map<string, { status: AttendanceStatus; notes?: string }>();
-        attendanceSnapshot.forEach(doc => {
-            const data = doc.data();
-            attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
+        const attendanceData: Record<string, {status: AttendanceStatus, notes: string}> = {};
+        
+        attendanceSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          attendanceData[data.studentId] = {
+            status: data.status || "unmarked",
+            notes: data.notes || ""
+          };
         });
 
-        // 3. Merge student list with attendance records
-        const mergedStudents = studentList.map(student => {
-            const record = attendanceMap.get(student.id);
-            if (record) {
-                return { ...student, status: record.status, notes: record.notes || '' };
-            }
-            return student; // Defaults to unmarked status
+        // 3. Merge student data with attendance data
+        const studentsWithAttendance = studentList.map(student => {
+          if (attendanceData[student.id]) {
+            return {
+              ...student,
+              status: attendanceData[student.id].status,
+              notes: attendanceData[student.id].notes
+            };
+          }
+          return student;
         });
 
-        setStudents(mergedStudents);
+        setStudents(studentsWithAttendance);
         setIsLoading(false);
+
+        // 4. Set up real-time listener for attendance changes
+        const unsubscribe = onSnapshot(attendanceQuery, (snapshot) => {
+          const updatedAttendance: Record<string, {status: AttendanceStatus, notes: string}> = {};
+          
+          snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            updatedAttendance[data.studentId] = {
+              status: data.status || "unmarked",
+              notes: data.notes || ""
+            };
+          });
+
+          setStudents(prev => prev.map(student => {
+            if (updatedAttendance[student.id]) {
+              return {
+                ...student,
+                status: updatedAttendance[student.id].status,
+                notes: updatedAttendance[student.id].notes
+              };
+            }
+            return student;
+          }));
+        });
+
+        return unsubscribe;
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load attendance data",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      }
     };
 
-    fetchData().catch(console.error);
+    const cleanupPromise = fetchData();
+    
+    return () => {
+      cleanupPromise.then(cleanup => cleanup && cleanup());
+    };
+  }, [schoolId, selectedClassId, selectedDate, toast]);
 
-  }, [schoolId, selectedClassId, selectedDate]);
-  
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status } : s));
   };
@@ -207,38 +252,27 @@ export default function AttendancePage() {
     for (const student of students) {
       if (student.status === "unmarked") continue;
       
-      const attendanceQuery = query(
-        collection(firestore, 'schools', schoolId, 'attendance'),
-        where('studentId', '==', student.id),
-        where('date', '>=', attendanceDate),
-        where('date', '<=', new Timestamp(attendanceDate.seconds, 999999999))
-      );
+      // Create a unique ID for the attendance record using student ID and date
+      const attendanceId = `${student.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
       
-      const querySnapshot = await getDocs(attendanceQuery);
+      // Correct path: schools/{schoolId}/attendance/{attendanceId}
+      const attendanceRef = doc(firestore, `schools/${schoolId}/attendance`, attendanceId);
       
       const attendanceData = {
-          studentId: student.id,
-          studentName: student.name,
-          classId: selectedClassId,
-          className: currentClass?.name || "Unknown",
-          date: attendanceDate,
-          status: student.status,
-          notes: student.notes || "",
-          teacherId: user.uid,
-          teacher: teacherName,
-          schoolId: schoolId,
+        studentId: student.id,
+        studentName: student.name,
+        classId: selectedClassId,
+        className: currentClass?.name || "Unknown",
+        date: attendanceDate,
+        status: student.status,
+        notes: student.notes || "",
+        teacherId: user.uid,
+        teacher: teacherName,
+        schoolId: schoolId,
+        timestamp: Timestamp.now(),
       };
 
-      if (!querySnapshot.empty) {
-        // Update existing record
-        const docId = querySnapshot.docs[0].id;
-        const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
-        batch.update(attendanceRef, { status: student.status, notes: student.notes || "" });
-      } else {
-        // Create new record
-        const attendanceRef = doc(collection(firestore, `schools/${schoolId}/attendance`));
-        batch.set(attendanceRef, attendanceData);
-      }
+      batch.set(attendanceRef, attendanceData);
     }
 
     try {
@@ -255,7 +289,7 @@ export default function AttendancePage() {
         variant: "destructive",
       });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   }, [schoolId, selectedClassId, selectedDate, students, teacherClasses, teacherName, toast, user]);
 
@@ -300,39 +334,46 @@ export default function AttendancePage() {
             <Button variant="secondary" onClick={clearAll}>Clear All</Button>
         </div>
       </div>
-        <div>
-          <Select onValueChange={setSelectedClassId} value={selectedClassId ?? ""}>
-            <SelectTrigger className="w-[180px] mb-4">
-              <SelectValue placeholder="Select a class" />
-            </SelectTrigger>
-            <SelectContent>
-              {teacherClasses.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      
+      <div>
+        <Select onValueChange={setSelectedClassId} value={selectedClassId ?? ""}>
+          <SelectTrigger className="w-[180px] mb-4">
+            <SelectValue placeholder="Select a class" />
+          </SelectTrigger>
+          <SelectContent>
+            {teacherClasses.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <div className="w-full overflow-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((student) => (
+        <div className="w-full overflow-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[200px]">Student</TableHead>
+                <TableHead className="w-[150px]">Status</TableHead>
+                <TableHead>Notes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {students.length > 0 ? (
+                students.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
-                            <AvatarImage src={student.avatarUrl} alt={student.name} />
-                            <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                          <AvatarImage src={student.avatarUrl} alt={student.name} />
+                          <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">{student.name}</span>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{student.name}</span>
+                          {student.rollNumber && (
+                            <span className="text-sm text-muted-foreground">Roll: {student.rollNumber}</span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -343,20 +384,20 @@ export default function AttendancePage() {
                         }
                       >
                         <SelectTrigger className="w-36">
-                            <SelectValue>{getAttendanceBadge(student.status)}</SelectValue>
+                          <SelectValue>{getAttendanceBadge(student.status)}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="present">{getAttendanceBadge('present')}</SelectItem>
-                            <SelectItem value="absent">{getAttendanceBadge('absent')}</SelectItem>
-                            <SelectItem value="late">{getAttendanceBadge('late')}</SelectItem>
-                            <SelectItem value="unmarked">{getAttendanceBadge('unmarked')}</SelectItem>
+                          <SelectItem value="present">{getAttendanceBadge('present')}</SelectItem>
+                          <SelectItem value="absent">{getAttendanceBadge('absent')}</SelectItem>
+                          <SelectItem value="late">{getAttendanceBadge('late')}</SelectItem>
+                          <SelectItem value="unmarked">{getAttendanceBadge('unmarked')}</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
                     <TableCell>
                       {(student.status === "absent" || student.status === "late") && (
                         <Input
-                          placeholder="Add note..."
+                          placeholder="Add note (optional)..."
                           value={student.notes || ""}
                           onChange={(e) =>
                             handleNotesChange(student.id, e.target.value)
@@ -366,16 +407,31 @@ export default function AttendancePage() {
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="h-24 text-center">
+                    {teacherClasses.length === 0 
+                      ? "No classes assigned to you." 
+                      : "No students found in this class."}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
+      </div>
 
-      <Button onClick={handleSaveAttendance} disabled={isSaving}>
-        <Save className="mr-2 h-4 w-4" />
-        {isSaving ? "Saving..." : "Submit Attendance"}
-      </Button>
+      {students.length > 0 && (
+        <Button 
+          onClick={handleSaveAttendance} 
+          disabled={isSaving}
+          className="w-full sm:w-auto"
+        >
+          <Save className="mr-2 h-4 w-4" />
+          {isSaving ? "Saving..." : "Submit Attendance"}
+        </Button>
+      )}
     </div>
   );
 }

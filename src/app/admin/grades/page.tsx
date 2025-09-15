@@ -158,6 +158,15 @@ export default function AdminGradesPage() {
     const { toast } = useToast();
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [submissions, setSubmissions] = React.useState<Submission[]>([]);
+    const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
+    
+    // State for the create exam dialog
+    const [newExamTitle, setNewExamTitle] = React.useState('');
+    const [newExamTerm, setNewExamTerm] = React.useState('Term 2, 2024');
+    const [newExamClass, setNewExamClass] = React.useState<string | undefined>();
+    const [newExamNotes, setNewExamNotes] = React.useState('');
+    const [isSavingExam, setIsSavingExam] = React.useState(false);
+
 
     React.useEffect(() => {
         if (!schoolId) return;
@@ -178,9 +187,16 @@ export default function AdminGradesPage() {
             setSubmissions(fetchedSubmissions);
         });
 
+        const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
+        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+            const classNames = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
+            setClasses(classNames);
+        });
+
         return () => {
             unsubExams();
             unsubSubmissions();
+            unsubClasses();
         };
     }, [schoolId, submissionExamFilter]);
 
@@ -210,19 +226,33 @@ export default function AdminGradesPage() {
         });
     }
     
-    const handleCreateExam = async (values: any) => {
-        if (!schoolId) return;
+    const handleCreateExam = async () => {
+        if (!schoolId || !newExamTitle || !newExamClass || !date?.from) {
+            toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out the title, class, and date range.' });
+            return;
+        }
+        setIsSavingExam(true);
         try {
             await addDoc(collection(firestore, `schools/${schoolId}/assessments`), {
-                ...values,
-                startDate: Timestamp.fromDate(date?.from || new Date()),
-                endDate: Timestamp.fromDate(date?.to || date?.from || new Date()),
+                title: newExamTitle,
+                term: newExamTerm,
+                classes: classes.find(c => c.id === newExamClass)?.name || 'N/A',
+                startDate: Timestamp.fromDate(date.from),
+                endDate: Timestamp.fromDate(date.to || date.from),
+                notes: newExamNotes,
                 status: 'Scheduled',
             });
             toast({ title: 'Exam Created', description: 'The new exam has been scheduled.' });
+            // Reset form
+            setNewExamTitle('');
+            setNewExamClass(undefined);
+            setDate(undefined);
+            setNewExamNotes('');
         } catch (e) {
             console.error(e);
             toast({ variant: 'destructive', title: 'Failed to create exam.' });
+        } finally {
+            setIsSavingExam(false);
         }
     };
 
@@ -312,12 +342,12 @@ export default function AdminGradesPage() {
                                             <div className="grid gap-6 py-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="exam-title">Exam Title</Label>
-                                                    <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" />
+                                                    <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" value={newExamTitle} onChange={(e) => setNewExamTitle(e.target.value)} />
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="space-y-2">
                                                         <Label htmlFor="exam-term">Academic Term</Label>
-                                                        <Select defaultValue="term2-2024">
+                                                        <Select value={newExamTerm} onValueChange={setNewExamTerm}>
                                                             <SelectTrigger id="exam-term">
                                                                 <SelectValue />
                                                             </SelectTrigger>
@@ -329,13 +359,13 @@ export default function AdminGradesPage() {
                                                     </div>
                                                      <div className="space-y-2">
                                                         <Label>Classes Involved</Label>
-                                                        <Select defaultValue="All Classes">
+                                                        <Select value={newExamClass} onValueChange={setNewExamClass}>
                                                             <SelectTrigger>
-                                                                <SelectValue />
+                                                                <SelectValue placeholder="Select classes..." />
                                                             </SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="All Classes">All Classes</SelectItem>
-                                                                <SelectItem value="Form 4">Form 4 Only</SelectItem>
+                                                                {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
@@ -362,14 +392,15 @@ export default function AdminGradesPage() {
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label htmlFor="exam-notes">Notes (Optional)</Label>
-                                                    <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers."/>
+                                                    <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers." value={newExamNotes} onChange={e => setNewExamNotes(e.target.value)} />
                                                 </div>
                                             </div>
                                             <DialogFooter>
                                                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                                <DialogClose asChild>
-                                                    <Button onClick={handleCreateExam}>Save Exam</Button>
-                                                </DialogClose>
+                                                <Button onClick={handleCreateExam} disabled={isSavingExam}>
+                                                    {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                    Save Exam
+                                                </Button>
                                             </DialogFooter>
                                         </DialogContent>
                                     </Dialog>
