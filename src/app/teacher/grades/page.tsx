@@ -55,7 +55,7 @@ import {
 } from '@/components/ui/dialog';
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ReportGenerator } from './report-generator';
+import { ReportGenerator } from '../grades/report-generator';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -63,11 +63,13 @@ import { GradeEntryForm } from './new/grade-entry-form';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import type { DocumentData, Timestamp } from 'firebase/firestore';
+
 
 // --- Data Types ---
 type Grade = {
   assessmentId: string;
-  score: number | string;
+  grade: number | string;
 };
 
 export type StudentGrades = {
@@ -83,7 +85,7 @@ export type Assessment = {
   id: string;
   title: string;
   type: 'Exam' | 'Assignment' | 'Quiz';
-  date: string;
+  date: Timestamp;
 };
 
 type TeacherClass = {
@@ -136,33 +138,43 @@ export default function GradesPage() {
 
         setIsGradebookLoading(true);
 
-        // Listener for assessments for the selected class
         const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
         const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
             const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
             setCurrentAssessments(assessments);
         });
 
-        // Listener for students in the selected class
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
-        const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
-            const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
-                const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
+        const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass));
+        const unsubGrades = onSnapshot(gradesQuery, async (snapshot) => {
+             const gradesByStudent: Record<string, { grades: Grade[], studentInfo?: any }> = {};
+
+            for (const gradeDoc of snapshot.docs) {
+                const gradeData = gradeDoc.data();
+                const studentId = gradeData.studentId;
+
+                if (!gradesByStudent[studentId]) {
+                    const studentRef = doc(firestore, 'schools', schoolId, 'students', studentId);
+                    const studentSnap = await getDoc(studentRef);
+                    gradesByStudent[studentId] = { grades: [], studentInfo: studentSnap.data() };
+                }
                 
-                // Fetch all grades for this student at once
-                const gradesQuery = query(collection(firestore, `schools/${schoolId}/students/${student.studentId}/grades`));
-                const gradesSnapshot = await getDocs(gradesQuery);
-                const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
-                
-                const numericScores = grades.map(g => parseInt(String(g.score))).filter(s => !isNaN(s));
-                const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a+b, 0) / numericScores.length) : 0;
+                gradesByStudent[studentId].grades.push({ assessmentId: gradeData.assessmentId, grade: gradeData.grade });
+            }
+
+            const studentsData = Object.entries(gradesByStudent).map(([studentId, data]) => {
+                const numericScores = data.grades.map(g => parseInt(String(g.grade))).filter(s => !isNaN(s));
+                const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a + b, 0) / numericScores.length) : 0;
                 
                 return {
-                    ...student,
-                    grades,
+                    studentId: studentId,
+                    studentName: data.studentInfo?.name || 'Unknown Student',
+                    studentAvatar: data.studentInfo?.avatarUrl || '',
+                    rollNumber: data.studentInfo?.rollNumber || '',
+                    grades: data.grades,
                     overall,
                 };
-            }));
+            });
+            
             setCurrentStudents(studentsData);
             setIsGradebookLoading(false);
         });
@@ -170,7 +182,7 @@ export default function GradesPage() {
 
         return () => {
             unsubAssessments();
-            unsubStudents();
+            unsubGrades();
         }
 
     }, [selectedClass, schoolId]);
@@ -181,7 +193,7 @@ export default function GradesPage() {
 
     const getGradeForStudent = (student: StudentGrades, assessmentId: string) => {
         const grade = student.grades.find(g => g.assessmentId === assessmentId);
-        return grade ? grade.score : '—';
+        return grade ? grade.grade : '—';
     };
 
     const handleExport = (type: 'PDF' | 'CSV') => {

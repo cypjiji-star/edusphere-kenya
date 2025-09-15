@@ -175,23 +175,16 @@ export default function ParentGradesPage() {
     if (!selectedChild || !schoolId) return;
     setIsLoading(true);
 
-    const gradesQuery = query(collection(firestore, 'schools', schoolId, 'students', selectedChild, 'grades'));
+    const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('studentId', '==', selectedChild));
     const unsubGrades = onSnapshot(gradesQuery, async (gradesSnapshot) => {
         const gradesBySubject: Record<string, number[]> = {};
-        const assessmentDetails: Record<string, {title: string, type: string, date: string}> = {};
-
+        
         for (const gradeDoc of gradesSnapshot.docs) {
             const grade = gradeDoc.data();
             const score = parseInt(grade.grade, 10);
             if (isNaN(score)) continue;
 
-            if (!assessmentDetails[grade.assessmentId]) {
-                 const assessmentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'assesments', grade.assessmentId));
-                 if(assessmentDoc.exists()) {
-                     assessmentDetails[grade.assessmentId] = assessmentDoc.data() as any;
-                 }
-            }
-            const subjectName = assessmentDetails[grade.assessmentId]?.title.split(' ')[0] || 'Unknown';
+            const subjectName = grade.subject || 'Unknown Subject';
             if (!gradesBySubject[subjectName]) {
                 gradesBySubject[subjectName] = [];
             }
