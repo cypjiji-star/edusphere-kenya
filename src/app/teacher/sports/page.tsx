@@ -33,7 +33,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { generateTeamIcon } from '@/ai/flows/generate-team-icon-flow';
@@ -51,7 +51,7 @@ type SportsTeam = {
 
 
 export default function SportsPage() {
-  const [sportsTeams, setSportsTeams] = React.useState<SportsTeam[]>([]);
+  const [allSportsTeams, setAllSportsTeams] = React.useState<SportsTeam[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isCreating, setIsCreating] = React.useState(false);
   const [isGeneratingIcon, setIsGeneratingIcon] = React.useState(false);
@@ -68,18 +68,17 @@ export default function SportsPage() {
   const { user } = useAuth();
 
    React.useEffect(() => {
-    if (!schoolId || !user?.displayName) {
+    if (!schoolId) {
         setIsLoading(false);
         return;
     };
 
     setIsLoading(true);
-    const teacherName = user.displayName;
 
-    const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'), where('coach', '==', teacherName));
+    const teamsQuery = query(collection(firestore, 'schools', schoolId, 'teams'));
     const unsubTeams = onSnapshot(teamsQuery, (snapshot) => {
         const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SportsTeam));
-        setSportsTeams(teamsData);
+        setAllSportsTeams(teamsData);
         setIsLoading(false);
     }, (error) => {
         console.error("Error fetching teams:", error);
@@ -97,6 +96,8 @@ export default function SportsPage() {
         unsubTeachers();
     };
   }, [schoolId, user]);
+
+  const sportsTeams = allSportsTeams.filter(team => user && team.coach === user.displayName);
 
   const handleIconGeneration = async () => {
     if (!newTeamDescription) {
