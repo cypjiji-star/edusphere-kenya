@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -295,7 +296,7 @@ export default function AdminGradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
+      
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
               <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -417,6 +418,7 @@ export default function AdminGradesPage() {
                   </div>
               </CardHeader>
               <CardContent>
+                <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
                   {studentsForRanking.length > 0 ? (
                       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                           {studentsForRanking.map((student, index) => (
@@ -440,6 +442,38 @@ export default function AdminGradesPage() {
                           <p>No ranking data available for this class yet.</p>
                       </div>
                   )}
+                  <DialogContent className="sm:max-w-md">
+                      {selectedStudentForDetails && (
+                          <>
+                              <DialogHeader>
+                                  <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
+                                  <DialogDescription>Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span></DialogDescription>
+                              </DialogHeader>
+                              <div className="py-4">
+                                  <h4 className="mb-4 font-semibold">Scores by Subject</h4>
+                                  <div className="w-full overflow-auto rounded-lg border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Subject</TableHead>
+                                                <TableHead className="text-right">Score</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {selectedStudentForDetails.grades?.map((gradeInfo, index) => (
+                                                <TableRow key={index}>
+                                                    <TableCell className="font-medium">{gradeInfo.subject}</TableCell>
+                                                    <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                  </div>
+                              </div>
+                          </>
+                      )}
+                  </DialogContent>
+                </Dialog>
               </CardContent>
           </Card>
           </TabsContent>
@@ -494,40 +528,7 @@ export default function AdminGradesPage() {
              </Card>
           </TabsContent>
         </Tabs>
-        
-        <DialogContent className="sm:max-w-md">
-            {selectedStudentForDetails && (
-                <>
-                    <DialogHeader>
-                        <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
-                        <DialogDescription>Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span></DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <h4 className="mb-4 font-semibold">Scores by Subject</h4>
-                        <div className="w-full overflow-auto rounded-lg border">
-                           <Table>
-                               <TableHeader>
-                                   <TableRow>
-                                       <TableHead>Subject</TableHead>
-                                       <TableHead className="text-right">Score</TableHead>
-                                   </TableRow>
-                               </TableHeader>
-                               <TableBody>
-                                   {selectedStudentForDetails.grades?.map((gradeInfo, index) => (
-                                       <TableRow key={index}>
-                                           <TableCell className="font-medium">{gradeInfo.subject}</TableCell>
-                                           <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
-                                       </TableRow>
-                                   ))}
-                               </TableBody>
-                           </Table>
-                        </div>
-                    </div>
-                </>
-            )}
-        </DialogContent>
-
-      </Dialog>
     </div>
   );
 }
+
