@@ -55,6 +55,7 @@ import {
   where, 
   DocumentData,
   doc,
+  getDoc
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
@@ -132,12 +133,20 @@ export default function AdminGradesPage() {
   React.useEffect(() => {
     if (!schoolId) return;
     
-    const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
-    const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
-      const classNames = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
-      setClasses(classNames);
-      if (classNames.length > 0 && !selectedClassForRanking) {
-          setSelectedClassForRanking(classNames[0].id);
+    // Fetch unique classes from the grades collection
+    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
+    const unsubClasses = onSnapshot(gradesQuery, (snapshot) => {
+        const uniqueClasses: Record<string, string> = {};
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.classId && data.className) {
+                uniqueClasses[data.classId] = data.className;
+            }
+        });
+        const classList = Object.entries(uniqueClasses).map(([id, name]) => ({ id, name }));
+        setClasses(classList);
+      if (classList.length > 0 && !selectedClassForRanking) {
+          setSelectedClassForRanking(classList[0].id);
       }
     });
     
