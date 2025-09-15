@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -127,8 +126,11 @@ export default function AdminGradesPage() {
   const [activeTab, setActiveTab] = React.useState('ranking');
   const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
   const [selectedClassForRanking, setSelectedClassForRanking] = React.useState<string>('');
+  const [selectedSubjectForRanking, setSelectedSubjectForRanking] = React.useState<string>('All Subjects');
+  const [subjectsForRanking, setSubjectsForRanking] = React.useState<string[]>(['All Subjects']);
   const [selectedStudentForDetails, setSelectedStudentForDetails] = React.useState<StudentGrade | null>(null);
   const [allExams, setAllExams] = React.useState<Exam[]>([]);
+  const [isLoadingRanking, setIsLoadingRanking] = React.useState(false);
   
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -156,7 +158,10 @@ export default function AdminGradesPage() {
     );
 
     const unsubClasses = onSnapshot(collection(firestore, `schools/${schoolId}/classes`), (snapshot) => {
-      const classList = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+      const classList = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        name: `${doc.data().name || doc.data().className || ''} ${doc.data().stream || ''}`.trim() 
+      }));
       setClasses(classList);
       if (classList.length > 0 && !selectedClassForRanking) {
         setSelectedClassForRanking(classList[0].id);
@@ -167,65 +172,106 @@ export default function AdminGradesPage() {
       unsubExams();
       unsubClasses();
     };
-  }, [schoolId]);
+  }, [schoolId, selectedClassForRanking]);
 
   
   React.useEffect(() => {
-    if (!selectedClassForRanking || !schoolId) return;
+    if (!selectedClassForRanking || !schoolId) {
+      setStudentsForRanking([]);
+      setSubjectsForRanking(['All Subjects']);
+      return;
+    }
 
     const fetchStudentGradesForRanking = async () => {
+      setIsLoadingRanking(true);
       try {
+        const studentsQuery = query(
+          collection(firestore, `schools/${schoolId}/students`), 
+          where('classId', '==', selectedClassForRanking)
+        );
+        const studentsSnapshot = await getDocs(studentsQuery);
+        
+        if (studentsSnapshot.empty) {
+          setStudentsForRanking([]);
+          setSubjectsForRanking(['All Subjects']);
+          setIsLoadingRanking(false);
+          return;
+        }
+
+        const studentIds = studentsSnapshot.docs.map(doc => doc.id);
+        const studentInfoMap = new Map(studentsSnapshot.docs.map(doc => [
+          doc.id, 
+          { name: doc.data().name || 'Unknown', avatarUrl: doc.data().avatarUrl || '', rollNumber: doc.data().rollNumber || ''}
+        ]));
+
+        const studentGradesMap = new Map();
+        const availableSubjects = new Set<string>();
+
         const gradesQuery = query(
           collection(firestore, `schools/${schoolId}/grades`), 
           where('classId', '==', selectedClassForRanking)
         );
+        
         const gradesSnapshot = await getDocs(gradesQuery);
-        const gradesData = gradesSnapshot.docs.map(doc => doc.data());
 
-        const allStudentGrades: Record<string, { total: number, count: number, name?: string, avatar?: string, rollNumber?: string, grades: { subject: string, grade: string }[] }> = {};
-
-        for (const gradeData of gradesData) {
+        gradesSnapshot.forEach(doc => {
+          const gradeData = doc.data();
           const studentId = gradeData.studentId;
-          if (!allStudentGrades[studentId]) {
-              allStudentGrades[studentId] = { total: 0, count: 0, grades: [] };
-          }
-          const gradeValue = parseInt(gradeData.grade, 10) || 0;
-          allStudentGrades[studentId].total += gradeValue;
-          allStudentGrades[studentId].count++;
-          allStudentGrades[studentId].grades.push({ subject: gradeData.subject, grade: gradeData.grade });
-        }
-        
-        const studentDetailsPromises = Object.keys(allStudentGrades).map(async (studentId) => {
-            const studentDoc = await getDoc(doc(firestore, `schools/${schoolId}/students`, studentId));
-            if (studentDoc.exists()) {
-                const studentData = studentDoc.data();
-                allStudentGrades[studentId].name = studentData.name;
-                allStudentGrades[studentId].avatar = studentData.avatarUrl;
-                allStudentGrades[studentId].rollNumber = studentData.rollNumber;
+          
+          if(studentInfoMap.has(studentId)) {
+            if (!studentGradesMap.has(studentId)) {
+              studentGradesMap.set(studentId, []);
             }
+            studentGradesMap.get(studentId).push({
+              subject: gradeData.subject,
+              grade: parseInt(gradeData.grade, 10) || 0
+            });
+            if(gradeData.subject) {
+              availableSubjects.add(gradeData.subject);
+            }
+          }
         });
-
-        await Promise.all(studentDetailsPromises);
         
-        const rankedStudents = Object.entries(allStudentGrades).map(([id, data]) => ({
-          id,
-          studentName: data.name || "Unknown Student",
-          avatarUrl: data.avatar || "",
-          rollNumber: data.rollNumber || "",
-          grade: '',
-          overall: data.count > 0 ? Math.round(data.total / data.count) : 0,
-          grades: data.grades,
-        })).sort((a, b) => (b.overall || 0) - (a.overall || 0));
+        setSubjectsForRanking(['All Subjects', ...Array.from(availableSubjects)]);
+        
+        const rankedStudents = Array.from(studentInfoMap.keys())
+          .map((studentId) => {
+            const studentGrades = studentGradesMap.get(studentId) || [];
+            
+            const gradesToAverage = selectedSubjectForRanking === 'All Subjects' 
+              ? studentGrades 
+              : studentGrades.filter((g: any) => g.subject === selectedSubjectForRanking);
+            
+            const numericScores = gradesToAverage.map((g: any) => g.grade);
+            const average = numericScores.length > 0 ? Math.round(numericScores.reduce((a: number, b: number) => a + b, 0) / numericScores.length) : 0;
+            
+            return {
+              id: studentId,
+              studentName: studentInfoMap.get(studentId)?.name || 'Unknown',
+              avatarUrl: studentInfoMap.get(studentId)?.avatarUrl || '',
+              rollNumber: studentInfoMap.get(studentId)?.rollNumber || '',
+              grade: '',
+              overall: average,
+              grades: studentGrades.map((g: any) => ({subject: g.subject, grade: `${g.grade}`})),
+            };
+          })
+          .sort((a, b) => b.overall - a.overall);
 
         setStudentsForRanking(rankedStudents);
       } catch (error) {
         console.error('Error fetching student grades for ranking:', error);
-        toast({ variant: 'destructive', title: 'Failed to fetch ranking data' });
+        toast({ 
+          variant: 'destructive', 
+          title: 'Failed to fetch ranking data',
+          description: 'Please check your database structure and try again.'
+        });
+      } finally {
+        setIsLoadingRanking(false);
       }
     };
     
     fetchStudentGradesForRanking();
-  }, [selectedClassForRanking, schoolId, toast]);
+  }, [selectedClassForRanking, selectedSubjectForRanking, schoolId, toast]);
 
   const handleGradingScaleChange = (index: number, field: 'min' | 'max', value: number) => {
     const newScale = [...gradingScale];
@@ -278,7 +324,7 @@ export default function AdminGradesPage() {
   const handlePrintRanking = () => {
     const doc = new jsPDF();
     const className = classes.find(c => c.id === selectedClassForRanking)?.name;
-    doc.text(`Class Ranking for ${className || 'Selected Class'}`, 14, 16);
+    doc.text(`Class Ranking for ${className || 'Selected Class'} (${selectedSubjectForRanking})`, 14, 16);
     
     const tableData = studentsForRanking.map((student, index) => [
       index + 1,
@@ -403,15 +449,23 @@ export default function AdminGradesPage() {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                           <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
-                          <CardDescription>Student ranking based on overall performance for the selected exam.</CardDescription>
+                          <CardDescription>Student ranking based on performance.</CardDescription>
                       </div>
-                      <div className="flex w-full md:w-auto items-center gap-2">
+                      <div className="flex w-full flex-col md:flex-row md:items-center gap-2">
                            <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
                               <SelectTrigger className="w-full md:w-[240px]">
                                   <SelectValue placeholder="Select a class" />
                               </SelectTrigger>
                               <SelectContent>
                                   {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                              </SelectContent>
+                          </Select>
+                          <Select value={selectedSubjectForRanking} onValueChange={setSelectedSubjectForRanking}>
+                              <SelectTrigger className="w-full md:w-[240px]">
+                                  <SelectValue placeholder="Select a subject" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  {subjectsForRanking.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                               </SelectContent>
                           </Select>
                           <Button variant="outline" onClick={handlePrintRanking}>
@@ -422,62 +476,75 @@ export default function AdminGradesPage() {
                   </div>
               </CardHeader>
               <CardContent>
-                <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
-                  {studentsForRanking.length > 0 ? (
-                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                          {studentsForRanking.map((student, index) => (
-                              <DialogTrigger key={student.id} asChild>
-                                  <Card className="flex items-center p-4 gap-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedStudentForDetails(student)}>
-                                      <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
-                                      <Avatar className="h-12 w-12">
-                                          <AvatarImage src={student.avatarUrl} />
-                                          <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1">
-                                          <p className="font-semibold">{student.studentName}</p>
-                                          <p className="text-sm text-muted-foreground">Overall: <span className="font-bold text-foreground">{student.overall}%</span></p>
-                                      </div>
-                                  </Card>
-                              </DialogTrigger>
-                          ))}
-                      </div>
-                  ) : (
-                      <div className="text-center text-muted-foreground py-16">
-                          <p>No ranking data available for this class yet.</p>
-                      </div>
-                  )}
-                  <DialogContent className="sm:max-w-md">
-                      {selectedStudentForDetails && (
-                          <>
-                              <DialogHeader>
-                                  <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
-                                  <DialogDescription>Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span></DialogDescription>
-                              </DialogHeader>
-                              <div className="py-4">
-                                  <h4 className="mb-4 font-semibold">Scores by Subject</h4>
-                                  <div className="w-full overflow-auto rounded-lg border">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Subject</TableHead>
-                                                <TableHead className="text-right">Score</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {selectedStudentForDetails.grades?.map((gradeInfo, index) => (
-                                                <TableRow key={index}>
-                                                    <TableCell className="font-medium">{gradeInfo.subject}</TableCell>
-                                                    <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                  </div>
-                              </div>
-                          </>
-                      )}
-                  </DialogContent>
-                </Dialog>
+                {isLoadingRanking ? (
+                  <div className="flex justify-center items-center py-16">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Loading ranking data...</span>
+                  </div>
+                ) : (
+                  <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
+                    {studentsForRanking.length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {studentsForRanking.map((student, index) => (
+                                <DialogTrigger key={student.id} asChild>
+                                    <Card className="flex items-center p-4 gap-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedStudentForDetails(student)}>
+                                        <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
+                                        <Avatar className="h-12 w-12">
+                                            <AvatarImage src={student.avatarUrl} />
+                                            <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                            <p className="font-semibold">{student.studentName}</p>
+                                            <p className="text-sm text-muted-foreground">Overall: <span className="font-bold text-foreground">{student.overall}%</span></p>
+                                        </div>
+                                    </Card>
+                                </DialogTrigger>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-16">
+                            <p>No ranking data available for this class and subject yet.</p>
+                            <p className="text-sm mt-2">Make sure students have grades assigned.</p>
+                        </div>
+                    )}
+                    <DialogContent className="sm:max-w-md">
+                        {selectedStudentForDetails && (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
+                                    <DialogDescription>
+                                      Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span>
+                                      {selectedStudentForDetails.rollNumber && (
+                                        <span> | Roll No: {selectedStudentForDetails.rollNumber}</span>
+                                      )}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4">
+                                    <h4 className="mb-4 font-semibold">Scores by Subject</h4>
+                                    <div className="w-full overflow-auto rounded-lg border">
+                                      <Table>
+                                          <TableHeader>
+                                              <TableRow>
+                                                  <TableHead>Subject</TableHead>
+                                                  <TableHead className="text-right">Score</TableHead>
+                                              </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                              {selectedStudentForDetails.grades?.map((gradeInfo, index) => (
+                                                  <TableRow key={index}>
+                                                      <TableCell className="font-medium">{gradeInfo.subject}</TableCell>
+                                                      <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
+                                                  </TableRow>
+                                              ))}
+                                          </TableBody>
+                                      </Table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </DialogContent>
+                  </Dialog>
+                )}
               </CardContent>
           </Card>
           </TabsContent>
@@ -535,6 +602,3 @@ export default function AdminGradesPage() {
     </div>
   );
 }
-
-
-
