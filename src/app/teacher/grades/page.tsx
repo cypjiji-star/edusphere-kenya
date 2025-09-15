@@ -61,7 +61,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { GradeEntryForm } from './new/grade-entry-form';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
 
