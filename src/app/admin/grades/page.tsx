@@ -9,7 +9,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +29,7 @@ import {
   CalendarIcon,
   Users,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Table,
@@ -86,7 +86,7 @@ import { useSearchParams } from 'next/navigation';
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
 type SubmissionStatus = 'Pending' | 'Submitted' | 'Approved';
 
-type Exam = {
+export type Exam = {
     id: string;
     title: string;
     term: string;
@@ -162,6 +162,9 @@ export default function AdminGradesPage() {
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [submissions, setSubmissions] = React.useState<Submission[]>([]);
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
+    
+    const [activeTab, setActiveTab] = React.useState('schedules');
+    const [examForAnalysis, setExamForAnalysis] = React.useState<Exam | null>(null);
     
     const currentYear = new Date().getFullYear();
     const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -312,7 +315,6 @@ export default function AdminGradesPage() {
         try {
             const grades: StudentGrade[] = [];
             // We need to find all students in the class and then find their grade for this specific assessment.
-            // This is inefficient. A better data model would be to have grades under the submission itself.
             const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('class', '==', submission.class));
             const studentsSnapshot = await getDocs(studentsQuery);
 
@@ -339,6 +341,11 @@ export default function AdminGradesPage() {
             setIsFetchingGrades(false);
         }
     };
+    
+    const handleAnalyzeExam = (exam: Exam) => {
+        setExamForAnalysis(exam);
+        setActiveTab('analysis');
+    }
 
     return (
         <Dialog onOpenChange={(open) => {
@@ -357,7 +364,7 @@ export default function AdminGradesPage() {
                 <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
             </div>
 
-            <Tabs defaultValue="schedules">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-5 md:w-auto md:inline-flex mb-6">
                     <TabsTrigger value="schedules">Exam Schedules</TabsTrigger>
                     <TabsTrigger value="submissions">Submission Status</TabsTrigger>
@@ -514,10 +521,14 @@ export default function AdminGradesPage() {
                                                 <TableCell>
                                                     <Badge className={`${statusColors[exam.status]} text-white`}>{exam.status}</Badge>
                                                 </TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right space-x-2">
                                                      <DialogTrigger asChild>
-                                                        <Button variant="ghost" size="sm" onClick={() => setSelectedExam(exam)}>View Details</Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => setSelectedExam(exam)}>Details</Button>
                                                      </DialogTrigger>
+                                                      <Button variant="outline" size="sm" onClick={() => handleAnalyzeExam(exam)}>
+                                                        <BarChart2 className="mr-2 h-4 w-4"/>
+                                                        Analyze
+                                                      </Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -621,7 +632,7 @@ export default function AdminGradesPage() {
                     </Card>
                 </TabsContent>
                 <TabsContent value="analysis">
-                     <GradeAnalysisCharts />
+                     <GradeAnalysisCharts exam={examForAnalysis} onBack={() => setActiveTab('schedules')} />
                 </TabsContent>
                 <TabsContent value="reports">
                     <ReportGenerator />
