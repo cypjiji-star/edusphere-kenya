@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -297,7 +298,8 @@ export default function AttendancePage() {
       const endOfDay = new Date(today.setHours(23, 59, 59, 999));
       
       const attendanceQuery = query(
-          collection(firestore, 'schools', schoolId, 'attendance'),
+          collectionGroup(firestore, 'records'),
+          where('schoolId', '==', schoolId),
           where('classId', '==', selectedClass),
           where('date', '>=', Timestamp.fromDate(startOfDay)),
           where('date', '<=', Timestamp.fromDate(endOfDay))
@@ -346,9 +348,10 @@ export default function AttendancePage() {
       if (student.status === "unmarked") continue;
 
       const attendanceDate = Timestamp.fromDate(selectedDate);
-      // Create a unique ID for the attendance record to avoid overwrites if a teacher saves multiple times.
-      // This is a simple approach; a more robust solution might query for an existing record for the student/date first.
-      const attendanceRef = doc(collection(firestore, `schools/${schoolId}/attendance`));
+      const recordDateString = format(selectedDate, 'yyyy-MM-dd');
+      
+      // Use a consistent doc ID to allow for updates
+      const attendanceRef = doc(firestore, `schools/${schoolId}/attendance/${student.id}/records`, recordDateString);
       
       batch.set(attendanceRef, {
         studentId: student.id,
