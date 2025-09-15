@@ -30,6 +30,7 @@ import {
   Bell,
   Check,
   Trophy,
+  Library,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -73,6 +74,7 @@ const navGroups = [
       { href: '/admin/grades', label: 'Grades & Exams', icon: FileText, badge: null, collection: '' },
       { href: '/admin/timetable', label: 'Timetable', icon: Calendar },
       { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
+      { href: '/admin/lesson-plans', label: 'Lesson Plans', icon: BookOpen },
       { href: '/admin/health', label: 'Health & Incidents', icon: HeartPulse },
     ],
   },
@@ -100,9 +102,10 @@ const navGroups = [
     ],
   },
    {
-    title: 'Sports & Clubs',
+    title: 'Resources',
     items: [
         { href: '/admin/sports', label: 'Teams & Clubs', icon: Trophy },
+        { href: '/admin/library', label: 'Library', icon: Library },
     ]
   },
   {
