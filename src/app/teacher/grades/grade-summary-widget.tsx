@@ -26,34 +26,12 @@ const gradeDistributionRanges = [
   { range: 'E (0-34)', min: 0, max: 34, count: 0 },
 ];
 
-const ATTENDANCE_COLORS = {
-    present: 'hsl(120, 80%, 70%)',
-    late: 'hsl(40, 90%, 70%)',
-    absent: 'hsl(0, 80%, 70%)',
-};
-
-
 const performanceChartConfig = {
   students: {
     label: 'Students',
     color: 'hsl(var(--primary))',
   },
 };
-
-const attendanceChartConfig = {
-  present: {
-    label: 'Present',
-    color: ATTENDANCE_COLORS.present,
-  },
-  late: {
-    label: 'Late',
-    color: ATTENDANCE_COLORS.late,
-  },
-  absent: {
-    label: 'Absent',
-    color: ATTENDANCE_COLORS.absent,
-  },
-} satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
 export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) {
     
@@ -128,6 +106,7 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
                         />
                         <Bar dataKey="students" fill="var(--color-students)" radius={5} barSize={25}>
                             <LabelList
+                                dataKey="students"
                                 position="right"
                                 offset={8}
                                 className="fill-foreground font-semibold"
