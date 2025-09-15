@@ -1,0 +1,15 @@
+
+import { z } from 'zod';
+
+const studentGradeSchema = z.object({
+  studentId: z.string(),
+  grade: z.string().min(1, { message: "Grade is required" }),
+});
+
+export const gradeEntrySchema = z.object({
+  classId: z.string({ required_error: 'Please select a class.' }),
+  assessmentId: z.string({ required_error: 'Please select an assessment.' }),
+  grades: z.array(studentGradeSchema),
+});
+
+export type GradeEntryFormValues = z.infer<typeof gradeEntrySchema>;

@@ -9,9 +9,8 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import {
   saveGradesAction,
-  gradeEntrySchema,
-  type GradeEntryFormValues,
 } from '../actions';
+import { gradeEntrySchema, type GradeEntryFormValues } from '../types';
 
 import { Button } from '@/components/ui/button';
 import {
