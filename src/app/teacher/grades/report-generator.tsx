@@ -37,7 +37,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, LabelList } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -109,21 +109,14 @@ export function ReportGenerator() {
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [alertLowPerf, setAlertLowPerf] = React.useState(false);
   const [alertAbsent, setAlertAbsent] = React.useState(false);
-  const [user, setUser] = React.useState(auth.currentUser);
-
-  React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe();
-  }, []);
 
   const [studentsInClass, setStudentsInClass] = React.useState<StudentGrades[]>([]);
   const [assessmentsForClass, setAssessmentsForClass] = React.useState<Assessment[]>([]);
 
   React.useEffect(() => {
-    if (!schoolId || !user) return;
-    const teacherId = user.uid;
+    if (!schoolId) return;
 
-    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
     const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
         const classes = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
         setTeacherClasses(classes);
@@ -133,7 +126,7 @@ export function ReportGenerator() {
     });
 
     return () => unsubClasses();
-  }, [schoolId, selectedClass, user]);
+  }, [schoolId, selectedClass]);
 
   React.useEffect(() => {
     if (!schoolId || !selectedClass) return;
