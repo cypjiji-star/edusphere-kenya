@@ -55,7 +55,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { auth, firestore, firebaseConfig } from '@/lib/firebase';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 
@@ -134,11 +134,11 @@ export default function UserManagementPage() {
         });
         
         const unsubStudents = onSnapshot(collection(firestore, 'schools', schoolId, 'students'), (snapshot) => {
-            setStudentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+            setStudentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), role: 'Student' } as User)));
         });
 
         const unsubParents = onSnapshot(collection(firestore, 'schools', schoolId, 'parents'), (snapshot) => {
-            setParentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+            setParentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), role: 'Parent' } as User)));
         });
         
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
