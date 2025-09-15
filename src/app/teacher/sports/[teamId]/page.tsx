@@ -80,7 +80,9 @@ type MediaHighlight = {
     date: Timestamp;
 };
 
-export default function TeamDetailsPage({ params: { teamId } }: { params: { teamId: string } }) {
+export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: string }> }) {
+  // Unwrap the params promise using React.use()
+  const { teamId } = React.use(params);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -93,13 +95,11 @@ export default function TeamDetailsPage({ params: { teamId } }: { params: { team
   
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [clientReady, setClientReady] = React.useState(false);
-  const [newStudentId, setNewStudentId] = React.useState<string | undefined>();
+  const [newStudentId, setNewStudentId] = React.useState<string>('');
 
   React.useEffect(() => {
     if (!schoolId) return;
 
-    setClientReady(true);
     setIsLoading(true);
 
     const teamRef = doc(firestore, 'schools', schoolId, 'teams', teamId);
@@ -131,8 +131,8 @@ export default function TeamDetailsPage({ params: { teamId } }: { params: { team
         const studentsSnapshot = await getDocs(studentsQuery);
         const studentsList = studentsSnapshot.docs.map(doc => ({
             id: doc.id,
-            name: doc.data().name,
-            class: doc.data().class
+            name: doc.data().name || 'Unknown Student',
+            class: doc.data().class || doc.data().className || 'N/A'
         }));
         setAllStudents(studentsList);
     };
@@ -167,7 +167,9 @@ export default function TeamDetailsPage({ params: { teamId } }: { params: { team
         await deleteDoc(doc(firestore, 'schools', schoolId, 'teams', teamId, 'members', studentId));
         
         const teamRef = doc(firestore, 'schools', schoolId, 'teams', teamId);
-        await updateDoc(teamRef, { members: members.length - 1 });
+        await updateDoc(teamRef, { 
+          members: (teamDetails?.members || members.length) - 1 
+        });
         
         toast({
             title: 'Member Removed',
@@ -199,18 +201,20 @@ export default function TeamDetailsPage({ params: { teamId } }: { params: { team
 
         const studentData = studentDoc.data();
         const newMemberData = {
-            name: studentData.name,
-            class: studentData.class,
-            avatarUrl: studentData.avatarUrl,
+            name: studentData.name || student.name,
+            class: studentData.class || student.class,
+            avatarUrl: studentData.avatarUrl || '',
             role: 'Member',
         };
         
         await setDoc(doc(firestore, 'schools', schoolId, 'teams', teamId, 'members', student.id), newMemberData);
         
         const teamRef = doc(firestore, 'schools', schoolId, 'teams', teamId);
-        await updateDoc(teamRef, { members: members.length + 1 });
+        await updateDoc(teamRef, { 
+          members: (teamDetails?.members || members.length) + 1 
+        });
 
-        setNewStudentId(undefined);
+        setNewStudentId('');
         toast({
             title: 'Student Added',
             description: `${student.name} has been added to the roster.`,
@@ -222,7 +226,8 @@ export default function TeamDetailsPage({ params: { teamId } }: { params: { team
   };
 
   const filteredMembers = members.filter(m => 
-    m.name.toLowerCase().includes(searchTerm.toLowerCase())
+    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.class.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getRoleIcon = (role: StudentMember['role']) => {
@@ -406,8 +411,12 @@ export default function TeamDetailsPage({ params: { teamId } }: { params: { team
                         <div key={event.id}>
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col items-center justify-center w-16 text-center bg-muted/50 rounded-md p-2">
-                                    {clientReady && <span className="text-sm font-bold uppercase text-primary">{event.date.toDate().toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })}</span>}
-                                    {clientReady && <span className="text-xl font-bold">{event.date.toDate().getUTCDate()}</span>}
+                                    <span className="text-sm font-bold uppercase text-primary">
+                                        {event.date.toDate().toLocaleDateString('en-US', { month: 'short' })}
+                                    </span>
+                                    <span className="text-xl font-bold">
+                                        {event.date.toDate().getDate()}
+                                    </span>
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-semibold">{event.title}</p>
@@ -454,7 +463,9 @@ export default function TeamDetailsPage({ params: { teamId } }: { params: { team
                                 </CardContent>
                                 <CardFooter className="p-4 flex-col items-start">
                                     <p className="text-sm font-medium">{item.caption}</p>
-                                    {clientReady && <p className="text-xs text-muted-foreground">{item.date.toDate().toLocaleDateString()}</p>}
+                                    <p className="text-xs text-muted-foreground">
+                                        {item.date.toDate().toLocaleDateString()}
+                                    </p>
                                 </CardFooter>
                             </Card>
                         ))}

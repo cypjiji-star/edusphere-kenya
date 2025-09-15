@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -49,6 +48,11 @@ type SportsTeam = {
     icon: string;
 };
 
+type Teacher = {
+    id: string;
+    name: string;
+    email: string;
+};
 
 export default function SportsPage() {
   const [allSportsTeams, setAllSportsTeams] = React.useState<SportsTeam[]>([]);
@@ -60,7 +64,7 @@ export default function SportsPage() {
   const [newTeamCoach, setNewTeamCoach] = React.useState('');
   const [newTeamDescription, setNewTeamDescription] = React.useState('');
   const [newTeamIcon, setNewTeamIcon] = React.useState('');
-  const [allTeachers, setAllTeachers] = React.useState<string[]>([]);
+  const [allTeachers, setAllTeachers] = React.useState<Teacher[]>([]);
   
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -87,8 +91,12 @@ export default function SportsPage() {
 
     const teachersQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
     const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
-        const teacherNames = snapshot.docs.map(doc => doc.data().name);
-        setAllTeachers(teacherNames);
+        const teachers = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            name: doc.data().name,
+            email: doc.data().email 
+        } as Teacher));
+        setAllTeachers(teachers);
     });
 
     return () => {
@@ -97,7 +105,14 @@ export default function SportsPage() {
     };
   }, [schoolId, user]);
 
-  const sportsTeams = allSportsTeams.filter(team => user && team.coach === user.displayName);
+  // Filter teams where the current user is the coach
+  const sportsTeams = allSportsTeams.filter(team => {
+    if (!user) return false;
+    
+    // Check if the current user is the coach by name or email
+    const currentTeacher = allTeachers.find(t => t.id === user.uid);
+    return team.coach === (currentTeacher?.name || user.displayName || user.email);
+  });
 
   const handleIconGeneration = async () => {
     if (!newTeamDescription) {
@@ -132,9 +147,13 @@ export default function SportsPage() {
 
     setIsCreating(true);
     try {
+        // Get the selected teacher's name
+        const selectedTeacher = allTeachers.find(teacher => teacher.id === newTeamCoach);
+        const coachName = selectedTeacher?.name || newTeamCoach;
+
         const newTeamData = {
             name: newTeamName,
-            coach: newTeamCoach,
+            coach: coachName,
             members: 0,
             icon: newTeamIcon || '🏆', // Default icon if not generated
         };
@@ -197,13 +216,15 @@ export default function SportsPage() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="team-coach">Coach/Patron</Label>
-                        <Select onValueChange={setNewTeamCoach}>
+                        <Select value={newTeamCoach} onValueChange={setNewTeamCoach}>
                             <SelectTrigger id="team-coach">
                                 <SelectValue placeholder="Select a teacher" />
                             </SelectTrigger>
                             <SelectContent>
-                                {allTeachers.map(coach => (
-                                    <SelectItem key={coach} value={coach}>{coach}</SelectItem>
+                                {allTeachers.map(teacher => (
+                                    <SelectItem key={teacher.id} value={teacher.id}>
+                                        {teacher.name}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -245,33 +266,51 @@ export default function SportsPage() {
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {sportsTeams.map((team) => (
-            <Card key={team.id} className="flex flex-col">
-                <CardHeader>
-                <div className="flex items-start justify-between">
-                    <div className="text-5xl">{team.icon}</div>
-                </div>
-                <CardTitle className="font-headline text-xl pt-2">{team.name}</CardTitle>
-                <CardDescription>Coached by {team.coach}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                <div className="flex items-center text-sm text-muted-foreground">
-                    <Users className="mr-2 h-4 w-4" />
-                    <span>{team.members} members</span>
-                </div>
-                </CardContent>
-                <CardFooter>
-                <Button asChild variant="default" className="w-full">
-                    <Link href={`/teacher/sports/${team.id}?schoolId=${schoolId}`}>
+        <>
+          {sportsTeams.length === 0 ? (
+            <div className="text-center py-16">
+              <Trophy className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Teams Found</h3>
+              <p className="text-muted-foreground mb-6">
+                You are not currently assigned as a coach for any teams.
+              </p>
+              <Button asChild>
+                <Link href={`/teacher/sports?schoolId=${schoolId}`}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create Your First Team
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {sportsTeams.map((team) => (
+                <Card key={team.id} className="flex flex-col">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="text-5xl">{team.icon}</div>
+                    </div>
+                    <CardTitle className="font-headline text-xl pt-2">{team.name}</CardTitle>
+                    <CardDescription>Coached by {team.coach}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>{team.members} members</span>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button asChild variant="default" className="w-full">
+                      <Link href={`/teacher/sports/${team.id}?schoolId=${schoolId}`}>
                         Manage Team
                         <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                </Button>
-                </CardFooter>
-            </Card>
-            ))}
-        </div>
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

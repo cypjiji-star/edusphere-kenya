@@ -12,7 +12,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,7 +40,7 @@ import {
   } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { HeartPulse, CalendarIcon, Send, ShieldAlert, Heart, Siren, Search, Filter, Stethoscope, User, Phone, FileText, Paperclip, Bell, Pill, LayoutDashboard, AlertCircle, Users, Lock, Mic, ClipboardCheck, MapPin, CheckCircle, FileDown, Loader2, X } from 'lucide-react';
+import { HeartPulse, Search, Filter, ShieldAlert, Stethoscope, User, Phone, FileText, CalendarIcon, Siren, Send, Paperclip, Loader2, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -60,18 +59,13 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
   DialogClose,
+  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, LabelList } from 'recharts';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -81,33 +75,16 @@ type Incident = {
   id: string;
   studentId: string;
   studentName: string;
-  studentAvatar: string;
   class: string;
   type: IncidentType;
   description: string;
   date: Timestamp;
   reportedBy: string;
   status: IncidentStatus;
-  location?: string;
 };
 
 type TeacherStudent = { id: string; name: string; class: string; };
-
-const teacherClasses = [
-    { id: 'all', name: 'All Classes' },
-    { id: 'f4-chem', name: 'Form 4 - Chemistry' },
-    { id: 'f3-math', name: 'Form 3 - Mathematics' },
-    { id: 'f2-phys', name: 'Form 2 - Physics' },
-];
-
-const getStatusBadge = (status: IncidentStatus) => {
-    switch (status) {
-        case 'Reported': return <Badge variant="secondary">Reported</Badge>;
-        case 'Under Review': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
-        case 'Resolved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
-        case 'Archived': return <Badge variant="outline">Archived</Badge>;
-    }
-}
+type TeacherClass = { id: string; name: string; };
 
 const incidentSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
@@ -118,12 +95,24 @@ const incidentSchema = z.object({
   description: z.string().min(20, 'Please provide a detailed description (at least 20 characters).'),
   actionsTaken: z.string().min(10, 'Please describe the actions taken.'),
   urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
-  notifyAdmin: z.boolean().default(false),
-  notifyParents: z.boolean().default(false),
-  notifyNurse: z.boolean().default(false),
 });
 
 type IncidentFormValues = z.infer<typeof incidentSchema>;
+
+type HealthRecord = {
+    allergies: string[];
+    conditions: string[];
+    emergencyContact: { name: string; relationship: string; phone: string };
+};
+
+const getStatusBadge = (status: IncidentStatus) => {
+    switch (status) {
+        case 'Reported': return <Badge variant="secondary">Reported</Badge>;
+        case 'Under Review': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
+        case 'Resolved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
+        case 'Archived': return <Badge variant="outline">Archived</Badge>;
+    }
+}
 
 const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
     switch (urgency) {
@@ -134,55 +123,26 @@ const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
     }
 }
 
-const chartConfig = {
-  count: {
-    label: 'Incidents',
-    color: 'hsl(var(--primary))',
-  },
-} satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-type Medication = {
-    id: string;
-    studentName: string;
-    medication: string;
-    dosage: string;
-    time: string;
-    givenBy: string;
-};
-
-type HealthRecord = {
-    allergies: string[];
-    conditions: string[];
-    emergencyContact: { name: string; relationship: string; phone: string };
-};
-
-
-export default function HealthPage() {
+export default function TeacherHealthPage() {
+    const { toast } = useToast();
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const { toast } = useToast();
+    const { user } = useAuth();
+    
+    const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+    const [teacherStudents, setTeacherStudents] = React.useState<TeacherStudent[]>([]);
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<string | null>(null);
+    const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
+    const [incidents, setIncidents] = React.useState<Incident[]>([]);
+    
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const [updatedStatus, setUpdatedStatus] = React.useState<IncidentStatus | undefined>();
-    const [incidents, setIncidents] = React.useState<Incident[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [typeFilter, setTypeFilter] = React.useState<IncidentType | 'All Types'>('All Types');
     const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
     const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    
-    // State for medication log form
-    const [medicationLog, setMedicationLog] = React.useState<Medication[]>([]);
-    const [newMedStudent, setNewMedStudent] = React.useState<string | undefined>();
-    const [newMedName, setNewMedName] = React.useState('');
-    const [newMedDosage, setNewMedDosage] = React.useState('');
-    const [newMedTime, setNewMedTime] = React.useState(format(new Date(), 'HH:mm'));
-
-    const [allStudents, setAllStudents] = React.useState<TeacherStudent[]>([]);
-    const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
-    
-    const [dashboardClassFilter, setDashboardClassFilter] = React.useState('all');
-    const user = auth.currentUser;
 
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
@@ -193,35 +153,45 @@ export default function HealthPage() {
         },
     });
 
-     React.useEffect(() => {
+    // Fetch classes for the current teacher
+    React.useEffect(() => {
         if (!schoolId || !user) return;
-        const teacherId = user.uid;
-
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId));
-        const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
-            const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
-            setAllStudents(studentsData);
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', user.uid));
+        const unsubscribe = onSnapshot(classesQuery, (snapshot) => {
+            const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+            setTeacherClasses(classesData);
         });
+        return () => unsubscribe();
+    }, [schoolId, user]);
+    
+    // Fetch students based on teacher's classes
+    React.useEffect(() => {
+        if (teacherClasses.length === 0 || !schoolId) return;
+        const classIds = teacherClasses.map(c => c.id);
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+        const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
+            const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
+            setTeacherStudents(studentsData);
+        });
+        return () => unsubscribe();
+    }, [teacherClasses, schoolId]);
 
-        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('reportedBy', '==', user.displayName));
-        const unsubscribeIncidents = onSnapshot(incidentsQuery, (snapshot) => {
+    // Fetch incidents for the teacher's students
+    React.useEffect(() => {
+        if (teacherStudents.length === 0 || !schoolId) {
+            setIncidents([]);
+            return;
+        }
+        const studentIds = teacherStudents.map(s => s.id);
+        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', 'in', studentIds), orderBy('date', 'desc'));
+        const unsubscribe = onSnapshot(incidentsQuery, (snapshot) => {
             const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
             setIncidents(incidentsData);
         });
-        
-        const medsQuery = query(collection(firestore, `schools/${schoolId}/medications`), where('givenBy', '==', user.displayName));
-        const unsubscribeMeds = onSnapshot(medsQuery, (snapshot) => {
-            const medsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Medication));
-            setMedicationLog(medsData);
-        });
+        return () => unsubscribe();
+    }, [teacherStudents, schoolId]);
 
-        return () => {
-            unsubscribeStudents();
-            unsubscribeIncidents();
-            unsubscribeMeds();
-        }
-    }, [schoolId, user]);
-    
+
     React.useEffect(() => {
         if (selectedHealthStudent && schoolId) {
             const studentRef = doc(firestore, 'schools', schoolId, 'students', selectedHealthStudent);
@@ -233,7 +203,7 @@ export default function HealthPage() {
                         conditions: data.medicalConditions ? [data.medicalConditions] : ['None known'],
                         emergencyContact: {
                             name: data.emergencyContactName || 'N/A',
-                            relationship: 'Parent/Guardian',
+                            relationship: data.parentRelationship || 'Guardian',
                             phone: data.parentPhone || 'N/A',
                         }
                     });
@@ -251,59 +221,20 @@ export default function HealthPage() {
         }
     }, [selectedIncident]);
 
-    const dashboardData = React.useMemo(() => {
-        const filteredIncidents = dashboardClassFilter === 'all'
-            ? incidents
-            : incidents.filter(i => allStudents.find(s => s.id === i.studentId)?.class === dashboardClassFilter);
-
-        const studentsInFilter = dashboardClassFilter === 'all'
-            ? allStudents
-            : allStudents.filter(s => s.class === dashboardClassFilter);
-
-        const today = new Date().toDateString();
-        const incidentsToday = filteredIncidents.filter(i => i.date.toDate().toDateString() === today).length;
-        
-        let studentsWithAllergies = 0;
-        let studentsWithConditions = 0;
-        
-        const incidentsByType = filteredIncidents.reduce((acc, incident) => {
-            acc[incident.type] = (acc[incident.type] || 0) + 1;
-            return acc;
-        }, {} as Record<IncidentType, number>);
-
-        const incidentsByLocation = filteredIncidents.reduce((acc, incident) => {
-            if (incident.location) {
-                acc[incident.location] = (acc[incident.location] || 0) + 1;
-            }
-            return acc;
-        }, {} as Record<string, number>);
-
-
-        return {
-            incidentsToday,
-            studentsWithAllergies,
-            studentsWithConditions,
-            medicationsDue: 0, // Mock data
-            incidentsByTypeData: Object.entries(incidentsByType).map(([name, count]) => ({ name, count })),
-            incidentsByLocationData: Object.entries(incidentsByLocation).map(([name, count]) => ({ name, count })),
-        }
-
-    }, [incidents, allStudents, dashboardClassFilter]);
-
     async function onSubmit(values: IncidentFormValues) {
         if (!schoolId || !user) return;
         setIsSubmitting(true);
-        const student = allStudents.find(s => s.id === values.studentId);
+        const student = teacherStudents.find(s => s.id === values.studentId);
         
         try {
             await addDoc(collection(firestore, 'schools', schoolId, 'incidents'), {
                 ...values,
-                date: Timestamp.fromDate(values.incidentDate),
-                reportedBy: user.displayName, // Replace with actual user
-                status: 'Reported',
+                studentId: values.studentId,
                 studentName: student?.name || 'Unknown',
                 class: student?.class || 'Unknown',
-                studentAvatar: `https://picsum.photos/seed/${values.studentId}/100`,
+                date: Timestamp.fromDate(values.incidentDate),
+                reportedBy: user.displayName || 'Teacher',
+                status: 'Reported',
             });
 
             toast({
@@ -311,7 +242,6 @@ export default function HealthPage() {
                 description: 'The incident has been logged and relevant parties have been notified.',
             });
             form.reset();
-
         } catch (e) {
             console.error("Error submitting incident:", e);
             toast({ variant: 'destructive', title: 'Submission Failed' });
@@ -347,56 +277,16 @@ export default function HealthPage() {
         setAttachedFile(null);
     };
 
-    const handleSaveMedication = async () => {
-        if (!newMedStudent || !newMedName || !newMedDosage || !schoolId || !user) {
-            toast({
-                title: "Missing Information",
-                description: "Please select a student and enter the medication name and dosage.",
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        const student = allStudents.find(s => s.id === newMedStudent);
-        if (!student) return;
-
-        try {
-            await addDoc(collection(firestore, 'schools', schoolId, 'medications'), {
-                studentId: newMedStudent,
-                studentName: student.name,
-                medication: newMedName,
-                dosage: newMedDosage,
-                time: `${format(new Date(), 'yyyy-MM-dd')} ${newMedTime}`,
-                givenBy: user.displayName,
-            });
-
-            toast({
-                title: "Medication Logged",
-                description: `Administration of ${newMedName} for ${student.name} has been saved.`
-            });
-            
-            setNewMedStudent(undefined);
-            setNewMedName('');
-            setNewMedDosage('');
-            setNewMedTime(format(new Date(), 'HH:mm'));
-
-        } catch (e) {
-            console.error("Error logging medication:", e);
-            toast({ variant: 'destructive', title: 'Log Failed' });
-        }
-    };
-
     const filteredIncidents = incidents.filter(incident => {
         const matchesSearch = incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              incident.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              incident.reportedBy.toLowerCase().includes(searchTerm.toLowerCase());
+                              incident.description.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = typeFilter === 'All Types' || incident.type === typeFilter;
         const matchesStatus = statusFilter === 'All Statuses' || incident.status === statusFilter;
         return matchesSearch && matchesType && matchesStatus;
     });
 
     if (!schoolId) {
-        return <div className="p-8">Error: School ID is missing.</div>
+        return <div className="p-8">Error: School ID is missing from URL.</div>
     }
 
     return (
@@ -410,126 +300,14 @@ export default function HealthPage() {
                     <p className="text-muted-foreground">Report and track student health issues and other incidents.</p>
                 </div>
                 
-                <Tabs defaultValue="dashboard">
-                    <TabsList className="mb-4 grid w-full grid-cols-5 md:w-auto md:inline-flex">
-                        <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                <Tabs defaultValue="report">
+                    <TabsList className="mb-4 grid w-full grid-cols-4 md:w-auto md:inline-flex">
                         <TabsTrigger value="report">New Incident</TabsTrigger>
                         <TabsTrigger value="log">Incident Log</TabsTrigger>
                         <TabsTrigger value="records">Health Records</TabsTrigger>
                         <TabsTrigger value="medication">Medication Log</TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="dashboard">
-                        <Card className="mt-4">
-                            <CardHeader>
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                    <div>
-                                        <CardTitle>Health Dashboard</CardTitle>
-                                        <CardDescription>A quick overview of health-related information for your classes.</CardDescription>
-                                    </div>
-                                    <div className="w-full md:w-auto">
-                                        <Label htmlFor="class-filter-dashboard">Filter by Class</Label>
-                                        <Select value={dashboardClassFilter} onValueChange={setDashboardClassFilter}>
-                                            <SelectTrigger id="class-filter-dashboard" className="w-full md:w-[240px]">
-                                                <SelectValue placeholder="Select a class" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {teacherClasses.map((cls) => (
-                                                    <SelectItem key={cls.id} value={cls.id}>
-                                                    {cls.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-                                    <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Incidents Today</CardTitle>
-                                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{dashboardData.incidentsToday}</div>
-                                            <p className="text-xs text-muted-foreground">{dashboardData.incidentsToday > 0 ? `${dashboardData.incidentsToday} new report(s) filed` : 'No new reports'}</p>
-                                        </CardContent>
-                                    </Card>
-                                    <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Students with Allergies</CardTitle>
-                                            <Users className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{dashboardData.studentsWithAllergies}</div>
-                                            <p className="text-xs text-muted-foreground">in selected class(es)</p>
-                                        </CardContent>
-                                    </Card>
-                                    <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Ongoing Conditions</CardTitle>
-                                            <Stethoscope className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                             <div className="text-2xl font-bold">{dashboardData.studentsWithConditions}</div>
-                                            <p className="text-xs text-muted-foreground">e.g., Asthma, Diabetes</p>
-                                        </CardContent>
-                                    </Card>
-                                     <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Medications Due</CardTitle>
-                                            <Pill className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{dashboardData.medicationsDue}</div>
-                                            <p className="text-xs text-muted-foreground">No medications scheduled</p>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                                <Separator/>
-                                <div className="grid gap-6 lg:grid-cols-2 mt-6">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Incidents by Type (This Month)</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                                                <BarChart data={dashboardData.incidentsByTypeData} layout="vertical" margin={{ left: 10, right: 30 }}>
-                                                    <CartesianGrid horizontal={false} />
-                                                    <XAxis type="number" hide />
-                                                    <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
-                                                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                                    <Bar dataKey="count" fill="var(--color-count)" radius={4}>
-                                                        <LabelList dataKey="count" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                                    </Bar>
-                                                </BarChart>
-                                            </ChartContainer>
-                                        </CardContent>
-                                    </Card>
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Incidents by Location (This Month)</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                                                <BarChart data={dashboardData.incidentsByLocationData} layout="vertical" margin={{ left: 10, right: 30 }}>
-                                                    <CartesianGrid horizontal={false} />
-                                                    <XAxis type="number" hide />
-                                                    <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
-                                                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                                    <Bar dataKey="count" fill="var(--color-count)" radius={4}>
-                                                        <LabelList dataKey="count" position="right" offset={8} className="fill-foreground" fontSize={12} />
-                                                    </Bar>
-                                                </BarChart>
-                                            </ChartContainer>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
                     <TabsContent value="report">
                         <Card className="mt-4">
                             <CardHeader>
@@ -546,7 +324,7 @@ export default function HealthPage() {
                                                     name="studentId"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                        <FormLabel>Student(s) Involved</FormLabel>
+                                                        <FormLabel>Student Involved</FormLabel>
                                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                             <FormControl>
                                                             <SelectTrigger>
@@ -554,12 +332,11 @@ export default function HealthPage() {
                                                             </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
-                                                            {allStudents.map((s) => (
+                                                            {teacherStudents.map((s) => (
                                                                 <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
                                                             ))}
                                                             </SelectContent>
                                                         </Select>
-                                                        <FormDescription>Multi-student selection coming soon.</FormDescription>
                                                         <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -621,7 +398,7 @@ export default function HealthPage() {
                                                         name="incidentTime"
                                                         render={({ field }) => (
                                                             <FormItem>
-                                                                <FormLabel>Time of Incident</FormLabel>
+                                                                <FormLabel>Time</FormLabel>
                                                                 <FormControl>
                                                                     <Input type="time" {...field} />
                                                                 </FormControl>
@@ -635,9 +412,9 @@ export default function HealthPage() {
                                                     name="location"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                        <FormLabel>Location of Incident</FormLabel>
+                                                        <FormLabel>Location</FormLabel>
                                                         <FormControl>
-                                                            <Input placeholder="e.g., Playground, Classroom 3B" {...field} />
+                                                            <Input placeholder="e.g., Science Lab, Playground" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                         </FormItem>
@@ -652,11 +429,11 @@ export default function HealthPage() {
                                                         <FormControl>
                                                             <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4">
                                                                 {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                                     <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                                    <FormItem key={level} className="flex items-center space-x-2 space-y-0">
                                                                         <FormControl>
-                                                                            <RadioGroupItem value={level} id={`urgency-${level}`} />
+                                                                            <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
                                                                         </FormControl>
-                                                                        <FormLabel htmlFor={`urgency-${level}`} className="font-normal">
+                                                                        <FormLabel htmlFor={`urgency-teacher-${level}`} className="font-normal">
                                                                             <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
                                                                         </FormLabel>
                                                                     </FormItem>
@@ -669,24 +446,14 @@ export default function HealthPage() {
                                                 />
                                             </div>
                                             <div className="space-y-6">
-                                                 <FormField
+                                                <FormField
                                                     control={form.control}
                                                     name="description"
                                                     render={({ field }) => (
                                                     <FormItem>
-                                                        <div className="flex items-center justify-between">
-                                                            <FormLabel>Detailed Description</FormLabel>
-                                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled>
-                                                                <Mic className="h-4 w-4" />
-                                                                <span className="sr-only">Use Voice-to-Text</span>
-                                                            </Button>
-                                                        </div>
+                                                        <FormLabel>Detailed Description</FormLabel>
                                                         <FormControl>
-                                                        <Textarea
-                                                            placeholder="Describe the incident, including what happened, who was involved, and any symptoms observed..."
-                                                            className="min-h-[150px]"
-                                                            {...field}
-                                                        />
+                                                        <Textarea placeholder="Describe the condition, diagnosis, or incident..." className="min-h-[120px]" {...field}/>
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -697,26 +464,16 @@ export default function HealthPage() {
                                                     name="actionsTaken"
                                                     render={({ field }) => (
                                                     <FormItem>
-                                                        <div className="flex items-center justify-between">
-                                                            <FormLabel>Actions Taken</FormLabel>
-                                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled>
-                                                                <Mic className="h-4 w-4" />
-                                                                <span className="sr-only">Use Voice-to-Text</span>
-                                                            </Button>
-                                                        </div>
+                                                        <FormLabel>Action(s) Taken</FormLabel>
                                                         <FormControl>
-                                                        <Textarea
-                                                            placeholder="Describe the immediate actions you took, e.g., 'Student was sent to the school nurse', 'First aid was administered'..."
-                                                            className="min-h-[100px]"
-                                                            {...field}
-                                                        />
+                                                        <Textarea placeholder="Record any notes, treatment given, or actions taken..." className="min-h-[120px]" {...field}/>
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
                                                     )}
                                                 />
-                                                 <div className="space-y-2">
-                                                    <Label>File Attachments (e.g., doctor's note, photo of injury)</Label>
+                                                <div className="space-y-2">
+                                                    <Label>Attach Medical Document</Label>
                                                     <div className="flex items-center justify-center w-full">
                                                         {attachedFile ? (
                                                             <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
@@ -729,82 +486,21 @@ export default function HealthPage() {
                                                                 </Button>
                                                             </div>
                                                         ) : (
-                                                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                            <Label htmlFor="dropzone-file-teacher" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
                                                                 <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
                                                                     <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                                                                    <p className="mb-2 text-sm text-muted-foreground">Attach files</p>
+                                                                    <p className="mb-2 text-sm text-muted-foreground">Attach doctor's note, etc. (Optional)</p>
                                                                 </div>
-                                                                <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} />
+                                                                <Input id="dropzone-file-teacher" type="file" className="hidden" onChange={handleFileChange} />
                                                             </Label>
                                                         )}
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <Separator className="my-8" />
-
-                                        <Alert>
-                                            <Siren className="h-4 w-4" />
-                                            <AlertTitle>Immediate Notifications</AlertTitle>
-                                            <AlertDescription>
-                                                Enable these options to send immediate alerts upon submission. Use for urgent matters only.
-                                            </AlertDescription>
-                                        </Alert>
-
-                                        <div className="space-y-4 rounded-lg border p-4 mt-4">
-                                             <FormField
-                                                control={form.control}
-                                                name="notifyAdmin"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex flex-row items-center justify-between">
-                                                    <div className="space-y-0.5">
-                                                        <FormLabel>Notify Administration</FormLabel>
-                                                        <FormDescription>A report will be sent to the school admin office.</FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                                    </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <Separator />
-                                            <FormField
-                                                control={form.control}
-                                                name="notifyParents"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex flex-row items-center justify-between">
-                                                    <div className="space-y-0.5">
-                                                        <FormLabel>Notify Parents/Guardians</FormLabel>
-                                                        <FormDescription>An SMS/Email will be sent to the student's primary contact.</FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                                    </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <Separator />
-                                            <FormField
-                                                control={form.control}
-                                                name="notifyNurse"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex flex-row items-center justify-between">
-                                                    <div className="space-y-0.5">
-                                                        <FormLabel>Alert School Nurse</FormLabel>
-                                                        <FormDescription>Sends an immediate notification to health staff.</FormDescription>
-                                                    </div>
-                                                    <FormControl>
-                                                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                                    </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                        
                                         <div className="flex justify-end pt-8">
                                             <Button type="submit" disabled={isSubmitting}>
-                                                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : <><Send className="mr-2 h-4 w-4" />Submit Incident Report</>}
+                                                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : <><Send className="mr-2 h-4 w-4" />Submit Report</>}
                                             </Button>
                                         </div>
                                     </form>
@@ -814,7 +510,7 @@ export default function HealthPage() {
                     </TabsContent>
 
                      <TabsContent value="log">
-                        <Card className="mt-4">
+                         <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle>My Incident Log</CardTitle>
                                 <CardDescription>A log of all incidents you have reported.</CardDescription>
@@ -822,14 +518,14 @@ export default function HealthPage() {
                                     <div className="relative w-full md:max-w-sm">
                                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            type="search"
-                                            placeholder="Search by student name..."
-                                            className="w-full bg-background pl-8"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        type="search"
+                                        placeholder="Search by student..."
+                                        className="w-full bg-background pl-8"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-                                    <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                                    <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                                         <Select value={typeFilter} onValueChange={(v: IncidentType | 'All Types') => setTypeFilter(v)}>
                                             <SelectTrigger className="w-full md:w-[180px]">
                                                 <Filter className="mr-2 h-4 w-4" />
@@ -842,7 +538,7 @@ export default function HealthPage() {
                                                 <SelectItem value="Accident">Accident</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <Select value={statusFilter} onValueChange={(v: IncidentStatus | 'All Statuses') => setStatusFilter(v)}>
+                                         <Select value={statusFilter} onValueChange={(v: IncidentStatus | 'All Statuses') => setStatusFilter(v)}>
                                             <SelectTrigger className="w-full md:w-[180px]">
                                                 <Filter className="mr-2 h-4 w-4" />
                                                 <SelectValue placeholder="Filter by status" />
@@ -858,26 +554,15 @@ export default function HealthPage() {
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="w-full overflow-auto rounded-lg border">
+                                 <div className="w-full overflow-auto rounded-lg border">
                                     <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Student</TableHead>
-                                                <TableHead>Type</TableHead>
-                                                <TableHead>Date</TableHead>
-                                                <TableHead>Status</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
+                                        <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Type</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                                         <TableBody>
                                             {filteredIncidents.map(incident => (
-                                                 <DialogTrigger asChild key={incident.id}>
+                                                <DialogTrigger asChild key={incident.id}>
                                                     <TableRow className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-3">
-                                                                <p className="font-medium">{incident.studentName}</p>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'secondary'}>{incident.type}</Badge></TableCell>
+                                                        <TableCell>{incident.studentName}</TableCell>
+                                                        <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>{incident.type}</Badge></TableCell>
                                                         <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell>
                                                         <TableCell>{getStatusBadge(incident.status)}</TableCell>
                                                     </TableRow>
@@ -891,20 +576,18 @@ export default function HealthPage() {
                     </TabsContent>
                     
                     <TabsContent value="records">
-                        <Card className="mt-4">
+                         <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle>Student Health Records</CardTitle>
-                                <CardDescription>Look up important health information for students in your classes. Access is logged.</CardDescription>
+                                <CardDescription>Look up important health information for students in your classes.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="max-w-md mb-6">
                                     <Label htmlFor="student-health-select">Select a Student</Label>
                                     <Select onValueChange={(value: string) => setSelectedHealthStudent(value)}>
-                                        <SelectTrigger id="student-health-select">
-                                            <SelectValue placeholder="Search and select a student..." />
-                                        </SelectTrigger>
+                                        <SelectTrigger id="student-health-select"><SelectValue placeholder="Search and select a student..." /></SelectTrigger>
                                         <SelectContent>
-                                            {allStudents.map((s) => (
+                                            {teacherStudents.map((s) => (
                                                 <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -912,124 +595,22 @@ export default function HealthPage() {
                                 </div>
                                 {currentHealthRecord ? (
                                     <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <User className="h-5 w-5 text-primary" />
-                                                {allStudents.find(s => s.id === selectedHealthStudent)?.name}
-                                            </CardTitle>
-                                        </CardHeader>
+                                        <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-5 w-5 text-primary" />{teacherStudents.find(s => s.id === selectedHealthStudent)?.name}</CardTitle></CardHeader>
                                         <CardContent className="space-y-6">
-                                            <div>
-                                                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4>
-                                                <div className="space-x-2">
-                                                    {currentHealthRecord.allergies.map(allergy => (
-                                                        <Badge key={allergy} variant={allergy !== "None" && allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>
-                                                    ))}
-                                                </div>
-                                            </div>
+                                            <div><h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4><div className="space-x-2">{currentHealthRecord.allergies.map(allergy => (<Badge key={allergy} variant={allergy !== "None" && allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>))}</div></div>
                                             <Separator />
-                                            <div>
-                                                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Stethoscope className="h-4 w-4" /> Ongoing Conditions</h4>
-                                                <div className="space-x-2">
-                                                    {currentHealthRecord.conditions.map(condition => (
-                                                        <Badge key={condition} variant="secondary">{condition}</Badge>
-                                                    ))}
-                                                </div>
-                                            </div>
+                                            <div><h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Stethoscope className="h-4 w-4" /> Ongoing Conditions</h4><div className="space-x-2">{currentHealthRecord.conditions.map(condition => (<Badge key={condition} variant="secondary">{condition}</Badge>))}</div></div>
                                             <Separator />
-                                            <div>
-                                                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Phone className="h-4 w-4" /> Emergency Contact</h4>
-                                                <div className="text-sm">
-                                                    <p><span className="font-medium">{currentHealthRecord.emergencyContact.name}</span> ({currentHealthRecord.emergencyContact.relationship})</p>
-                                                    <p className="text-muted-foreground">{currentHealthRecord.emergencyContact.phone}</p>
-                                                </div>
-                                            </div>
+                                            <div><h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Phone className="h-4 w-4" /> Emergency Contact</h4><div className="text-sm"><p><span className="font-medium">{currentHealthRecord.emergencyContact.name}</span> ({currentHealthRecord.emergencyContact.relationship})</p><p className="text-muted-foreground">{currentHealthRecord.emergencyContact.phone}</p></div></div>
                                         </CardContent>
                                     </Card>
                                 ) : (
                                     <div className="flex min-h-[300px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                                        <div className="text-center text-muted-foreground">
-                                            <Stethoscope className="mx-auto h-12 w-12" />
-                                            <h3 className="mt-4 text-lg font-semibold">Select a student to view their record.</h3>
-                                        </div>
+                                        <div className="text-center text-muted-foreground"><Stethoscope className="mx-auto h-12 w-12" /><h3 className="mt-4 text-lg font-semibold">Select a student to view their record.</h3></div>
                                     </div>
                                 )}
                             </CardContent>
                         </Card>
-                    </TabsContent>
-
-                    <TabsContent value="medication">
-                          <Card className="mt-4">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Pill className="h-5 w-5 text-primary"/>Medication Log</CardTitle>
-                                <CardDescription>Record medication administered to students under your care.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid gap-8 md:grid-cols-2">
-                                    <div className="space-y-6">
-                                        <h3 className="font-semibold text-lg">Log New Administration</h3>
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label>Student</Label>
-                                                <Select value={newMedStudent} onValueChange={setNewMedStudent}>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select a student" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {allStudents.map((s) => (
-                                                            <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="med-name">Medication Name</Label>
-                                                <Input id="med-name" placeholder="e.g., Paracetamol" value={newMedName} onChange={(e) => setNewMedName(e.target.value)} />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="med-dosage">Dosage</Label>
-                                                    <Input id="med-dosage" placeholder="e.g., 1 tablet, 5ml" value={newMedDosage} onChange={(e) => setNewMedDosage(e.target.value)}/>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="med-time">Time Given</Label>
-                                                    <Input id="med-time" type="time" value={newMedTime} onChange={(e) => setNewMedTime(e.target.value)} />
-                                                </div>
-                                            </div>
-                                            <Button onClick={handleSaveMedication}>Save Log</Button>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-6">
-                                        <h3 className="font-semibold text-lg">My Recent Log</h3>
-                                        <div className="w-full overflow-auto rounded-lg border">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Student</TableHead>
-                                                        <TableHead>Medication</TableHead>
-                                                        <TableHead>Time</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {medicationLog.map(log => (
-                                                        <TableRow key={log.id}>
-                                                            <TableCell className="font-medium">{log.studentName}</TableCell>
-                                                            <TableCell>{log.medication}</TableCell>
-                                                            <TableCell>{log.time}</TableCell>
-                                                        </TableRow>
-                                                     ))}
-                                                     {medicationLog.length === 0 && (
-                                                        <TableRow>
-                                                            <TableCell colSpan={3} className="h-24 text-center">No records for today.</TableCell>
-                                                        </TableRow>
-                                                     )}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                          </Card>
                     </TabsContent>
                 </Tabs>
 
@@ -1037,29 +618,15 @@ export default function HealthPage() {
                     <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
                             <DialogTitle>Incident Details</DialogTitle>
-                            <DialogDescription>
-                                Review the incident reported for {selectedIncident.studentName}.
-                            </DialogDescription>
+                            <DialogDescription>Review the incident reported for {selectedIncident.studentName}.</DialogDescription>
                         </DialogHeader>
-                        <div className="py-4 space-y-4">
-                             <div>
-                                <p className="text-sm font-medium text-muted-foreground">Description</p>
-                                <p className="text-sm">{selectedIncident.description}</p>
-                            </div>
-                            <Separator/>
-                            <div>
-                                <h4 className="font-semibold mb-2">Status</h4>
-                                 <p>{getStatusBadge(selectedIncident.status)}</p>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button variant="outline">Close</Button>
-                            </DialogClose>
-                        </DialogFooter>
+                        <div className="py-4 space-y-4"><div><p className="text-sm font-medium text-muted-foreground">Description</p><p className="text-sm">{selectedIncident.description}</p></div><Separator/><div><h4 className="font-semibold mb-2">Status</h4><p>{getStatusBadge(selectedIncident.status)}</p></div></div>
+                        <DialogFooter><DialogClose asChild><Button variant="outline">Close</Button></DialogClose></DialogFooter>
                     </DialogContent>
                 )}
             </div>
         </Dialog>
     );
 }
+
+    
