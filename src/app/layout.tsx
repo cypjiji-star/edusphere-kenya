@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
 import { ClientPageLoader } from '@/components/ui/client-page-loader';
 import { Suspense } from 'react';
+import { AuthProvider } from '@/context/auth-context';
 
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
@@ -24,9 +25,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <ClientPageLoader />
-        <Suspense>{children}</Suspense>
-        <Toaster />
+        <AuthProvider>
+            <ClientPageLoader />
+            <Suspense>{children}</Suspense>
+            <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

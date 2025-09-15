@@ -38,8 +38,9 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { useSearchParams } from 'next/navigation';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { useAuth } from '@/context/auth-context';
 
 type TeacherClass = {
   id: string;
@@ -52,7 +53,7 @@ export function AssignmentForm() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
-  const user = auth.currentUser;
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!schoolId || !user) return;
