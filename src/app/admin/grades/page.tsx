@@ -19,6 +19,7 @@ import {
   Loader2,
   Printer,
   CalendarIcon,
+  Settings,
 } from 'lucide-react';
 import {
   Table,
@@ -125,7 +126,6 @@ export default function AdminGradesPage() {
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>(initialGradingScale);
   const { toast } = useToast();
-  const [exams, setExams] = React.useState<Exam[]>([]);
   const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
   const [activeTab, setActiveTab] = React.useState('ranking');
   const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
