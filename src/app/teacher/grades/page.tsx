@@ -157,18 +157,6 @@ export default function GradesPage() {
 
         setIsGradebookLoading(true);
 
-        let assessmentsQuery;
-        if (selectedSubject === 'All Subjects') {
-            assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
-        } else {
-            assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass), where('subject', '==', selectedSubject));
-        }
-
-        const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
-            const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
-            setCurrentAssessments(assessments);
-        });
-        
         const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass));
         
         const unsubGrades = onSnapshot(gradesQuery, async (snapshot) => {
@@ -211,15 +199,43 @@ export default function GradesPage() {
 
 
         return () => {
-            unsubAssessments();
             unsubGrades();
         }
 
+    }, [selectedClass, schoolId, selectedSubject]);
+    
+      React.useEffect(() => {
+        if (!schoolId || !selectedClass) return;
+
+        let assessmentsQuery;
+        if (selectedSubject === 'All Subjects') {
+            assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
+        } else {
+            assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass), where('subject', '==', selectedSubject));
+        }
+
+        const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
+            const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
+            setCurrentAssessments(assessments);
+        });
+
+        return () => unsubAssessments();
     }, [selectedClass, schoolId, selectedSubject]);
 
     const filteredStudents = currentStudents.filter(s => 
         s.studentName && s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    const gradebookStudents = React.useMemo(() => {
+        return currentStudents.map(student => {
+            const allScores = student.grades.map(g => parseInt(String(g.grade))).filter(s => !isNaN(s));
+            const overall = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
+            return {
+                ...student,
+                overall, 
+            };
+        }).sort((a,b) => b.overall - a.overall);
+    }, [currentStudents]);
 
     const getGradeForStudent = (student: StudentGrades, assessmentId: string) => {
         const grade = student.grades.find(g => g.assessmentId === assessmentId);
@@ -330,7 +346,7 @@ export default function GradesPage() {
                   </div>
                 ) : (
                   <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
-                    {currentStudents.length > 0 ? (
+                    {filteredStudents.length > 0 ? (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {filteredStudents.map((student, index) => (
                                 <DialogTrigger key={student.studentId} asChild>
@@ -449,21 +465,21 @@ export default function GradesPage() {
                     <div className="flex items-center justify-center h-64">
                       <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     </div>
-                ) : currentStudents.length > 0 ? (
+                ) : gradebookStudents.length > 0 ? (
                     <>
-                        <GradeSummaryWidget students={currentStudents} />
+                        <GradeSummaryWidget students={gradebookStudents} />
                         {/* Desktop Table */}
                         <div className="w-full overflow-auto rounded-lg border hidden md:block">
                             <Table>
                                 <TableHeader>
                                 <TableRow>
                                     <TableHead className="sticky left-0 bg-card z-10">Student Name</TableHead>
+                                    {currentAssessments.map(ass => <TableHead key={ass.id} className="text-center">{ass.title}</TableHead>)}
                                     <TableHead className="text-center font-bold sticky right-0 bg-card z-10 w-[150px]">Overall Average</TableHead>
-                                    <TableHead className="text-right sticky right-[100px] bg-card z-10 w-[100px]">Actions</TableHead>
                                 </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                {filteredStudents.map(student => (
+                                {gradebookStudents.filter(s => s.studentName.toLowerCase().includes(searchTerm.toLowerCase())).map(student => (
                                     <TableRow key={student.studentId}>
                                         <TableCell className="sticky left-0 bg-card z-10">
                                             <div className="flex items-center gap-3">
@@ -474,14 +490,14 @@ export default function GradesPage() {
                                                 <span className="font-medium">{student.studentName}</span>
                                             </div>
                                         </TableCell>
+                                        {currentAssessments.map(ass => (
+                                            <TableCell key={ass.id} className="text-center">
+                                                {getGradeForStudent(student, ass.id)}
+                                            </TableCell>
+                                        ))}
                                          <TableCell className="text-center font-bold sticky right-0 bg-card z-10">
                                             <Badge>{student.overall}%</Badge>
                                          </TableCell>
-                                        <TableCell className="text-right sticky right-[100px] bg-card z-10">
-                                            <Button variant="ghost" size="sm" onClick={() => setEditingStudent(student)}>
-                                                <Edit className="mr-2 h-4 w-4" /> Edit
-                                            </Button>
-                                        </TableCell>
                                     </TableRow>
                                 ))}
                                 </TableBody>
