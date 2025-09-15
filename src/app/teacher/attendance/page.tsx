@@ -303,13 +303,14 @@ export default function AttendancePage() {
           } as Student;
       });
 
-      const today = new Date(selectedDate);
-      const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const attendanceDateTimestamp = Timestamp.fromDate(startOfDay);
       
       const attendanceQuery = query(
           collection(firestore, 'schools', schoolId, 'attendance'),
           where('classId', '==', selectedClass),
-          where('date', '==', Timestamp.fromDate(startOfDay))
+          where('date', '==', attendanceDateTimestamp)
       );
 
       const attendanceSnapshot = await getDocs(attendanceQuery);
@@ -350,7 +351,10 @@ export default function AttendancePage() {
     
     const batch = writeBatch(firestore);
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
-    const attendanceDate = Timestamp.fromDate(selectedDate);
+    
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const attendanceDate = Timestamp.fromDate(startOfDay);
     
     for (const student of students) {
       if (student.status === "unmarked") continue;
