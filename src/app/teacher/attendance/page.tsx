@@ -68,8 +68,6 @@ type AttendanceStatus = 'present' | 'absent' | 'late' | 'unmarked';
 type Student = {
     id: string;
     name: string;
-    firstName: string;
-    lastName: string;
     avatarUrl: string;
     status: AttendanceStatus;
     notes?: string;
@@ -140,8 +138,6 @@ export default function AttendancePage() {
             return {
                 id: doc.id,
                 name: `${data.firstName} ${data.lastName}`,
-                firstName: data.firstName,
-                lastName: data.lastName,
                 avatarUrl: data.avatarUrl,
             } as Student
         });
@@ -181,6 +177,8 @@ export default function AttendancePage() {
 
   const handleSaveAttendance = React.useCallback(async () => {
     if (!isEditable || !selectedClass || !date?.from || !schoolId || !user) return;
+  
+    console.log('Saving attendance with schoolId:', schoolId);
   
     const batch = writeBatch(firestore);
     const today = new Date();
@@ -613,3 +611,4 @@ export default function AttendancePage() {
     </div>
   );
 }
+
