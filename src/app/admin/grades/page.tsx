@@ -9,7 +9,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +32,7 @@ import {
   Printer,
   Trophy,
   ArrowRight,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Table,
@@ -117,6 +117,7 @@ type StudentGrade = {
     avatarUrl: string;
     grade: string;
     overall?: number;
+    rollNumber?: string;
 }
 
 
@@ -171,6 +172,7 @@ export default function AdminGradesPage() {
     
     const [activeTab, setActiveTab] = React.useState('schedules');
     const [examForAnalysis, setExamForAnalysis] = React.useState<Exam | null>(null);
+    const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
     
     const currentYear = new Date().getFullYear();
     const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -219,6 +221,52 @@ export default function AdminGradesPage() {
             unsubClasses();
         };
     }, [schoolId, submissionExamFilter]);
+    
+     React.useEffect(() => {
+        if (!examForAnalysis) return;
+
+        const fetchStudentGradesForRanking = async () => {
+            const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('examId', '==', examForAnalysis.id));
+            const submissionsSnapshot = await getDocs(submissionsQuery);
+            const submissions = submissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const allStudentGrades: Record<string, { total: number, count: number, name: string, avatar: string, rollNumber: string }> = {};
+
+            for (const submission of submissions) {
+                const gradesSnapshot = await getDocs(query(collection(doc(firestore, `schools/${schoolId}/submissions`, submission.id), 'grades')));
+                for (const gradeDoc of gradesSnapshot.docs) {
+                    const gradeData = gradeDoc.data();
+                    const studentRef = gradeDoc.ref.parent.parent;
+                    if (studentRef) {
+                        const studentSnap = await getDoc(studentRef);
+                        if (studentSnap.exists()) {
+                            const studentData = studentSnap.data();
+                             if (!allStudentGrades[studentRef.id]) {
+                                allStudentGrades[studentRef.id] = { total: 0, count: 0, name: studentData.name, avatar: studentData.avatarUrl, rollNumber: studentData.rollNumber };
+                            }
+                            allStudentGrades[studentRef.id].total += parseInt(gradeData.grade, 10);
+                            allStudentGrades[studentRef.id].count++;
+                        }
+                    }
+                }
+            }
+            
+            const rankedStudents = Object.entries(allStudentGrades).map(([id, data]) => ({
+                id,
+                studentName: data.name,
+                avatarUrl: data.avatar,
+                rollNumber: data.rollNumber,
+                grade: '', // Not needed for ranking
+                overall: data.count > 0 ? Math.round(data.total / data.count) : 0,
+            })).sort((a, b) => b.overall - a.overall);
+
+            setStudentsForRanking(rankedStudents);
+        };
+        
+        fetchStudentGradesForRanking();
+
+    }, [examForAnalysis, schoolId]);
+
 
     const filteredSubmissions = submissions.filter(s =>
         (submissionExamFilter === 'all' || s.examId === submissionExamFilter) &&
@@ -321,24 +369,13 @@ export default function AdminGradesPage() {
         try {
             const grades: StudentGrade[] = [];
             
-            // This logic is flawed. A submission can have multiple grades.
-            // A better model would be to store grades in a subcollection under the submission.
-            // For now, we'll simulate fetching grades based on student list of a class.
-            // This will NOT be accurate if the submission is for a specific subject only.
-            
-            // We need to find all students in the class and then find their grade for this specific assessment.
-            // This is inefficient. A better data model would be to have grades under the submission itself.
             const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('class', '==', submission.class));
             const studentsSnapshot = await getDocs(studentsQuery);
 
             for (const studentDoc of studentsSnapshot.docs) {
                 const studentData = studentDoc.data();
-                
-                // Now find the specific grade for this student and this assessment
-                const gradeQuery = query(
-                    collection(firestore, `schools/${schoolId}/students/${studentDoc.id}/grades`),
-                    where('assessmentId', '==', submission.examId)
-                );
+                const gradesCollectionRef = collection(firestore, `schools/${schoolId}/submissions/${submission.id}/grades`);
+                const gradeQuery = query(gradesCollectionRef, where('studentId', '==', studentDoc.id));
                 const gradeSnapshot = await getDocs(gradeQuery);
 
                 if (!gradeSnapshot.empty) {
@@ -367,12 +404,13 @@ export default function AdminGradesPage() {
     
     const handlePrintRanking = () => {
         const doc = new jsPDF();
-        doc.text("Class Ranking", 14, 16);
+        const className = classes.find(c => c.id === (examForAnalysis ? exams.find(e => e.id === examForAnalysis.id)?.classId : ''))?.name;
+        doc.text(`Class Ranking for ${className || 'Selected Class'}`, 14, 16);
         
-        const tableData = filteredSubmissions.map((sub, index) => [
+        const tableData = studentsForRanking.map((student, index) => [
             index + 1,
-            sub.teacher, // Placeholder for student name
-            '85%', // Placeholder for overall grade
+            student.studentName,
+            `${student.overall}%`,
         ]);
     
         (doc as any).autoTable({
@@ -407,7 +445,7 @@ export default function AdminGradesPage() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-5 md:w-auto md:inline-flex mb-6">
+                <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex mb-6">
                     <TabsTrigger value="schedules">Exam Schedules</TabsTrigger>
                     <TabsTrigger value="submissions">Submission Status</TabsTrigger>
                     <TabsTrigger value="analysis">Grade Analysis</TabsTrigger>
@@ -683,50 +721,44 @@ export default function AdminGradesPage() {
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                 <div>
                                     <CardTitle>Class Ranking</CardTitle>
-                                    <CardDescription>View ranked student performance for a selected class and exam.</CardDescription>
+                                    <CardDescription>View ranked student performance for the selected exam.</CardDescription>
                                 </div>
-                                <Button variant="outline" onClick={handlePrintRanking}><Printer className="mr-2 h-4 w-4"/>Print List</Button>
+                                <Button variant="outline" onClick={handlePrintRanking} disabled={!examForAnalysis}><Printer className="mr-2 h-4 w-4"/>Print List</Button>
                             </div>
-                            <div className="mt-4 flex flex-col md:flex-row md:items-center gap-4">
-                                <div className="grid w-full md:w-auto gap-1.5">
-                                    <Label htmlFor="ranking-exam-filter">Exam</Label>
-                                    <Select defaultValue={exams[0]?.id}>
-                                        <SelectTrigger id="ranking-exam-filter" className="w-full md:w-auto"><SelectValue /></SelectTrigger>
-                                        <SelectContent>{exams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid w-full md:w-auto gap-1.5">
-                                    <Label htmlFor="ranking-class-filter">Class</Label>
-                                    <Select defaultValue={classes[0]?.id}>
-                                        <SelectTrigger id="ranking-class-filter" className="w-full md:w-auto"><SelectValue /></SelectTrigger>
-                                        <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                </div>
+                            <div className="mt-4">
+                                {examForAnalysis ? (
+                                    <p className="text-sm text-muted-foreground">Showing ranking for: <span className="font-semibold text-primary">{examForAnalysis.title}</span></p>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">Select an exam and click "Analyze" to see rankings.</p>
+                                )}
                             </div>
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {/* Mocked Data - In real app, this would be fetched and sorted */}
-                            {filteredSubmissions.slice(0, 10).map((sub, index) => {
+                            {studentsForRanking.map((student, index) => {
                                 const rank = index + 1;
-                                const overall = 88 - index * 2.3;
                                 return (
-                                    <Card key={sub.id}>
+                                    <Card key={student.id}>
                                         <CardContent className="p-4 flex items-center gap-4">
                                             <div className="flex flex-col items-center justify-center">
                                                 {rank <= 3 ? <Trophy className={`h-8 w-8 ${rank === 1 ? 'text-yellow-500' : rank === 2 ? 'text-gray-400' : 'text-yellow-700'}`}/> : <div className="text-xl font-bold text-muted-foreground">{rank}</div> }
                                             </div>
                                             <Avatar>
-                                                <AvatarImage src={`https://picsum.photos/seed/student${index}/100`} />
-                                                <AvatarFallback>{sub.teacher.charAt(0)}</AvatarFallback>
+                                                <AvatarImage src={student.avatarUrl} />
+                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1">
-                                                <p className="font-semibold text-sm">{sub.teacher}</p>
-                                                <p className="text-xs text-muted-foreground">Overall: <span className="font-bold text-primary">{Math.round(overall)}%</span></p>
+                                                <p className="font-semibold text-sm">{student.studentName}</p>
+                                                <p className="text-xs text-muted-foreground">Overall: <span className="font-bold text-primary">{student.overall}%</span></p>
                                             </div>
                                         </CardContent>
                                     </Card>
                                 )
                             })}
+                             {studentsForRanking.length === 0 && (
+                                <div className="md:col-span-2 lg:col-span-3 text-center text-muted-foreground py-16">
+                                    <p>No ranking data available for the selected exam.</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -893,3 +925,4 @@ export default function AdminGradesPage() {
     
 
     
+
