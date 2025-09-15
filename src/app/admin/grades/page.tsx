@@ -33,6 +33,7 @@ import {
   Printer,
   Trophy,
   ArrowRight,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Table,
@@ -216,12 +217,19 @@ export default function AdminGradesPage() {
             const fetchedTeachers = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as Teacher));
             setTeachers(fetchedTeachers);
         });
+        
+        const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
+        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+            const classNames = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
+            setClasses(classNames);
+        });
 
         const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), orderBy('lastUpdated', 'desc'));
-        const unsubSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
+        const unsubSubmissions = onSnapshot(submissionsQuery, async (snapshot) => {
+            const teacherList = (await getDocs(teachersQuery)).docs.map(d => ({id: d.id, name: d.data().name}));
             const fetchedSubmissions = snapshot.docs.map(doc => {
                 const data = doc.data();
-                const teacher = teachers.find(t => t.id === data.teacherId);
+                const teacher = teacherList.find(t => t.id === data.teacherId);
                 return { 
                     id: doc.id, 
                     ...data,
@@ -231,11 +239,6 @@ export default function AdminGradesPage() {
             setSubmissions(fetchedSubmissions);
         });
 
-        const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
-        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
-            const classNames = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
-            setClasses(classNames);
-        });
 
         return () => {
             unsubExams();
@@ -243,7 +246,7 @@ export default function AdminGradesPage() {
             unsubClasses();
             unsubTeachers();
         };
-    }, [schoolId, submissionExamFilter, teachers]);
+    }, [schoolId, submissionExamFilter]);
     
      React.useEffect(() => {
         if (!examForAnalysis) return;
@@ -251,7 +254,7 @@ export default function AdminGradesPage() {
         const fetchStudentGradesForRanking = async () => {
             const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('examId', '==', examForAnalysis.id));
             const submissionsSnapshot = await getDocs(submissionsQuery);
-            const submissions = submissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const submissions = submissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as DocumentData}));
 
             const allStudentGrades: Record<string, { total: number, count: number, name: string, avatar: string, rollNumber: string }> = {};
 
