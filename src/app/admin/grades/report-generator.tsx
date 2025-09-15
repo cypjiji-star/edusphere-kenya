@@ -41,11 +41,13 @@ import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import type { DocumentData, Timestamp } from 'firebase/firestore';
 
 // --- Data Types (could be shared in a types file) ---
 type Grade = {
   assessmentId: string;
-  score: number | string;
+  grade: number;
+  subject: string;
 };
 
 export type StudentGrades = {
@@ -61,7 +63,7 @@ export type Assessment = {
   id: string;
   title: string;
   type: 'Exam' | 'Assignment' | 'Quiz';
-  date: string;
+  date: Timestamp;
 };
 
 // --- Report Specific Types ---
@@ -140,17 +142,24 @@ export function ReportGenerator() {
       const studentsSnapshot = await getDocs(studentsQuery);
       
       const studentsData = await Promise.all(studentsSnapshot.docs.map(async (studentDoc) => {
-        const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
+        const student = studentDoc.data() as DocumentData;
         
         // Fetch grades for the student
-        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', student.studentId));
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', studentDoc.id), where('classId', '==', selectedClass));
         const gradesSnapshot = await getDocs(gradesQuery);
-        const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
+        const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, grade: gdoc.data().grade, subject: gdoc.data().subject }));
         
-        const numericScores = grades.map(g => parseInt(String(g.score), 10)).filter(s => !isNaN(s));
+        const numericScores = grades.map(g => parseInt(String(g.grade), 10)).filter(s => !isNaN(s));
         const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length) : 0;
         
-        return { ...student, grades, overall };
+        return { 
+            studentId: studentDoc.id, 
+            studentName: student.name, 
+            studentAvatar: student.avatarUrl,
+            rollNumber: student.rollNumber,
+            grades, 
+            overall 
+        };
       }));
 
       setStudentsInClass(studentsData);
@@ -223,7 +232,7 @@ export function ReportGenerator() {
   
   const getGradeForStudent = (student: StudentGrades, assessmentId: string) => {
     const grade = student.grades.find(g => g.assessmentId === assessmentId);
-    return grade ? grade.score : '—';
+    return grade ? grade.grade : '—';
   };
 
   const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
@@ -266,28 +275,16 @@ export function ReportGenerator() {
                                   <SelectLabel>Academic Reports</SelectLabel>
                                   <SelectItem value="individual">Individual Student Report</SelectItem>
                                   <SelectItem value="summary">Class Performance Summary</SelectItem>
-                                  <SelectItem value="ranking">Student Ranking &amp; Percentiles</SelectItem>
+                                  <SelectItem value="ranking" disabled>Student Ranking &amp; Percentiles</SelectItem>
                               </SelectGroup>
                               <SelectGroup>
                                   <SelectLabel>Assignment Reports</SelectLabel>
-                                  <SelectItem value="assignment-completion">Assignment Completion Report</SelectItem>
+                                  <SelectItem value="assignment-completion" disabled>Assignment Completion Report</SelectItem>
                               </SelectGroup>
                               <SelectGroup>
                                   <SelectLabel>Attendance Reports</SelectLabel>
-                                  <SelectItem value="daily-log">Daily/Weekly Attendance Log</SelectItem>
-                                  <SelectItem value="absentee-patterns">Absentee Pattern Analysis</SelectItem>
-                              </SelectGroup>
-                              <SelectGroup>
-                                  <SelectLabel>Sports &amp; Activities Reports</SelectLabel>
-                                  <SelectItem value="participation-records">Participation Records</SelectItem>
-                                  <SelectItem value="performance-stats">Performance Stats &amp; Awards</SelectItem>
-                                  <SelectItem value="team-rosters">Event Attendance &amp; Rosters</SelectItem>
-                              </SelectGroup>
-                              <SelectGroup>
-                                  <SelectLabel>Communication Reports</SelectLabel>
-                                  <SelectItem value="message-delivery">Message Delivery &amp; Read Receipts</SelectItem>
-                                  <SelectItem value="interaction-logs">Parent-Teacher Interaction Logs</SelectItem>
-                                  <SelectItem value="notification-history">Notification History</SelectItem>
+                                  <SelectItem value="daily-log" disabled>Daily/Weekly Attendance Log</SelectItem>
+                                  <SelectItem value="absentee-patterns" disabled>Absentee Pattern Analysis</SelectItem>
                               </SelectGroup>
                           </SelectContent>
                       </Select>
@@ -375,24 +372,6 @@ export function ReportGenerator() {
                       )}
                   </Button>
               </CardFooter>
-              <Separator className="my-4" />
-              <div className="p-4 space-y-4">
-                  <h4 className="font-semibold flex items-center gap-2 text-base">
-                      <Bell className="h-5 w-5 text-primary" />
-                      Automated Alerts
-                  </h4>
-                  <p className="text-xs text-muted-foreground">Set up automated reports for specific triggers.</p>
-                  <div className="space-y-3">
-                      <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
-                          <Label htmlFor="alert-low-perf" className="text-sm">Low performance alert</Label>
-                          <Switch id="alert-low-perf" checked={alertLowPerf} onCheckedChange={setAlertLowPerf} />
-                      </div>
-                      <div className="flex items-center justify-between space-x-2 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50">
-                          <Label htmlFor="alert-absenteeism" className="text-sm">High absenteeism alert</Label>
-                          <Switch id="alert-absenteeism" checked={alertAbsent} onCheckedChange={setAlertAbsent} />
-                      </div>
-                  </div>
-              </div>
           </Card>
           
           <div className="md:col-span-2">
@@ -456,17 +435,15 @@ export function ReportGenerator() {
                                   <Table>
                                       <TableHeader>
                                           <TableRow>
-                                              <TableHead>Assessment</TableHead>
-                                              <TableHead>Type</TableHead>
+                                              <TableHead>Subject</TableHead>
                                               <TableHead className="text-right">Score</TableHead>
                                           </TableRow>
                                       </TableHeader>
                                       <TableBody>
-                                          {individualReport.assessments.map(assessment => (
-                                              <TableRow key={assessment.id}>
-                                                  <TableCell className="font-medium">{assessment.title}</TableCell>
-                                                  <TableCell>{assessment.type}</TableCell>
-                                                  <TableCell className="text-right font-medium">{getGradeForStudent(individualReport.student, assessment.id)}</TableCell>
+                                          {individualReport.student.grades.map(grade => (
+                                              <TableRow key={grade.assessmentId}>
+                                                  <TableCell className="font-medium">{grade.subject}</TableCell>
+                                                  <TableCell className="text-right font-medium">{getGradeForStudent(individualReport.student, grade.assessmentId)}</TableCell>
                                               </TableRow>
                                           ))}
                                       </TableBody>

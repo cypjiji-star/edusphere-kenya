@@ -21,20 +21,9 @@ import {
   CalendarIcon,
   Settings,
 } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { ReportGenerator } from './report-generator';
 import {
   Dialog,
@@ -46,6 +35,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -64,7 +54,6 @@ import {
   getDocs, 
   where, 
   DocumentData,
-  getDoc,
   doc,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
@@ -92,11 +81,6 @@ type StudentGrade = {
   grade: string;
   overall: number;
   rollNumber?: string;
-}
-
-type Teacher = {
-  id: string;
-  name: string;
 }
 
 type GradingScaleItem = {
@@ -172,35 +156,35 @@ export default function AdminGradesPage() {
         const gradesSnapshot = await getDocs(gradesQuery);
         const gradesData = gradesSnapshot.docs.map(doc => doc.data());
 
-        const allStudentGrades: Record<string, { total: number, count: number, name: string, avatar: string, rollNumber: string }> = {};
+        const allStudentGrades: Record<string, { total: number, count: number, name?: string, avatar?: string, rollNumber?: string }> = {};
 
         for (const gradeData of gradesData) {
           const studentId = gradeData.studentId;
-          if (studentId && !allStudentGrades[studentId]) {
-              const studentDoc = await getDoc(doc(firestore, `schools/${schoolId}/students`, studentId));
-              if (studentDoc.exists()) {
-                  const studentData = studentDoc.data();
-                  allStudentGrades[studentId] = { 
-                      total: 0, 
-                      count: 0, 
-                      name: studentData.name, 
-                      avatar: studentData.avatarUrl || '', 
-                      rollNumber: studentData.rollNumber || '' 
-                  };
-              }
+          if (!allStudentGrades[studentId]) {
+              allStudentGrades[studentId] = { total: 0, count: 0 };
           }
-          if (studentId) {
-             const gradeValue = parseInt(gradeData.grade, 10) || 0;
-             allStudentGrades[studentId].total += gradeValue;
-             allStudentGrades[studentId].count++;
-          }
+          const gradeValue = parseInt(gradeData.grade, 10) || 0;
+          allStudentGrades[studentId].total += gradeValue;
+          allStudentGrades[studentId].count++;
         }
+        
+        const studentDetailsPromises = Object.keys(allStudentGrades).map(async (studentId) => {
+            const studentDoc = await getDoc(doc(firestore, `schools/${schoolId}/students`, studentId));
+            if (studentDoc.exists()) {
+                const studentData = studentDoc.data();
+                allStudentGrades[studentId].name = studentData.name;
+                allStudentGrades[studentId].avatar = studentData.avatarUrl;
+                allStudentGrades[studentId].rollNumber = studentData.rollNumber;
+            }
+        });
+
+        await Promise.all(studentDetailsPromises);
         
         const rankedStudents = Object.entries(allStudentGrades).map(([id, data]) => ({
           id,
-          studentName: data.name,
-          avatarUrl: data.avatar,
-          rollNumber: data.rollNumber,
+          studentName: data.name || "Unknown Student",
+          avatarUrl: data.avatar || "",
+          rollNumber: data.rollNumber || "",
           grade: '',
           overall: data.count > 0 ? Math.round(data.total / data.count) : 0,
         })).sort((a, b) => (b.overall || 0) - (a.overall || 0));
@@ -225,10 +209,6 @@ export default function AdminGradesPage() {
     setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0 }]);
   };
   
-  const removeGradingRow = (index: number) => {
-    setGradingScale(gradingScale.filter((_, i) => i !== index));
-  };
-
   const handleSaveScale = () => {
     toast({
       title: 'Grading Scale Saved',
@@ -452,7 +432,7 @@ export default function AdminGradesPage() {
                            <h4 className="font-semibold text-base">Grading Scale</h4>
                            <div className="space-y-2">
                               {gradingScale.map((item, index) => (
-                              <div key={index} className="grid grid-cols-[80px_1fr_1fr_auto] items-center gap-2">
+                              <div key={index} className="grid grid-cols-[80px_1fr_1fr] items-center gap-2">
                                   <Input defaultValue={item.grade} className="font-bold"/>
                                   <Input type="number" defaultValue={item.min} onChange={(e) => handleGradingScaleChange(index, 'min', Number(e.target.value))} />
                                   <Input type="number" defaultValue={item.max} onChange={(e) => handleGradingScaleChange(index, 'max', Number(e.target.value))} />
@@ -462,26 +442,10 @@ export default function AdminGradesPage() {
                       </div>
                        <div className="space-y-4">
                           <h4 className="font-semibold text-base">Report Card Settings</h4>
-                           <div className="flex items-center justify-between rounded-lg border p-3">
-                              <div className="space-y-0.5">
-                                  <Label>Include Class Rank</Label>
-                              </div>
-                              <Switch/>
-                          </div>
-                          <div className="flex items-center justify-between rounded-lg border p-3">
-                              <div className="space-y-0.5">
-                                  <Label>Include Teacher Comments</Label>
-                              </div>
-                              <Switch defaultChecked/>
-                          </div>
                        </div>
                   </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
-                  <Button variant="outline" onClick={addGradingRow}>
-                      <PlusCircle className="mr-2 h-4 w-4"/>
-                      Add Row
-                  </Button>
+              <CardFooter className="flex justify-end">
                   <Button onClick={handleSaveScale}>
                       <Save className="mr-2 h-4 w-4"/>
                       Save Policies
