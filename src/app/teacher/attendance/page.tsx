@@ -11,7 +11,7 @@ import {
   writeBatch,
   doc,
   Timestamp,
-  getDocs,
+  getDoc,
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -40,20 +40,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, Clock, XCircle, CalendarIcon } from "lucide-react";
+import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 
-// --- Re-integrated Components ---
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
 
 export type Student = {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
   rollNumber: string;
   avatarUrl: string;
-  attendance: AttendanceStatus;
+  status: AttendanceStatus;
   notes?: string;
 };
 
@@ -132,8 +133,8 @@ function AttendanceTable({
   teacherClasses,
   isEditable,
 }: {
-  students: any[];
-  setStudents: React.Dispatch<React.SetStateAction<any[]>>;
+  students: Student[];
+  setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   selectedClass: string | null;
   setSelectedClass: (id: string | null) => void;
   teacherClasses: TeacherClass[];
@@ -141,7 +142,7 @@ function AttendanceTable({
 }) {
     
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, attendance: status } : s));
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status } : s));
   };
 
   const handleNotesChange = (studentId: string, notes: string) => {
@@ -231,11 +232,11 @@ function AttendanceTable({
 export default function AttendancePage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const [students, setStudents] = React.useState<any[]>([]);
-  const [teacherClasses, setTeacherClasses] = React.useState<any[]>([]);
+  const [students, setStudents] = React.useState<Student[]>([]);
+  const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
   const [selectedClass, setSelectedClass] = React.useState<string | null>(null);
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(new Date());
-  const [isEditable, setIsEditable] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [user, setUser] = React.useState(auth.currentUser);
   const { toast } = useToast();
 
@@ -252,8 +253,8 @@ export default function AttendancePage() {
       where("teacherId", "==", user.uid)
     );
     const unsub = onSnapshot(q, (snap) => {
-      const cls: any[] = [];
-      snap.forEach((d) => cls.push({ id: d.id, ...d.data() }));
+      const cls: TeacherClass[] = [];
+      snap.forEach((d) => cls.push({ id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim() }));
       setTeacherClasses(cls);
       if (!selectedClass && cls.length > 0) setSelectedClass(cls[0].id);
     });
@@ -263,10 +264,8 @@ export default function AttendancePage() {
   // Load students for selected class and their attendance status for the selected date
   React.useEffect(() => {
     if (!schoolId || !selectedClass || !selectedDate) return;
-
-    const baseDate = selectedDate || new Date();
-    baseDate.setHours(0, 0, 0, 0);
-    const attendanceDate = Timestamp.fromDate(baseDate);
+    
+    setIsLoading(true);
 
     const studentsQuery = query(
       collection(firestore, "schools", schoolId, "students"),
@@ -283,29 +282,33 @@ export default function AttendancePage() {
             ...data,
             status: "unmarked",
             notes: "",
-          }
+          } as Student;
       });
 
-      const attendanceQuery = query(
-          collection(firestore, 'schools', schoolId, 'attendance'),
-          where('classId', '==', selectedClass),
-          where('date', '==', attendanceDate)
-      );
-
-      const attendanceSnapshot = await getDocs(attendanceQuery);
-      const attendanceMap = new Map();
-      attendanceSnapshot.forEach(doc => {
-          const data = doc.data();
-          attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
+      // Fetch attendance for all students in one go
+      const attendancePromises = studentList.map(student => {
+        const attendanceDocId = format(selectedDate, "yyyy-MM-dd");
+        const attendanceRef = doc(firestore, 'schools', schoolId, 'students', student.id, 'attendance', attendanceDocId);
+        return getDoc(attendanceRef);
       });
+      
+      const attendanceSnapshots = await Promise.all(attendancePromises);
 
-      const studentsWithAttendance = studentList.map(student => ({
-          ...student,
-          status: attendanceMap.get(student.id)?.status || 'unmarked',
-          notes: attendanceMap.get(student.id)?.notes || '',
-      }));
+      const studentsWithAttendance = studentList.map((student, index) => {
+        const attendanceDoc = attendanceSnapshots[index];
+        if (attendanceDoc.exists()) {
+          const data = attendanceDoc.data();
+          return {
+            ...student,
+            status: data.status,
+            notes: data.notes || '',
+          };
+        }
+        return student;
+      });
 
       setStudents(studentsWithAttendance);
+      setIsLoading(false);
     });
 
     return () => unsub();
@@ -322,52 +325,30 @@ export default function AttendancePage() {
 
   // Save Attendance
   const handleSaveAttendance = React.useCallback(async () => {
-    if (!isEditable || !selectedClass || !schoolId || !user || students.length === 0) {
-      console.warn("Cannot save: missing data", { schoolId, selectedClass, user });
+    if (!selectedClass || !schoolId || !user || students.length === 0 || !selectedDate) {
+      console.warn("Cannot save: missing data", { schoolId, selectedClass, user, selectedDate });
       return;
     }
 
-    const baseDate = selectedDate || new Date();
-    baseDate.setHours(0, 0, 0, 0);
-
     const batch = writeBatch(firestore);
-    const attendanceDate = Timestamp.fromDate(baseDate);
+    const attendanceDocId = format(selectedDate, "yyyy-MM-dd");
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
     
-    console.log('Saving attendance with schoolId:', schoolId);
-    console.log("Attendance batch:", {
-      studentId: students[0]?.id,
-      sampleDoc: {
-        studentId: students[0]?.id,
-        studentName: students[0]?.name,
-        class: teacherClasses.find((c) => c.id === selectedClass)?.name || 'Unknown',
-        classId: selectedClass,
-        schoolId: schoolId,
-        date: Timestamp.fromDate(new Date()),
-        status: students[0]?.status,
-        notes: students[0]?.notes || '',
-        teacher: user?.displayName || 'Unknown Teacher',
-        teacherId: user?.uid,
-      }
-    });
-
     for (const student of students) {
       if (student.status === "unmarked") continue;
-      const docId = `${student.id}_${format(baseDate, "yyyy-MM-dd")}`;
-      const attendanceRef = doc(firestore, "schools", schoolId, "attendance", docId);
+      const attendanceRef = doc(firestore, "schools", schoolId, "students", student.id, "attendance", attendanceDocId);
       
       batch.set(attendanceRef, {
-        studentId: student.id,
-        studentName: student.name,
-        studentAvatar: student.avatarUrl || "",
-        class: currentClass?.name || "Unknown",
-        classId: selectedClass,
-        schoolId: schoolId,
-        date: attendanceDate,
+        date: Timestamp.fromDate(selectedDate),
         status: student.status,
         notes: student.notes || "",
         teacher: user.displayName || "Unknown Teacher",
         teacherId: user.uid,
+        classId: selectedClass,
+        className: currentClass?.name || "Unknown",
+        schoolId: schoolId,
+        studentName: student.name,
+        studentAvatar: student.avatarUrl
       });
     }
 
@@ -375,7 +356,7 @@ export default function AttendancePage() {
       await batch.commit();
       toast({
         title: "✓ Saved",
-        description: `Attendance for ${currentClass?.name} on ${format(baseDate, "PPP")} has been saved.`,
+        description: `Attendance for ${currentClass?.name} on ${format(selectedDate, "PPP")} has been saved.`,
       });
     } catch (err) {
       console.error("Error saving attendance:", err);
@@ -385,7 +366,11 @@ export default function AttendancePage() {
         variant: "destructive",
       });
     }
-  }, [isEditable, selectedClass, schoolId, user, students, selectedDate, teacherClasses, toast]);
+  }, [selectedClass, schoolId, user, students, selectedDate, teacherClasses, toast]);
+  
+  if (isLoading) {
+    return <div className="flex h-full items-center justify-center p-8"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4">
@@ -400,10 +385,11 @@ export default function AttendancePage() {
         selectedClass={selectedClass}
         setSelectedClass={setSelectedClass}
         teacherClasses={teacherClasses}
-        isEditable={isEditable}
+        isEditable={true}
       />
 
-      <Button onClick={handleSaveAttendance} disabled={!isEditable}>
+      <Button onClick={handleSaveAttendance}>
+        <Save className="mr-2 h-4 w-4" />
         Submit Attendance
       </Button>
     </div>

@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collectionGroup, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
@@ -241,7 +241,7 @@ export default function AdminAttendancePage() {
         setClasses(['All Classes', ...new Set(classNames)]);
     });
     
-    const qAttendance = query(collection(firestore, 'schools', schoolId, 'attendance'));
+    const qAttendance = query(collectionGroup(firestore, 'attendance'), where('schoolId', '==', schoolId));
     const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
         const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
         setAllRecords(records);
