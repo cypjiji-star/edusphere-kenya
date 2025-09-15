@@ -138,6 +138,7 @@ export default function AdminGradesPage() {
   academicTerms.push(...[`Term 1, ${currentYear + 1}`, `Term 2, ${currentYear + 1}`, `Term 3, ${currentYear + 1}`]);
 
   // State for the create exam dialog
+  const [isCreateExamOpen, setIsCreateExamOpen] = React.useState(false);
   const [newExamTitle, setNewExamTitle] = React.useState('');
   const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[4]);
   const [newExamClass, setNewExamClass] = React.useState<string>('');
@@ -146,7 +147,14 @@ export default function AdminGradesPage() {
 
   React.useEffect(() => {
     if (!schoolId) return;
-    
+
+    const unsubExams = onSnapshot(
+      query(collection(firestore, `schools/${schoolId}/assessments`), orderBy('startDate', 'desc')),
+      (snapshot) => {
+        setAllExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+      }
+    );
+
     const unsubClasses = onSnapshot(collection(firestore, `schools/${schoolId}/classes`), (snapshot) => {
       const classList = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
       setClasses(classList);
@@ -155,15 +163,12 @@ export default function AdminGradesPage() {
       }
     });
 
-    const unsubExams = onSnapshot(query(collection(firestore, `schools/${schoolId}/assessments`), orderBy('startDate', 'desc')), (snapshot) => {
-        setAllExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
-    });
-    
     return () => {
-      unsubClasses();
       unsubExams();
+      unsubClasses();
     };
-  }, [schoolId, selectedClassForRanking]);
+  }, [schoolId]);
+
   
   React.useEffect(() => {
     if (!selectedClassForRanking || !schoolId) return;
@@ -261,6 +266,7 @@ export default function AdminGradesPage() {
       setNewExamClass('');
       setDate(undefined);
       setNewExamNotes('');
+      setIsCreateExamOpen(false);
     } catch (e) {
       console.error(e);
       toast({ variant: 'destructive', title: 'Failed to create exam.' });
@@ -305,7 +311,7 @@ export default function AdminGradesPage() {
               </h1>
               <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
           </div>
-          <Dialog>
+          <Dialog open={isCreateExamOpen} onOpenChange={setIsCreateExamOpen}>
             <DialogTrigger asChild>
               <Button>
                   <PlusCircle className="mr-2 h-4 w-4"/>
@@ -376,12 +382,10 @@ export default function AdminGradesPage() {
               </div>
               <DialogFooter>
                   <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                  <DialogClose asChild>
-                      <Button onClick={handleCreateExam} disabled={isSavingExam}>
-                      {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                      Save Exam
-                      </Button>
-                  </DialogClose>
+                  <Button onClick={handleCreateExam} disabled={isSavingExam}>
+                    {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                    Save Exam
+                  </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -531,4 +535,5 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
 
