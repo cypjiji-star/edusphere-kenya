@@ -164,7 +164,7 @@ export function TeacherSidebar() {
         {navGroups.map((group) => (
           <Collapsible key={group.title} defaultOpen>
             <CollapsibleTrigger className="w-full p-2 text-left">
-                <span className="text-xs font-semibold text-muted-foreground">{group.title}</span>
+                <span className="text-xs font-semibold text-primary">{group.title}</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
                 <SidebarMenu>

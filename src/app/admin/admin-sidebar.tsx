@@ -246,7 +246,7 @@ export function AdminSidebar() {
               <SidebarMenuItem className="px-2 pt-2">
                 <CollapsibleTrigger className="w-full">
                     <div className="flex items-center justify-between">
-                         <span className="text-xs font-semibold text-muted-foreground">{group.title}</span>
+                         <span className="text-xs font-semibold text-primary">{group.title}</span>
                          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [&[data-state=open]]:rotate-180" />
                     </div>
                 </CollapsibleTrigger>
