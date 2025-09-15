@@ -222,16 +222,8 @@ export function AdminSidebar() {
 
   return (
     <>
-      <SidebarHeader className="flex items-center justify-between">
-        <Link href={`/admin?schoolId=${schoolId}`} className="flex items-center gap-2">
-          <GraduationCap className="size-6 text-primary" />
-          <span className="font-bold font-headline text-lg">Admin Portal</span>
-        </Link>
-        <NotificationsPopover schoolId={schoolId} />
-      </SidebarHeader>
-
-      <SidebarContent className="p-2">
-        <SidebarMenu>
+      <SidebarHeader className="p-2">
+         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/admin'} tooltip={{ children: 'Dashboard' }}>
               <Link href={`/admin?schoolId=${schoolId}`}>
@@ -241,6 +233,9 @@ export function AdminSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent className="p-2">
          {navGroups.map((group) => (
           <Collapsible key={group.title} defaultOpen>
               <SidebarMenuItem className="px-2 pt-2">
@@ -277,7 +272,8 @@ export function AdminSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="flex items-center gap-2">
+        <NotificationsPopover schoolId={schoolId} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
