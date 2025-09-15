@@ -59,30 +59,40 @@ const typeIcons: Record<Resource['type'], React.ElementType> = {
   Journal: Newspaper,
 };
 
-const statusConfig: Record<Resource['status'], { label: string; className: string }> = {
-    Available: { label: 'Available', className: 'bg-green-100 text-green-800 border-green-200' },
-    Out: { label: 'Checked Out', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-    Digital: { label: 'Digital', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-};
+const getStatusBadge = (resource: Resource) => {
+    if (resource.type === 'Digital') {
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Digital</Badge>;
+    }
+    if (resource.availableCopies === 0) {
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Checked Out</Badge>;
+    }
+    return <Badge className="bg-green-100 text-green-800 border-green-200">Available ({resource.availableCopies}/{resource.totalCopies})</Badge>;
+}
 
 
 function EditResourceDialog({ resource, open, onOpenChange, onSave, onDelete }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Resource>) => void, onDelete: (id: string) => void }) {
     const [title, setTitle] = React.useState('');
     const [author, setAuthor] = React.useState('');
     const [description, setDescription] = React.useState('');
+    const [totalCopies, setTotalCopies] = React.useState(0);
     
     React.useEffect(() => {
         if (resource) {
             setTitle(resource.title);
             setAuthor(resource.author);
             setDescription(resource.description);
+            setTotalCopies(resource.totalCopies || 0);
         }
     }, [resource]);
     
     if (!resource) return null;
 
     const handleSave = () => {
-        onSave(resource.id, { title, author, description });
+        // When increasing total copies, we must also increase available copies
+        const diff = totalCopies - (resource.totalCopies || 0);
+        const newAvailableCopies = (resource.availableCopies || 0) + diff;
+
+        onSave(resource.id, { title, author, description, totalCopies, availableCopies: newAvailableCopies });
         onOpenChange(false);
     };
 
@@ -100,6 +110,10 @@ function EditResourceDialog({ resource, open, onOpenChange, onSave, onDelete }: 
                      <div className="space-y-2">
                         <Label htmlFor="edit-author">Author/Publisher</Label>
                         <Input id="edit-author" value={author} onChange={(e) => setAuthor(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-copies">Total Copies</Label>
+                        <Input id="edit-copies" type="number" value={totalCopies} onChange={(e) => setTotalCopies(Number(e.target.value))} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="edit-desc">Description</Label>
@@ -141,6 +155,7 @@ export default function AdminLibraryPage() {
     const [newSubject, setNewSubject] = React.useState<string | undefined>();
     const [newGrades, setNewGrades] = React.useState<string[]>([]);
     const [newDesc, setNewDesc] = React.useState('');
+    const [newCopies, setNewCopies] = React.useState('');
 
     const [dbSubjects, setDbSubjects] = React.useState<string[]>([]);
     const [dbGrades, setDbGrades] = React.useState<string[]>([]);
@@ -170,7 +185,7 @@ export default function AdminLibraryPage() {
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
         const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
             const gradeNames = snapshot.docs.map(doc => doc.data().name);
-            setDbGrades([...new Set(gradeNames)]); // Use Set to get unique grade names like 'Form 1', 'Form 2'
+            setDbGrades([...new Set(gradeNames)]);
         });
 
 
@@ -189,10 +204,10 @@ export default function AdminLibraryPage() {
     );
     
     const dashboardStats = React.useMemo(() => {
-        const total = resources.length;
-        const available = resources.filter(r => r.status === 'Available').length;
-        const out = resources.filter(r => r.status === 'Out').length;
-        const digital = resources.filter(r => r.status === 'Digital').length;
+        const total = resources.reduce((sum, res) => sum + (res.totalCopies || 0), 0);
+        const available = resources.reduce((sum, res) => sum + (res.availableCopies || 0), 0);
+        const out = total - available;
+        const digital = resources.filter(r => r.type === 'Digital').length;
         const overdue = resources.filter(r => r.status === 'Out' && r.dueDate && new Date(r.dueDate) < new Date()).length;
         return { total, available, out, digital, overdue };
     }, [resources]);
@@ -204,13 +219,15 @@ export default function AdminLibraryPage() {
         setNewSubject(undefined);
         setNewGrades([]);
         setNewDesc('');
+        setNewCopies('');
     };
 
     const handleAddResource = async () => {
-        if (!schoolId || !newTitle || !newAuthor || !newType || !newSubject || newGrades.length === 0) {
+        if (!schoolId || !newTitle || !newAuthor || !newType || !newSubject || newGrades.length === 0 || !newCopies) {
             toast({ title: "Missing Information", description: "Please fill out all fields.", variant: "destructive" });
             return;
         }
+        const numCopies = Number(newCopies);
 
         setIsSubmitting(true);
         try {
@@ -221,7 +238,9 @@ export default function AdminLibraryPage() {
                 subject: newSubject,
                 grade: newGrades,
                 description: newDesc,
-                status: 'Available',
+                totalCopies: numCopies,
+                availableCopies: numCopies,
+                status: newType === 'Digital' ? 'Digital' : 'Available',
                 createdAt: serverTimestamp(),
             });
             toast({ title: "Resource Added", description: `"${newTitle}" has been added to the library.` });
@@ -272,8 +291,8 @@ export default function AdminLibraryPage() {
       </div>
       
        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mb-6">
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Resources</CardTitle><Book className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">{dashboardStats.total}</div></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Available</CardTitle><Book className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">{dashboardStats.available}</div></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Copies</CardTitle><Book className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">{dashboardStats.total}</div></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Available Copies</CardTitle><Book className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">{dashboardStats.available}</div></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Checked Out</CardTitle><Book className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">{dashboardStats.out}</div></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Digital Copies</CardTitle><Book className="h-4 w-4 text-muted-foreground"/></CardHeader><CardContent><div className="text-2xl font-bold">{dashboardStats.digital}</div></CardContent></Card>
             <Card className="border-destructive/50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-destructive">Overdue</CardTitle><AlertTriangle className="h-4 w-4 text-destructive"/></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{dashboardStats.overdue}</div></CardContent></Card>
@@ -302,6 +321,7 @@ export default function AdminLibraryPage() {
                                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-title">Title</Label><Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div><div className="space-y-2"><Label htmlFor="new-author">Author / Publisher</Label><Input id="new-author" value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} /></div></div>
                                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-type">Type</Label><Select value={newType} onValueChange={(v: ResourceType) => setNewType(v)}><SelectTrigger id="new-type"><SelectValue placeholder="Select type..." /></SelectTrigger><SelectContent>{resourceTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label htmlFor="new-subject">Subject</Label><Select value={newSubject} onValueChange={setNewSubject}><SelectTrigger id="new-subject"><SelectValue placeholder="Select subject..." /></SelectTrigger><SelectContent>{dbSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div></div>
                                 <div className="space-y-2"><Label>Applicable Grades/Forms</Label><MultiSelect options={dbGrades.map(g => ({value: g, label: g}))} selected={newGrades} onChange={setNewGrades} placeholder="Select grades..." /></div>
+                                <div className="space-y-2"><Label htmlFor="new-copies">Number of Copies</Label><Input id="new-copies" type="number" value={newCopies} onChange={(e) => setNewCopies(e.target.value)} placeholder="e.g., 10"/></div>
                                 <div className="space-y-2"><Label htmlFor="new-desc">Description</Label><Textarea id="new-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} /></div>
                             </div>
                             <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Add Resource</Button></DialogFooter>
@@ -324,7 +344,7 @@ export default function AdminLibraryPage() {
                                     <TableCell className="font-medium"><div className="flex items-center gap-3"><Icon className="h-5 w-5 text-primary/80 hidden sm:block" />{res.title}</div></TableCell>
                                     <TableCell>{res.type}</TableCell>
                                     <TableCell>{res.subject}</TableCell>
-                                    <TableCell><Badge className={cn('whitespace-nowrap', statusConfig[res.status].className)}>{statusConfig[res.status].label}</Badge></TableCell>
+                                    <TableCell>{getStatusBadge(res)}</TableCell>
                                     <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setEditingResource(res)}><Edit className="mr-2 h-4 w-4" />Edit</Button></TableCell>
                                 </TableRow>
                             )})}

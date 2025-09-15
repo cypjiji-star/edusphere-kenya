@@ -14,4 +14,6 @@ export type Resource = {
   description: string;
   dueDate?: string;
   recommended?: boolean;
+  totalCopies: number;
+  availableCopies: number;
 };
