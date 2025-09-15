@@ -51,7 +51,6 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -63,7 +62,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
@@ -80,6 +79,7 @@ type Incident = {
   description: string;
   date: Timestamp;
   reportedBy: string;
+  reportedById: string;
   status: IncidentStatus;
 };
 
@@ -137,11 +137,7 @@ export default function TeacherHealthPage() {
     const [incidents, setIncidents] = React.useState<Incident[]>([]);
     
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
-    const [updatedStatus, setUpdatedStatus] = React.useState<IncidentStatus | undefined>();
     const [searchTerm, setSearchTerm] = React.useState('');
-    const [typeFilter, setTypeFilter] = React.useState<IncidentType | 'All Types'>('All Types');
-    const [statusFilter, setStatusFilter] = React.useState<IncidentStatus | 'All Statuses'>('All Statuses');
-    const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const form = useForm<IncidentFormValues>({
@@ -176,20 +172,19 @@ export default function TeacherHealthPage() {
         return () => unsubscribe();
     }, [teacherClasses, schoolId]);
 
-    // Fetch incidents for the teacher's students
+    // Fetch incidents reported BY the teacher
     React.useEffect(() => {
-        if (teacherStudents.length === 0 || !schoolId) {
+        if (!schoolId || !user) {
             setIncidents([]);
             return;
         }
-        const studentIds = teacherStudents.map(s => s.id);
-        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', 'in', studentIds), orderBy('date', 'desc'));
+        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('reportedById', '==', user.uid), orderBy('date', 'desc'));
         const unsubscribe = onSnapshot(incidentsQuery, (snapshot) => {
             const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
             setIncidents(incidentsData);
         });
         return () => unsubscribe();
-    }, [teacherStudents, schoolId]);
+    }, [schoolId, user]);
 
 
     React.useEffect(() => {
@@ -214,12 +209,6 @@ export default function TeacherHealthPage() {
             setCurrentHealthRecord(null);
         }
     }, [selectedHealthStudent, schoolId]);
-    
-    React.useEffect(() => {
-        if (selectedIncident) {
-            setUpdatedStatus(selectedIncident.status);
-        }
-    }, [selectedIncident]);
 
     async function onSubmit(values: IncidentFormValues) {
         if (!schoolId || !user) return;
@@ -234,12 +223,13 @@ export default function TeacherHealthPage() {
                 class: student?.class || 'Unknown',
                 date: Timestamp.fromDate(values.incidentDate),
                 reportedBy: user.displayName || 'Teacher',
+                reportedById: user.uid,
                 status: 'Reported',
             });
 
             toast({
                 title: 'Incident Reported',
-                description: 'The incident has been logged and relevant parties have been notified.',
+                description: 'The incident has been logged and relevant parties will be notified if necessary.',
             });
             form.reset();
         } catch (e) {
@@ -250,40 +240,10 @@ export default function TeacherHealthPage() {
         }
     }
     
-    const handleUpdateIncident = async () => {
-        if (!selectedIncident || !updatedStatus || !schoolId) return;
-
-        const incidentRef = doc(firestore, 'schools', schoolId, 'incidents', selectedIncident.id);
-        try {
-            await updateDoc(incidentRef, { status: updatedStatus });
-            toast({
-                title: 'Incident Updated',
-                description: `The status for incident #${selectedIncident.id.substring(0,6)} has been set to "${updatedStatus}".`
-            });
-            setSelectedIncident(null);
-        } catch (e) {
-            console.error("Error updating incident:", e);
-            toast({ variant: 'destructive', title: 'Update Failed' });
-        }
-    };
-    
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files[0]) {
-            setAttachedFile(event.target.files[0]);
-        }
-    };
-
-    const handleRemoveFile = () => {
-        setAttachedFile(null);
-    };
-
-    const filteredIncidents = incidents.filter(incident => {
-        const matchesSearch = incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              incident.description.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesType = typeFilter === 'All Types' || incident.type === typeFilter;
-        const matchesStatus = statusFilter === 'All Statuses' || incident.status === statusFilter;
-        return matchesSearch && matchesType && matchesStatus;
-    });
+    const filteredIncidents = incidents.filter(incident => 
+        incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        incident.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -301,11 +261,10 @@ export default function TeacherHealthPage() {
                 </div>
                 
                 <Tabs defaultValue="report">
-                    <TabsList className="mb-4 grid w-full grid-cols-4 md:w-auto md:inline-flex">
+                    <TabsList className="mb-4 grid w-full grid-cols-3 md:w-auto md:inline-flex">
                         <TabsTrigger value="report">New Incident</TabsTrigger>
-                        <TabsTrigger value="log">Incident Log</TabsTrigger>
+                        <TabsTrigger value="log">My Incident Log</TabsTrigger>
                         <TabsTrigger value="records">Health Records</TabsTrigger>
-                        <TabsTrigger value="medication">Medication Log</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="report">
@@ -472,30 +431,6 @@ export default function TeacherHealthPage() {
                                                     </FormItem>
                                                     )}
                                                 />
-                                                <div className="space-y-2">
-                                                    <Label>Attach Medical Document</Label>
-                                                    <div className="flex items-center justify-center w-full">
-                                                        {attachedFile ? (
-                                                            <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
-                                                                <div className="flex items-center gap-2 text-sm font-medium">
-                                                                    <FileText className="h-5 w-5 text-primary" />
-                                                                    <span className="truncate">{attachedFile.name}</span>
-                                                                </div>
-                                                                <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
-                                                                    <X className="h-4 w-4 text-destructive" />
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
-                                                            <Label htmlFor="dropzone-file-teacher" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                                                    <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                                                                    <p className="mb-2 text-sm text-muted-foreground">Attach doctor's note, etc. (Optional)</p>
-                                                                </div>
-                                                                <Input id="dropzone-file-teacher" type="file" className="hidden" onChange={handleFileChange} />
-                                                            </Label>
-                                                        )}
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                         <div className="flex justify-end pt-8">
@@ -514,43 +449,15 @@ export default function TeacherHealthPage() {
                             <CardHeader>
                                 <CardTitle>My Incident Log</CardTitle>
                                 <CardDescription>A log of all incidents you have reported.</CardDescription>
-                                <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-                                    <div className="relative w-full md:max-w-sm">
-                                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                        type="search"
-                                        placeholder="Search by student..."
-                                        className="w-full bg-background pl-8"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                                        <Select value={typeFilter} onValueChange={(v: IncidentType | 'All Types') => setTypeFilter(v)}>
-                                            <SelectTrigger className="w-full md:w-[180px]">
-                                                <Filter className="mr-2 h-4 w-4" />
-                                                <SelectValue placeholder="Filter by type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="All Types">All Types</SelectItem>
-                                                <SelectItem value="Health">Health</SelectItem>
-                                                <SelectItem value="Discipline">Discipline</SelectItem>
-                                                <SelectItem value="Accident">Accident</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                         <Select value={statusFilter} onValueChange={(v: IncidentStatus | 'All Statuses') => setStatusFilter(v)}>
-                                            <SelectTrigger className="w-full md:w-[180px]">
-                                                <Filter className="mr-2 h-4 w-4" />
-                                                <SelectValue placeholder="Filter by status" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                 <SelectItem value="All Statuses">All Statuses</SelectItem>
-                                                <SelectItem value="Reported">Reported</SelectItem>
-                                                <SelectItem value="Under Review">Under Review</SelectItem>
-                                                <SelectItem value="Resolved">Resolved</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                <div className="mt-4 relative w-full md:max-w-sm">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                    type="search"
+                                    placeholder="Search by student or keyword..."
+                                    className="w-full bg-background pl-8"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
                                 </div>
                             </CardHeader>
                             <CardContent>
@@ -568,6 +475,13 @@ export default function TeacherHealthPage() {
                                                     </TableRow>
                                                 </DialogTrigger>
                                             ))}
+                                            {filteredIncidents.length === 0 && (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="h-24 text-center">
+                                                        You have not reported any incidents.
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
                                         </TableBody>
                                     </Table>
                                 </div>
@@ -618,7 +532,7 @@ export default function TeacherHealthPage() {
                     <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
                             <DialogTitle>Incident Details</DialogTitle>
-                            <DialogDescription>Review the incident reported for {selectedIncident.studentName}.</DialogDescription>
+                            <DialogDescription>Review the incident you reported for {selectedIncident.studentName}.</DialogDescription>
                         </DialogHeader>
                         <div className="py-4 space-y-4"><div><p className="text-sm font-medium text-muted-foreground">Description</p><p className="text-sm">{selectedIncident.description}</p></div><Separator/><div><h4 className="font-semibold mb-2">Status</h4><p>{getStatusBadge(selectedIncident.status)}</p></div></div>
                         <DialogFooter><DialogClose asChild><Button variant="outline">Close</Button></DialogClose></DialogFooter>
@@ -628,5 +542,3 @@ export default function TeacherHealthPage() {
         </Dialog>
     );
 }
-
-    
