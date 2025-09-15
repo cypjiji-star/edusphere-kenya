@@ -51,7 +51,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useSearchParams } from 'next/navigation';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 
 const studentGradeSchema = z.object({
   studentId: z.string(),
@@ -90,7 +90,7 @@ export function GradeEntryForm() {
   const schoolId = searchParams.get('schoolId');
   const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
-  const [studentsByClass, setStudentsByClass] = React.useState<Record<string, Student[]>>({});
+  const [students, setStudents] = React.useState<Student[]>([]);
   const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
   const [user, setUser] = React.useState(auth.currentUser);
 
@@ -112,36 +112,7 @@ export function GradeEntryForm() {
         }
     });
     return () => unsubscribe();
-  }, [schoolId, selectedClass, user]);
-
-  // Fetch students for all teacher's classes
-  React.useEffect(() => {
-    if (!schoolId || teacherClasses.length === 0) return;
-
-    const unsubscribers = teacherClasses.map(tc => {
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', tc.id));
-        return onSnapshot(studentsQuery, snapshot => {
-            const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
-            setStudentsByClass(prev => ({ ...prev, [tc.id]: students }));
-        });
-    });
-
-    return () => unsubscribers.forEach(unsub => unsub());
-  }, [schoolId, teacherClasses]);
-
-  // Fetch assessments for the selected class
-  React.useEffect(() => {
-    if (!schoolId || !selectedClass) return;
-
-    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
-    const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
-        const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
-        setAssessments(assessmentData);
-    });
-
-    return () => unsubAssessments();
-  }, [schoolId, selectedClass]);
-
+  }, [schoolId, user]);
 
   const form = useForm<GradeEntryFormValues>({
     resolver: zodResolver(gradeEntrySchema),
@@ -156,13 +127,32 @@ export function GradeEntryForm() {
     name: 'grades',
   });
 
+  // Fetch students and assessments for the selected class
   React.useEffect(() => {
-    if (selectedClass) {
-        const students = studentsByClass[selectedClass] || [];
-        replace(students.map(s => ({ studentId: s.id, grade: '' })));
+    if (!schoolId || !selectedClass) return;
+
+    // Fetch students
+    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
+    const unsubStudents = onSnapshot(studentsQuery, snapshot => {
+        const studentData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
+        setStudents(studentData);
+        replace(studentData.map(s => ({ studentId: s.id, grade: '' })));
         form.setValue('classId', selectedClass);
-    }
-  }, [selectedClass, replace, form, studentsByClass]);
+    });
+
+    // Fetch assessments
+    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
+    const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
+        const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
+        setAssessments(assessmentData);
+        form.resetField('assessmentId');
+    });
+
+    return () => {
+        unsubStudents();
+        unsubAssessments();
+    };
+  }, [schoolId, selectedClass, replace, form]);
 
   async function onSubmit(values: GradeEntryFormValues) {
     if (!schoolId || !user) {
@@ -180,7 +170,7 @@ export function GradeEntryForm() {
       });
       form.reset({
         ...values,
-        grades: studentsByClass[values.classId].map(s => ({ studentId: s.id, grade: '' })),
+        grades: students.map(s => ({ studentId: s.id, grade: '' })),
       });
     } else {
       toast({
@@ -191,7 +181,6 @@ export function GradeEntryForm() {
     }
   }
 
-  const studentsForClass = studentsByClass[selectedClass || ''] || [];
 
   return (
     <Form {...form}>
@@ -269,7 +258,7 @@ export function GradeEntryForm() {
                 </TableHeader>
                 <TableBody>
                   {fields.map((field, index) => {
-                    const student = studentsForClass[index];
+                    const student = students[index];
                     if (!student) return null;
                     return (
                       <TableRow key={field.id}>
