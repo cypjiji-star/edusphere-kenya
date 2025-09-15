@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -14,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { TrendingDown, TrendingUp, ArrowRight, BookCopy, Loader2, FileText, BarChart2, AlertCircle, ArrowLeft, Trophy } from 'lucide-react';
+import { TrendingDown, TrendingUp, ArrowLeft, BookCopy, Loader2, FileText, BarChart2, AlertCircle, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { firestore } from '@/lib/firebase';
@@ -69,11 +70,11 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
     const fetchDataForExam = async () => {
       try {
         setIsLoading(true);
-        const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), where('exam', '==', exam.id));
-        const submissionsSnapshot = await getDocs(submissionsQuery);
-        const submissions = submissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Query the new top-level grades collection
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('assessmentId', '==', exam.id));
+        const gradesSnapshot = await getDocs(gradesQuery);
 
-        if (submissions.length === 0) {
+        if (gradesSnapshot.empty) {
           setDistributionData([]);
           setSubjectPerformanceData([]);
           setClassPerformance({ top: 'N/A', lowest: 'N/A', topAvg: 0, lowestAvg: 0 });
@@ -82,46 +83,43 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         }
 
         const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
-        const studentGrades: StudentGrade[] = [];
         const subjectScores: Record<string, { total: number, count: number }> = {};
         const classScores: Record<string, { total: number, count: number }> = {};
+        
+        // Fetch assessment details in one go
+        const assessmentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'assessments', exam.id));
+        const assessmentData = assessmentSnap.data();
 
-        for (const submission of submissions) {
-          const gradesSnapshot = await getDocs(collection(doc(firestore, `schools/${schoolId}/submissions/${submission.id}`), 'grades'));
+        for (const gradeDoc of gradesSnapshot.docs) {
+          const gradeData = gradeDoc.data();
+          const score = parseInt(gradeData.grade, 10);
+          if (isNaN(score)) continue;
 
-          gradesSnapshot.forEach(gradeDoc => {
-            const gradeData = gradeDoc.data();
-            const score = parseInt(gradeData.grade, 10);
-            if (isNaN(score)) return;
+          const subjectName = gradeData.subject || assessmentData?.title || 'Unknown';
+          const className = gradeData.className || 'Unknown Class';
 
-            const subjectName = submission.subject || 'Unknown';
-            const className = submission['class'] || 'Unknown Class';
+          if (!subjectScores[subjectName]) subjectScores[subjectName] = { total: 0, count: 0 };
+          subjectScores[subjectName].total += score;
+          subjectScores[subjectName].count++;
 
-            studentGrades.push({ score, 'class': className, subject: subjectName });
+          if (!classScores[className]) classScores[className] = { total: 0, count: 0 };
+          classScores[className].total += score;
+          classScores[className].count++;
 
-            if (!subjectScores[subjectName]) subjectScores[subjectName] = { total: 0, count: 0 };
-            subjectScores[subjectName].total += score;
-            subjectScores[subjectName].count++;
-
-            if (!classScores[className]) classScores[className] = { total: 0, count: 0 };
-            classScores[className].total += score;
-            classScores[className].count++;
-
-            if (score >= 80) gradeCounts['A']++;
-            else if (score >= 75) gradeCounts['A-']++;
-            else if (score >= 70) gradeCounts['B+']++;
-            else if (score >= 65) gradeCounts['B']++;
-            else if (score >= 60) gradeCounts['B-']++;
-            else if (score >= 55) gradeCounts['C+']++;
-            else if (score >= 45) gradeCounts['C/C-']++;
-            else gradeCounts['D/E']++;
-          });
+          if (score >= 80) gradeCounts['A']++;
+          else if (score >= 75) gradeCounts['A-']++;
+          else if (score >= 70) gradeCounts['B+']++;
+          else if (score >= 65) gradeCounts['B']++;
+          else if (score >= 60) gradeCounts['B-']++;
+          else if (score >= 55) gradeCounts['C+']++;
+          else if (score >= 45) gradeCounts['C/C-']++;
+          else gradeCounts['D/E']++;
         }
 
         const performance = Object.entries(subjectScores).map(([subject, data]) => ({
           subject: subject,
           avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
-          trend: 'stable',
+          trend: 'stable', // Placeholder
         }));
 
         const classAvgs = Object.entries(classScores).map(([className, data]) => ({
@@ -137,15 +135,17 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
           lowest: classAvgs[classAvgs.length - 1]?.name || 'N/A',
           lowestAvg: classAvgs[classAvgs.length - 1]?.avg || 0,
         });
-        setIsLoading(false);
+
       } catch (error) {
         console.error('Error fetching exam data:', error);
+      } finally {
         setIsLoading(false);
       }
     };
 
     fetchDataForExam();
   }, [exam, schoolId]);
+
 
   if (!exam) {
     return (
@@ -265,12 +265,6 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
               </CardHeader>
             </Link>
           </Card>
-          <Button asChild variant="outline" className="w-full">
-            <Link href={`/admin/grades?schoolId=${schoolId}`}>
-              Go to Full Report Generator
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
         </div>
       </div>
     </div>

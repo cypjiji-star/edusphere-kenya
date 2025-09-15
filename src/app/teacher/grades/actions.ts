@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { z } from 'zod';
@@ -18,7 +17,7 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
     gradeEntrySchema.parse(data);
 
     // 1. Get Assessment & Class details
-    const assessmentRef = doc(firestore, 'schools', schoolId, 'assesments', data.assessmentId);
+    const assessmentRef = doc(firestore, 'schools', schoolId, 'assessments', data.assessmentId);
     const assessmentSnap = await getDoc(assessmentRef);
     if (!assessmentSnap.exists()) {
         throw new Error("Assessment not found!");
@@ -30,28 +29,21 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
     const className = classSnap.exists() ? `${classSnap.data().name} ${classSnap.data().stream || ''}`.trim() : 'Unknown Class';
 
 
-    // 2. Create a 'submission' document
-    const submissionRef = await addDoc(collection(firestore, 'schools', schoolId, 'submissions'), {
-      examId: data.assessmentId,
-      subject: assessmentData.title, // Or a more specific subject field if available
-      teacher: teacherName,
-      teacherId: teacherId,
-      class: className,
-      status: 'Submitted',
-      lastUpdated: serverTimestamp(),
-    });
-
-    // 3. Create grade records for each student in a subcollection under the student
+    // 2. Create grade records for each student in the top-level grades collection
     const batch = writeBatch(firestore);
     
     for (const studentGrade of data.grades) {
         if (studentGrade.grade) { // Only save if a grade was entered
-            const gradeRef = doc(collection(firestore, 'schools', schoolId, 'students', studentGrade.studentId, 'grades'));
+            const gradeRef = doc(collection(firestore, 'schools', schoolId, 'grades'));
             batch.set(gradeRef, {
+                studentId: studentGrade.studentId,
                 assessmentId: data.assessmentId,
-                assessmentTitle: assessmentData.title,
+                classId: data.classId,
                 grade: studentGrade.grade,
+                teacherId,
+                teacherName,
                 date: assessmentData.endDate, // Use the assessment's end date
+                createdAt: serverTimestamp(),
             });
         }
     }
