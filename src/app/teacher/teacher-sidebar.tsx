@@ -22,6 +22,8 @@ import {
   Megaphone,
   User,
   HeartPulse,
+  Bell,
+  Check,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -42,11 +44,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
+import { cn } from '@/lib/utils';
 
 
 const navGroups = [
@@ -84,11 +88,98 @@ const navGroups = [
   },
 ];
 
+type Notification = {
+    id: string;
+    title: string;
+    description: string;
+    createdAt: any;
+    read: boolean;
+    href: string;
+};
+
+function NotificationsPopover({ schoolId, userId }: { schoolId: string, userId: string }) {
+    const [notifications, setNotifications] = React.useState<Notification[]>([]);
+    const unreadCount = notifications.filter(n => !n.read).length;
+
+    React.useEffect(() => {
+        if (!schoolId || !userId) return;
+        const q = query(
+            collection(firestore, 'schools', schoolId, 'notifications'), 
+            where('userId', '==', userId), 
+            orderBy('createdAt', 'desc'), 
+            limit(10)
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+            setNotifications(fetchedNotifications);
+        });
+        return () => unsubscribe();
+    }, [schoolId, userId]);
+    
+    const handleMarkAsRead = async (id: string) => {
+        if (!schoolId) return;
+        const notificationRef = doc(firestore, 'schools', schoolId, 'notifications', id);
+        await updateDoc(notificationRef, { read: true });
+    };
+
+    const handleMarkAllRead = async () => {
+        const unreadNotifications = notifications.filter(n => !n.read);
+        for (const notification of unreadNotifications) {
+            await handleMarkAsRead(notification.id);
+        }
+    };
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                        <span className="absolute top-1 right-1 flex h-4 w-4">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-4 w-4 text-xs items-center justify-center bg-primary text-primary-foreground">{unreadCount}</span>
+                        </span>
+                    )}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+                <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium">Notifications</h4>
+                    {unreadCount > 0 && (
+                        <Button variant="link" size="sm" className="h-auto p-0" onClick={handleMarkAllRead}>
+                            Mark all as read
+                        </Button>
+                    )}
+                </div>
+                <div className="space-y-4">
+                    {notifications.length > 0 ? notifications.map(notif => (
+                         <div key={notif.id} className={cn("flex items-start gap-3", !notif.read && "font-semibold")}>
+                             {!notif.read && <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                            <div className="flex-1 space-y-1">
+                                <Link href={`${notif.href}?schoolId=${schoolId}`} className="hover:underline text-sm">
+                                    <p>{notif.title}</p>
+                                    <p className={cn("text-xs", !notif.read ? "text-muted-foreground" : "text-muted-foreground/70")}>{notif.description}</p>
+                                </Link>
+                            </div>
+                            {!notif.read && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMarkAsRead(notif.id)}>
+                                    <Check className="h-4 w-4"/>
+                                </Button>
+                            )}
+                        </div>
+                    )) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">No new notifications.</p>
+                    )}
+                </div>
+            </PopoverContent>
+        </Popover>
+    )
+}
 
 export function TeacherSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get('schoolId')!;
   const isActive = (href: string) => pathname === href || (href !== '/teacher' && pathname.startsWith(href));
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
   const { user } = useAuth();
@@ -192,7 +283,8 @@ export function TeacherSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="flex items-center gap-2">
+        {user && <NotificationsPopover schoolId={schoolId} userId={user.uid} />}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">

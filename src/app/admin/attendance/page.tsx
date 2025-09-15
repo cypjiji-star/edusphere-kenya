@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -5,7 +6,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs, doc, getDoc, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
@@ -83,6 +84,7 @@ type AttendanceRecord = {
   studentAvatar: string;
   class: string;
   teacher: string;
+  teacherId?: string;
   date: Timestamp;
   status: AttendanceStatus;
 };
@@ -112,7 +114,7 @@ const chartConfig = {
     rate: { label: 'Attendance Rate', color: 'hsl(var(--primary))' },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord[], dateRange?: DateRange }) {
+function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: AttendanceRecord[], dateRange?: DateRange, schoolId: string }) {
     const { toast } = useToast();
 
     const lowAttendanceAlerts = React.useMemo(() => {
@@ -127,11 +129,11 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
             return isDateInRange;
         });
 
-        const classData: Record<string, { present: number, total: number, teacher: string }> = {};
+        const classData: Record<string, { present: number, total: number, teacher: string, teacherId?: string }> = {};
 
         recordsInPeriod.forEach(record => {
             if (!classData[record.class]) {
-                classData[record.class] = { present: 0, total: 0, teacher: record.teacher };
+                classData[record.class] = { present: 0, total: 0, teacher: record.teacher, teacherId: record.teacherId };
             }
             classData[record.class].total++;
             if (record.status === 'Present' || record.status === 'Late') {
@@ -143,6 +145,7 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
             .map(([className, data]) => ({
                 class: className,
                 teacher: data.teacher,
+                teacherId: data.teacherId,
                 rate: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0,
             }))
             .filter(item => item.rate < 70);
@@ -150,10 +153,28 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
     }, [records, dateRange]);
 
 
-    const handleSendReminder = (teacher: string) => {
+    const handleSendReminder = async (teacherName: string, teacherId?: string) => {
+        if (!teacherId) {
+             toast({
+                title: 'Cannot Send Reminder',
+                description: `Could not find a user ID for ${teacherName}.`,
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+            title: 'Low Attendance Alert',
+            description: `A reminder has been sent to you regarding low attendance in one of your classes.`,
+            createdAt: serverTimestamp(),
+            read: false,
+            href: `/teacher/attendance?schoolId=${schoolId}`,
+            userId: teacherId, // Target the specific teacher
+        });
+
         toast({
             title: 'Reminder Sent',
-            description: `A reminder notification has been sent to ${teacher}.`,
+            description: `A reminder notification has been sent to ${teacherName}.`,
         });
     }
 
@@ -190,7 +211,7 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
                          <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button variant="secondary" size="sm" onClick={() => handleSendReminder(alert.teacher)}>
+                                    <Button variant="secondary" size="sm" onClick={() => handleSendReminder(alert.teacher, alert.teacherId)}>
                                         <Send className="mr-2 h-4 w-4"/>
                                         Send Reminder
                                     </Button>
@@ -209,7 +230,7 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
 
 export default function AdminAttendancePage() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get('schoolId')!;
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [classFilter, setClassFilter] = React.useState('All Classes');
@@ -255,6 +276,7 @@ export default function AdminAttendancePage() {
               studentAvatar: data.avatarUrl || `https://picsum.photos/seed/${data.studentId}/100`,
               class: data.className,
               teacher: data.teacher,
+              teacherId: data.teacherId, // Make sure teacherId is included
               date: data.date,
               status: normalizedStatus,
             });
@@ -436,7 +458,7 @@ export default function AdminAttendancePage() {
                         </div>
                     </CardContent>
                 </Card>
-                <LowAttendanceAlerts records={allRecords} dateRange={date} />
+                <LowAttendanceAlerts records={allRecords} dateRange={date} schoolId={schoolId} />
             </div>
 
             <Card>
