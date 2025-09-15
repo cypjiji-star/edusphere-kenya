@@ -13,9 +13,10 @@ import {
   Loader2,
   X,
   Clock,
+  Languages,
+  PlusCircle,
+  Filter,
 } from 'lucide-react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage, firestore } from '@/lib/firebase';
 import {
   collection,
   query,
@@ -27,6 +28,9 @@ import {
   doc,
   updateDoc,
   writeBatch,
+  where,
+  getDocs,
+  setDoc,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -38,42 +42,49 @@ import {
   AvatarFallback,
   AvatarImage,
 } from '@/components/ui/avatar';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { firestore } from '@/lib/firebase';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 type Conversation = {
   id: string;
   name: string;
   avatar: string;
-  icon: string;
   lastMessage: string;
   timestamp: Timestamp;
   unread: boolean;
   participants: string[];
   lastMessageSender?: string;
+  userRole?: 'Teacher' | 'Parent';
 };
 
-type Message = { 
+type Message = {
   id?: string;
   sender: string;
-  text: string; 
+  text: string;
   timestamp: Timestamp | null;
-  read?: boolean; 
+  read?: boolean;
   senderName?: string;
   translatedText?: string;
-  attachmentUrl?: string;
-  scheduledAt?: Timestamp;
 };
 
 export function AdminChatLayout() {
@@ -86,11 +97,15 @@ export function AdminChatLayout() {
   const [message, setMessage] = React.useState("");
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
-  const [attachment, setAttachment] = React.useState<File | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
+  
+  const [allUsers, setAllUsers] = React.useState<{id: string, name: string, role: string, class?: string}[]>([]);
+  const [isNewConvoOpen, setIsNewConvoOpen] = React.useState(false);
+  const [newConvoUser, setNewConvoUser] = React.useState<string | undefined>();
+
+  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [roleFilter, setRoleFilter] = React.useState('all');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,12 +114,38 @@ export function AdminChatLayout() {
   React.useEffect(() => {
     scrollToBottom();
   }, [messages, selectedConvo]);
+  
+   React.useEffect(() => {
+    if (!schoolId) return;
+    
+    const fetchUsers = async () => {
+      const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
+      const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
+      const parentsQuery = query(collection(firestore, `schools/${schoolId}/parents`));
+
+      const [usersSnap, studentsSnap, parentsSnap] = await Promise.all([
+        getDocs(usersQuery),
+        getDocs(studentsQuery),
+        getDocs(parentsQuery),
+      ]);
+
+      const combinedUsers = [
+        ...usersSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        ...studentsSnap.docs.map(d => ({ id: d.id, ...d.data(), role: 'Student' })),
+        ...parentsSnap.docs.map(d => ({ id: d.id, ...d.data(), role: 'Parent' })),
+      ].map(u => ({ id: u.id, name: u.name, role: u.role, class: u.class }));
+
+      setAllUsers(combinedUsers as {id: string, name: string, role: string, class?: string}[]);
+    }
+    fetchUsers();
+  }, [schoolId]);
+
 
   React.useEffect(() => {
     if (!schoolId || !user) return;
 
     const convosQuery = query(
-      collection(firestore, `schools/${schoolId}/conversations`), 
+      collection(firestore, `schools/${schoolId}/conversations`),
       orderBy('timestamp', 'desc')
     );
     
@@ -138,7 +179,7 @@ export function AdminChatLayout() {
 
     const unsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
         const convoMessages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-        setMessages(prev => ({ ...prev, [selectedConvo.id]: convoMessages, }));
+        setMessages(prev => ({ ...prev, [selectedConvo.id]: convoMessages }));
         const unreadMessages = convoMessages.filter(msg => msg.sender !== user.uid && !msg.read);
         if (unreadMessages.length > 0) {
           markMessagesAsRead(unreadMessages);
@@ -165,39 +206,22 @@ export function AdminChatLayout() {
   };
 
   const handleSendMessage = async () => {
-    if ((message.trim() === '' && !attachment) || !selectedConvo || !schoolId || !user) return;
+    if ((message.trim() === '') || !selectedConvo || !schoolId || !user) return;
     setIsSending(true);
-    let messageText = message.trim();
-    let attachmentUrl = '';
-    if (attachment) {
-      try {
-        const storageRef = ref(storage, `schools/${schoolId}/chat-attachments/${attachment.name}_${Date.now()}`);
-        const snapshot = await uploadBytes(storageRef, attachment);
-        attachmentUrl = await getDownloadURL(snapshot.ref);
-        messageText += messageText ? `\n\n📎 [Attachment](${attachmentUrl})` : `📎 [Attachment](${attachmentUrl})`;
-      } catch (error) {
-        setIsSending(false);
-        toast({ variant: "destructive", title: "Upload Failed", description: "Could not upload your file." });
-        return;
-      }
-    }
+
     try {
-      const newMessage: Omit<Message, 'id'> & { timestamp: any, scheduledAt?: any } = {
+      const newMessage: Omit<Message, 'id'> & { timestamp: any } = {
         sender: user.uid,
-        text: messageText,
-        timestamp: scheduledDate ? null : serverTimestamp(),
+        text: message.trim(),
+        timestamp: serverTimestamp(),
         read: false,
         senderName: user.displayName || 'Admin',
-        ...(attachmentUrl && { attachmentUrl }),
-        ...(scheduledDate && { scheduledAt: Timestamp.fromDate(scheduledDate) }),
       };
       await addDoc(collection(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages'), newMessage);
-      if (!scheduledDate) {
-        const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
-        await updateDoc(convoRef, { lastMessage: messageText.substring(0, 100), timestamp: serverTimestamp(), lastMessageSender: user.uid, unread: true });
-      }
-      setMessage(''); setAttachment(null); setScheduledDate(undefined);
-      toast({ title: scheduledDate ? 'Message Scheduled!' : 'Message Sent!', description: scheduledDate ? `Your message will be sent on ${format(scheduledDate, 'PPP, p')}.` : 'Your message has been delivered.' });
+      const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
+      await updateDoc(convoRef, { lastMessage: message.trim().substring(0, 100), timestamp: serverTimestamp(), lastMessageSender: user.uid });
+      setMessage('');
+      toast({ title: 'Message Sent!' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Action Failed' });
     } finally {
@@ -205,74 +229,122 @@ export function AdminChatLayout() {
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      if (event.target.files[0].size > 5 * 1024 * 1024) { toast({ variant: "destructive", title: "File Too Large", description: "Please select a file smaller than 5MB." }); return; }
-      setAttachment(event.target.files[0]);
+  const handleCreateConversation = async () => {
+    if (!schoolId || !user || !newConvoUser) return;
+
+    const targetUser = allUsers.find(u => u.id === newConvoUser);
+    if (!targetUser) return;
+    
+    // Check if a conversation already exists
+    const existingConvoQuery = query(
+      collection(firestore, `schools/${schoolId}/conversations`),
+      where('participants', '==', [user.uid, newConvoUser].sort())
+    );
+    const existingConvoSnap = await getDocs(existingConvoQuery);
+
+    if (!existingConvoSnap.empty) {
+      setSelectedConvo(existingConvoSnap.docs[0].data() as Conversation);
+      setIsNewConvoOpen(false);
+      toast({ title: 'Conversation already exists.' });
+      return;
     }
-  };
+
+    try {
+        const newConvoRef = doc(collection(firestore, `schools/${schoolId}/conversations`));
+        const newConvoData = {
+          id: newConvoRef.id,
+          name: targetUser.name,
+          avatar: `https://picsum.photos/seed/${targetUser.id}/100`,
+          lastMessage: `Conversation started by ${user.displayName || 'Admin'}.`,
+          timestamp: serverTimestamp(),
+          unread: false,
+          participants: [user.uid, newConvoUser].sort(),
+          userRole: targetUser.role
+        };
+        await setDoc(newConvoRef, newConvoData);
+        setSelectedConvo(newConvoData as Conversation);
+        setIsNewConvoOpen(false);
+    } catch(e) {
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Failed to create conversation.'})
+    }
+  }
   
-  const handleAttachmentClick = () => { fileInputRef.current?.click(); };
+  const filteredConversations = conversations.filter(convo => 
+    (convo.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (statusFilter === 'all' || convo.unread === (statusFilter === 'unread')) &&
+    (roleFilter === 'all' || convo.userRole === roleFilter)
+  );
   
-  const getIconComponent = (iconName: string) => {
-    if (iconName === 'User') return User;
-    if (iconName === 'Users') return Users;
-    return MessageCircle;
-  };
-  
-  const filteredConversations = conversations.filter(convo => convo.name.toLowerCase().includes(searchTerm.toLowerCase()) || convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase()));
   const isSender = (message: Message) => message.sender === user?.uid;
 
   return (
-    <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden">
+    <div className="z-10 h-full w-full bg-[#1A1B1F] text-white rounded-lg overflow-hidden">
       <div className="flex h-full">
-        <div className="flex flex-col w-full md:w-[320px] border-r">
-          <div className="flex-shrink-0 p-4 border-b">
+        <div className="flex flex-col w-full md:w-[320px] border-r border-slate-700/50 bg-slate-900/50">
+          <div className="flex-shrink-0 p-4 border-b border-slate-700/50">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold font-headline flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary"/>Support Inbox</h2>
+              <h2 className="text-xl font-bold font-headline flex items-center gap-2 text-slate-100"><MessageCircle className="h-6 w-6 text-primary"/>Support Inbox</h2>
             </div>
             <div className="relative mt-4">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search messages or users..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input placeholder="Search messages or users..." className="pl-8 bg-slate-800 border-slate-700 text-slate-200" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+             <div className="mt-4 flex gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full bg-slate-800 border-slate-700 text-slate-300">
+                        <SelectValue placeholder="Filter status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="unread">Unread</SelectItem>
+                        <SelectItem value="read">Read</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="w-full bg-slate-800 border-slate-700 text-slate-300">
+                        <SelectValue placeholder="Filter role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Roles</SelectItem>
+                        <SelectItem value="Teacher">Teachers</SelectItem>
+                        <SelectItem value="Parent">Parents</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="p-2 space-y-1">
-              {filteredConversations.map((convo) => {
-                const IconComponent = getIconComponent(convo.icon);
-                return (
-                  <button key={convo.id} className={cn('flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-muted/50', selectedConvo?.id === convo.id && 'bg-muted')} onClick={() => setSelectedConvo(convo)}>
-                    <Avatar className="h-10 w-10"><AvatarImage src={convo.avatar} alt={convo.name} /><AvatarFallback><IconComponent /></AvatarFallback></Avatar>
+              {filteredConversations.map((convo) => (
+                  <button key={convo.id} className={cn('flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-slate-800/60', selectedConvo?.id === convo.id && 'bg-slate-800')} onClick={() => setSelectedConvo(convo)}>
+                    <Avatar className="h-10 w-10"><AvatarImage src={convo.avatar} alt={convo.name} /><AvatarFallback><User /></AvatarFallback></Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between"><p className="font-semibold truncate">{convo.name}</p><p className="text-xs text-muted-foreground whitespace-nowrap">{convo.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p></div>
-                      <p className="text-sm text-muted-foreground truncate">{convo.lastMessageSender === user?.uid ? 'You: ' : ''}{convo.lastMessage}</p>
+                      <div className="flex items-center justify-between"><p className="font-semibold truncate text-slate-100">{convo.name}</p><p className="text-xs text-slate-400 whitespace-nowrap">{convo.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p></div>
+                      <p className="text-sm text-slate-400 truncate">{convo.lastMessageSender === user?.uid ? 'You: ' : ''}{convo.lastMessage}</p>
                     </div>
                     {convo.unread && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1 self-center"></div>}
                   </button>
-                );
-              })}
+                ))}
             </div>
           </div>
         </div>
         <div className="flex flex-col w-full h-full">
           {selectedConvo ? (
             <>
-              <div className="flex-shrink-0 p-4 border-b flex items-center justify-between">
-                <div className="flex items-center gap-3"><Avatar className="h-10 w-10"><AvatarImage src={selectedConvo.avatar} alt={selectedConvo.name} /><AvatarFallback>{React.createElement(getIconComponent(selectedConvo.icon))}</AvatarFallback></Avatar><div><p className="font-semibold">{selectedConvo.name}</p></div></div>
+              <div className="flex-shrink-0 p-4 border-b border-slate-700/50 flex items-center justify-between">
+                <div className="flex items-center gap-3"><Avatar className="h-10 w-10"><AvatarImage src={selectedConvo.avatar} alt={selectedConvo.name} /><AvatarFallback><User/></AvatarFallback></Avatar><div><p className="font-semibold text-slate-100">{selectedConvo.name}</p></div></div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {(messages[selectedConvo.id] || []).map((msg, index) => {
-                  const IconComponent = getIconComponent(selectedConvo.icon);
                   const isUserSender = isSender(msg);
-                  
                   return (
                     <div key={msg.id || index} className={cn("flex items-end gap-2", isUserSender ? 'justify-end' : 'justify-start')}>
-                      {!isUserSender && (<Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback><IconComponent/></AvatarFallback></Avatar>)}
+                      {!isUserSender && (<Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback><User/></AvatarFallback></Avatar>)}
                       <div className="group relative max-w-xs lg:max-w-md">
-                        <div className={cn("rounded-2xl p-3 text-sm shadow-sm", isUserSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-secondary rounded-bl-none')}>
+                        <div className={cn("rounded-2xl p-3 text-sm shadow-sm", isUserSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none')}>
                           <p className="whitespace-pre-wrap">{msg.text}</p>
-                          {msg.attachmentUrl && (<a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-sm underline"><Paperclip className="h-3 w-3 mr-1" />View Attachment</a>)}
-                          <div className={cn("text-xs mt-2 flex items-center gap-2", isUserSender ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                          <div className={cn("text-xs mt-2 flex items-center gap-2", isUserSender ? 'text-primary-foreground/70' : 'text-slate-400')}>
                             <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             {isUserSender && msg.read && <CheckCircle2 className="h-3 w-3" />}
                           </div>
@@ -284,25 +356,20 @@ export function AdminChatLayout() {
                 })}
                 <div ref={messagesEndRef} />
               </div>
-              <div className="flex-shrink-0 p-4 border-t space-y-2">
-                {attachment && (<div className="flex items-center gap-2 p-2 rounded-md bg-muted text-sm text-muted-foreground"><Paperclip className="h-4 w-4" /><span className="flex-1 truncate">{attachment.name}</span><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAttachment(null)}><X className="h-4 w-4" /></Button></div>)}
-                {scheduledDate && (<div className="flex items-center gap-2 p-2 rounded-md bg-blue-500/10 text-sm text-blue-800"><Clock className="h-4 w-4" /><span className="flex-1 truncate">Scheduled for: {format(scheduledDate, 'PPP, p')}</span><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setScheduledDate(undefined)}><X className="h-4 w-4" /></Button></div>)}
+              <div className="flex-shrink-0 p-4 border-t border-slate-700/50 space-y-2">
                 <div className="relative">
-                  <Textarea placeholder="Type a message..." className="pr-24 min-h-[60px] max-h-48" value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} disabled={isSending} />
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*, .pdf, .doc, .docx, .txt" />
+                  <Textarea placeholder="Type a message..." className="pr-12 min-h-[60px] max-h-48 bg-slate-800 border-slate-700 text-slate-200" value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} disabled={isSending} />
                   <div className="absolute top-3 right-3 flex items-center gap-1">
-                    <TooltipProvider>
-                      <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" onClick={handleAttachmentClick} disabled={isSending}><Paperclip className="h-5 w-5" /></Button></TooltipTrigger><TooltipContent><p>Attach file (max 5MB)</p></TooltipContent></Tooltip>
-                      <Popover><PopoverTrigger asChild><Button size="icon" variant="ghost" disabled={isSending}><Clock className="h-5 w-5"/></Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} initialFocus disabled={(date) => date < new Date()} /></PopoverContent></Popover>
-                    </TooltipProvider>
-                    <Button size="icon" disabled={(!message.trim() && !attachment) || isSending} onClick={handleSendMessage}>{isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}</Button>
+                    <Button size="icon" disabled={!message.trim() || isSending} onClick={handleSendMessage}>{isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}</Button>
                   </div>
                 </div>
               </div>
             </>
-          ) : (<div className="flex-col items-center justify-center h-full text-muted-foreground hidden md:flex"><MessageCircle className="h-16 w-16" /><p className="mt-4 text-lg font-semibold">Select a conversation</p><p>Your messages will appear here.</p></div>)}
+          ) : (<div className="flex-col items-center justify-center h-full text-slate-400 hidden md:flex"><MessageCircle className="h-16 w-16" /><p className="mt-4 text-lg font-semibold">Select a conversation</p><p>Your messages will appear here.</p></div>)}
         </div>
       </div>
     </div>
   );
 }
+
+    

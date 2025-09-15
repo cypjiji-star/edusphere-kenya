@@ -33,14 +33,9 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
 import { supportChatbot } from '@/ai/flows/support-chatbot-flow';
 
 const ADMIN_SUPPORT_ID = 'admin_support_user';
@@ -50,17 +45,6 @@ type Message = {
   role: 'user' | 'model';
   content: string;
   timestamp?: Timestamp | null;
-  attachmentUrl?: string;
-  scheduledAt?: Timestamp;
-};
-
-type Conversation = {
-  id: string;
-  name: string;
-  avatar: string;
-  lastMessage: string;
-  timestamp: Timestamp;
-  participants: string[];
 };
 
 export function TeacherChatLayout() {
@@ -90,6 +74,7 @@ export function TeacherChatLayout() {
       lastMessage: 'Conversation with AI started.',
       timestamp: serverTimestamp(),
       participants: [user.uid, ADMIN_SUPPORT_ID].sort(),
+      userRole: 'Teacher'
     };
     await setDoc(newConvoRef, newConversation);
     setConversationId(newConvoRef.id);
@@ -162,13 +147,13 @@ export function TeacherChatLayout() {
 
 
   return (
-    <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden flex flex-col">
-       <div className="flex-shrink-0 p-4 border-b">
-            <h2 className="text-xl font-bold font-headline flex items-center gap-2">
+    <div className="z-10 h-full w-full bg-[#1A1B1F] text-white rounded-lg overflow-hidden flex flex-col">
+       <div className="flex-shrink-0 p-4 border-b border-slate-700/50">
+            <h2 className="text-xl font-bold font-headline flex items-center gap-2 text-slate-100">
                 <MessageCircle className="h-6 w-6 text-primary"/>
                 Support Chat
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-slate-400 mt-1">
                 {chatState === 'ai' ? 'Chatting with our AI Assistant' : 'Chatting with an Administrator'}
             </p>
         </div>
@@ -177,9 +162,9 @@ export function TeacherChatLayout() {
           <div key={index} className={cn("flex items-end gap-2", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
             {msg.role === 'model' && (<Avatar className="h-8 w-8"><AvatarImage /><AvatarFallback><Wand2/></AvatarFallback></Avatar>)}
             <div className="group relative max-w-xs lg:max-w-md">
-              <div className={cn("rounded-2xl p-3 text-sm shadow-sm", msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-secondary rounded-bl-none')}>
+              <div className={cn("rounded-2xl p-3 text-sm shadow-sm", msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none')}>
                 <p className="whitespace-pre-wrap">{msg.content}</p>
-                <div className={cn("text-xs mt-2 flex items-center gap-2", msg.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                <div className={cn("text-xs mt-2 flex items-center gap-2", msg.role === 'user' ? 'text-primary-foreground/70' : 'text-slate-400')}>
                   <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               </div>
@@ -188,7 +173,7 @@ export function TeacherChatLayout() {
           </div>
         ))}
         {messages.length === 0 && (
-            <div className="text-center text-muted-foreground pt-16">
+            <div className="text-center text-slate-400 pt-16">
                 <Wand2 className="h-10 w-10 mx-auto mb-2"/>
                 <p className="font-semibold">Hello! How can I help you today?</p>
             </div>
@@ -197,18 +182,18 @@ export function TeacherChatLayout() {
       </div>
 
        {chatState === 'ai' && (
-          <div className="p-2 border-t text-center">
+          <div className="p-2 border-t border-slate-700/50 text-center">
             <Button variant="link" onClick={escalateToHuman}>
               <ShieldCheck className="mr-2 h-4 w-4" /> Speak to an Administrator
             </Button>
           </div>
         )}
 
-      <div className="flex-shrink-0 p-4 border-t space-y-2">
+      <div className="flex-shrink-0 p-4 border-t border-slate-700/50 space-y-2">
         <div className="relative">
           <Textarea 
             placeholder="Type your message..." 
-            className="pr-12 min-h-[60px] max-h-48" 
+            className="pr-12 min-h-[60px] max-h-48 bg-slate-800 border-slate-700 text-slate-200" 
             value={input} 
             onChange={(e) => setInput(e.target.value)} 
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} 
@@ -224,3 +209,5 @@ export function TeacherChatLayout() {
     </div>
   );
 }
+
+    
