@@ -86,7 +86,7 @@ type Conversation = {
 
 type Message = { 
   id?: string;
-  sender: string; // Changed to string to store user ID
+  sender: string;
   text: string; 
   timestamp: Timestamp | null;
   read?: boolean; 
@@ -108,7 +108,7 @@ type TranslationLanguage = {
   name: string;
 }
 
-export function ChatLayout() {
+export function TeacherChatLayout() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const { user } = useAuth();
@@ -133,7 +133,6 @@ export function ChatLayout() {
     { code: 'es', name: 'Spanish' },
   ];
 
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -165,11 +164,6 @@ export function ChatLayout() {
       },
       (error) => {
         console.error("Error fetching conversations:", error);
-        toast({
-          variant: "destructive",
-          title: "Connection Error",
-          description: "Could not load conversations. Please try again.",
-        });
       }
     );
 
@@ -201,7 +195,7 @@ export function ChatLayout() {
       unsubConvos();
       unsubUsers();
     };
-  }, [schoolId, user, toast]);
+  }, [schoolId, user, selectedConvo]);
 
   React.useEffect(() => {
     if (!selectedConvo || !schoolId || !user) return;
@@ -223,7 +217,6 @@ export function ChatLayout() {
           [selectedConvo.id]: convoMessages,
         }));
 
-        // Mark messages as read if they're from other users
         const unreadMessages = convoMessages.filter(
           msg => msg.sender !== user.uid && !msg.read
         );
@@ -234,16 +227,11 @@ export function ChatLayout() {
       },
       (error) => {
         console.error("Error fetching messages:", error);
-        toast({
-          variant: "destructive",
-          title: "Connection Error",
-          description: "Could not load messages. Please try again.",
-        });
       }
     );
 
     return () => unsubscribe();
-  }, [selectedConvo, schoolId, user, toast]);
+  }, [selectedConvo, schoolId, user]);
 
   const markMessagesAsRead = async (messagesToMark: Message[]) => {
     if (!schoolId || !selectedConvo || !user) return;
@@ -264,7 +252,6 @@ export function ChatLayout() {
         }
       });
 
-      // Update conversation unread status
       const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
       batch.update(convoRef, { unread: false });
 
@@ -289,11 +276,6 @@ export function ChatLayout() {
         messageText += messageText ? `\n\n📎 [Attachment](${attachmentUrl})` : `📎 [Attachment](${attachmentUrl})`;
       } catch (error) {
         console.error("Error uploading file:", error);
-        toast({
-          variant: "destructive",
-          title: "Upload Failed",
-          description: "Could not upload your file. Please try again.",
-        });
         setIsSending(false);
         return;
       }
@@ -314,7 +296,6 @@ export function ChatLayout() {
         newMessage
       );
 
-      // Update last message in conversation
       const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
       await updateDoc(convoRef, {
         lastMessage: messageText.length > 100 ? messageText.substring(0, 100) + '...' : messageText,
@@ -327,11 +308,6 @@ export function ChatLayout() {
       setAttachment(null);
     } catch (error) {
       console.error("Error sending message:", error);
-      toast({
-        variant: "destructive",
-        title: "Send Failed",
-        description: "Could not send your message. Please try again.",
-      });
     } finally {
       setIsSending(false);
     }
@@ -339,13 +315,7 @@ export function ChatLayout() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      // Check file size (max 5MB)
       if (event.target.files[0].size > 5 * 1024 * 1024) {
-        toast({
-          variant: "destructive",
-          title: "File Too Large",
-          description: "Please select a file smaller than 5MB.",
-        });
         return;
       }
       setAttachment(event.target.files[0]);
@@ -390,58 +360,10 @@ export function ChatLayout() {
       const docRef = await addDoc(collection(firestore, `schools/${schoolId}/conversations`), newConvoData);
       setSelectedConvo({ id: docRef.id, ...newConvoData } as Conversation);
       
-      toast({
-        title: 'Conversation Started',
-        description: `You can now chat with ${contact.name}.`
-      });
     } catch (error) {
       console.error("Error creating conversation:", error);
-      toast({
-        variant: "destructive",
-        title: "Creation Failed",
-        description: "Could not start a new conversation. Please try again.",
-      });
     }
   }
-
-  const handleTranslate = async () => {
-    if (!message.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'No Message to Translate',
-        description: 'Please type a message before using translation.',
-      });
-      return;
-    }
-    
-    setIsTranslating(true);
-    try {
-      const languageName = translationLanguages.find(lang => lang.code === targetLanguage)?.name || targetLanguage;
-      const result = await translateText({ 
-        text: message, 
-        targetLanguage: languageName 
-      });
-      
-      if (result && result.translatedText) {
-        setMessage(result.translatedText);
-        toast({
-          title: 'Translation Complete',
-          description: `The message has been translated to ${languageName}.`,
-        });
-      } else {
-        throw new Error('Translation service did not return translated text.');
-      }
-    } catch(e) {
-      console.error(e);
-      toast({
-        variant: 'destructive',
-        title: 'Translation Failed',
-        description: 'The translation service could not translate the message.',
-      });
-    } finally {
-      setIsTranslating(false);
-    }
-  };
 
   const handleTranslateIncomingMessage = async (messageId: string, text: string, targetLang: string) => {
     if (!selectedConvo || !schoolId) return;
@@ -454,7 +376,6 @@ export function ChatLayout() {
       });
       
       if (result && result.translatedText) {
-        // Update the message with translated text
         const messageRef = doc(
           firestore, 
           `schools/${schoolId}/conversations`, 
@@ -472,11 +393,6 @@ export function ChatLayout() {
       }
     } catch (e) {
       console.error(e);
-      toast({
-        variant: 'destructive',
-        title: 'Translation Failed',
-        description: 'The translation service could not translate the message.',
-      });
     }
   };
 
@@ -496,21 +412,11 @@ export function ChatLayout() {
         return newMessages;
       });
 
-      // Select another conversation if available
       const remainingConvos = conversations.filter(c => c.id !== selectedConvo.id);
       setSelectedConvo(remainingConvos.length > 0 ? remainingConvos[0] : null);
 
-      toast({
-        title: 'Conversation Deleted',
-        description: 'The conversation has been successfully deleted.',
-      });
     } catch (error) {
       console.error("Error deleting conversation:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Deletion Failed',
-        description: 'Could not delete the conversation. Please try again.',
-      });
     }
   };
   
@@ -525,13 +431,11 @@ export function ChatLayout() {
     convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Check if user is the sender of a message
   const isSender = (message: Message) => message.sender === user?.uid;
 
   return (
     <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden">
       <div className="flex h-full">
-        {/* Conversations sidebar */}
         <div className="flex flex-col w-full md:w-[320px] border-r">
           <div className="flex-shrink-0 p-4 border-b">
             <div className="flex items-center justify-between">
@@ -625,7 +529,6 @@ export function ChatLayout() {
           </div>
         </div>
 
-        {/* Chat area */}
         <div className="flex flex-col w-full h-full">
           {selectedConvo ? (
             <>
@@ -637,15 +540,7 @@ export function ChatLayout() {
                   </Avatar>
                   <div>
                     <p className="font-semibold">{selectedConvo.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedConvo.participants.length === 2 ? 'Direct message' : 'Group chat'}
-                    </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={handleDelete}>
-                    <Trash2 className="h-5 w-5 text-destructive" />
-                  </Button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -777,37 +672,6 @@ export function ChatLayout() {
                   />
                   
                   <div className="absolute top-3 right-3 flex items-center gap-1">
-                    <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                      <SelectTrigger className="h-9 w-9 p-0">
-                        <Languages className="h-4 w-4" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {translationLanguages.map((lang) => (
-                          <SelectItem key={lang.code} value={lang.code}>
-                            {lang.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={handleAttachmentClick}
-                            disabled={isSending}
-                          >
-                            <Paperclip className="h-5 w-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Attach file (max 5MB)</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    
                     <Button
                       size="icon"
                       disabled={(!message.trim() && !attachment) || isSending}
