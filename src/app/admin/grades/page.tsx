@@ -17,11 +17,8 @@ import {
   Loader2,
   Printer,
   CalendarIcon,
-  Settings,
   BarChart2,
-  Trophy as TrophyIcon,
-  TrendingDown,
-  ArrowLeft
+  Settings,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -71,7 +68,6 @@ import 'jspdf-autotable';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { GradeAnalysisCharts } from './grade-analysis-charts';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
@@ -131,6 +127,7 @@ export default function AdminGradesPage() {
   const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
   const [selectedClassForRanking, setSelectedClassForRanking] = React.useState<string>('');
   const [selectedStudentForDetails, setSelectedStudentForDetails] = React.useState<StudentGrade | null>(null);
+  const [allExams, setAllExams] = React.useState<Exam[]>([]);
   
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -149,24 +146,22 @@ export default function AdminGradesPage() {
   React.useEffect(() => {
     if (!schoolId) return;
     
-    // Fetch unique classes from the grades collection
-    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
-    const unsubClasses = onSnapshot(gradesQuery, (snapshot) => {
-        const uniqueClasses: Record<string, string> = {};
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            if (data.classId && data.className) {
-                uniqueClasses[data.classId] = data.className;
-            }
-        });
-        const classList = Object.entries(uniqueClasses).map(([id, name]) => ({ id, name }));
-        setClasses(classList);
+    const unsubClasses = onSnapshot(collection(firestore, `schools/${schoolId}/classes`), (snapshot) => {
+      const classList = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+      setClasses(classList);
       if (classList.length > 0 && !selectedClassForRanking) {
-          setSelectedClassForRanking(classList[0].id);
+        setSelectedClassForRanking(classList[0].id);
       }
     });
+
+    const unsubExams = onSnapshot(query(collection(firestore, `schools/${schoolId}/assessments`), orderBy('startDate', 'desc')), (snapshot) => {
+        setAllExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+    });
     
-    return () => unsubClasses();
+    return () => {
+      unsubClasses();
+      unsubExams();
+    };
   }, [schoolId, selectedClassForRanking]);
   
   React.useEffect(() => {
@@ -301,93 +296,95 @@ export default function AdminGradesPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
-        <Dialog>
-          <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-                <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-                    <FileText className="h-8 w-8 text-primary" />
-                    Grades &amp; Exams Management
-                </h1>
-                <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
-            </div>
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+              <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+                  <FileText className="h-8 w-8 text-primary" />
+                  Grades &amp; Exams Management
+              </h1>
+              <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
+          </div>
+          <Dialog>
             <DialogTrigger asChild>
               <Button>
                   <PlusCircle className="mr-2 h-4 w-4"/>
                   Create Exam
               </Button>
             </DialogTrigger>
-          </div>
-          <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
-                <DialogTitle>Exam Details</DialogTitle>
-                <DialogDescription>Define a new examination schedule for a term.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-4">
-                <div className="space-y-2">
-                <Label htmlFor="exam-title">Exam Title</Label>
-                <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" value={newExamTitle} onChange={(e) => setNewExamTitle(e.target.value)} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="exam-term">Academic Term</Label>
-                    <Select value={newExamTerm} onValueChange={setNewExamTerm}>
-                    <SelectTrigger id="exam-term">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {academicTerms.map(term => (
-                        <SelectItem key={term} value={term}>{term}</SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label>Classes Involved</Label>
-                    <Select value={newExamClass} onValueChange={setNewExamClass}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select classes..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="All Classes">All Classes</SelectItem>
-                        {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                    </Select>
-                </div>
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="date-range">Date Range</Label>
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        id="date-range"
-                        variant="outline"
-                        className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date?.from ? (
-                        date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
-                        ) : <span>Pick a date range</span>}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
-                    </PopoverContent>
-                </Popover>
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="exam-notes">Notes (Optional)</Label>
-                <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers." value={newExamNotes} onChange={e => setNewExamNotes(e.target.value)} />
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button onClick={handleCreateExam} disabled={isSavingExam}>
-                {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                Save Exam
-                </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <DialogContent className="sm:max-w-xl">
+              <DialogHeader>
+                  <DialogTitle>Exam Details</DialogTitle>
+                  <DialogDescription>Define a new examination schedule for a term.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-6 py-4">
+                  <div className="space-y-2">
+                  <Label htmlFor="exam-title">Exam Title</Label>
+                  <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" value={newExamTitle} onChange={(e) => setNewExamTitle(e.target.value)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                      <Label htmlFor="exam-term">Academic Term</Label>
+                      <Select value={newExamTerm} onValueChange={setNewExamTerm}>
+                      <SelectTrigger id="exam-term">
+                          <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {academicTerms.map(term => (
+                          <SelectItem key={term} value={term}>{term}</SelectItem>
+                          ))}
+                      </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="space-y-2">
+                      <Label>Classes Involved</Label>
+                      <Select value={newExamClass} onValueChange={setNewExamClass}>
+                      <SelectTrigger>
+                          <SelectValue placeholder="Select classes..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="All Classes">All Classes</SelectItem>
+                          {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                      </Select>
+                  </div>
+                  </div>
+                  <div className="space-y-2">
+                  <Label htmlFor="date-range">Date Range</Label>
+                  <Popover>
+                      <PopoverTrigger asChild>
+                      <Button
+                          id="date-range"
+                          variant="outline"
+                          className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}
+                      >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {date?.from ? (
+                          date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
+                          ) : <span>Pick a date range</span>}
+                      </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                      </PopoverContent>
+                  </Popover>
+                  </div>
+                  <div className="space-y-2">
+                  <Label htmlFor="exam-notes">Notes (Optional)</Label>
+                  <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers." value={newExamNotes} onChange={e => setNewExamNotes(e.target.value)} />
+                  </div>
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                  <DialogClose asChild>
+                      <Button onClick={handleCreateExam} disabled={isSavingExam}>
+                      {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                      Save Exam
+                      </Button>
+                  </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex mb-6">
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
@@ -470,7 +467,27 @@ export default function AdminGradesPage() {
                              </div>
                         </div>
                          <div className="space-y-4">
-                            <h4 className="font-semibold text-base">Report Card Settings</h4>
+                            <h4 className="font-semibold text-base">Exam Schedules</h4>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Exam Title</TableHead>
+                                            <TableHead>Term</TableHead>
+                                            <TableHead>Date</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                    {allExams.map(exam => (
+                                        <TableRow key={exam.id}>
+                                            <TableCell className="font-medium">{exam.title}</TableCell>
+                                            <TableCell>{exam.term}</TableCell>
+                                            <TableCell>{format(exam.startDate.toDate(), 'dd MMM')} - {format(exam.endDate.toDate(), 'dd MMM, yyyy')}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                          </div>
                     </div>
                 </CardContent>
