@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, collectionGroup, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collection, collectionGroup, query, onSnapshot, where, Timestamp, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
@@ -68,7 +68,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Send,
-  Lock,
+  Loader2,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -78,6 +78,7 @@ type AttendanceStatus = 'Present' | 'Absent' | 'Late';
 
 type AttendanceRecord = {
   id: string;
+  studentId: string;
   studentName: string;
   studentAvatar: string;
   class: string;
@@ -94,23 +95,6 @@ const getStatusBadge = (status: AttendanceStatus) => {
         case 'Absent': return <Badge variant="destructive">Absent</Badge>;
         case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Late</Badge>;
     }
-}
-
-const allTrendData = {
-    'term2-2024': [
-        { date: 'Jul 15', rate: 95 },
-        { date: 'Jul 16', rate: 92 },
-        { date: 'Jul 17', rate: 88 },
-        { date: 'Jul 18', rate: 91 },
-        { date: 'Jul 19', rate: 94 },
-    ],
-    'term1-2024': [
-        { date: 'Mar 11', rate: 96 },
-        { date: 'Mar 12', rate: 98 },
-        { date: 'Mar 13', rate: 97 },
-        { date: 'Mar 14', rate: 95 },
-        { date: 'Mar 15', rate: 99 },
-    ]
 }
 
 const chartConfig = {
@@ -225,51 +209,78 @@ export default function AdminAttendancePage() {
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
   const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
+  const [isLoading, setIsLoading] = React.useState(true);
 
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+        setIsLoading(false);
+        return;
+    }
 
-    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
-    const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
-        const teacherNames = snapshot.docs.map(doc => doc.data().name);
-        setTeachers(['All Teachers', ...teacherNames]);
-    });
-    
-    const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
-    const unsubClasses = onSnapshot(qClasses, (snapshot) => {
-        const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
-        setClasses(['All Classes', ...new Set(classNames)]);
-    });
-    
-    const qAttendance = query(collectionGroup(firestore, 'attendance'), where('schoolId', '==', schoolId));
-    const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
-        const records = snapshot.docs.map(doc => {
+    const fetchData = async () => {
+        setIsLoading(true);
+
+        // Fetch all students in the school
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
+        const studentsSnapshot = await getDocs(studentsQuery);
+        const studentsMap = new Map();
+        studentsSnapshot.forEach(doc => {
             const data = doc.data();
-            return {
-                id: doc.id,
-                studentName: data.studentName,
-                studentAvatar: `https://picsum.photos/seed/${data.studentId}/100`,
-                class: data.className,
-                teacher: data.teacher,
-                date: data.date,
-                status: data.status,
-            } as AttendanceRecord;
+            studentsMap.set(doc.id, {
+                name: data.name,
+                avatarUrl: data.avatarUrl || `https://picsum.photos/seed/${doc.id}/100`,
+                class: data.class
+            });
         });
-        setAllRecords(records);
-    });
 
-     setDate({
-        from: new Date(),
-        to: new Date()
-    });
+        // Listen for all attendance records
+        const attendanceQuery = query(collectionGroup(firestore, 'attendance'), where('schoolId', '==', schoolId));
+        const unsubscribe = onSnapshot(attendanceQuery, (snapshot) => {
+            const records = snapshot.docs.map(doc => {
+                const data = doc.data();
+                const student = studentsMap.get(data.studentId);
+                return {
+                    id: doc.id,
+                    studentId: data.studentId,
+                    studentName: student?.name || 'Unknown Student',
+                    studentAvatar: student?.avatarUrl || 'https://picsum.photos/seed/default/100',
+                    class: student?.class || data.className || 'Unknown Class',
+                    teacher: data.teacher,
+                    date: data.date,
+                    status: data.status,
+                } as AttendanceRecord;
+            });
+            setAllRecords(records);
+            setIsLoading(false);
+        });
+
+        // Fetch teachers for filter dropdown
+        const teachersQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+        onSnapshot(teachersQuery, (snapshot) => {
+            const teacherNames = snapshot.docs.map(doc => doc.data().name);
+            setTeachers(['All Teachers', ...teacherNames]);
+        });
+
+        // Fetch classes for filter dropdown
+        const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
+        onSnapshot(classesQuery, (snapshot) => {
+            const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
+            setClasses(['All Classes', ...new Set(classNames)]);
+        });
+
+        return unsubscribe;
+    };
+
+    const unsubscribe = fetchData();
+
+    setDate({ from: new Date(), to: new Date() });
 
     return () => {
-        unsubTeachers();
-        unsubClasses();
-        unsubAttendance();
+        // This is a bit tricky since fetchData is async, but this pattern is generally ok.
+        unsubscribe.then(unsub => unsub && unsub());
     };
-  }, [schoolId])
+  }, [schoolId]);
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
@@ -353,255 +364,257 @@ export default function AdminAttendancePage() {
         <p className="text-muted-foreground">View and export attendance data for the entire school.</p>
       </div>
       
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-            <CardHeader>
-                <CardTitle>Attendance Summary</CardTitle>
-                <CardDescription>
-                    Summary for the selected period: {date?.from && format(date.from, 'LLL dd, y')}
-                    {date?.to && date.from?.getTime() !== date.to?.getTime() ? ` - ${format(date.to, 'LLL dd, y')}` : ''}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="grid gap-6 sm:grid-cols-3">
-                    <button className="w-full text-left" onClick={() => setStatusFilter('All Statuses')}>
-                        <Card className="hover:bg-muted/50 transition-colors h-full">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Overall Attendance Rate</CardTitle>
-                                <Percent className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{attendanceRate}%</div>
-                                <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students</p>
-                            </CardContent>
-                        </Card>
-                    </button>
-                    <button className="w-full text-left" onClick={() => setStatusFilter('Absent')}>
-                        <Card className="hover:bg-muted/50 transition-colors h-full">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
-                                <UserX className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{summaryStats.absent}</div>
-                                <p className="text-xs text-muted-foreground">students marked absent</p>
-                            </CardContent>
-                        </Card>
-                    </button>
-                    <button className="w-full text-left" onClick={() => setStatusFilter('Late')}>
-                        <Card className="hover:bg-muted/50 transition-colors h-full">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
-                                <UserCheck className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{summaryStats.late}</div>
-                                <p className="text-xs text-muted-foreground">students marked late</p>
-                            </CardContent>
-                        </Card>
-                    </button>
-                </div>
-            </CardContent>
-        </Card>
-        <LowAttendanceAlerts records={allRecords} dateRange={date} />
-      </div>
+      {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : (
+        <>
+            <div className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Attendance Summary</CardTitle>
+                        <CardDescription>
+                            Summary for the selected period: {date?.from && format(date.from, 'LLL dd, y')}
+                            {date?.to && date.from?.getTime() !== date.to?.getTime() ? ` - ${format(date.to, 'LLL dd, y')}` : ''}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid gap-6 sm:grid-cols-3">
+                            <button className="w-full text-left" onClick={() => setStatusFilter('All Statuses')}>
+                                <Card className="hover:bg-muted/50 transition-colors h-full">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                        <CardTitle className="text-sm font-medium">Overall Attendance Rate</CardTitle>
+                                        <Percent className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold">{attendanceRate}%</div>
+                                        <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students</p>
+                                    </CardContent>
+                                </Card>
+                            </button>
+                            <button className="w-full text-left" onClick={() => setStatusFilter('Absent')}>
+                                <Card className="hover:bg-muted/50 transition-colors h-full">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                        <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
+                                        <UserX className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold">{summaryStats.absent}</div>
+                                        <p className="text-xs text-muted-foreground">students marked absent</p>
+                                    </CardContent>
+                                </Card>
+                            </button>
+                            <button className="w-full text-left" onClick={() => setStatusFilter('Late')}>
+                                <Card className="hover:bg-muted/50 transition-colors h-full">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                        <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
+                                        <UserCheck className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-2xl font-bold">{summaryStats.late}</div>
+                                        <p className="text-xs text-muted-foreground">students marked late</p>
+                                    </CardContent>
+                                </Card>
+                            </button>
+                        </div>
+                    </CardContent>
+                </Card>
+                <LowAttendanceAlerts records={allRecords} dateRange={date} />
+            </div>
 
-
-       <Card>
-            <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                         <TrendingUp className="h-6 w-6 text-primary" />
-                        <div>
-                            <CardTitle>Attendance Trends</CardTitle>
-                            <CardDescription>Daily attendance rate for the selected period.</CardDescription>
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                            <TrendingUp className="h-6 w-6 text-primary" />
+                            <div>
+                                <CardTitle>Attendance Trends</CardTitle>
+                                <CardDescription>Daily attendance rate for the selected period.</CardDescription>
+                            </div>
+                        </div>
+                        <div className="flex w-full md:w-auto items-center gap-2">
+                            <Select value={selectedTerm} onValueChange={(v) => setSelectedTerm(v)}>
+                                <SelectTrigger className="w-full md:w-auto">
+                                    <SelectValue placeholder="Select term" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                    <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="outline" onClick={handleCompare}>Compare</Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Term comparison feature is coming soon.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
                     </div>
-                     <div className="flex w-full md:w-auto items-center gap-2">
-                         <Select value={selectedTerm} onValueChange={(v) => setSelectedTerm(v)}>
-                            <SelectTrigger className="w-full md:w-auto">
-                                <SelectValue placeholder="Select term" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
-                            </SelectContent>
-                         </Select>
-                         <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                     <Button variant="outline" onClick={handleCompare}>Compare</Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Term comparison feature is coming soon.</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                </CardHeader>
+                <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                        <BarChart data={dailyTrendData}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                            dataKey="date"
+                            tickLine={false}
+                            tickMargin={10}
+                            axisLine={false}
+                            />
+                            <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent indicator="dot" />}
+                            />
+                            <Bar dataKey="rate" fill="var(--color-rate)" radius={8} />
+                        </BarChart>
+                    </ChartContainer>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="relative w-full md:max-w-sm">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search by student name..."
+                                className="w-full bg-background pl-8"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full md:w-auto">
+                                    <Filter className="mr-2 h-4 w-4" />
+                                    Filters
+                                    <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="p-4 space-y-4 w-64">
+                                    <div>
+                                        <label className="text-sm font-medium">Class</label>
+                                        <Select value={classFilter} onValueChange={setClassFilter}>
+                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                            <SelectContent>
+                                                {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium">Teacher</label>
+                                        <Select value={teacherFilter} onValueChange={setTeacherFilter}>
+                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                            <SelectContent>
+                                                {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium">Status</label>
+                                        <Select value={statusFilter} onValueChange={(v: AttendanceStatus | 'All Statuses') => setStatusFilter(v)}>
+                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                            <SelectContent>
+                                                {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant="outline"
+                                    className={cn('w-full justify-start text-left font-normal md:w-[300px]', !date && 'text-muted-foreground')}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                    date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
+                                    ) : <span>Pick a date range</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                                </PopoverContent>
+                            </Popover>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="secondary" className="w-full md:w-auto">
+                                        Export
+                                        <ChevronDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {classFilter !== 'All Classes' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setClassFilter('All Classes')}>Class: {classFilter} &times;</Badge>}
+                        {teacherFilter !== 'All Teachers' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setTeacherFilter('All Teachers')}>Teacher: {teacherFilter} &times;</Badge>}
+                        {statusFilter !== 'All Statuses' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setStatusFilter('All Statuses')}>Status: {statusFilter} &times;</Badge>}
                     </div>
                 </div>
-            </CardHeader>
-            <CardContent>
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                    <BarChart data={dailyTrendData}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        tickMargin={10}
-                        axisLine={false}
-                        />
-                        <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent indicator="dot" />}
-                        />
-                        <Bar dataKey="rate" fill="var(--color-rate)" radius={8} />
-                    </BarChart>
-                </ChartContainer>
-            </CardContent>
-        </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="relative w-full md:max-w-sm">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        type="search"
-                        placeholder="Search by student name..."
-                        className="w-full bg-background pl-8"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                </CardHeader>
+                <CardContent>
+                <div className="w-full overflow-auto rounded-lg border">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Teacher</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredRecords.length > 0 ? (
+                        filteredRecords.map((record) => (
+                            <TableRow key={record.id}>
+                            <TableCell>
+                                <div className="flex items-center gap-3">
+                                <Avatar>
+                                    <AvatarImage src={record.studentAvatar} alt={record.studentName} />
+                                    <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium">{record.studentName}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell>{record.class}</TableCell>
+                            <TableCell>{record.teacher}</TableCell>
+                            <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
+                            <TableCell>{getStatusBadge(record.status)}</TableCell>
+                            </TableRow>
+                        ))
+                        ) : (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">
+                            No records found for the selected filters.
+                            </TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
                 </div>
-                <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full md:w-auto">
-                            <Filter className="mr-2 h-4 w-4" />
-                            Filters
-                            <ChevronDown className="ml-2 h-4 w-4" />
-                        </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="p-4 space-y-4 w-64">
-                            <div>
-                                <label className="text-sm font-medium">Class</label>
-                                <Select value={classFilter} onValueChange={setClassFilter}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium">Teacher</label>
-                                <Select value={teacherFilter} onValueChange={setTeacherFilter}>
-                                     <SelectTrigger><SelectValue/></SelectTrigger>
-                                     <SelectContent>
-                                        {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                             <div>
-                                <label className="text-sm font-medium">Status</label>
-                                <Select value={statusFilter} onValueChange={(v: AttendanceStatus | 'All Statuses') => setStatusFilter(v)}>
-                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                    <SelectContent>
-                                        {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                             </div>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            id="date"
-                            variant="outline"
-                            className={cn('w-full justify-start text-left font-normal md:w-[300px]', !date && 'text-muted-foreground')}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date?.from ? (
-                            date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
-                            ) : <span>Pick a date range</span>}
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="end">
-                        <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
-                        </PopoverContent>
-                    </Popover>
-
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="secondary" className="w-full md:w-auto">
-                                Export
-                                <ChevronDown className="ml-2 h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-             <div className="flex flex-wrap items-center gap-2">
-                {classFilter !== 'All Classes' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setClassFilter('All Classes')}>Class: {classFilter} &times;</Badge>}
-                {teacherFilter !== 'All Teachers' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setTeacherFilter('All Teachers')}>Teacher: {teacherFilter} &times;</Badge>}
-                {statusFilter !== 'All Statuses' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setStatusFilter('All Statuses')}>Status: {statusFilter} &times;</Badge>}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full overflow-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Teacher</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRecords.length > 0 ? (
-                  filteredRecords.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={record.studentAvatar} alt={record.studentName} />
-                            <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{record.studentName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{record.class}</TableCell>
-                      <TableCell>{record.teacher}</TableCell>
-                      <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
-                      <TableCell>{getStatusBadge(record.status)}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      No records found for the selected filters.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-         <CardFooter>
-            <div className="text-xs text-muted-foreground">
-                Showing <strong>{filteredRecords.length}</strong> of <strong>{allRecords.length}</strong> records.
-            </div>
-        </CardFooter>
-      </Card>
+                </CardContent>
+                <CardFooter>
+                    <div className="text-xs text-muted-foreground">
+                        Showing <strong>{filteredRecords.length}</strong> of <strong>{allRecords.length}</strong> records.
+                    </div>
+                </CardFooter>
+            </Card>
+        </>
+      )}
     </div>
   );
 }
-
