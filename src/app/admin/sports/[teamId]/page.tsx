@@ -78,8 +78,7 @@ const mediaHighlights = [
     { id: 'media-1', type: 'photo', url: 'https://picsum.photos/seed/match-highlight-1/800/600', caption: 'Goal against Nairobi School!', date: '2024-07-18' },
 ];
 
-export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
-  const { teamId } = params;
+export default function TeamDetailsPage({ params: { teamId } }: { params: { teamId: string } }) {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
