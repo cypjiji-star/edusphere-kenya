@@ -170,19 +170,26 @@ export default function AttendancePage() {
     attendanceDate.setFullYear(date.from.getFullYear(), date.from.getMonth(), date.from.getDate());
     
     const attendanceDateKey = format(attendanceDate, 'yyyy-MM-dd');
+    const currentClass = teacherClasses.find((c) => c.id === selectedClass);
 
     for (const student of students) {
+        if (student.status === 'unmarked') continue;
+
         const docId = `${student.id}_${attendanceDateKey}`;
         const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
 
         batch.set(attendanceRef, {
             studentId: student.id,
+            studentName: student.name,
+            studentAvatar: student.avatarUrl,
+            class: currentClass?.name || 'Unknown',
             classId: selectedClass,
             schoolId: schoolId,
             date: Timestamp.fromDate(attendanceDate),
             status: student.status,
             notes: student.notes || '',
-            teacherId: user.uid
+            teacher: user.displayName || 'Unknown Teacher',
+            teacherId: user.uid,
         }, { merge: true });
     }
 
