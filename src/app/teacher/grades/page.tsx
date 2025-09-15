@@ -73,6 +73,7 @@ import type { DocumentData, Timestamp } from 'firebase/firestore';
 type Grade = {
   assessmentId: string;
   grade: number | string;
+  subject?: string;
 };
 
 export type StudentGrades = {
@@ -102,7 +103,7 @@ export default function GradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
-    const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
+    const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>(['All Subjects']);
     const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
     const [selectedSubject, setSelectedSubject] = React.useState<string>('All Subjects');
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -168,12 +169,7 @@ export default function GradesPage() {
             setCurrentAssessments(assessments);
         });
         
-        let gradesQuery;
-        if (selectedSubject === 'All Subjects') {
-            gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass));
-        } else {
-             gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass), where('subject', '==', selectedSubject));
-        }
+        const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass));
         
         const unsubGrades = onSnapshot(gradesQuery, async (snapshot) => {
              const gradesByStudent: Record<string, { grades: Grade[], studentInfo?: any }> = {};
@@ -188,11 +184,15 @@ export default function GradesPage() {
                     gradesByStudent[studentId] = { grades: [], studentInfo: studentSnap.data() };
                 }
                 
-                gradesByStudent[studentId].grades.push({ assessmentId: gradeData.assessmentId, grade: gradeData.grade });
+                gradesByStudent[studentId].grades.push({ assessmentId: gradeData.assessmentId, grade: gradeData.grade, subject: gradeData.subject });
             }
-
+            
             const studentsData = Object.entries(gradesByStudent).map(([studentId, data]) => {
-                const numericScores = data.grades.map(g => parseInt(String(g.grade))).filter(s => !isNaN(s));
+                const gradesToAverage = selectedSubject === 'All Subjects' 
+                    ? data.grades 
+                    : data.grades.filter((g: any) => g.subject === selectedSubject);
+
+                const numericScores = gradesToAverage.map(g => parseInt(String(g.grade))).filter(s => !isNaN(s));
                 const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a + b, 0) / numericScores.length) : 0;
                 
                 return {
@@ -296,7 +296,7 @@ export default function GradesPage() {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                           <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
-                          <CardDescription>Student ranking based on performance.</CardDescription>
+                          <CardDescription>Student ranking based on performance in a specific subject.</CardDescription>
                       </div>
                       <div className="flex w-full flex-col md:flex-row md:items-center gap-2">
                            <Select value={selectedClass} onValueChange={setSelectedClass}>
@@ -342,7 +342,7 @@ export default function GradesPage() {
                                         </Avatar>
                                         <div className="flex-1">
                                             <p className="font-semibold">{student.studentName}</p>
-                                            <p className="text-sm text-muted-foreground">Overall: <span className="font-bold text-foreground">{student.overall}%</span></p>
+                                            <p className="text-sm text-muted-foreground">Score: <span className="font-bold text-foreground">{student.overall}%</span></p>
                                         </div>
                                     </Card>
                                 </DialogTrigger>
@@ -375,10 +375,9 @@ export default function GradesPage() {
                                           </TableHeader>
                                           <TableBody>
                                               {selectedStudentForDetails.grades?.map((gradeInfo, index) => {
-                                                const assessment = currentAssessments.find(a => a.id === gradeInfo.assessmentId);
                                                 return (
                                                   <TableRow key={index}>
-                                                      <TableCell className="font-medium">{assessment?.subject || 'Unknown'}</TableCell>
+                                                      <TableCell className="font-medium">{gradeInfo.subject || 'Unknown'}</TableCell>
                                                       <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
                                                   </TableRow>
                                                 )
@@ -408,18 +407,6 @@ export default function GradesPage() {
                             {teacherClasses.map((cls) => (
                                 <SelectItem key={cls.id} value={cls.id}>
                                 {cls.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                     </Select>
-                     <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                        <SelectTrigger className="w-full md:w-[180px]">
-                            <SelectValue placeholder="Select a subject" />
-                        </SelectTrigger>
-                        <SelectContent>
-                             {teacherSubjects.map((subject) => (
-                                <SelectItem key={subject} value={subject}>
-                                {subject}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -471,10 +458,7 @@ export default function GradesPage() {
                                 <TableHeader>
                                 <TableRow>
                                     <TableHead className="sticky left-0 bg-card z-10">Student Name</TableHead>
-                                    {currentAssessments.map(assessment => (
-                                        <TableHead key={assessment.id} className="text-center whitespace-nowrap">{assessment.title}</TableHead>
-                                    ))}
-                                    <TableHead className="text-center font-bold sticky right-0 bg-card z-10 w-[100px]">Overall</TableHead>
+                                    <TableHead className="text-center font-bold sticky right-0 bg-card z-10 w-[150px]">Overall Average</TableHead>
                                     <TableHead className="text-right sticky right-[100px] bg-card z-10 w-[100px]">Actions</TableHead>
                                 </TableRow>
                                 </TableHeader>
@@ -490,11 +474,6 @@ export default function GradesPage() {
                                                 <span className="font-medium">{student.studentName}</span>
                                             </div>
                                         </TableCell>
-                                        {currentAssessments.map(assessment => (
-                                            <TableCell key={assessment.id} className="text-center">
-                                                <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
-                                            </TableCell>
-                                        ))}
                                          <TableCell className="text-center font-bold sticky right-0 bg-card z-10">
                                             <Badge>{student.overall}%</Badge>
                                          </TableCell>

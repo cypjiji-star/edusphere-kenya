@@ -90,7 +90,7 @@ type StudentGrade = {
   id: string;
   studentName: string;
   avatarUrl: string;
-  grade: string;
+  grade: string | number;
   overall: number;
   rollNumber?: string;
   grades?: { subject: string, grade: string | number }[];
@@ -186,28 +186,6 @@ export default function AdminGradesPage() {
     const fetchStudentGradesForRanking = async () => {
       setIsLoadingRanking(true);
       try {
-        const studentsQuery = query(
-          collection(firestore, `schools/${schoolId}/students`), 
-          where('classId', '==', selectedClassForRanking)
-        );
-        const studentsSnapshot = await getDocs(studentsQuery);
-        
-        if (studentsSnapshot.empty) {
-          setStudentsForRanking([]);
-          setSubjectsForRanking(['All Subjects']);
-          setIsLoadingRanking(false);
-          return;
-        }
-
-        const studentIds = studentsSnapshot.docs.map(doc => doc.id);
-        const studentInfoMap = new Map(studentsSnapshot.docs.map(doc => [
-          doc.id, 
-          { name: doc.data().name || 'Unknown', avatarUrl: doc.data().avatarUrl || '', rollNumber: doc.data().rollNumber || ''}
-        ]));
-
-        const studentGradesMap = new Map();
-        const availableSubjects = new Set<string>();
-
         const gradesQuery = query(
           collection(firestore, `schools/${schoolId}/grades`), 
           where('classId', '==', selectedClassForRanking)
@@ -215,48 +193,64 @@ export default function AdminGradesPage() {
         
         const gradesSnapshot = await getDocs(gradesQuery);
 
-        gradesSnapshot.forEach(doc => {
-          const gradeData = doc.data();
+        if (gradesSnapshot.empty) {
+          setStudentsForRanking([]);
+          setSubjectsForRanking(['All Subjects']);
+          setIsLoadingRanking(false);
+          return;
+        }
+
+        const studentGradesMap = new Map<string, {name: string, avatarUrl: string, rollNumber: string, grades: {subject: string, grade: number}[]}>();
+        const availableSubjects = new Set<string>();
+
+        for (const gradeDoc of gradesSnapshot.docs) {
+          const gradeData = gradeDoc.data();
           const studentId = gradeData.studentId;
           
-          if(studentInfoMap.has(studentId)) {
-            if (!studentGradesMap.has(studentId)) {
-              studentGradesMap.set(studentId, []);
-            }
-            const gradeValue = parseInt(gradeData.grade, 10);
-            if (!isNaN(gradeValue)) {
-                studentGradesMap.get(studentId).push({
-                    subject: gradeData.subject,
-                    grade: gradeValue
-                });
-                if(gradeData.subject) {
-                availableSubjects.add(gradeData.subject);
-                }
+          if (!studentGradesMap.has(studentId)) {
+            const studentRef = doc(firestore, 'schools', schoolId, 'students', studentId);
+            const studentSnap = await getDoc(studentRef);
+            if (studentSnap.exists()) {
+               studentGradesMap.set(studentId, {
+                  name: studentSnap.data().name || 'Unknown',
+                  avatarUrl: studentSnap.data().avatarUrl || '',
+                  rollNumber: studentSnap.data().rollNumber || '',
+                  grades: [],
+               });
             }
           }
-        });
+
+          const gradeValue = parseInt(gradeData.grade, 10);
+          if (!isNaN(gradeValue)) {
+            studentGradesMap.get(studentId)?.grades.push({
+                subject: gradeData.subject,
+                grade: gradeValue
+            });
+            if (gradeData.subject) {
+              availableSubjects.add(gradeData.subject);
+            }
+          }
+        }
         
         setSubjectsForRanking(['All Subjects', ...Array.from(availableSubjects)]);
         
-        const rankedStudents = Array.from(studentInfoMap.keys())
-          .map((studentId) => {
-            const studentGrades = studentGradesMap.get(studentId) || [];
-            
+        const rankedStudents: StudentGrade[] = Array.from(studentGradesMap.entries())
+          .map(([studentId, data]) => {
             const gradesToAverage = selectedSubjectForRanking === 'All Subjects' 
-              ? studentGrades 
-              : studentGrades.filter((g: any) => g.subject === selectedSubjectForRanking);
+              ? data.grades 
+              : data.grades.filter((g: any) => g.subject === selectedSubjectForRanking);
             
             const numericScores = gradesToAverage.map((g: any) => g.grade);
             const average = numericScores.length > 0 ? Math.round(numericScores.reduce((a: number, b: number) => a + b, 0) / numericScores.length) : 0;
             
             return {
               id: studentId,
-              studentName: studentInfoMap.get(studentId)?.name || 'Unknown',
-              avatarUrl: studentInfoMap.get(studentId)?.avatarUrl || '',
-              rollNumber: studentInfoMap.get(studentId)?.rollNumber || '',
-              grade: '',
+              studentName: data.name,
+              avatarUrl: data.avatarUrl,
+              rollNumber: data.rollNumber,
+              grade: average,
               overall: average,
-              grades: studentGrades.map((g: any) => ({subject: g.subject, grade: `${g.grade}`})),
+              grades: data.grades,
             };
           })
           .sort((a, b) => b.overall - a.overall);
@@ -458,7 +452,7 @@ export default function AdminGradesPage() {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div>
                           <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
-                          <CardDescription>Student ranking based on performance.</CardDescription>
+                          <CardDescription>Student ranking based on performance in a specific subject or overall.</CardDescription>
                       </div>
                       <div className="flex w-full flex-col md:flex-row md:items-center gap-2">
                            <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
@@ -504,7 +498,7 @@ export default function AdminGradesPage() {
                                         </Avatar>
                                         <div className="flex-1">
                                             <p className="font-semibold">{student.studentName}</p>
-                                            <p className="text-sm text-muted-foreground">Overall: <span className="font-bold text-foreground">{student.overall}%</span></p>
+                                            <p className="text-sm text-muted-foreground">Score: <span className="font-bold text-foreground">{student.overall}%</span></p>
                                         </div>
                                     </Card>
                                 </DialogTrigger>
@@ -561,8 +555,8 @@ export default function AdminGradesPage() {
           <TabsContent value="gradebook">
              <Card>
                 <CardHeader>
-                    <CardTitle>Full Gradebook</CardTitle>
-                    <CardDescription>A complete overview of all student scores for the selected class.</CardDescription>
+                    <CardTitle>Overall Gradebook</CardTitle>
+                    <CardDescription>A complete overview of all students' overall average scores for the selected class.</CardDescription>
                 </CardHeader>
                  <CardContent>
                  {isLoadingRanking ? (
@@ -575,23 +569,23 @@ export default function AdminGradesPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="sticky left-0 bg-card z-10">Student</TableHead>
-                                    {allExams.filter(exam => exam.classId === selectedClassForRanking).map(exam => (
-                                        <TableHead key={exam.id} className="text-center whitespace-nowrap">{exam.title}</TableHead>
-                                    ))}
-                                    <TableHead className="text-center font-bold sticky right-0 bg-card z-10">Overall</TableHead>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead className="text-center font-bold">Overall Average</TableHead>
                                 </TableRow>
                             </TableHeader>
                              <TableBody>
                                 {studentsForRanking.map(student => (
                                     <TableRow key={student.id}>
-                                        <TableCell className="font-medium sticky left-0 bg-card z-10">{student.studentName}</TableCell>
-                                        {allExams.filter(exam => exam.classId === selectedClassForRanking).map(exam => (
-                                            <TableCell key={exam.id} className="text-center">
-                                                {getGradeForStudent(student, exam.id)}
-                                            </TableCell>
-                                        ))}
-                                        <TableCell className="text-center font-bold sticky right-0 bg-card z-10">
+                                        <TableCell>
+                                          <div className="flex items-center gap-3">
+                                            <Avatar className="h-9 w-9">
+                                                <AvatarImage src={student.avatarUrl} alt={student.studentName} />
+                                                <AvatarFallback>{student.studentName.slice(0,2)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">{student.studentName}</span>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-center font-bold">
                                             <Badge>{student.overall}%</Badge>
                                         </TableCell>
                                     </TableRow>
