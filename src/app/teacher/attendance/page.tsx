@@ -90,7 +90,12 @@ export default function AttendancePage() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'all'>('all');
   const [isLoading, setIsLoading] = React.useState(true);
-  const user = auth.currentUser;
+  const [user, setUser] = React.useState(auth.currentUser);
+
+  React.useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(setUser);
+    return () => unsubscribe();
+  }, []);
   
   const isRange = date?.from && date?.to;
   const selectedDate = date?.from && !date.to ? date.from : undefined;
@@ -164,50 +169,53 @@ export default function AttendancePage() {
 
   const handleSaveAttendance = React.useCallback(async () => {
     if (!isEditable || !selectedClass || !date?.from || !schoolId || !user) return;
-
+  
     const batch = writeBatch(firestore);
     const attendanceDate = startOfToday();
-    attendanceDate.setFullYear(date.from.getFullYear(), date.from.getMonth(), date.from.getDate());
-    
+    if (date.from) {
+      attendanceDate.setFullYear(date.from.getFullYear(), date.from.getMonth(), date.from.getDate());
+    }
+  
     const attendanceDateKey = format(attendanceDate, 'yyyy-MM-dd');
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
-
+  
     for (const student of students) {
-        if (student.status === 'unmarked') continue;
-
-        const docId = `${student.id}_${attendanceDateKey}`;
-        const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
-
-        batch.set(attendanceRef, {
-            studentId: student.id,
-            studentName: student.name,
-            studentAvatar: student.avatarUrl,
-            class: currentClass?.name || 'Unknown',
-            classId: selectedClass,
-            schoolId: schoolId,
-            date: Timestamp.fromDate(attendanceDate),
-            status: student.status,
-            notes: student.notes || '',
-            teacher: user.displayName || 'Unknown Teacher',
-            teacherId: user.uid,
-        });
+      if (student.status === 'unmarked') continue;
+  
+      const docId = `${student.id}_${attendanceDateKey}`;
+      const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
+  
+      // This will now create or completely overwrite the document with the full data.
+      batch.set(attendanceRef, {
+        studentId: student.id,
+        studentName: student.name,
+        studentAvatar: student.avatarUrl,
+        class: currentClass?.name || 'Unknown',
+        classId: selectedClass,
+        schoolId: schoolId,
+        date: Timestamp.fromDate(attendanceDate),
+        status: student.status,
+        notes: student.notes || '',
+        teacher: user.displayName || 'Unknown Teacher',
+        teacherId: user.uid,
+      });
     }
-
+  
     try {
-        await batch.commit();
-        toast({
+      await batch.commit();
+      toast({
         title: "✓ Saved",
         description: `Attendance for ${
-            teacherClasses.find((c) => c.id === selectedClass)?.name
+          teacherClasses.find((c) => c.id === selectedClass)?.name
         } on ${format(date.from, 'PPP')} has been saved.`,
-        });
+      });
     } catch (e) {
-        console.error("Error saving attendance: ", e);
-        toast({
-            title: "Save Failed",
-            description: "Could not save attendance. Please try again.",
-            variant: 'destructive',
-        });
+      console.error("Error saving attendance: ", e);
+      toast({
+        title: "Save Failed",
+        description: "Could not save attendance. Please try again.",
+        variant: 'destructive',
+      });
     }
   }, [isEditable, students, selectedClass, date, toast, teacherClasses, schoolId, user]);
   
