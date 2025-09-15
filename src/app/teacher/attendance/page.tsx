@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -179,6 +178,7 @@ export default function AttendancePage() {
         batch.set(attendanceRef, {
             studentId: student.id,
             classId: selectedClass,
+            schoolId: schoolId,
             date: Timestamp.fromDate(attendanceDate),
             status: student.status,
             notes: student.notes || '',
