@@ -32,6 +32,7 @@ import {
   where,
   getDocs,
   writeBatch,
+  getDoc,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -167,32 +168,49 @@ export function TeacherChatLayout() {
       }
     );
 
-    const usersQuery = query(
-      collection(firestore, `schools/${schoolId}/parents`)
-    );
-    
-    const unsubUsers = onSnapshot(usersQuery, 
-      (snapshot) => {
-        const users = snapshot.docs.map(doc => {
+    // Fetch parents of students taught by the current teacher
+    const fetchContacts = async () => {
+      if (!user) return;
+
+      const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', user.uid));
+      const classesSnapshot = await getDocs(classesQuery);
+      if (classesSnapshot.empty) return;
+
+      const classIds = classesSnapshot.docs.map(doc => doc.id);
+      
+      const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+      const studentsSnapshot = await getDocs(studentsQuery);
+      if (studentsSnapshot.empty) return;
+      
+      const parentIds = new Set<string>();
+      studentsSnapshot.forEach(doc => {
+        if(doc.data().parentId) {
+            parentIds.add(doc.data().parentId);
+        }
+      });
+
+      if (parentIds.size === 0) return;
+      
+      const parentsQuery = query(collection(firestore, `schools/${schoolId}/parents`), where('id', 'in', Array.from(parentIds)));
+      const parentsSnapshot = await getDocs(parentsQuery);
+      
+      const parentContacts = parentsSnapshot.docs.map(doc => {
           const data = doc.data();
           return {
-            id: doc.id,
-            name: `${data.name}`,
-            avatar: data.avatarUrl || '',
-            icon: User,
-            role: data.role,
-          }
-        });
-        setNewContactOptions(users);
-      },
-      (error) => {
-        console.error("Error fetching users:", error);
-      }
-    );
+              id: doc.id,
+              name: `${data.name} (Parent)`,
+              avatar: data.avatarUrl || '',
+              icon: User,
+              role: 'Parent'
+          };
+      });
+      setNewContactOptions(parentContacts);
+    };
+
+    fetchContacts();
 
     return () => {
       unsubConvos();
-      unsubUsers();
     };
   }, [schoolId, user, selectedConvo]);
 
