@@ -54,6 +54,7 @@ export function GradeAnalysisCharts() {
   const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<any[]>([]);
   const [classPerformance, setClassPerformance] = React.useState<{ top: string; lowest: string; topAvg: number; lowestAvg: number; }>({ top: 'N/A', lowest: 'N/A', topAvg: 0, lowestAvg: 0 });
   const [isLoading, setIsLoading] = React.useState(true);
+  const [examTitle, setExamTitle] = React.useState('');
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -61,15 +62,25 @@ export function GradeAnalysisCharts() {
     const fetchDataForTerm = async (term: string) => {
         const assessmentsQuery = query(collection(firestore, `schools/${schoolId}/assesments`), where('term', '==', term));
         const assessmentsSnapshot = await getDocs(assessmentsQuery);
-        const assessmentIds = assessmentsSnapshot.docs.map(doc => doc.id);
 
-        if (assessmentIds.length === 0) {
-            return { submissions: [] };
+        // Filter for major exams like "Mid-Term" or "End-Term"
+        const majorExams = assessmentsSnapshot.docs.filter(doc => 
+            doc.data().title.toLowerCase().includes('mid-term') || 
+            doc.data().title.toLowerCase().includes('end-term')
+        );
+        
+        const examToAnalyze = majorExams.length > 0 ? majorExams[0] : assessmentsSnapshot.docs[0];
+
+        if (!examToAnalyze) {
+             return { submissions: [], title: `No exams found for ${term}` };
         }
+        
+        const assessmentIds = [examToAnalyze.id];
+        const title = examToAnalyze.data().title;
 
         const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), where('examId', 'in', assessmentIds));
         const submissionsSnapshot = await getDocs(submissionsQuery);
-        return { submissions: submissionsSnapshot.docs.map(doc => doc.data()) };
+        return { submissions: submissionsSnapshot.docs.map(doc => doc.data()), title };
     }
 
     const processData = (submissions: any[]) => {
@@ -132,7 +143,8 @@ export function GradeAnalysisCharts() {
 
     const loadData = async () => {
         setIsLoading(true);
-        const { submissions } = await fetchDataForTerm(selectedTerm);
+        const { submissions, title } = await fetchDataForTerm(selectedTerm);
+        setExamTitle(title);
         const processedData = processData(submissions);
         setDistributionData(processedData.distributionData);
         setSubjectPerformanceData(processedData.subjectPerformanceData);
@@ -151,7 +163,9 @@ export function GradeAnalysisCharts() {
                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                         <CardTitle>School-Wide Performance Analysis</CardTitle>
-                        <CardDescription>Overall grade distribution for the selected exam period.</CardDescription>
+                        <CardDescription>
+                            Overall grade distribution for: <span className="font-semibold text-primary">{examTitle}</span>
+                        </CardDescription>
                     </div>
                      <div className="flex w-full md:w-auto items-center gap-2">
                          <Select value={selectedTerm} onValueChange={setSelectedTerm}>
