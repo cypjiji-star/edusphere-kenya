@@ -35,6 +35,7 @@ import { firestore, storage, auth } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -67,13 +68,15 @@ type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 export default function AnnouncementsPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
   const [pastAnnouncements, setPastAnnouncements] = React.useState<Announcement[]>([]);
   const [isTranslating, setIsTranslating] = React.useState(false);
   const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const user = auth.currentUser;
+  const [teacherClasses, setTeacherClasses] = React.useState<{id: string, name: string}[]>([]);
+
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -91,7 +94,17 @@ export default function AnnouncementsPage() {
         const fetchedAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
         setPastAnnouncements(fetchedAnnouncements);
     });
-    return () => unsubscribe();
+
+    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', user.uid));
+    const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+        const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+        setTeacherClasses(classesData);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubClasses();
+    };
   }, [schoolId, user]);
 
   const handleTranslate = async () => {
@@ -288,8 +301,12 @@ export default function AnnouncementsPage() {
                                         </FormControl>
                                         <SelectContent>
                                             <SelectItem value="All My Students">All My Students</SelectItem>
-                                            <SelectItem value="form-4-chem">Form 4 - Chemistry Students</SelectItem>
-                                            <SelectItem value="form-4-chem-parents">Form 4 - Chemistry Parents</SelectItem>
+                                            {teacherClasses.map(c => (
+                                                <SelectItem key={c.id} value={c.name}>{c.name} - Students</SelectItem>
+                                            ))}
+                                             {teacherClasses.map(c => (
+                                                <SelectItem key={`${c.id}-parents`} value={`${c.name}-parents`}>{c.name} - Parents</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -406,3 +423,5 @@ export default function AnnouncementsPage() {
     </div>
   );
 }
+
+    
