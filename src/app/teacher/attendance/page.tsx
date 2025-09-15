@@ -196,7 +196,7 @@ function AttendanceTable({
                   >
                     <SelectTrigger className="w-36">
                         <SelectValue asChild>
-                            <div>{getAttendanceBadge(student.status as AttendanceStatus)}</div>
+                            <div>{getAttendanceBadge(student.status)}</div>
                         </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -237,22 +237,26 @@ export default function AttendancePage() {
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
-  const [teacherName, setTeacherName] = useState('');
+  
+  const [teacherState, setTeacherState] = useState<{
+    name: string;
+    loading: boolean;
+  }>({ name: 'Unknown Teacher', loading: true });
 
   useEffect(() => {
     if (!user || !schoolId) {
-      setIsLoading(false);
+      setTeacherState({ name: 'Unknown Teacher', loading: false });
       return;
     }
+    setTeacherState(prev => ({ ...prev, loading: true }));
     const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
-        setTeacherName(docSnap.data().name || 'Unknown Teacher');
+        setTeacherState({ name: docSnap.data().name || 'Unknown Teacher', loading: false });
       } else {
-        setTeacherName('Unknown Teacher');
+        setTeacherState({ name: 'Unknown Teacher', loading: false });
       }
     });
     return () => unsubscribe();
@@ -270,7 +274,7 @@ export default function AttendancePage() {
       snap.forEach((d) => cls.push({ id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim() }));
       setTeacherClasses(cls);
       if (!selectedClass && cls.length > 0) setSelectedClass(cls[0].id);
-      else if (cls.length === 0) setIsLoading(false);
+      else if (cls.length === 0) setTeacherState(prev => ({ ...prev, loading: false }));
     });
     return () => unsub();
   }, [user, schoolId, selectedClass]);
@@ -279,7 +283,7 @@ export default function AttendancePage() {
   useEffect(() => {
     if (!schoolId || !selectedClass || !selectedDate) return;
     
-    setIsLoading(true);
+    setTeacherState(prev => ({ ...prev, loading: true }));
 
     const studentsQuery = query(
       collection(firestore, "schools", schoolId, "students"),
@@ -322,7 +326,7 @@ export default function AttendancePage() {
       });
       
       setStudents(studentsWithAttendance);
-      setIsLoading(false);
+      setTeacherState(prev => ({ ...prev, loading: false }));
     });
 
     return () => unsub();
@@ -339,8 +343,8 @@ export default function AttendancePage() {
 
   // Save Attendance
   const handleSaveAttendance = useCallback(async () => {
-    if (!selectedClass || !schoolId || !user || students.length === 0 || !selectedDate || !teacherName) {
-      toast({ title: 'Cannot Save', description: 'Missing required information like class, date, or teacher details.', variant: 'destructive'});
+    if (!selectedClass || !schoolId || !user || students.length === 0 || !selectedDate || teacherState.loading) {
+      toast({ title: 'Cannot Save', description: 'Missing required information or still loading.', variant: 'destructive'});
       return;
     }
     
@@ -362,7 +366,7 @@ export default function AttendancePage() {
         status: student.status,
         notes: student.notes || "",
         teacherId: user.uid,
-        teacher: teacherName,
+        teacher: teacherState.name,
         schoolId: schoolId,
       });
     }
@@ -381,9 +385,9 @@ export default function AttendancePage() {
         variant: "destructive",
       });
     }
-  }, [schoolId, selectedClass, selectedDate, students, teacherClasses, teacherName, toast, user]);
+  }, [schoolId, selectedClass, selectedDate, students, teacherClasses, teacherState.name, teacherState.loading, toast, user]);
   
-  if (isLoading) {
+  if (teacherState.loading) {
     return <div className="flex h-full items-center justify-center p-8"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
   }
 
@@ -403,7 +407,7 @@ export default function AttendancePage() {
         isEditable={true}
       />
 
-      <Button onClick={handleSaveAttendance} disabled={!teacherName || teacherName === 'Unknown Teacher'}>
+      <Button onClick={handleSaveAttendance} disabled={teacherState.loading}>
         <Save className="mr-2 h-4 w-4" />
         Submit Attendance
       </Button>
