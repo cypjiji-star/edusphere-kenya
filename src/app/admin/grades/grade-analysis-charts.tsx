@@ -69,23 +69,31 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         // Process data
         // Grade Distribution
         const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
-        submissions.forEach(submission => {
-            const grade = parseInt(submission.grade, 10);
-            if (isNaN(grade)) return;
-            if (grade >= 80) gradeCounts['A']++;
-            else if (grade >= 75) gradeCounts['A-']++;
-            else if (grade >= 70) gradeCounts['B+']++;
-            else if (grade >= 65) gradeCounts['B']++;
-            else if (grade >= 60) gradeCounts['B-']++;
-            else if (grade >= 55) gradeCounts['C+']++;
-            else if (grade >= 45) gradeCounts['C/C-']++;
-            else gradeCounts['D/E']++;
-        });
+        const studentGrades = [];
+        for (const submission of submissions) {
+            const gradesSnapshot = await getDocs(query(collection(doc(firestore, `schools/${schoolId}/submissions`, submission.id), 'grades')));
+            gradesSnapshot.forEach(gradeDoc => {
+                const gradeData = gradeDoc.data();
+                const score = parseInt(gradeData.grade, 10);
+                if (isNaN(score)) return;
 
+                studentGrades.push({ score, class: submission.class, subject: submission.subject });
+
+                if (score >= 80) gradeCounts['A']++;
+                else if (score >= 75) gradeCounts['A-']++;
+                else if (score >= 70) gradeCounts['B+']++;
+                else if (score >= 65) gradeCounts['B']++;
+                else if (score >= 60) gradeCounts['B-']++;
+                else if (score >= 55) gradeCounts['C+']++;
+                else if (score >= 45) gradeCounts['C/C-']++;
+                else gradeCounts['D/E']++;
+            });
+        }
+        
         // Subject Performance
         const subjectScores: Record<string, { total: number, count: number }> = {};
         for (const submission of submissions) {
-          const assessmentDoc = await getDoc(doc(firestore, `schools/${schoolId}/assesments`, submission.examId));
+          const assessmentDoc = await getDoc(doc(firestore, `schools/${schoolId}/assessments`, submission.examId));
           if (!assessmentDoc.exists()) continue;
 
           const assessmentData = assessmentDoc.data();
@@ -109,15 +117,12 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         
         // Class Performance
         const classScores: Record<string, { total: number, count: number }> = {};
-        submissions.forEach(submission => {
-            if (!classScores[submission.class]) {
-                classScores[submission.class] = { total: 0, count: 0 };
+        studentGrades.forEach(grade => {
+            if (!classScores[grade.class]) {
+                classScores[grade.class] = { total: 0, count: 0 };
             }
-            const score = parseInt(submission.grade, 10);
-            if(!isNaN(score)) {
-                 classScores[submission.class].total += score;
-                 classScores[submission.class].count++;
-            }
+            classScores[grade.class].total += grade.score;
+            classScores[grade.class].count++;
         });
         const classAvgs = Object.entries(classScores).map(([className, data]) => ({
             name: className,
