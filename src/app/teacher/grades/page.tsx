@@ -275,21 +275,21 @@ export default function GradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <CardHeader className="px-0">
-          <div className="md:flex md:items-start md:justify-between">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-6">
             <div>
-              <CardTitle className="font-headline text-2xl">Gradebook</CardTitle>
-              <CardDescription>View, manage, and export student grades for your classes.</CardDescription>
+              <h1 className="font-headline text-3xl font-bold">Gradebook</h1>
+              <p className="text-muted-foreground">View, manage, and export student grades for your classes.</p>
             </div>
-            <TabsList className="grid w-full grid-cols-3 md:w-auto mt-4 md:mt-0">
-              <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
-              <TabsTrigger value="entry">Enter Grades</TabsTrigger>
-              <TabsTrigger value="reports">Reports</TabsTrigger>
-            </TabsList>
-          </div>
-        </CardHeader>
-        <TabsContent value="gradebook">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto mt-4 md:mt-0">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+                    <TabsTrigger value="entry">Enter Grades</TabsTrigger>
+                    <TabsTrigger value="reports">Reports</TabsTrigger>
+                </TabsList>
+            </Tabs>
+        </div>
+
+        <TabsContent value="gradebook" className="mt-0">
           <Card>
             <CardHeader>
                <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
@@ -332,7 +332,7 @@ export default function GradesPage() {
                   <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline">
+                        <Button variant="outline" className="w-full">
                           Export
                           <ChevronDown className="ml-2" />
                         </Button>
@@ -369,18 +369,18 @@ export default function GradesPage() {
                             <Table>
                                 <TableHeader>
                                 <TableRow>
-                                    <TableHead className="sticky left-0 bg-background z-10">Student Name</TableHead>
+                                    <TableHead className="sticky left-0 bg-card z-10">Student Name</TableHead>
                                     {currentAssessments.map(assessment => (
                                         <TableHead key={assessment.id} className="text-center whitespace-nowrap">{assessment.title}</TableHead>
                                     ))}
-                                    <TableHead className="text-center font-bold">Overall</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="text-center font-bold sticky right-0 bg-card z-10 w-[100px]">Overall</TableHead>
+                                    <TableHead className="text-right sticky right-[100px] bg-card z-10 w-[100px]">Actions</TableHead>
                                 </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                 {filteredStudents.map(student => (
                                     <TableRow key={student.studentId}>
-                                        <TableCell className="sticky left-0 bg-background z-10">
+                                        <TableCell className="sticky left-0 bg-card z-10">
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-8 w-8">
                                                     <AvatarImage src={student.studentAvatar} alt={student.studentName} />
@@ -394,10 +394,10 @@ export default function GradesPage() {
                                                 <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
                                             </TableCell>
                                         ))}
-                                         <TableCell className="text-center font-bold">
+                                         <TableCell className="text-center font-bold sticky right-0 bg-card z-10">
                                             <Badge>{student.overall}%</Badge>
                                          </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right sticky right-[100px] bg-card z-10">
                                             <Button variant="ghost" size="sm" onClick={() => setEditingStudent(student)}>
                                                 <Edit className="mr-2 h-4 w-4" /> Edit
                                             </Button>
@@ -435,6 +435,12 @@ export default function GradesPage() {
                                              </div>
                                          ))}
                                     </CardContent>
+                                     <CardFooter>
+                                        <Button variant="outline" size="sm" className="w-full" onClick={() => setEditingStudent(student)}>
+                                            <Edit className="mr-2 h-4 w-4"/>
+                                            Edit Grades
+                                        </Button>
+                                    </CardFooter>
                                 </Card>
                             ))}
                         </div>
@@ -471,7 +477,6 @@ export default function GradesPage() {
         <TabsContent value="reports">
             <ReportGenerator />
         </TabsContent>
-      </Tabs>
       <Dialog open={!!editingStudent} onOpenChange={(open) => !open && setEditingStudent(null)}>
         {editingStudent && (
           <DialogContent>

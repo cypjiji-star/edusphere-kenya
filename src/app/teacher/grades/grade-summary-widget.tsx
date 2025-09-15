@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import * as React from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer, LabelList } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer, LabelList, YAxis } from 'recharts';
 import {
   Card,
   CardContent,
@@ -15,12 +16,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { Separator } from '@/components/ui/separator';
-
-type StudentGrades = {
-  studentId: string;
-  overall: number;
-};
+import type { StudentGrades } from './page';
 
 const gradeDistributionRanges = [
   { range: 'A (80-100)', min: 80, max: 100, count: 0 },
@@ -44,7 +40,7 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
         average: 0,
         highest: 0,
         lowest: 0,
-        distribution: gradeDistributionRanges.map(r => ({ name: r.range, students: 0 })),
+        distribution: gradeDistributionRanges.map(r => ({ name: r.range.split(' ')[0], students: 0 })),
       };
     }
 
@@ -66,61 +62,58 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
       average: Math.round(average),
       highest,
       lowest,
-      distribution: distribution.map(d => ({ name: d.range, students: d.count })),
+      distribution: distribution.map(d => ({ name: d.range.split(' ')[0], students: d.count })),
     };
   }, [students]);
 
   return (
-    <Card className="mb-6 bg-muted/30">
-      <CardHeader>
-        <CardTitle>Class Performance Summary</CardTitle>
-        <CardDescription>An overview of the overall grades for the selected class.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-4">
-        <div className="flex flex-col justify-between space-y-4 col-span-1">
-            <div className="flex gap-4">
-                <div className="text-center p-4 bg-background rounded-lg flex-1">
-                    <p className="text-3xl font-bold text-primary">{summary.average}%</p>
+    <Card className="mb-6">
+        <CardHeader>
+            <CardTitle>Class Performance Summary</CardTitle>
+            <CardDescription>An overview of the overall grades for the selected class.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="flex flex-col justify-between space-y-4 col-span-1">
+                <Card className="text-center p-4 bg-muted/50 flex-1">
+                    <p className="text-4xl font-bold text-primary">{summary.average}%</p>
                     <p className="text-sm font-medium text-muted-foreground">Class Average</p>
+                </Card>
+                <div className="flex gap-4">
+                    <Card className="text-center p-4 bg-muted/50 flex-1">
+                        <p className="text-2xl font-bold">{summary.highest}%</p>
+                        <p className="text-xs text-muted-foreground">Highest Grade</p>
+                    </Card>
+                    <Card className="text-center p-4 bg-muted/50 flex-1">
+                        <p className="text-2xl font-bold">{summary.lowest}%</p>
+                        <p className="text-xs text-muted-foreground">Lowest Grade</p>
+                    </Card>
                 </div>
             </div>
-             <div className="flex gap-4">
-                <div className="text-center p-2 bg-background rounded-lg flex-1">
-                    <p className="text-xl font-bold">{summary.highest}%</p>
-                    <p className="text-xs text-muted-foreground">Highest Grade</p>
-                </div>
-                <div className="text-center p-2 bg-background rounded-lg flex-1">
-                    <p className="text-xl font-bold">{summary.lowest}%</p>
-                    <p className="text-xs text-muted-foreground">Lowest Grade</p>
-                </div>
+            <div className="md:col-span-2">
+                <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                    <BarChart
+                    data={summary.distribution}
+                    layout="horizontal"
+                    margin={{ left: -10, right: 30 }}
+                    >
+                    <CartesianGrid vertical={false} />
+                    <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={40} />
+                    <XAxis type="number" hide />
+                    <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Bar dataKey="students" fill="var(--color-students)" radius={5} barSize={25}>
+                        <LabelList
+                            position="right"
+                            offset={8}
+                            className="fill-foreground font-semibold"
+                            fontSize={12}
+                        />
+                    </Bar>
+                    </BarChart>
+                </ChartContainer>
             </div>
-        </div>
-        <div className="md:col-span-3">
-          <ChartContainer config={chartConfig} className="h-[150px] w-full">
-            <BarChart
-              accessibilityLayer
-              data={summary.distribution}
-              layout="vertical"
-              margin={{ left: 10, right: 50 }}
-            >
-              <CartesianGrid horizontal={false} />
-              <XAxis type="number" hide />
-              <XAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} />
-              <ChartTooltip
-                cursor={false}
-                content={<ChartTooltipContent hideLabel />}
-              />
-              <Bar dataKey="students" fill="var(--color-students)" radius={5} barSize={20}>
-                 <LabelList
-                  position="right"
-                  offset={10}
-                  className="fill-foreground font-bold"
-                  fontSize={12}
-                />
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        </div>
       </CardContent>
     </Card>
   );
