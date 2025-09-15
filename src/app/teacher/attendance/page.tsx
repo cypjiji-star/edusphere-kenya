@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
 import {
   Table,
@@ -237,6 +237,7 @@ export default function AttendancePage() {
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(new Date());
   const [isEditable, setIsEditable] = React.useState(true);
   const [user, setUser] = React.useState(auth.currentUser);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -333,6 +334,23 @@ export default function AttendancePage() {
     const attendanceDate = Timestamp.fromDate(baseDate);
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
     
+    console.log('Saving attendance with schoolId:', schoolId);
+    console.log("Attendance batch:", {
+      studentId: students[0]?.id,
+      sampleDoc: {
+        studentId: students[0]?.id,
+        studentName: students[0]?.name,
+        class: teacherClasses.find((c) => c.id === selectedClass)?.name || 'Unknown',
+        classId: selectedClass,
+        schoolId: schoolId,
+        date: Timestamp.fromDate(new Date()),
+        status: students[0]?.status,
+        notes: students[0]?.notes || '',
+        teacher: user?.displayName || 'Unknown Teacher',
+        teacherId: user?.uid,
+      }
+    });
+
     for (const student of students) {
       if (student.status === "unmarked") continue;
       const docId = `${student.id}_${format(baseDate, "yyyy-MM-dd")}`;
@@ -367,7 +385,7 @@ export default function AttendancePage() {
         variant: "destructive",
       });
     }
-  }, [isEditable, selectedClass, schoolId, user, students, selectedDate, teacherClasses]);
+  }, [isEditable, selectedClass, schoolId, user, students, selectedDate, teacherClasses, toast]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4">
