@@ -79,7 +79,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc, getDocs, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -164,16 +164,12 @@ export default function AdminGradesPage() {
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
     
     const currentYear = new Date().getFullYear();
-    const academicTerms = [
-        `Term 1, ${currentYear-1}`,
-        `Term 2, ${currentYear-1}`,
-        `Term 3, ${currentYear-1}`,
-        `Term 1, ${currentYear}`,
-        `Term 2, ${currentYear}`,
-        `Term 3, ${currentYear}`,
-        `Term 1, ${currentYear + 1}`,
-        `Term 2, ${currentYear + 1}`,
-    ];
+    const academicTerms = Array.from({ length: 2 }, (_, i) => {
+        const year = currentYear - 1 + i;
+        return [`Term 1, ${year}`, `Term 2, ${year}`, `Term 3, ${year}`];
+    }).flat();
+    academicTerms.push(...[`Term 1, ${currentYear + 1}`, `Term 2, ${currentYear + 1}`, `Term 3, ${currentYear + 1}`]);
+
 
     // State for the create exam dialog
     const [newExamTitle, setNewExamTitle] = React.useState('');
