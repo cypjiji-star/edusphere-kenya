@@ -1,11 +1,40 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: These rules are completely open for debugging purposes.
-    // They should be secured before deploying the application.
-    match /{document=**} {
-      allow read, write: if true;
+
+    // Helper function to check if a user has a specific role in a school
+    function isRole(schoolId, role) {
+      return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.role == role;
+    }
+
+    // Rules for the schools collection
+    match /schools/{schoolId} {
+      // Allow read for any authenticated user of that school, write only for admins
+      allow read: if request.auth != null && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid));
+      allow write: if request.auth != null && isRole(schoolId, 'admin');
+
+      // Rules for attendance subcollection
+      match /attendance/{attendanceId} {
+        // Allow read for admins or the teacher who created it
+        allow read: if request.auth != null && (isRole(schoolId, 'admin') || resource.data.teacherId == request.auth.uid);
+        
+        // Allow create only if the user is a teacher and the record has the required fields
+        allow create: if request.auth != null && isRole(schoolId, 'teacher')
+                      && request.resource.data.teacherId == request.auth.uid
+                      && request.resource.data.schoolId == schoolId
+                      && 'studentId' in request.resource.data
+                      && 'classId' in request.resource.data;
+                      
+        // Allow update/delete only for admins
+        allow update, delete: if request.auth != null && isRole(schoolId, 'admin');
+      }
+
+      // Rules for any other subcollection within a school
+      match /{subcollection}/{docId=**} {
+        allow read, write: if request.auth != null && isRole(schoolId, 'admin');
+      }
     }
   }
 }
