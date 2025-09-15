@@ -19,6 +19,7 @@ import {
   CalendarIcon,
   BarChart2,
   Settings,
+  Edit,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -130,7 +131,7 @@ export default function AdminGradesPage() {
   const [subjectsForRanking, setSubjectsForRanking] = React.useState<string[]>(['All Subjects']);
   const [selectedStudentForDetails, setSelectedStudentForDetails] = React.useState<StudentGrade | null>(null);
   const [allExams, setAllExams] = React.useState<Exam[]>([]);
-  const [isLoadingRanking, setIsLoadingRanking] = React.useState(false);
+  const [isLoadingRanking, setIsLoadingRanking] = React.useState(true);
   
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -222,12 +223,15 @@ export default function AdminGradesPage() {
             if (!studentGradesMap.has(studentId)) {
               studentGradesMap.set(studentId, []);
             }
-            studentGradesMap.get(studentId).push({
-              subject: gradeData.subject,
-              grade: parseInt(gradeData.grade, 10) || 0
-            });
-            if(gradeData.subject) {
-              availableSubjects.add(gradeData.subject);
+            const gradeValue = parseInt(gradeData.grade, 10);
+            if (!isNaN(gradeValue)) {
+                studentGradesMap.get(studentId).push({
+                    subject: gradeData.subject,
+                    grade: gradeValue
+                });
+                if(gradeData.subject) {
+                availableSubjects.add(gradeData.subject);
+                }
             }
           }
         });
@@ -345,10 +349,14 @@ export default function AdminGradesPage() {
       description: 'The class ranking has been downloaded as a PDF.',
     });
   }
+  
+  const getGradeForStudent = (student: StudentGrade, assessmentId: string) => {
+    const grade = student.grades?.find(g => (g as any).assessmentId === assessmentId);
+    return grade ? grade.grade : '—';
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
               <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -437,8 +445,9 @@ export default function AdminGradesPage() {
           </Dialog>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex mb-6">
+          <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex mb-6">
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
+            <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="settings">Settings &amp; Policies</TabsTrigger>
           </TabsList>
@@ -548,6 +557,53 @@ export default function AdminGradesPage() {
               </CardContent>
           </Card>
           </TabsContent>
+
+          <TabsContent value="gradebook">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Full Gradebook</CardTitle>
+                    <CardDescription>A complete overview of all student scores for the selected class.</CardDescription>
+                </CardHeader>
+                 <CardContent>
+                 {isLoadingRanking ? (
+                  <div className="flex justify-center items-center py-16">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Loading gradebook...</span>
+                  </div>
+                 ) : (
+                    <div className="w-full overflow-auto rounded-lg border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="sticky left-0 bg-card z-10">Student</TableHead>
+                                    {allExams.filter(exam => exam.classId === selectedClassForRanking).map(exam => (
+                                        <TableHead key={exam.id} className="text-center whitespace-nowrap">{exam.title}</TableHead>
+                                    ))}
+                                    <TableHead className="text-center font-bold sticky right-0 bg-card z-10">Overall</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                             <TableBody>
+                                {studentsForRanking.map(student => (
+                                    <TableRow key={student.id}>
+                                        <TableCell className="font-medium sticky left-0 bg-card z-10">{student.studentName}</TableCell>
+                                        {allExams.filter(exam => exam.classId === selectedClassForRanking).map(exam => (
+                                            <TableCell key={exam.id} className="text-center">
+                                                {getGradeForStudent(student, exam.id)}
+                                            </TableCell>
+                                        ))}
+                                        <TableCell className="text-center font-bold sticky right-0 bg-card z-10">
+                                            <Badge>{student.overall}%</Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                 )}
+                 </CardContent>
+             </Card>
+          </TabsContent>
+
           <TabsContent value="reports">
             <ReportGenerator />
           </TabsContent>
