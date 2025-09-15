@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -5,6 +6,7 @@ import { format } from 'date-fns';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase'; // Make sure you have this configured
 import { useAuth } from '@/context/auth-context'; // For teacher ID
+import { useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -98,7 +100,6 @@ export function ReportGenerator() {
         // Fetch assessments for the school
         const assessmentsQuery = query(
           collection(firestore, `schools/${schoolId}/assessments`),
-          where('teacherId', '==', user?.uid) // Only show assessments by this teacher
         );
         const assessmentsSnapshot = await getDocs(assessmentsQuery);
         const assessmentsData = assessmentsSnapshot.docs.map(doc => ({
@@ -134,7 +135,7 @@ export function ReportGenerator() {
     };
 
     fetchData();
-  }, [schoolId, selectedClass, user?.uid, toast]);
+  }, [schoolId, selectedClass, toast]);
 
   const handleGenerateReport = async () => {
     if (reportType === 'individual' && !selectedStudent) {
@@ -227,8 +228,8 @@ export function ReportGenerator() {
   return (
     <div className="grid gap-8 md:grid-cols-3">
         {/* ... (the rest of your JSX remains mostly the same, but update field names) */}
-        {report && (
-          <div className="border rounded-lg p-6 bg-background shadow-none">
+        {report && report.assessments.map(assessment => (
+          <div key={assessment.id} className="border rounded-lg p-6 bg-background shadow-none">
             {/* Update field names to match your database */}
             <TableCell className="font-medium">{assessment.title}</TableCell>
             <TableCell>{assessment.term}</TableCell>
@@ -236,7 +237,7 @@ export function ReportGenerator() {
               {getGradeForStudent(report.student, assessment.id)}
             </TableCell>
           </div>
-        )}
+        ))}
     </div>
   );
 }
