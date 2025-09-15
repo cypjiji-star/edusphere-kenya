@@ -15,6 +15,7 @@ import {
   User,
   Loader2,
   X,
+  Filter,
 } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage, firestore } from '@/lib/firebase';
@@ -83,6 +84,7 @@ type Conversation = {
   unread: boolean;
   participants: string[];
   lastMessageSender?: string;
+  type?: 'Parent' | 'Admin';
 };
 
 type Message = { 
@@ -118,6 +120,8 @@ export function TeacherChatLayout() {
   const [selectedConvo, setSelectedConvo] = React.useState<Conversation | null>(null);
   const [message, setMessage] = React.useState("");
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('All');
+  const [typeFilter, setTypeFilter] = React.useState('All');
   const [isTranslating, setIsTranslating] = React.useState(false);
   const [isSending, setIsSending] = React.useState(false);
   const [attachment, setAttachment] = React.useState<File | null>(null);
@@ -168,7 +172,6 @@ export function TeacherChatLayout() {
       }
     );
 
-    // Fetch parents of students taught by the current teacher
     const fetchContacts = async () => {
       if (!user) return;
 
@@ -372,6 +375,7 @@ export function TeacherChatLayout() {
         unread: false,
         participants: [user.uid, contactId],
         lastMessageSender: user.uid,
+        type: 'Parent',
       };
 
       const docRef = await addDoc(collection(firestore, `schools/${schoolId}/conversations`), newConvoData);
@@ -412,30 +416,6 @@ export function TeacherChatLayout() {
       console.error(e);
     }
   };
-
-  const handleDelete = async () => {
-    if (!selectedConvo || !schoolId) return;
-    
-    if (!window.confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
-      return;
-    }
-
-    try {
-      await deleteDoc(doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id));
-      
-      setMessages(prev => {
-        const newMessages = { ...prev };
-        delete newMessages[selectedConvo.id];
-        return newMessages;
-      });
-
-      const remainingConvos = conversations.filter(c => c.id !== selectedConvo.id);
-      setSelectedConvo(remainingConvos.length > 0 ? remainingConvos[0] : null);
-
-    } catch (error) {
-      console.error("Error deleting conversation:", error);
-    }
-  };
   
   const getIconComponent = (iconName: string) => {
     if (iconName === 'User') return User;
@@ -443,10 +423,14 @@ export function TeacherChatLayout() {
     return MessageCircle;
   };
 
-  const filteredConversations = conversations.filter(convo => 
-    convo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredConversations = conversations.filter(convo => {
+    const searchMatch = convo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
+    const statusMatch = statusFilter === 'All' || (statusFilter === 'Unread' && convo.unread);
+    const typeMatch = typeFilter === 'All' || (convo.type && convo.type === typeFilter);
+
+    return searchMatch && statusMatch && typeMatch;
+  });
 
   const isSender = (message: Message) => message.sender === user?.uid;
 
@@ -508,6 +492,27 @@ export function TeacherChatLayout() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <div className="flex gap-2 mt-4">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Statuses</SelectItem>
+                        <SelectItem value="Unread">Unread</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All Types</SelectItem>
+                        <SelectItem value="Parent">Parents</SelectItem>
+                        <SelectItem value="Admin">Admin</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="p-2 space-y-1">
@@ -546,6 +551,7 @@ export function TeacherChatLayout() {
           </div>
         </div>
 
+        {/* Chat area */}
         <div className="flex flex-col w-full h-full">
           {selectedConvo ? (
             <>
