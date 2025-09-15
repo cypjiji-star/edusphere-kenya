@@ -13,6 +13,7 @@ import {
   Timestamp,
   getDocs,
   addDoc,
+  getDoc,
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -239,18 +240,22 @@ export default function AttendancePage() {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
-  const [teacherName, setTeacherName] = useState('Unknown Teacher');
+  const [teacherName, setTeacherName] = useState('');
 
   useEffect(() => {
-    if (user && schoolId) {
-      const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
-      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setTeacherName(docSnap.data().name || 'Unknown Teacher');
-        }
-      });
-      return () => unsubscribe();
+    if (!user || !schoolId) {
+      setIsLoading(false);
+      return;
     }
+    const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setTeacherName(docSnap.data().name || 'Unknown Teacher');
+      } else {
+        setTeacherName('Unknown Teacher');
+      }
+    });
+    return () => unsubscribe();
   }, [user, schoolId]);
 
   // Load classes for this teacher
@@ -265,6 +270,7 @@ export default function AttendancePage() {
       snap.forEach((d) => cls.push({ id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim() }));
       setTeacherClasses(cls);
       if (!selectedClass && cls.length > 0) setSelectedClass(cls[0].id);
+      else if (cls.length === 0) setIsLoading(false);
     });
     return () => unsub();
   }, [user, schoolId, selectedClass]);
@@ -285,7 +291,7 @@ export default function AttendancePage() {
           const data = d.data();
           return {
             id: d.id,
-            name: `${data.firstName} ${data.lastName}`,
+            name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
             avatarUrl: data.avatarUrl,
             status: "unmarked",
             notes: "",
@@ -295,13 +301,11 @@ export default function AttendancePage() {
 
       const today = new Date(selectedDate);
       const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(today.setHours(23, 59, 59, 999));
       
       const attendanceQuery = query(
           collection(firestore, 'schools', schoolId, 'attendance'),
           where('classId', '==', selectedClass),
-          where('date', '>=', Timestamp.fromDate(startOfDay)),
-          where('date', '<=', Timestamp.fromDate(endOfDay))
+          where('date', '==', Timestamp.fromDate(startOfDay))
       );
 
       const attendanceSnapshot = await getDocs(attendanceQuery);
@@ -335,25 +339,23 @@ export default function AttendancePage() {
 
   // Save Attendance
   const handleSaveAttendance = useCallback(async () => {
-    if (!selectedClass || !schoolId || !user || students.length === 0 || !selectedDate) {
-      console.warn("Cannot save: missing data", { schoolId, selectedClass, user, selectedDate });
+    if (!selectedClass || !schoolId || !user || students.length === 0 || !selectedDate || !teacherName) {
+      toast({ title: 'Cannot Save', description: 'Missing required information like class, date, or teacher details.', variant: 'destructive'});
       return;
     }
     
     const batch = writeBatch(firestore);
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
+    const attendanceDate = Timestamp.fromDate(selectedDate);
     
     for (const student of students) {
       if (student.status === "unmarked") continue;
-
-      const attendanceDate = Timestamp.fromDate(selectedDate);
       
-      // Since we can't easily query for a doc to update, we'll add new ones. 
-      // A more robust solution might involve a unique doc ID like `studentId_date`.
       const attendanceRef = doc(collection(firestore, `schools/${schoolId}/attendance`));
       
       batch.set(attendanceRef, {
         studentId: student.id,
+        studentName: student.name,
         classId: selectedClass,
         className: currentClass?.name || "Unknown",
         date: attendanceDate,
@@ -401,12 +403,10 @@ export default function AttendancePage() {
         isEditable={true}
       />
 
-      <Button onClick={handleSaveAttendance}>
+      <Button onClick={handleSaveAttendance} disabled={!teacherName || teacherName === 'Unknown Teacher'}>
         <Save className="mr-2 h-4 w-4" />
         Submit Attendance
       </Button>
     </div>
   );
 }
-
-    

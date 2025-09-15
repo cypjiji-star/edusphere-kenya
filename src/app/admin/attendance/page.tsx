@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -7,7 +6,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs, collectionGroup } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
@@ -240,19 +239,16 @@ export default function AdminAttendancePage() {
             setClasses(['All Classes', ...new Set(classNames)]);
         });
 
-        const attendanceQuery = query(
-            collection(firestore, 'schools', schoolId, 'attendance')
-        );
+        const attendanceQuery = query(collection(firestore, 'schools', schoolId, 'attendance'));
         const unsubscribe = onSnapshot(attendanceQuery, (snapshot) => {
             const records = snapshot.docs.map(doc => {
                 const data = doc.data();
-                const student = studentsMap.get(data.studentId);
                 return {
                     id: doc.id,
                     studentId: data.studentId,
-                    studentName: student?.name || data.studentName || 'Unknown Student',
-                    studentAvatar: student?.avatarUrl || `https://picsum.photos/seed/${data.studentId}/100`,
-                    class: student?.class || data.className || 'Unknown Class',
+                    studentName: data.studentName,
+                    studentAvatar: `https://picsum.photos/seed/${data.studentId}/100`,
+                    class: data.className,
                     teacher: data.teacher,
                     date: data.date,
                     status: data.status,
@@ -614,5 +610,3 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
-
-    
