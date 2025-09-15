@@ -62,12 +62,14 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
 
     return { success: true, message: 'Grades saved successfully!' };
 
-  } catch (error) {
+  } catch (error: any) {
       if (error instanceof z.ZodError) {
           return { success: false, message: 'Validation failed: ' + error.errors.map(e => e.message).join(', ') };
       }
       console.error("Error saving grades:", error);
-      return { success: false, message: 'An unexpected error occurred while saving grades.' };
+      // Pass the specific error message back to the client
+      return { success: false, message: `An unexpected error occurred: ${error.message}` };
   }
 }
+
 
