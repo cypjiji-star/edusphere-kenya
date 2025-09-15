@@ -56,7 +56,7 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         // Fetch all submissions for the selected exam
         const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), where('examId', '==', exam.id));
         const submissionsSnapshot = await getDocs(submissionsQuery);
-        const submissions = submissionsSnapshot.docs.map(doc => doc.data());
+        const submissions = submissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         if (submissions.length === 0) {
             setDistributionData([]);
