@@ -11,7 +11,6 @@ import {
   writeBatch,
   doc,
   Timestamp,
-  getDoc,
   getDocs,
 } from "firebase/firestore";
 import { format } from "date-fns";
@@ -232,16 +231,16 @@ function AttendanceTable({
 export default function AttendancePage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const [students, setStudents] = React.useState<Student[]>([]);
-  const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
-  const [selectedClass, setSelectedClass] = React.useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = React.useState<Date | null>(new Date());
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
-  const [teacherName, setTeacherName] = React.useState('Unknown Teacher');
+  const [teacherName, setTeacherName] = useState('Unknown Teacher');
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user && schoolId) {
       const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
       const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
@@ -254,7 +253,7 @@ export default function AttendancePage() {
   }, [user, schoolId]);
 
   // Load classes for this teacher
-  React.useEffect(() => {
+  useEffect(() => {
     if (!user || !schoolId) return;
     const q = query(
       collection(firestore, "schools", schoolId, "classes"),
@@ -270,7 +269,7 @@ export default function AttendancePage() {
   }, [user, schoolId, selectedClass]);
 
   // Load students for selected class and their attendance status for the selected date
-  React.useEffect(() => {
+  useEffect(() => {
     if (!schoolId || !selectedClass || !selectedDate) return;
     
     setIsLoading(true);
@@ -293,28 +292,23 @@ export default function AttendancePage() {
           } as Student;
       });
 
-      const attendanceDateStr = format(selectedDate, "yyyy-MM-dd");
+      const today = new Date(selectedDate);
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(today.setHours(23, 59, 59, 999));
       
-      const studentIds = studentList.map(s => s.id);
-      if (studentIds.length === 0) {
-        setStudents([]);
-        setIsLoading(false);
-        return;
-      }
+      const attendanceQuery = query(
+          collection(firestore, 'schools', schoolId, 'attendance'),
+          where('classId', '==', selectedClass),
+          where('date', '>=', Timestamp.fromDate(startOfDay)),
+          where('date', '<=', Timestamp.fromDate(endOfDay))
+      );
 
-      const attendancePromises = studentIds.map(studentId => {
-        const attendanceDocRef = doc(firestore, 'schools', schoolId, 'students', studentId, 'attendance', attendanceDateStr);
-        return getDoc(attendanceDocRef);
-      });
+      const attendanceSnapshot = await getDocs(attendanceQuery);
       
-      const attendanceDocs = await Promise.all(attendancePromises);
-
       const attendanceMap = new Map<string, { status: AttendanceStatus, notes?: string }>();
-      attendanceDocs.forEach((docSnap, index) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          attendanceMap.set(studentIds[index], { status: data.status, notes: data.notes });
-        }
+      attendanceSnapshot.forEach(doc => {
+          const data = doc.data();
+          attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
       });
 
       const studentsWithAttendance = studentList.map((student) => {
@@ -330,11 +324,11 @@ export default function AttendancePage() {
   }, [schoolId, selectedClass, selectedDate]);
 
   // Mark All / Clear All
-  const markAll = React.useCallback(() => {
+  const markAll = useCallback(() => {
     setStudents((prev) => prev.map((s) => ({ ...s, status: "present" })));
   }, []);
 
-  const clearAll = React.useCallback(() => {
+  const clearAll = useCallback(() => {
     setStudents((prev) => prev.map((s) => ({ ...s, status: "unmarked" })));
   }, []);
 
@@ -346,19 +340,21 @@ export default function AttendancePage() {
     }
     
     const batch = writeBatch(firestore);
-    const attendanceDateStr = format(selectedDate, "yyyy-MM-dd");
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
     
     for (const student of students) {
       if (student.status === "unmarked") continue;
-      const attendanceRef = doc(firestore, `schools/${schoolId}/students/${student.id}/attendance`, attendanceDateStr);
+
+      const attendanceDate = Timestamp.fromDate(selectedDate);
+      // Create a unique ID for the attendance record to avoid overwrites if a teacher saves multiple times.
+      // This is a simple approach; a more robust solution might query for an existing record for the student/date first.
+      const attendanceRef = doc(collection(firestore, `schools/${schoolId}/attendance`));
       
       batch.set(attendanceRef, {
         studentId: student.id,
-        studentName: student.name,
         classId: selectedClass,
         className: currentClass?.name || "Unknown",
-        date: Timestamp.fromDate(selectedDate),
+        date: attendanceDate,
         status: student.status,
         notes: student.notes || "",
         teacherId: user.uid,
@@ -410,4 +406,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-

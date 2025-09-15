@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, collectionGroup, query, onSnapshot, where, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
@@ -220,32 +220,18 @@ export default function AdminAttendancePage() {
 
     const fetchData = async () => {
         setIsLoading(true);
-
-        // Fetch all students in the school
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
-        const studentsSnapshot = await getDocs(studentsQuery);
-        const studentsMap = new Map();
-        studentsSnapshot.forEach(doc => {
-            const data = doc.data();
-            studentsMap.set(doc.id, {
-                name: data.name,
-                avatarUrl: data.avatarUrl || `https://picsum.photos/seed/${doc.id}/100`,
-                class: data.class
-            });
-        });
-
+        
         // Listen for all attendance records
-        const attendanceQuery = query(collectionGroup(firestore, 'attendance'), where('schoolId', '==', schoolId));
+        const attendanceQuery = query(collection(firestore, 'schools', schoolId, 'attendance'));
         const unsubscribe = onSnapshot(attendanceQuery, (snapshot) => {
             const records = snapshot.docs.map(doc => {
                 const data = doc.data();
-                const student = studentsMap.get(data.studentId);
                 return {
                     id: doc.id,
                     studentId: data.studentId,
-                    studentName: student?.name || 'Unknown Student',
-                    studentAvatar: student?.avatarUrl || 'https://picsum.photos/seed/default/100',
-                    class: student?.class || data.className || 'Unknown Class',
+                    studentName: data.studentName || 'Unknown Student',
+                    studentAvatar: data.studentAvatar || 'https://picsum.photos/seed/default/100',
+                    class: data.className || 'Unknown Class',
                     teacher: data.teacher,
                     date: data.date,
                     status: data.status,
@@ -272,13 +258,12 @@ export default function AdminAttendancePage() {
         return unsubscribe;
     };
 
-    const unsubscribe = fetchData();
+    const unsubscribePromise = fetchData();
 
     setDate({ from: new Date(), to: new Date() });
 
     return () => {
-        // This is a bit tricky since fetchData is async, but this pattern is generally ok.
-        unsubscribe.then(unsub => unsub && unsub());
+        unsubscribePromise.then(unsub => unsub && unsub());
     };
   }, [schoolId]);
   
