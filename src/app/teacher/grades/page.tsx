@@ -38,7 +38,8 @@ import {
   FileText,
   ChevronDown,
   Printer,
-  Loader2
+  Loader2,
+  Trophy,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -106,12 +107,14 @@ export default function GradesPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const { toast } = useToast();
     const [editingStudent, setEditingStudent] = React.useState<StudentGrades | null>(null);
-    const [activeTab, setActiveTab] = React.useState('gradebook');
+    const [activeTab, setActiveTab] = React.useState('ranking');
     const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
     const [user, setUser] = React.useState(auth.currentUser);
 
     const [currentAssessments, setCurrentAssessments] = React.useState<Assessment[]>([]);
     const [currentStudents, setCurrentStudents] = React.useState<StudentGrades[]>([]);
+    const [selectedStudentForDetails, setSelectedStudentForDetails] = React.useState<StudentGrades | null>(null);
+
 
     React.useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -131,11 +134,8 @@ export default function GradesPage() {
             }
         });
 
-        // This query is incorrect for fetching subjects for a specific teacher.
-        // A better approach would be to have a 'teachers' array on the subject document.
-        // For now, let's fetch all subjects for simplicity.
-        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
-         const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
+        const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
             const subjects = snapshot.docs.map(doc => doc.data().name as string);
             setTeacherSubjects(['All Subjects', ...subjects]);
         });
@@ -202,7 +202,7 @@ export default function GradesPage() {
                     grades: data.grades,
                     overall,
                 };
-            });
+            }).sort((a, b) => b.overall - a.overall);
             
             setCurrentStudents(studentsData);
             setIsGradebookLoading(false);
@@ -281,14 +281,120 @@ export default function GradesPage() {
               <h1 className="font-headline text-3xl font-bold">Gradebook</h1>
               <p className="text-muted-foreground">View, manage, and export student grades for your classes.</p>
             </div>
-            <TabsList className="grid w-full grid-cols-3 mt-4 md:mt-0 md:w-auto">
+            <TabsList className="grid w-full grid-cols-4 mt-4 md:mt-0 md:w-auto">
+                <TabsTrigger value="ranking">Ranking</TabsTrigger>
                 <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
                 <TabsTrigger value="entry">Enter Grades</TabsTrigger>
                 <TabsTrigger value="reports">Reports</TabsTrigger>
             </TabsList>
         </div>
 
-        <TabsContent value="gradebook" className="mt-0">
+        <TabsContent value="ranking">
+             <Card>
+              <CardHeader>
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div>
+                          <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
+                          <CardDescription>Student ranking based on performance.</CardDescription>
+                      </div>
+                      <div className="flex w-full flex-col md:flex-row md:items-center gap-2">
+                           <Select value={selectedClass} onValueChange={setSelectedClass}>
+                              <SelectTrigger className="w-full md:w-[240px]">
+                                  <SelectValue placeholder="Select a class" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  {teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                              </SelectContent>
+                          </Select>
+                          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                              <SelectTrigger className="w-full md:w-[240px]">
+                                  <SelectValue placeholder="Select a subject" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  {teacherSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              </SelectContent>
+                          </Select>
+                          <Button variant="outline" onClick={() => handleExport('PDF')}>
+                              <Printer className="mr-2 h-4 w-4"/>
+                              Print Ranking
+                          </Button>
+                      </div>
+                  </div>
+              </CardHeader>
+              <CardContent>
+                {isGradebookLoading ? (
+                  <div className="flex justify-center items-center py-16">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Loading ranking data...</span>
+                  </div>
+                ) : (
+                  <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
+                    {currentStudents.length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {filteredStudents.map((student, index) => (
+                                <DialogTrigger key={student.studentId} asChild>
+                                    <Card className="flex items-center p-4 gap-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedStudentForDetails(student)}>
+                                        <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
+                                        <Avatar className="h-12 w-12">
+                                            <AvatarImage src={student.studentAvatar} />
+                                            <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                            <p className="font-semibold">{student.studentName}</p>
+                                            <p className="text-sm text-muted-foreground">Overall: <span className="font-bold text-foreground">{student.overall}%</span></p>
+                                        </div>
+                                    </Card>
+                                </DialogTrigger>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-16">
+                            <p>No ranking data available for this class and subject yet.</p>
+                            <p className="text-sm mt-2">Make sure students have grades assigned.</p>
+                        </div>
+                    )}
+                    <DialogContent className="sm:max-w-md">
+                        {selectedStudentForDetails && (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
+                                    <DialogDescription>
+                                      Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span>
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4">
+                                    <h4 className="mb-4 font-semibold">Scores by Subject</h4>
+                                    <div className="w-full overflow-auto rounded-lg border">
+                                      <Table>
+                                          <TableHeader>
+                                              <TableRow>
+                                                  <TableHead>Subject</TableHead>
+                                                  <TableHead className="text-right">Score</TableHead>
+                                              </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                              {selectedStudentForDetails.grades?.map((gradeInfo, index) => {
+                                                const assessment = currentAssessments.find(a => a.id === gradeInfo.assessmentId);
+                                                return (
+                                                  <TableRow key={index}>
+                                                      <TableCell className="font-medium">{assessment?.subject || 'Unknown'}</TableCell>
+                                                      <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
+                                                  </TableRow>
+                                                )
+                                              })}
+                                          </TableBody>
+                                      </Table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="gradebook">
           <Card>
             <CardHeader>
                <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
@@ -344,11 +450,6 @@ export default function GradesPage() {
                         <DropdownMenuItem onClick={() => handleExport('CSV')}>
                           <FileDown className="mr-2" />
                           Download as CSV
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => window.print()}>
-                          <Printer className="mr-2" />
-                          Print Gradebook
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -406,43 +507,6 @@ export default function GradesPage() {
                                 </TableBody>
                             </Table>
                         </div>
-
-                        {/* Mobile Cards */}
-                        <div className="grid gap-4 md:hidden">
-                            {filteredStudents.map(student => (
-                                <Card key={student.studentId} className="w-full">
-                                    <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <Avatar>
-                                                <AvatarImage src={student.studentAvatar} alt={student.studentName} />
-                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                                <div>
-                                                    <span className="font-medium">{student.studentName}</span>
-                                                    <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
-                                                </div>
-                                            </div>
-                                            <Badge>{student.overall}%</Badge>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4 pt-2">
-                                         {currentAssessments.map(assessment => (
-                                             <div key={assessment.id} className="flex justify-between items-center text-sm">
-                                                <span className="font-medium text-muted-foreground">{assessment.title}:</span>
-                                                <Badge variant="outline">{getGradeForStudent(student, assessment.id)}</Badge>
-                                             </div>
-                                         ))}
-                                    </CardContent>
-                                     <CardFooter>
-                                        <Button variant="outline" size="sm" className="w-full" onClick={() => setEditingStudent(student)}>
-                                            <Edit className="mr-2 h-4 w-4"/>
-                                            Edit Grades
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            ))}
-                        </div>
                     </>
                 ) : (
                     <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
@@ -455,11 +519,6 @@ export default function GradesPage() {
                     </div>
                 )}
             </CardContent>
-             <CardFooter>
-                <p className="text-xs text-muted-foreground">
-                    This is a summary of student performance. For detailed reports, visit the student's profile.
-                </p>
-             </CardFooter>
           </Card>
         </TabsContent>
         <TabsContent value="entry">
@@ -495,5 +554,3 @@ export default function GradesPage() {
     </div>
   );
 }
-
-
