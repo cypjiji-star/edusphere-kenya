@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -130,7 +131,10 @@ export default function GradesPage() {
             }
         });
 
-        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
+        // This query is incorrect for fetching subjects for a specific teacher.
+        // A better approach would be to have a 'teachers' array on the subject document.
+        // For now, let's fetch all subjects for simplicity.
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
          const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
             const subjects = snapshot.docs.map(doc => doc.data().name as string);
             setTeacherSubjects(['All Subjects', ...subjects]);
@@ -155,7 +159,7 @@ export default function GradesPage() {
         if (selectedSubject === 'All Subjects') {
             assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
         } else {
-            assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass), where('title', '==', selectedSubject));
+            assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass), where('subject', '==', selectedSubject));
         }
 
         const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
@@ -486,3 +490,4 @@ export default function GradesPage() {
     </div>
   );
 }
+

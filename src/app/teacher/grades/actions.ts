@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -59,3 +60,4 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
       return { success: false, message: `An unexpected error occurred: ${error.message}` };
   }
 }
+

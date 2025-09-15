@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -265,3 +266,4 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
     </div>
   );
 }
+

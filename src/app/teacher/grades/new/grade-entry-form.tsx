@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -93,7 +94,7 @@ export function GradeEntryForm() {
     });
     
     // Correctly fetch subjects from the subjects collection
-    const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
+    const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
     const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
         const subjects = snapshot.docs.map(doc => doc.data().name as string);
         setTeacherSubjects(subjects);
