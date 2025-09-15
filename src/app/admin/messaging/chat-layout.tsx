@@ -101,8 +101,6 @@ export function AdminChatLayout() {
   const { toast } = useToast();
   
   const [allUsers, setAllUsers] = React.useState<{id: string, name: string, role: string, class?: string}[]>([]);
-  const [isNewConvoOpen, setIsNewConvoOpen] = React.useState(false);
-  const [newConvoUser, setNewConvoUser] = React.useState<string | undefined>();
 
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [roleFilter, setRoleFilter] = React.useState('all');
@@ -228,47 +226,6 @@ export function AdminChatLayout() {
       setIsSending(false);
     }
   };
-
-  const handleCreateConversation = async () => {
-    if (!schoolId || !user || !newConvoUser) return;
-
-    const targetUser = allUsers.find(u => u.id === newConvoUser);
-    if (!targetUser) return;
-    
-    // Check if a conversation already exists
-    const existingConvoQuery = query(
-      collection(firestore, `schools/${schoolId}/conversations`),
-      where('participants', '==', [user.uid, newConvoUser].sort())
-    );
-    const existingConvoSnap = await getDocs(existingConvoQuery);
-
-    if (!existingConvoSnap.empty) {
-      setSelectedConvo(existingConvoSnap.docs[0].data() as Conversation);
-      setIsNewConvoOpen(false);
-      toast({ title: 'Conversation already exists.' });
-      return;
-    }
-
-    try {
-        const newConvoRef = doc(collection(firestore, `schools/${schoolId}/conversations`));
-        const newConvoData = {
-          id: newConvoRef.id,
-          name: targetUser.name,
-          avatar: `https://picsum.photos/seed/${targetUser.id}/100`,
-          lastMessage: `Conversation started by ${user.displayName || 'Admin'}.`,
-          timestamp: serverTimestamp(),
-          unread: false,
-          participants: [user.uid, newConvoUser].sort(),
-          userRole: targetUser.role
-        };
-        await setDoc(newConvoRef, newConvoData);
-        setSelectedConvo(newConvoData as Conversation);
-        setIsNewConvoOpen(false);
-    } catch(e) {
-      console.error(e);
-      toast({ variant: 'destructive', title: 'Failed to create conversation.'})
-    }
-  }
   
   const filteredConversations = conversations.filter(convo => 
     (convo.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -343,6 +300,7 @@ export function AdminChatLayout() {
                       {!isUserSender && (<Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback><User/></AvatarFallback></Avatar>)}
                       <div className="group relative max-w-xs lg:max-w-md">
                         <div className={cn("rounded-2xl p-3 text-sm shadow-sm", isUserSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none')}>
+                          <p className="font-semibold text-xs mb-1">{msg.senderName}</p>
                           <p className="whitespace-pre-wrap">{msg.text}</p>
                           <div className={cn("text-xs mt-2 flex items-center gap-2", isUserSender ? 'text-primary-foreground/70' : 'text-slate-400')}>
                             <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -371,5 +329,3 @@ export function AdminChatLayout() {
     </div>
   );
 }
-
-    

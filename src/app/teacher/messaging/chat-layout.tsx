@@ -45,6 +45,7 @@ type Message = {
   role: 'user' | 'model';
   content: string;
   timestamp?: Timestamp | null;
+  senderName?: string;
 };
 
 export function TeacherChatLayout() {
@@ -74,7 +75,7 @@ export function TeacherChatLayout() {
       lastMessage: 'Conversation with AI started.',
       timestamp: serverTimestamp(),
       participants: [user.uid, ADMIN_SUPPORT_ID].sort(),
-      userRole: 'Teacher'
+      userRole: 'Teacher',
     };
     await setDoc(newConvoRef, newConversation);
     setConversationId(newConvoRef.id);
@@ -115,6 +116,7 @@ export function TeacherChatLayout() {
         role: 'user',
         content: userInput,
         timestamp: Timestamp.now(),
+        senderName: user.displayName || 'Teacher',
     };
     setMessages(prev => [...prev, userMessage]);
     
@@ -126,6 +128,7 @@ export function TeacherChatLayout() {
             role: 'model',
             content: result.response || 'Sorry, I am unable to respond right now.',
             timestamp: Timestamp.now(),
+            senderName: 'AI Assistant',
         };
         setMessages(prev => [...prev, aiResponse]);
     } else {
@@ -135,11 +138,17 @@ export function TeacherChatLayout() {
         }
         if (currentConvoId) {
             const messagesRef = collection(firestore, `schools/${schoolId}/conversations`, currentConvoId, 'messages');
-            await addDoc(messagesRef, { sender: user.uid, text: userInput, timestamp: serverTimestamp() });
+            await addDoc(messagesRef, { 
+                sender: user.uid, 
+                text: userInput, 
+                timestamp: serverTimestamp(),
+                senderName: user.displayName || 'Teacher'
+            });
             await updateDoc(doc(firestore, `schools/${schoolId}/conversations`, currentConvoId), {
                 lastMessage: userInput,
                 timestamp: serverTimestamp(),
                 unread: true,
+                lastMessageSender: user.uid,
             });
         }
     }
