@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -96,12 +97,11 @@ export default function ParentAttendancePage() {
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
+  const parentId = 'parent-user-id'; // This would be the actual logged-in parent's ID.
 
   React.useEffect(() => {
     if (!schoolId) return;
 
-    // This query is now correctly scoped to the parent.
-    const parentId = 'parent-user-id'; // This would be the actual logged-in parent's ID.
     const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
@@ -115,7 +115,7 @@ export default function ParentAttendancePage() {
       to: new Date(),
     });
     return () => unsubscribe();
-  }, [schoolId, selectedChild]);
+  }, [schoolId, selectedChild, parentId]);
 
   React.useEffect(() => {
     if (!selectedChild || !schoolId) return;

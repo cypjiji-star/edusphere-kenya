@@ -102,7 +102,7 @@ const getStatusBadge = (status: UserStatus) => {
 export default function UserManagementPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const [users, setUsers] = React.useState<User[]>([]);
+    const [allUsers, setAllUsers] = React.useState<User[]>([]);
     const [roles, setRoles] = React.useState<string[]>([]);
     const [classes, setClasses] = React.useState<string[]>(['All Classes']);
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -119,20 +119,29 @@ export default function UserManagementPage() {
     React.useEffect(() => {
         if (!schoolId) return;
         setClientReady(true);
-        const unsubUsers = onSnapshot(collection(firestore, 'schools', schoolId, 'users'), (snapshot) => {
-            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-            setUsers(usersData);
-        });
+        
+        const collectionsToWatch = ['users', 'students', 'teachers', 'parents'];
+        const unsubscribers = collectionsToWatch.map(coll => 
+            onSnapshot(collection(firestore, 'schools', schoolId, coll), (snapshot) => {
+                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+                setAllUsers(prev => {
+                    const otherUsers = prev.filter(u => u.role?.toLowerCase() !== coll.slice(0, -1));
+                    return [...otherUsers, ...usersData];
+                });
+            })
+        );
+        
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
             setRoles(snapshot.docs.map(doc => doc.id));
         });
+
         const unsubClasses = onSnapshot(collection(firestore, 'schools', schoolId, 'classes'), (snapshot) => {
             const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
             setClasses(['All Classes', ...new Set(classNames)]);
         });
 
         return () => {
-            unsubUsers();
+            unsubscribers.forEach(unsub => unsub());
             unsubRoles();
             unsubClasses();
         };
@@ -185,9 +194,11 @@ export default function UserManagementPage() {
             // Create user in Firebase Auth using the secondary instance
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, values.email, values.password);
             const user = userCredential.user;
+            
+            const collectionName = `${values.role.toLowerCase()}s`;
 
             // Create user document in Firestore
-            await setDoc(doc(firestore, 'schools', schoolId, 'users', user.uid), {
+            await setDoc(doc(firestore, 'schools', schoolId, collectionName, user.uid), {
                 id: user.uid,
                 schoolId: schoolId,
                 name: values.name,
@@ -251,11 +262,11 @@ export default function UserManagementPage() {
     };
 
     const renderUserTable = (roleFilter: UserRole | 'All') => {
-        const filteredUsers = users.filter(user => {
+        const filteredUsers = allUsers.filter(user => {
             const searchLower = searchTerm.toLowerCase();
-            const matchesSearch = user.name.toLowerCase().includes(searchLower) ||
-                                  user.email.toLowerCase().includes(searchLower) ||
-                                  user.id.toLowerCase().includes(searchLower);
+            const matchesSearch = user.name?.toLowerCase().includes(searchLower) ||
+                                  user.email?.toLowerCase().includes(searchLower) ||
+                                  user.id?.toLowerCase().includes(searchLower);
 
             const matchesRole = roleFilter === 'All' || user.role === roleFilter;
             const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
@@ -287,7 +298,7 @@ export default function UserManagementPage() {
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-9 w-9">
                                                     <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                                    <AvatarFallback>{user.name.slice(0,2)}</AvatarFallback>
+                                                    <AvatarFallback>{user.name?.slice(0,2)}</AvatarFallback>
                                                 </Avatar>
                                                 <span className="font-medium">{user.name}</span>
                                             </div>
@@ -471,7 +482,7 @@ export default function UserManagementPage() {
                 </div>
                  <CardFooter className="px-0 pt-6">
                     <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredUsers.length}</strong> of <strong>{users.filter(u => roleFilter === 'All' || u.role === roleFilter).length}</strong> users.
+                        Showing <strong>{filteredUsers.length}</strong> of <strong>{allUsers.filter(u => roleFilter === 'All' || u.role === roleFilter).length}</strong> users.
                     </div>
                 </CardFooter>
             </>

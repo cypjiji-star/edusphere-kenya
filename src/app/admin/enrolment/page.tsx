@@ -280,7 +280,22 @@ export default function StudentEnrolmentPage() {
             const studentName = `${values.studentFirstName} ${values.studentLastName}`;
             const parentName = `${values.parentFirstName} ${values.parentLastName}`;
             
-            // Create student document
+            // Create parent document in `parents` collection
+            const parentDocRef = doc(collection(firestore, 'schools', schoolId, 'parents'));
+            const parentData = {
+                id: parentDocRef.id,
+                schoolId: schoolId,
+                name: parentName,
+                email: values.parentEmail,
+                password: values.parentPassword, 
+                role: 'Parent',
+                status: 'Active',
+                createdAt: serverTimestamp(),
+                avatarUrl: `https://picsum.photos/seed/${values.parentEmail}/100`,
+            };
+             await setDoc(parentDocRef, parentData);
+
+            // Create student document in `students` collection
             const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
             const studentData = {
                 id: studentDocRef.id,
@@ -294,9 +309,8 @@ export default function StudentEnrolmentPage() {
                 classId: values.classId,
                 class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
                 admissionYear: values.admissionYear,
+                parentId: parentDocRef.id,
                 parentName: parentName,
-                parentFirstName: values.parentFirstName,
-                parentLastName: values.parentLastName,
                 parentRelationship: values.parentRelationship,
                 parentEmail: values.parentEmail,
                 parentPhone: values.parentPhone,
@@ -310,25 +324,8 @@ export default function StudentEnrolmentPage() {
                 documents: admissionDocUrls,
                 role: 'Student'
             };
-            
-            // Create parent user document
-            const parentUserDocRef = doc(collection(firestore, 'schools', schoolId, 'users'));
-            const parentUserData = {
-                id: parentUserDocRef.id,
-                schoolId: schoolId,
-                name: parentName,
-                email: values.parentEmail,
-                password: values.parentPassword, 
-                role: 'Parent',
-                status: 'Active',
-                createdAt: serverTimestamp(),
-                avatarUrl: `https://picsum.photos/seed/${values.parentEmail}/100`,
-                children: [studentDocRef.id],
-            };
-
             await setDoc(studentDocRef, studentData);
-            await setDoc(parentUserDocRef, parentUserData);
-            
+
             await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'New Student Enrolment',
                 description: `${studentName} has a new enrolment application pending review.`,
