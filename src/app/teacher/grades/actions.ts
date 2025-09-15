@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -16,18 +17,13 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
   try {
     gradeEntrySchema.parse(data);
 
-    // 1. Get Assessment & Class details
+    // 1. Get Assessment details
     const assessmentRef = doc(firestore, 'schools', schoolId, 'assessments', data.assessmentId);
     const assessmentSnap = await getDoc(assessmentRef);
     if (!assessmentSnap.exists()) {
         throw new Error("Assessment not found!");
     }
     const assessmentData = assessmentSnap.data();
-
-    const classRef = doc(firestore, 'schools', schoolId, 'classes', data.classId);
-    const classSnap = await getDoc(classRef);
-    const className = classSnap.exists() ? `${classSnap.data().name} ${classSnap.data().stream || ''}`.trim() : 'Unknown Class';
-
 
     // 2. Create grade records for each student in the top-level grades collection
     const batch = writeBatch(firestore);
@@ -39,8 +35,7 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
                 studentId: studentGrade.studentId,
                 assessmentId: data.assessmentId,
                 classId: data.classId,
-                className: className,
-                subject: assessmentData.title,
+                subject: data.subject, // Include the subject
                 grade: studentGrade.grade,
                 teacherId,
                 teacherName,

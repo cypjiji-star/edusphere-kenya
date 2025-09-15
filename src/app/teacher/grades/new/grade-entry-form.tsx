@@ -78,6 +78,7 @@ export function GradeEntryForm() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+  const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const [students, setStudents] = React.useState<Student[]>([]);
   const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
@@ -88,19 +89,30 @@ export function GradeEntryForm() {
     return () => unsubscribe();
   }, []);
   
-  // Fetch teacher's classes
+  // Fetch teacher's classes and subjects
   React.useEffect(() => {
     if (!schoolId || !user) return;
     const teacherId = user.uid;
-    const q = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+
+    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+    const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
         const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
         setTeacherClasses(classesData);
         if (!selectedClass && classesData.length > 0) {
             setSelectedClass(classesData[0].id);
         }
     });
-    return () => unsubscribe();
+
+    const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
+         const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
+            const subjects = snapshot.docs.map(doc => doc.data().name as string);
+            setTeacherSubjects(subjects);
+        });
+
+    return () => {
+      unsubClasses();
+      unsubSubjects();
+    };
   }, [schoolId, user]);
 
   const form = useForm<GradeEntryFormValues>({
@@ -195,6 +207,32 @@ export function GradeEntryForm() {
                     <SelectContent>
                       {teacherClasses.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="subject"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subject</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={!selectedClass}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a subject" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {teacherSubjects.map((subject) => (
+                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
