@@ -51,7 +51,7 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
                 assessmentId: data.assessmentId,
                 assessmentTitle: assessmentData.title,
                 grade: studentGrade.grade,
-                date: assessmentData.dueDate, // Use the assessment's due date
+                date: assessmentData.endDate, // Use the assessment's end date
             });
         }
     }
