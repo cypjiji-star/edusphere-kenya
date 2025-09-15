@@ -40,7 +40,13 @@ const distributionChartConfig = {
 export function GradeAnalysisCharts() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const [selectedTerm, setSelectedTerm] = React.useState('Term 2, 2024');
+  const currentYear = new Date().getFullYear();
+  const academicTerms = Array.from({ length: 2 }, (_, i) => {
+      const year = currentYear - i;
+      return [`Term 3, ${year}`, `Term 2, ${year}`, `Term 1, ${year}`]
+  }).flat();
+  
+  const [selectedTerm, setSelectedTerm] = React.useState(academicTerms[1]);
   const [compareTerm, setCompareTerm] = React.useState<string | null>(null);
   const [showCompare, setShowCompare] = React.useState(false);
 
@@ -153,8 +159,9 @@ export function GradeAnalysisCharts() {
                                 <SelectValue placeholder="Select term" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Term 1, 2024">Term 1, 2024</SelectItem>
-                                <SelectItem value="Term 2, 2024">Term 2, 2024</SelectItem>
+                                {academicTerms.map(term => (
+                                    <SelectItem key={term} value={term}>{term}</SelectItem>
+                                ))}
                             </SelectContent>
                          </Select>
                          <Button variant="outline" onClick={() => setShowCompare(!showCompare)}>Compare</Button>
@@ -164,7 +171,9 @@ export function GradeAnalysisCharts() {
                                     <SelectValue placeholder="Compare to..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Term 1, 2024">Term 1, 2024</SelectItem>
+                                    {academicTerms.filter(t => t !== selectedTerm).map(term => (
+                                        <SelectItem key={term} value={term}>{term}</SelectItem>
+                                    ))}
                                 </SelectContent>
                              </Select>
                          )}
