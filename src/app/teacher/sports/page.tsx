@@ -38,6 +38,7 @@ import { collection, addDoc, onSnapshot, query, where, getDocs } from 'firebase/
 import { useSearchParams } from 'next/navigation';
 import { generateTeamIcon } from '@/ai/flows/generate-team-icon-flow';
 import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/context/auth-context';
 
 
 type SportsTeam = {
@@ -64,10 +65,14 @@ export default function SportsPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const user = auth.currentUser;
+  const { user } = useAuth();
 
    React.useEffect(() => {
-    if (!schoolId || !user) return;
+    if (!schoolId || !user?.displayName) {
+        setIsLoading(false);
+        return;
+    };
+
     setIsLoading(true);
     const teacherName = user.displayName;
 
@@ -75,6 +80,9 @@ export default function SportsPage() {
     const unsubTeams = onSnapshot(teamsQuery, (snapshot) => {
         const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SportsTeam));
         setSportsTeams(teamsData);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching teams:", error);
         setIsLoading(false);
     });
 
