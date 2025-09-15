@@ -9,7 +9,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +31,7 @@ import {
   Loader2,
   Printer,
   Trophy,
+  ArrowRight,
 } from 'lucide-react';
 import {
   Table,
@@ -191,7 +191,7 @@ export default function AdminGradesPage() {
         if (!schoolId) return;
 
         setClientReady(true);
-        const examsQuery = query(collection(firestore, `schools/${schoolId}/assesments`), orderBy('startDate', 'desc'));
+        const examsQuery = query(collection(firestore, `schools/${schoolId}/assessments`), orderBy('startDate', 'desc'));
         const unsubExams = onSnapshot(examsQuery, (snapshot) => {
             const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
             setExams(fetchedExams);
@@ -252,7 +252,7 @@ export default function AdminGradesPage() {
         }
         setIsSavingExam(true);
         try {
-            await addDoc(collection(firestore, `schools/${schoolId}/assesments`), {
+            await addDoc(collection(firestore, `schools/${schoolId}/assessments`), {
                 title: newExamTitle,
                 term: newExamTerm,
                 classId: newExamClass,
@@ -319,12 +319,16 @@ export default function AdminGradesPage() {
         setIsFetchingGrades(true);
         try {
             const grades: StudentGrade[] = [];
-            // This logic assumes grades are stored under the submission. Adjust if needed.
-            const gradesQuery = query(collection(firestore, `schools/${schoolId}/submissions/${submission.id}/grades`));
-            const gradesSnapshot = await getDocs(gradesQuery);
+            
+            const q = query(
+                collection(firestore, `schools/${schoolId}/submissions/${submission.id}/grades`)
+            );
+            const gradesSnapshot = await getDocs(q);
 
             for (const gradeDoc of gradesSnapshot.docs) {
                 const gradeData = gradeDoc.data();
+                if (!gradeData.studentRef) continue;
+
                 const studentSnapshot = await getDoc(gradeData.studentRef);
                 if (studentSnapshot.exists()) {
                     const studentData = studentSnapshot.data();
@@ -689,35 +693,29 @@ export default function AdminGradesPage() {
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent>
-                             <div className="w-full overflow-auto rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-[80px]">Rank</TableHead>
-                                            <TableHead>Student</TableHead>
-                                            <TableHead>Overall Grade</TableHead>
-                                            <TableHead>Comment</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {/* Mocked Data - In real app, this would be fetched and sorted */}
-                                        {filteredSubmissions.slice(0, 10).map((sub, index) => (
-                                            <TableRow key={sub.id}>
-                                                <TableCell className="font-bold text-lg text-muted-foreground">{index + 1}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        <Avatar><AvatarImage src={`https://picsum.photos/seed/student${index}/100`} /><AvatarFallback>{sub.teacher.charAt(0)}</AvatarFallback></Avatar>
-                                                        <span className="font-medium">{sub.teacher}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell><Badge className="text-base">{Math.round(88 - index * 2.3)}%</Badge></TableCell>
-                                                <TableCell className="text-muted-foreground">Consistent effort.</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* Mocked Data - In real app, this would be fetched and sorted */}
+                            {filteredSubmissions.slice(0, 10).map((sub, index) => {
+                                const rank = index + 1;
+                                const overall = 88 - index * 2.3;
+                                return (
+                                    <Card key={sub.id}>
+                                        <CardContent className="p-4 flex items-center gap-4">
+                                            <div className="flex flex-col items-center justify-center">
+                                                {rank <= 3 ? <Trophy className={`h-8 w-8 ${rank === 1 ? 'text-yellow-500' : rank === 2 ? 'text-gray-400' : 'text-yellow-700'}`}/> : <div className="text-xl font-bold text-muted-foreground">{rank}</div> }
+                                            </div>
+                                            <Avatar>
+                                                <AvatarImage src={`https://picsum.photos/seed/student${index}/100`} />
+                                                <AvatarFallback>{sub.teacher.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                                <p className="font-semibold text-sm">{sub.teacher}</p>
+                                                <p className="text-xs text-muted-foreground">Overall: <span className="font-bold text-primary">{Math.round(overall)}%</span></p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )
+                            })}
                         </CardContent>
                     </Card>
                 </TabsContent>

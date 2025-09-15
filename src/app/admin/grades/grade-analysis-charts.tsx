@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -19,7 +20,7 @@ import { TrendingDown, TrendingUp, ArrowRight, BookCopy, Loader2, FileText, BarC
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, getDocs, doc, getDoc, collectionGroup } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import type { Exam } from './page';
 
@@ -53,11 +54,10 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
 
     const fetchDataForExam = async () => {
         setIsLoading(true);
-        // Fetch all submissions for the selected exam
-        const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), where('examId', '==', exam.id));
+        const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('examId', '==', exam.id));
         const submissionsSnapshot = await getDocs(submissionsQuery);
         const submissions = submissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
+
         if (submissions.length === 0) {
             setDistributionData([]);
             setSubjectPerformanceData([]);
@@ -66,19 +66,32 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
             return;
         }
 
-        // Process data
-        // Grade Distribution
         const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
-        const studentGrades = [];
+        const studentGrades: { score: number, class: string, subject: string }[] = [];
+        const subjectScores: Record<string, { total: number, count: number }> = {};
+        const classScores: Record<string, { total: number, count: number }> = {};
+        
         for (const submission of submissions) {
             const gradesSnapshot = await getDocs(query(collection(doc(firestore, `schools/${schoolId}/submissions`, submission.id), 'grades')));
+            
             gradesSnapshot.forEach(gradeDoc => {
                 const gradeData = gradeDoc.data();
                 const score = parseInt(gradeData.grade, 10);
                 if (isNaN(score)) return;
 
-                studentGrades.push({ score, class: submission.class, subject: submission.subject });
+                const subjectName = submission.subject || 'Unknown';
+                const className = submission.class || 'Unknown Class';
 
+                studentGrades.push({ score, class: className, subject: subjectName });
+
+                if (!subjectScores[subjectName]) subjectScores[subjectName] = { total: 0, count: 0 };
+                subjectScores[subjectName].total += score;
+                subjectScores[subjectName].count++;
+                
+                if (!classScores[className]) classScores[className] = { total: 0, count: 0 };
+                classScores[className].total += score;
+                classScores[className].count++;
+                
                 if (score >= 80) gradeCounts['A']++;
                 else if (score >= 75) gradeCounts['A-']++;
                 else if (score >= 70) gradeCounts['B+']++;
@@ -90,40 +103,12 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
             });
         }
         
-        // Subject Performance
-        const subjectScores: Record<string, { total: number, count: number }> = {};
-        for (const submission of submissions) {
-          const assessmentDoc = await getDoc(doc(firestore, `schools/${schoolId}/assessments`, submission.examId));
-          if (!assessmentDoc.exists()) continue;
-
-          const assessmentData = assessmentDoc.data();
-          const subjectName = assessmentData.title.split(' ')[0] || 'Unknown'; // Simplified subject extraction
-
-          if (!subjectScores[subjectName]) {
-            subjectScores[subjectName] = { total: 0, count: 0 };
-          }
-          const score = parseInt(submission.grade, 10);
-          if (!isNaN(score)) {
-            subjectScores[subjectName].total += score;
-            subjectScores[subjectName].count++;
-          }
-        }
-
         const performance = Object.entries(subjectScores).map(([subject, data]) => ({
             subject: subject,
             avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
             trend: 'stable',
         }));
         
-        // Class Performance
-        const classScores: Record<string, { total: number, count: number }> = {};
-        studentGrades.forEach(grade => {
-            if (!classScores[grade.class]) {
-                classScores[grade.class] = { total: 0, count: 0 };
-            }
-            classScores[grade.class].total += grade.score;
-            classScores[grade.class].count++;
-        });
         const classAvgs = Object.entries(classScores).map(([className, data]) => ({
             name: className,
             avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
@@ -249,7 +234,7 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
                 <Card asChild className="hover:bg-muted/50 transition-colors">
                     <Link href={`/admin/grades?schoolId=${schoolId}`}>
                         <CardHeader>
-                            <CardTitle>Top Performing Class</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-yellow-500" />Top Performing Class</CardTitle>
                             <CardDescription>{classPerformance.top} (Avg. {classPerformance.topAvg}%)</CardDescription>
                         </CardHeader>
                     </Link>
@@ -257,7 +242,7 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
                  <Card asChild className="hover:bg-muted/50 transition-colors">
                     <Link href={`/admin/grades?schoolId=${schoolId}`}>
                         <CardHeader>
-                            <CardTitle>Lowest Performing Class</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><TrendingDown className="h-5 w-5 text-red-500" />Lowest Performing Class</CardTitle>
                             <CardDescription>{classPerformance.lowest} (Avg. {classPerformance.lowestAvg}%)</CardDescription>
                         </CardHeader>
                     </Link>
