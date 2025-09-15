@@ -186,6 +186,22 @@ export default function AttendancePage() {
     const attendanceDate = Timestamp.fromDate(today);
   
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
+    
+    console.log("Attendance batch:", {
+      studentId: students[0]?.id,
+      sampleDoc: {
+        studentId: students[0]?.id,
+        studentName: students[0]?.name,
+        class: teacherClasses.find((c) => c.id === selectedClass)?.name || 'Unknown',
+        classId: selectedClass,
+        schoolId: schoolId,
+        date: Timestamp.fromDate(new Date()),
+        status: students[0]?.status,
+        notes: students[0]?.notes || '',
+        teacher: user?.displayName || 'Unknown Teacher',
+        teacherId: user?.uid,
+      }
+    });
   
     for (const student of students) {
       if (student.status === 'unmarked') continue;
@@ -611,4 +627,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
 
