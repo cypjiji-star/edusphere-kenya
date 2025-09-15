@@ -101,10 +101,11 @@ const enrolmentSchema = z.object({
   parentRelationship: z.string({ required_error: 'Relationship is required.' }),
   parentEmail: z.string().email('Invalid email address.'),
   parentPassword: z.string().min(8, 'Password must be at least 8 characters.'),
+  parentPhone: z.string().optional(),
   allergies: z.string().optional(),
   medicalConditions: z.string().optional(),
   emergencyContactName: z.string().optional(),
-  parentPhone: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
   generateInvoice: z.boolean().default(true),
 });
 
@@ -158,10 +159,11 @@ export default function StudentEnrolmentPage() {
             parentRelationship: '',
             parentEmail: '',
             parentPassword: '',
+            parentPhone: '',
             allergies: '',
             medicalConditions: '',
             emergencyContactName: '',
-            parentPhone: '',
+            emergencyContactPhone: '',
             generateInvoice: true,
         },
     });
@@ -301,7 +303,7 @@ export default function StudentEnrolmentPage() {
                 allergies: values.allergies,
                 medicalConditions: values.medicalConditions,
                 emergencyContactName: values.emergencyContactName,
-                emergencyContactPhone: values.parentPhone,
+                emergencyContactPhone: values.emergencyContactPhone,
                 status: 'Pending',
                 createdAt: serverTimestamp(),
                 avatarUrl: photoUrl,
@@ -536,7 +538,7 @@ export default function StudentEnrolmentPage() {
                             <h4 className="font-medium text-sm">Emergency Contact</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="emergencyContactName" render={({ field }) => ( <FormItem><FormLabel>Contact Name</FormLabel><FormControl><Input placeholder="e.g., Jane Doe" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                <FormField control={form.control} name="parentPhone" render={({ field }) => ( <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="emergencyContactPhone" render={({ field }) => ( <FormItem><FormLabel>Contact Phone</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             </div>
                         </CardContent>
                     </Card>
