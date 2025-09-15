@@ -50,8 +50,6 @@ import type { Resource, ResourceType, ResourceStatus } from '@/app/teacher/libra
 import { MultiSelect } from '@/components/ui/multi-select';
 
 const resourceTypes: ResourceType[] = ['Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
-const subjects = ['All Subjects', 'Chemistry', 'Mathematics', 'History', 'Physics', 'English'];
-const grades = ['All Grades', 'Form 1', 'Form 2', 'Form 3', 'Form 4'];
 const statuses: ResourceStatus[] = ['Available', 'Out', 'Digital'];
 
 const typeIcons: Record<Resource['type'], React.ElementType> = {
@@ -142,7 +140,9 @@ export default function AdminLibraryPage() {
     const [newType, setNewType] = React.useState<ResourceType | undefined>();
     const [newSubject, setNewSubject] = React.useState<string | undefined>();
     const [newGrades, setNewGrades] = React.useState<string[]>([]);
-    const [newDesc, setNewDesc] = React.useState('');
+
+    const [dbSubjects, setDbSubjects] = React.useState<string[]>([]);
+    const [dbGrades, setDbGrades] = React.useState<string[]>([]);
 
     React.useEffect(() => {
         if (!schoolId) {
@@ -160,7 +160,24 @@ export default function AdminLibraryPage() {
             setIsLoading(false);
         });
 
-        return () => unsubscribe();
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
+        const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
+            const subjectNames = snapshot.docs.map(doc => doc.data().name);
+            setDbSubjects(subjectNames);
+        });
+
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
+        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+            const gradeNames = snapshot.docs.map(doc => doc.data().name);
+            setDbGrades([...new Set(gradeNames)]); // Use Set to get unique grade names like 'Form 1', 'Form 2'
+        });
+
+
+        return () => {
+            unsubscribe();
+            unsubSubjects();
+            unsubClasses();
+        };
     }, [schoolId]);
 
     const filteredResources = resources.filter(res => 
@@ -272,7 +289,7 @@ export default function AdminLibraryPage() {
                 </div>
                 <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
                     <Select value={filteredType} onValueChange={setFilteredType}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{['All Types', ...resourceTypes].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-                    <Select value={filteredSubject} onValueChange={setFilteredSubject}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                    <Select value={filteredSubject} onValueChange={setFilteredSubject}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{['All Subjects', ...dbSubjects].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
                     <Select value={filteredStatus} onValueChange={setFilteredStatus}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="All Statuses">All Statuses</SelectItem>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
                 </div>
                  <div className="flex w-full md:w-auto items-center gap-2">
@@ -282,8 +299,8 @@ export default function AdminLibraryPage() {
                             <DialogHeader><DialogTitle>Add New Library Resource</DialogTitle><DialogDescription>Fill in the details for the new resource.</DialogDescription></DialogHeader>
                             <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
                                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-title">Title</Label><Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div><div className="space-y-2"><Label htmlFor="new-author">Author / Publisher</Label><Input id="new-author" value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} /></div></div>
-                                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-type">Type</Label><Select value={newType} onValueChange={(v: ResourceType) => setNewType(v)}><SelectTrigger id="new-type"><SelectValue placeholder="Select type..." /></SelectTrigger><SelectContent>{resourceTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label htmlFor="new-subject">Subject</Label><Select value={newSubject} onValueChange={setNewSubject}><SelectTrigger id="new-subject"><SelectValue placeholder="Select subject..." /></SelectTrigger><SelectContent>{subjects.slice(1).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div></div>
-                                <div className="space-y-2"><Label>Applicable Grades/Forms</Label><MultiSelect options={grades.slice(1).map(g => ({value: g, label: g}))} selected={newGrades} onChange={setNewGrades} placeholder="Select grades..." /></div>
+                                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-type">Type</Label><Select value={newType} onValueChange={(v: ResourceType) => setNewType(v)}><SelectTrigger id="new-type"><SelectValue placeholder="Select type..." /></SelectTrigger><SelectContent>{resourceTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label htmlFor="new-subject">Subject</Label><Select value={newSubject} onValueChange={setNewSubject}><SelectTrigger id="new-subject"><SelectValue placeholder="Select subject..." /></SelectTrigger><SelectContent>{dbSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div></div>
+                                <div className="space-y-2"><Label>Applicable Grades/Forms</Label><MultiSelect options={dbGrades.map(g => ({value: g, label: g}))} selected={newGrades} onChange={setNewGrades} placeholder="Select grades..." /></div>
                                 <div className="space-y-2"><Label htmlFor="new-desc">Description</Label><Textarea id="new-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} /></div>
                             </div>
                             <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Add Resource</Button></DialogFooter>
@@ -328,3 +345,5 @@ export default function AdminLibraryPage() {
     </div>
   );
 }
+
+    
