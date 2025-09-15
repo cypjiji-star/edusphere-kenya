@@ -34,10 +34,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { firestore, auth } from '@/lib/firebase';
+import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 const subjects = ['All Subjects', 'Chemistry', 'Mathematics', 'History', 'Physics', 'English'];
@@ -55,6 +56,57 @@ const statusConfig: Record<Resource['status'], { label: string; className: strin
     Digital: { label: 'Digital', className: 'bg-blue-100 text-blue-800 border-blue-200' },
 }
 
+function BorrowDialog({ resource, open, onOpenChange, onBorrow }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, onBorrow: (quantity: number) => void }) {
+    const [quantity, setQuantity] = React.useState(1);
+
+    React.useEffect(() => {
+        setQuantity(1); // Reset quantity when dialog opens for a new resource
+    }, [open]);
+
+    if (!resource) return null;
+
+    const handleBorrow = () => {
+        if (quantity > resource.availableCopies) {
+            alert("Cannot borrow more copies than available.");
+            return;
+        }
+        onBorrow(quantity);
+    }
+    
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Borrow: {resource.title}</DialogTitle>
+                    <DialogDescription>
+                        Specify the number of copies you want to borrow.
+                        <span className="font-semibold text-foreground block mt-2">
+                           {resource.availableCopies} copies available.
+                        </span>
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="quantity">Number of Copies</Label>
+                    <Input
+                        id="quantity"
+                        type="number"
+                        min={1}
+                        max={resource.availableCopies}
+                        value={quantity}
+                        onChange={(e) => setQuantity(Number(e.target.value))}
+                    />
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button onClick={handleBorrow} disabled={quantity <= 0 || quantity > resource.availableCopies}>
+                        Confirm Borrow
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function LibraryPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -64,9 +116,11 @@ export default function LibraryPage() {
   const [filteredType, setFilteredType] = React.useState('All Types');
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [selectedResource, setSelectedResource] = React.useState<Resource | null>(null);
+  const [borrowingResource, setBorrowingResource] = React.useState<Resource | null>(null);
   const [clientReady, setClientReady] = React.useState(false);
   const { toast } = useToast();
-  const teacherId = 'teacher-wanjiku'; // Placeholder
+  const user = auth.currentUser;
+  const teacherId = user?.uid;
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -88,48 +142,49 @@ export default function LibraryPage() {
     (filteredSubject === 'All Subjects' || res.subject === filteredSubject)
   );
   
-  const handleActionClick = async (e: React.MouseEvent, action: 'borrow' | 'reserve', resource: Resource) => {
-    e.stopPropagation();
-    if (!schoolId) return;
+  const handleBorrow = async (quantity: number) => {
+    if (!schoolId || !teacherId || !borrowingResource) return;
     
-    const resourceRef = doc(firestore, `schools/${schoolId}/library-resources`, resource.id);
+    const resourceRef = doc(firestore, `schools/${schoolId}/library-resources`, borrowingResource.id);
     
-    if (action === 'borrow') {
-        try {
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + 14); // 2 week loan period
-            await updateDoc(resourceRef, { status: 'Out', dueDate: dueDate.toISOString() });
+    try {
+        const newAvailableCopies = borrowingResource.availableCopies - quantity;
+        const newStatus = newAvailableCopies > 0 ? 'Available' : 'Out';
 
-            // Add to user's borrowed items
-            await addDoc(collection(firestore, `schools/${schoolId}/users`, teacherId, 'borrowed-items'), {
-                resourceId: resource.id,
-                title: resource.title,
-                borrowedDate: serverTimestamp(),
-                dueDate: dueDate.toISOString(),
-            });
-
-            toast({
-                title: 'Item Borrowed',
-                description: `"${resource.title}" has been checked out in your name.`,
-            });
-        } catch (error) {
-            console.error("Error borrowing item:", error);
-            toast({ variant: 'destructive', title: 'Action Failed' });
-        }
-    } else { // reserve
-         toast({
-            title: 'Item Reserved (Simulation)',
-            description: `${resource.title} has been reserved. You'll be notified when it's available.`,
+        await updateDoc(resourceRef, { 
+            availableCopies: newAvailableCopies,
+            status: newStatus 
         });
+
+        // Add to user's borrowed items
+        const borrowedItemRef = doc(firestore, `schools/${schoolId}/users`, teacherId, 'borrowed-items', borrowingResource.id);
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 14); // 2 week loan period
+
+        await setDoc(borrowedItemRef, {
+            title: borrowingResource.title,
+            borrowedDate: serverTimestamp(),
+            dueDate: Timestamp.fromDate(dueDate),
+            quantity: quantity,
+        }, { merge: true }); // Use set with merge to handle re-borrowing
+
+        toast({
+            title: 'Item Borrowed',
+            description: `You have checked out ${quantity} copies of "${borrowingResource.title}".`,
+        });
+        setBorrowingResource(null);
+    } catch (error) {
+        console.error("Error borrowing item:", error);
+        toast({ variant: 'destructive', title: 'Action Failed' });
     }
   }
 
   const renderActionButton = (resource: Resource) => {
     switch (resource.status) {
         case 'Available':
-            return <Button variant="outline" size="sm" onClick={(e) => handleActionClick(e, 'borrow', resource)}><Bookmark className="mr-2 h-4 w-4" />Borrow</Button>;
+            return <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setBorrowingResource(resource); }}><Bookmark className="mr-2 h-4 w-4" />Borrow</Button>;
         case 'Out':
-            return <Button variant="outline" size="sm" onClick={(e) => handleActionClick(e, 'reserve', resource)}><Clock className="mr-2 h-4 w-4" />Reserve</Button>;
+             return <Button variant="outline" size="sm" disabled><Clock className="mr-2 h-4 w-4" />All Out</Button>;
         case 'Digital':
              return <Button variant="outline" size="sm" onClick={() => setSelectedResource(resource)}><Eye className="mr-2 h-4 w-4" />View</Button>;
     }
@@ -190,6 +245,16 @@ export default function LibraryPage() {
             setSelectedResource(null);
           }
         }}
+      />
+      <BorrowDialog
+        resource={borrowingResource}
+        open={!!borrowingResource}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setBorrowingResource(null);
+          }
+        }}
+        onBorrow={handleBorrow}
       />
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-6">
         <div className="text-left">
@@ -307,7 +372,7 @@ export default function LibraryPage() {
                                     <td className="p-4 align-middle text-muted-foreground hidden md:table-cell">{res.subject}</td>
                                     <td className="p-4 align-middle">
                                         <Badge className={cn('whitespace-nowrap', statusConfig[res.status].className)}>
-                                            {statusConfig[res.status].label}
+                                            {res.status === 'Available' ? `${res.availableCopies}/${res.totalCopies} Available` : statusConfig[res.status].label}
                                         </Badge>
                                         {res.status === 'Out' && clientReady && (
                                             <p className="text-xs text-muted-foreground mt-1">Due: {res.dueDate ? new Date(res.dueDate).toLocaleDateString('en-US', { timeZone: 'UTC' }) : 'N/A'}</p>
@@ -336,7 +401,7 @@ export default function LibraryPage() {
                                         <CardTitle className="text-base font-semibold leading-tight">{res.title}</CardTitle>
                                     </div>
                                     <Badge className={cn('whitespace-nowrap', statusConfig[res.status].className)}>
-                                        {statusConfig[res.status].label}
+                                        {res.status === 'Available' ? `${res.availableCopies}/${res.totalCopies} Avail.` : statusConfig[res.status].label}
                                     </Badge>
                                 </div>
                             </CardHeader>

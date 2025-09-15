@@ -30,6 +30,7 @@ type BorrowedItem = {
     title: string;
     borrowedDate: Timestamp;
     dueDate: Timestamp;
+    quantity: number;
 };
 
 type HistoryItem = {
@@ -197,7 +198,7 @@ export default function MyLibraryPage() {
                                     <Card key={item.id}>
                                         <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                             <div>
-                                                <p className="font-semibold">{item.title}</p>
+                                                <p className="font-semibold">{item.title} <Badge variant="secondary">{item.quantity} copies</Badge></p>
                                                 {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {item.borrowedDate.toDate().toLocaleDateString()} | Due: {item.dueDate.toDate().toLocaleDateString()}</p>}
                                             </div>
                                             <Button variant="outline" size="sm" onClick={() => handleRenew(item)}>
