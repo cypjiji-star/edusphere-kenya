@@ -18,6 +18,10 @@ import {
   Printer,
   CalendarIcon,
   Settings,
+  BarChart2,
+  Trophy as TrophyIcon,
+  TrendingDown,
+  ArrowLeft
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -31,6 +35,14 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -60,6 +72,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GradeAnalysisCharts } from './grade-analysis-charts';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+
 
 type GradeStatus = 'Graded' | 'Pending';
 
@@ -81,7 +96,8 @@ type StudentGrade = {
   grade: string;
   overall: number;
   rollNumber?: string;
-}
+  grades?: { subject: string, grade: string | number }[];
+};
 
 type GradingScaleItem = {
   grade: string;
@@ -114,6 +130,7 @@ export default function AdminGradesPage() {
   const [activeTab, setActiveTab] = React.useState('ranking');
   const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
   const [selectedClassForRanking, setSelectedClassForRanking] = React.useState<string>('');
+  const [selectedStudentForDetails, setSelectedStudentForDetails] = React.useState<StudentGrade | null>(null);
   
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -164,16 +181,17 @@ export default function AdminGradesPage() {
         const gradesSnapshot = await getDocs(gradesQuery);
         const gradesData = gradesSnapshot.docs.map(doc => doc.data());
 
-        const allStudentGrades: Record<string, { total: number, count: number, name?: string, avatar?: string, rollNumber?: string }> = {};
+        const allStudentGrades: Record<string, { total: number, count: number, name?: string, avatar?: string, rollNumber?: string, grades: { subject: string, grade: string }[] }> = {};
 
         for (const gradeData of gradesData) {
           const studentId = gradeData.studentId;
           if (!allStudentGrades[studentId]) {
-              allStudentGrades[studentId] = { total: 0, count: 0 };
+              allStudentGrades[studentId] = { total: 0, count: 0, grades: [] };
           }
           const gradeValue = parseInt(gradeData.grade, 10) || 0;
           allStudentGrades[studentId].total += gradeValue;
           allStudentGrades[studentId].count++;
+          allStudentGrades[studentId].grades.push({ subject: gradeData.subject, grade: gradeData.grade });
         }
         
         const studentDetailsPromises = Object.keys(allStudentGrades).map(async (studentId) => {
@@ -195,6 +213,7 @@ export default function AdminGradesPage() {
           rollNumber: data.rollNumber || "",
           grade: '',
           overall: data.count > 0 ? Math.round(data.total / data.count) : 0,
+          grades: data.grades,
         })).sort((a, b) => (b.overall || 0) - (a.overall || 0));
 
         setStudentsForRanking(rankedStudents);
@@ -281,181 +300,216 @@ export default function AdminGradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-            <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-                <FileText className="h-8 w-8 text-primary" />
-                Grades &amp; Exams Management
-            </h1>
-            <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
-        </div>
-        <Dialog>
-            <DialogTrigger asChild>
+      <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+              <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+                  <FileText className="h-8 w-8 text-primary" />
+                  Grades &amp; Exams Management
+              </h1>
+              <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
+          </div>
+          <DialogTrigger asChild>
             <Button>
                 <PlusCircle className="mr-2 h-4 w-4"/>
                 Create Exam
             </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
-                <DialogTitle>Create New Exam</DialogTitle>
-                <DialogDescription>Define a new examination schedule for a term.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-4">
-                <div className="space-y-2">
-                <Label htmlFor="exam-title">Exam Title</Label>
-                <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" value={newExamTitle} onChange={(e) => setNewExamTitle(e.target.value)} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="exam-term">Academic Term</Label>
-                    <Select value={newExamTerm} onValueChange={setNewExamTerm}>
-                    <SelectTrigger id="exam-term">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {academicTerms.map(term => (
-                        <SelectItem key={term} value={term}>{term}</SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label>Classes Involved</Label>
-                    <Select value={newExamClass} onValueChange={setNewExamClass}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select classes..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="All Classes">All Classes</SelectItem>
-                        {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                    </Select>
-                </div>
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="date-range">Date Range</Label>
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button
-                        id="date-range"
-                        variant="outline"
-                        className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date?.from ? (
-                        date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
-                        ) : <span>Pick a date range</span>}
-                    </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
-                    </PopoverContent>
-                </Popover>
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="exam-notes">Notes (Optional)</Label>
-                <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers." value={newExamNotes} onChange={e => setNewExamNotes(e.target.value)} />
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button onClick={handleCreateExam} disabled={isSavingExam}>
-                {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                Save Exam
-                </Button>
-            </DialogFooter>
-            </DialogContent>
-        </Dialog>
-      </div>
+          </DialogTrigger>
+        </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex mb-6">
-          <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="settings">Settings &amp; Policies</TabsTrigger>
-        </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex mb-6">
+            <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="settings">Settings &amp; Policies</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="ranking">
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div>
-                        <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
-                        <CardDescription>Student ranking based on overall performance for the selected exam.</CardDescription>
-                    </div>
-                    <div className="flex w-full md:w-auto items-center gap-2">
-                         <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
-                            <SelectTrigger className="w-full md:w-[240px]">
-                                <SelectValue placeholder="Select a class" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Button variant="outline" onClick={handlePrintRanking}>
-                            <Printer className="mr-2 h-4 w-4"/>
-                            Print Ranking
-                        </Button>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {studentsForRanking.length > 0 ? (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {studentsForRanking.map((student, index) => (
-                            <Card key={student.id} className="flex items-center p-4 gap-4">
-                                <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src={student.avatarUrl} />
-                                    <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <p className="font-semibold">{student.studentName}</p>
-                                    <p className="text-sm text-muted-foreground">Overall: <span className="font-bold text-foreground">{student.overall}%</span></p>
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center text-muted-foreground py-16">
-                        <p>No ranking data available for this class yet.</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-        </TabsContent>
-        <TabsContent value="reports">
-          <ReportGenerator />
-        </TabsContent>
-        <TabsContent value="settings">
-           <Card>
+          <TabsContent value="ranking">
+          <Card>
               <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Grading Policies</CardTitle>
-                  <CardDescription>Define the grading scale and other report card settings.</CardDescription>
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div>
+                          <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
+                          <CardDescription>Student ranking based on overall performance for the selected exam.</CardDescription>
+                      </div>
+                      <div className="flex w-full md:w-auto items-center gap-2">
+                           <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                              <SelectTrigger className="w-full md:w-[240px]">
+                                  <SelectValue placeholder="Select a class" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                              </SelectContent>
+                          </Select>
+                          <Button variant="outline" onClick={handlePrintRanking}>
+                              <Printer className="mr-2 h-4 w-4"/>
+                              Print Ranking
+                          </Button>
+                      </div>
+                  </div>
               </CardHeader>
               <CardContent>
-                  <div className="grid md:grid-cols-2 gap-8">
-                      <div className="space-y-4">
-                           <h4 className="font-semibold text-base">Grading Scale</h4>
-                           <div className="space-y-2">
-                              {gradingScale.map((item, index) => (
-                              <div key={index} className="grid grid-cols-[80px_1fr_1fr] items-center gap-2">
-                                  <Input defaultValue={item.grade} className="font-bold"/>
-                                  <Input type="number" defaultValue={item.min} onChange={(e) => handleGradingScaleChange(index, 'min', Number(e.target.value))} />
-                                  <Input type="number" defaultValue={item.max} onChange={(e) => handleGradingScaleChange(index, 'max', Number(e.target.value))} />
-                              </div>
-                              ))}
-                           </div>
+                  {studentsForRanking.length > 0 ? (
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                          {studentsForRanking.map((student, index) => (
+                              <DialogTrigger key={student.id} asChild>
+                                  <Card className="flex items-center p-4 gap-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedStudentForDetails(student)}>
+                                      <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
+                                      <Avatar className="h-12 w-12">
+                                          <AvatarImage src={student.avatarUrl} />
+                                          <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1">
+                                          <p className="font-semibold">{student.studentName}</p>
+                                          <p className="text-sm text-muted-foreground">Overall: <span className="font-bold text-foreground">{student.overall}%</span></p>
+                                      </div>
+                                  </Card>
+                              </DialogTrigger>
+                          ))}
                       </div>
-                       <div className="space-y-4">
-                          <h4 className="font-semibold text-base">Report Card Settings</h4>
-                       </div>
-                  </div>
+                  ) : (
+                      <div className="text-center text-muted-foreground py-16">
+                          <p>No ranking data available for this class yet.</p>
+                      </div>
+                  )}
               </CardContent>
-           </Card>
-        </TabsContent>
-      </Tabs>
+          </Card>
+          </TabsContent>
+          <TabsContent value="reports">
+            <ReportGenerator />
+          </TabsContent>
+          <TabsContent value="settings">
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Grading Policies</CardTitle>
+                    <CardDescription>Define the grading scale and other report card settings.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                             <h4 className="font-semibold text-base">Grading Scale</h4>
+                             <div className="space-y-2">
+                                {gradingScale.map((item, index) => (
+                                <div key={index} className="grid grid-cols-[80px_1fr_1fr] items-center gap-2">
+                                    <Input defaultValue={item.grade} className="font-bold"/>
+                                    <Input type="number" defaultValue={item.min} onChange={(e) => handleGradingScaleChange(index, 'min', Number(e.target.value))} />
+                                    <Input type="number" defaultValue={item.max} onChange={(e) => handleGradingScaleChange(index, 'max', Number(e.target.value))} />
+                                </div>
+                                ))}
+                             </div>
+                        </div>
+                         <div className="space-y-4">
+                            <h4 className="font-semibold text-base">Report Card Settings</h4>
+                         </div>
+                    </div>
+                </CardContent>
+             </Card>
+          </TabsContent>
+        </Tabs>
+        
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+              <DialogTitle>Exam Details</DialogTitle>
+              <DialogDescription>Define a new examination schedule for a term.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+              <div className="space-y-2">
+              <Label htmlFor="exam-title">Exam Title</Label>
+              <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" value={newExamTitle} onChange={(e) => setNewExamTitle(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                  <Label htmlFor="exam-term">Academic Term</Label>
+                  <Select value={newExamTerm} onValueChange={setNewExamTerm}>
+                  <SelectTrigger id="exam-term">
+                      <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {academicTerms.map(term => (
+                      <SelectItem key={term} value={term}>{term}</SelectItem>
+                      ))}
+                  </SelectContent>
+                  </Select>
+              </div>
+              <div className="space-y-2">
+                  <Label>Classes Involved</Label>
+                  <Select value={newExamClass} onValueChange={setNewExamClass}>
+                  <SelectTrigger>
+                      <SelectValue placeholder="Select classes..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="All Classes">All Classes</SelectItem>
+                      {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                  </Select>
+              </div>
+              </div>
+              <div className="space-y-2">
+              <Label htmlFor="date-range">Date Range</Label>
+              <Popover>
+                  <PopoverTrigger asChild>
+                  <Button
+                      id="date-range"
+                      variant="outline"
+                      className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}
+                  >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date?.from ? (
+                      date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
+                      ) : <span>Pick a date range</span>}
+                  </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                  </PopoverContent>
+              </Popover>
+              </div>
+              <div className="space-y-2">
+              <Label htmlFor="exam-notes">Notes (Optional)</Label>
+              <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers." value={newExamNotes} onChange={e => setNewExamNotes(e.target.value)} />
+              </div>
+          </div>
+          <DialogFooter>
+              <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+              <Button onClick={handleCreateExam} disabled={isSavingExam}>
+              {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+              Save Exam
+              </Button>
+          </DialogFooter>
+        </DialogContent>
+
+        <DialogContent className="sm:max-w-md">
+            {selectedStudentForDetails && (
+                <>
+                    <DialogHeader>
+                        <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
+                        <DialogDescription>Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span></DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <h4 className="mb-4 font-semibold">Scores by Subject</h4>
+                        <div className="w-full overflow-auto rounded-lg border">
+                           <Table>
+                               <TableHeader>
+                                   <TableRow>
+                                       <TableHead>Subject</TableHead>
+                                       <TableHead className="text-right">Score</TableHead>
+                                   </TableRow>
+                               </TableHeader>
+                               <TableBody>
+                                   {selectedStudentForDetails.grades?.map((gradeInfo, index) => (
+                                       <TableRow key={index}>
+                                           <TableCell className="font-medium">{gradeInfo.subject}</TableCell>
+                                           <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
+                                       </TableRow>
+                                   ))}
+                               </TableBody>
+                           </Table>
+                        </div>
+                    </div>
+                </>
+            )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
