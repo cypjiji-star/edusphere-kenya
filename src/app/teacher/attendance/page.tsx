@@ -68,6 +68,8 @@ type AttendanceStatus = 'present' | 'absent' | 'late' | 'unmarked';
 type Student = {
     id: string;
     name: string;
+    firstName: string;
+    lastName: string;
     avatarUrl: string;
     status: AttendanceStatus;
     notes?: string;
@@ -138,8 +140,10 @@ export default function AttendancePage() {
             return {
                 id: doc.id,
                 name: `${data.firstName} ${data.lastName}`,
+                firstName: data.firstName,
+                lastName: data.lastName,
                 avatarUrl: data.avatarUrl,
-            }
+            } as Student
         });
         
         const targetDate = startOfToday();
@@ -179,18 +183,16 @@ export default function AttendancePage() {
     if (!isEditable || !selectedClass || !date?.from || !schoolId || !user) return;
   
     const batch = writeBatch(firestore);
-    const attendanceDate = startOfToday();
-    if (date.from) {
-      attendanceDate.setFullYear(date.from.getFullYear(), date.from.getMonth(), date.from.getDate());
-    }
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const attendanceDate = Timestamp.fromDate(today);
   
-    const attendanceDateKey = format(attendanceDate, 'yyyy-MM-dd');
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
   
     for (const student of students) {
       if (student.status === 'unmarked') continue;
   
-      const docId = `${student.id}_${attendanceDateKey}`;
+      const docId = `${student.id}_${format(today, 'yyyy-MM-dd')}`;
       const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
   
       batch.set(attendanceRef, {
@@ -200,7 +202,7 @@ export default function AttendancePage() {
         class: currentClass?.name || 'Unknown',
         classId: selectedClass,
         schoolId: schoolId,
-        date: Timestamp.fromDate(attendanceDate),
+        date: attendanceDate,
         status: student.status,
         notes: student.notes || '',
         teacher: user.displayName || 'Unknown Teacher',
@@ -611,4 +613,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
