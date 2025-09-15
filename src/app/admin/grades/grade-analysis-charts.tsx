@@ -26,7 +26,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -40,22 +40,38 @@ const distributionChartConfig = {
 export function GradeAnalysisCharts() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const [selectedTerm, setSelectedTerm] = React.useState('Term 1, 2024');
+  const [selectedTerm, setSelectedTerm] = React.useState('Term 2, 2024');
+  const [compareTerm, setCompareTerm] = React.useState<string | null>(null);
+  const [showCompare, setShowCompare] = React.useState(false);
+
   const [distributionData, setDistributionData] = React.useState<any[]>([]);
   const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<any[]>([]);
+  const [classPerformance, setClassPerformance] = React.useState<{ top: string; lowest: string; topAvg: number; lowestAvg: number; }>({ top: 'N/A', lowest: 'N/A', topAvg: 0, lowestAvg: 0 });
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     if (!schoolId) return;
 
-    setIsLoading(true);
-    const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`));
-    
-    const unsubscribe = onSnapshot(submissionsQuery, (submissionsSnapshot) => {
+    const fetchDataForTerm = async (term: string) => {
+        const assessmentsQuery = query(collection(firestore, `schools/${schoolId}/assesments`), where('term', '==', term));
+        const assessmentsSnapshot = await getDocs(assessmentsQuery);
+        const assessmentIds = assessmentsSnapshot.docs.map(doc => doc.id);
+
+        if (assessmentIds.length === 0) {
+            return { submissions: [] };
+        }
+
+        const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`), where('examId', 'in', assessmentIds));
+        const submissionsSnapshot = await getDocs(submissionsQuery);
+        return { submissions: submissionsSnapshot.docs.map(doc => doc.data()) };
+    }
+
+    const processData = (submissions: any[]) => {
         // Grade Distribution
         const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
-        submissionsSnapshot.forEach(doc => {
-            const grade = doc.data().grade;
+        submissions.forEach(submission => {
+            const grade = parseInt(submission.grade, 10);
+            if (isNaN(grade)) return;
             if (grade >= 80) gradeCounts['A']++;
             else if (grade >= 75) gradeCounts['A-']++;
             else if (grade >= 70) gradeCounts['B+']++;
@@ -65,12 +81,10 @@ export function GradeAnalysisCharts() {
             else if (grade >= 45) gradeCounts['C/C-']++;
             else gradeCounts['D/E']++;
         });
-        setDistributionData(Object.entries(gradeCounts).map(([name, students]) => ({ name, students })));
 
         // Subject Performance
         const subjectScores: Record<string, { total: number, count: number }> = {};
-        submissionsSnapshot.forEach(doc => {
-            const submission = doc.data();
+        submissions.forEach(submission => {
             if (!subjectScores[submission.subject]) {
                 subjectScores[submission.subject] = { total: 0, count: 0 };
             }
@@ -80,18 +94,48 @@ export function GradeAnalysisCharts() {
 
         const performance = Object.entries(subjectScores).map(([subject, data]) => ({
             subject: subject,
-            avg: Math.round(data.total / data.count),
-            trend: 'stable', // Trend calculation would require historical data
+            avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
+            trend: 'stable',
         }));
-        setSubjectPerformanceData(performance);
+        
+        // Class Performance
+        const classScores: Record<string, { total: number, count: number }> = {};
+        submissions.forEach(submission => {
+            if (!classScores[submission.class]) {
+                classScores[submission.class] = { total: 0, count: 0 };
+            }
+             classScores[submission.class].total += parseInt(submission.grade, 10);
+             classScores[submission.class].count++;
+        });
+        const classAvgs = Object.entries(classScores).map(([className, data]) => ({
+            name: className,
+            avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
+        })).sort((a,b) => b.avg - a.avg);
 
-        setIsLoading(false);
-    }, (error) => {
-        console.error("Error fetching analysis data:", error);
-        setIsLoading(false);
-    });
+        return {
+            distributionData: Object.entries(gradeCounts).map(([name, students]) => ({ name, students })),
+            subjectPerformanceData: performance,
+            classPerformance: {
+                top: classAvgs[0]?.name || 'N/A',
+                topAvg: classAvgs[0]?.avg || 0,
+                lowest: classAvgs[classAvgs.length - 1]?.name || 'N/A',
+                lowestAvg: classAvgs[classAvgs.length - 1]?.avg || 0,
+            }
+        };
+    }
 
-    return () => unsubscribe();
+    const loadData = async () => {
+        setIsLoading(true);
+        const { submissions } = await fetchDataForTerm(selectedTerm);
+        const processedData = processData(submissions);
+        setDistributionData(processedData.distributionData);
+        setSubjectPerformanceData(processedData.subjectPerformanceData);
+        setClassPerformance(processedData.classPerformance);
+        setIsLoading(false);
+    }
+    
+    loadData();
+
   }, [selectedTerm, schoolId]);
   
   return (
@@ -113,7 +157,17 @@ export function GradeAnalysisCharts() {
                                 <SelectItem value="Term 2, 2024">Term 2, 2024</SelectItem>
                             </SelectContent>
                          </Select>
-                         <Button variant="outline" disabled>Compare</Button>
+                         <Button variant="outline" onClick={() => setShowCompare(!showCompare)}>Compare</Button>
+                         {showCompare && (
+                             <Select onValueChange={setCompareTerm}>
+                                <SelectTrigger className="w-full md:w-auto">
+                                    <SelectValue placeholder="Compare to..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Term 1, 2024">Term 1, 2024</SelectItem>
+                                </SelectContent>
+                             </Select>
+                         )}
                     </div>
                 </div>
             </CardHeader>
@@ -158,7 +212,7 @@ export function GradeAnalysisCharts() {
                     </CardHeader>
                     <CardContent className="w-full overflow-auto">
                         {isLoading ? <div className="h-[150px] w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
-                        <div className="grid grid-cols-3 gap-y-4 gap-x-8 text-sm min-w-[400px]">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8 text-sm min-w-[400px]">
                             {subjectPerformanceData.map(item => (
                                 <div key={item.subject} className="flex items-center justify-between border-b pb-2">
                                     <span className="font-medium">{item.subject}</span>
@@ -179,7 +233,7 @@ export function GradeAnalysisCharts() {
                     <Link href={`/admin/grades?schoolId=${schoolId}`}>
                         <CardHeader>
                             <CardTitle>Top Performing Class</CardTitle>
-                            <CardDescription>Form 4 (Avg. 82%)</CardDescription>
+                            <CardDescription>{classPerformance.top} (Avg. {classPerformance.topAvg}%)</CardDescription>
                         </CardHeader>
                     </Link>
                  </Card>
@@ -187,7 +241,7 @@ export function GradeAnalysisCharts() {
                     <Link href={`/admin/grades?schoolId=${schoolId}`}>
                         <CardHeader>
                             <CardTitle>Lowest Performing Class</CardTitle>
-                            <CardDescription>Form 1 (Avg. 68%)</CardDescription>
+                            <CardDescription>{classPerformance.lowest} (Avg. {classPerformance.lowestAvg}%)</CardDescription>
                         </CardHeader>
                     </Link>
                  </Card>
@@ -202,7 +256,3 @@ export function GradeAnalysisCharts() {
     </div>
   );
 }
-
-  
-
-    
