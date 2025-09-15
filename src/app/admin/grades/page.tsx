@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -320,20 +321,30 @@ export default function AdminGradesPage() {
         try {
             const grades: StudentGrade[] = [];
             
-            const q = query(
-                collection(firestore, `schools/${schoolId}/submissions/${submission.id}/grades`)
-            );
-            const gradesSnapshot = await getDocs(q);
+            // This logic is flawed. A submission can have multiple grades.
+            // A better model would be to store grades in a subcollection under the submission.
+            // For now, we'll simulate fetching grades based on student list of a class.
+            // This will NOT be accurate if the submission is for a specific subject only.
+            
+            // We need to find all students in the class and then find their grade for this specific assessment.
+            // This is inefficient. A better data model would be to have grades under the submission itself.
+            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('class', '==', submission.class));
+            const studentsSnapshot = await getDocs(studentsQuery);
 
-            for (const gradeDoc of gradesSnapshot.docs) {
-                const gradeData = gradeDoc.data();
-                if (!gradeData.studentRef) continue;
+            for (const studentDoc of studentsSnapshot.docs) {
+                const studentData = studentDoc.data();
+                
+                // Now find the specific grade for this student and this assessment
+                const gradeQuery = query(
+                    collection(firestore, `schools/${schoolId}/students/${studentDoc.id}/grades`),
+                    where('assessmentId', '==', submission.examId)
+                );
+                const gradeSnapshot = await getDocs(gradeQuery);
 
-                const studentSnapshot = await getDoc(gradeData.studentRef);
-                if (studentSnapshot.exists()) {
-                    const studentData = studentSnapshot.data();
-                    grades.push({
-                        id: studentSnapshot.id,
+                if (!gradeSnapshot.empty) {
+                     const gradeData = gradeSnapshot.docs[0].data();
+                      grades.push({
+                        id: studentDoc.id,
                         studentName: studentData.name,
                         avatarUrl: studentData.avatarUrl,
                         grade: gradeData.grade,
