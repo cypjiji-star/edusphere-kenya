@@ -15,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { TrendingDown, TrendingUp, ArrowRight, BookCopy, Loader2, FileText, BarChart2, AlertCircle } from 'lucide-react';
+import { TrendingDown, TrendingUp, ArrowRight, BookCopy, Loader2, FileText, BarChart2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { firestore } from '@/lib/firebase';
@@ -84,19 +84,22 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
 
         // Subject Performance
         const subjectScores: Record<string, { total: number, count: number }> = {};
-        submissions.forEach(submission => {
-            const subjectName = submission.subject;
-            if (!subjectName) return;
+        for (const submission of submissions) {
+          const assessmentDoc = await getDoc(doc(firestore, `schools/${schoolId}/assesments`, submission.examId));
+          if (!assessmentDoc.exists()) continue;
 
-            if (!subjectScores[subjectName]) {
-                subjectScores[subjectName] = { total: 0, count: 0 };
-            }
-            const score = parseInt(submission.grade, 10);
-            if (!isNaN(score)) {
-                subjectScores[subjectName].total += score;
-                subjectScores[subjectName].count++;
-            }
-        });
+          const assessmentData = assessmentDoc.data();
+          const subjectName = assessmentData.title.split(' ')[0] || 'Unknown'; // Simplified subject extraction
+
+          if (!subjectScores[subjectName]) {
+            subjectScores[subjectName] = { total: 0, count: 0 };
+          }
+          const score = parseInt(submission.grade, 10);
+          if (!isNaN(score)) {
+            subjectScores[subjectName].total += score;
+            subjectScores[subjectName].count++;
+          }
+        }
 
         const performance = Object.entries(subjectScores).map(([subject, data]) => ({
             subject: subject,
