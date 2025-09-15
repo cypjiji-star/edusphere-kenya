@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,7 +33,6 @@ import {
   Printer,
   Trophy,
   ArrowRight,
-  ArrowLeft,
 } from 'lucide-react';
 import {
   Table,
@@ -233,6 +233,7 @@ export default function AdminGradesPage() {
             const allStudentGrades: Record<string, { total: number, count: number, name: string, avatar: string, rollNumber: string }> = {};
 
             for (const submission of submissions) {
+                if (!submission.id) continue;
                 const gradesSnapshot = await getDocs(query(collection(doc(firestore, `schools/${schoolId}/submissions`, submission.id), 'grades')));
                 for (const gradeDoc of gradesSnapshot.docs) {
                     const gradeData = gradeDoc.data();
@@ -925,4 +926,3 @@ export default function AdminGradesPage() {
     
 
     
-
