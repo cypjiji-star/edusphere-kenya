@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -132,7 +133,14 @@ export default function AttendancePage() {
 
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
     const unsubStudents = onSnapshot(studentsQuery, (studentsSnapshot) => {
-        const classStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
+        const classStudents = studentsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: `${data.firstName} ${data.lastName}`,
+                avatarUrl: data.avatarUrl,
+            }
+        });
         
         const targetDate = startOfToday();
         if (selectedDate) {
@@ -153,9 +161,7 @@ export default function AttendancePage() {
             });
 
             const studentAttendance = classStudents.map(student => ({
-                id: student.id,
-                name: student.name,
-                avatarUrl: student.avatarUrl,
+                ...student,
                 status: attendanceMap.get(student.id)?.status || 'unmarked',
                 notes: attendanceMap.get(student.id)?.notes || '',
             }));
@@ -605,3 +611,4 @@ export default function AttendancePage() {
     </div>
   );
 }
+

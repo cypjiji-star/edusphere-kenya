@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -139,7 +140,10 @@ export default function StudentsPage() {
     setIsLoading(true);
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', activeTab));
     const unsubscribeStudents = onSnapshot(studentsQuery, async (snapshot) => {
-      const studentsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Student));
+      const studentsData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return { ...data, id: doc.id, name: `${data.firstName} ${data.lastName}` } as Student;
+      });
       
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -626,4 +630,3 @@ export default function StudentsPage() {
     );
 }
 
-    
