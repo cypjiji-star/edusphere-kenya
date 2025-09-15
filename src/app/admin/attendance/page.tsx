@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collectionGroup, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collection, collectionGroup, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
