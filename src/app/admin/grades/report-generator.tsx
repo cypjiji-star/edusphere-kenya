@@ -4,8 +4,7 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { firestore } from '@/lib/firebase'; // Make sure you have this configured
-import { useAuth } from '@/context/auth-context'; // For teacher ID
+import { firestore } from '@/lib/firebase';
 import { useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -87,7 +86,6 @@ export function ReportGenerator() {
   const [students, setStudents] = React.useState<StudentGrades[]>([]);
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const { toast } = useToast();
-  const { user } = useAuth();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
 
@@ -109,7 +107,7 @@ export function ReportGenerator() {
         
         setAssessments(assessmentsData);
 
-        // Fetch students for the school (you'll need to implement this based on your structure)
+        // Fetch students for the school
         const studentsQuery = query(
           collection(firestore, `schools/${schoolId}/students`),
           where('classId', '==', selectedClass)
@@ -158,8 +156,6 @@ export function ReportGenerator() {
           throw new Error('Student data not found');
         }
         
-        // Fetch grades for this student (you'll need to implement this)
-        // This depends on how you store grades in your database
         const grades = await fetchStudentGrades(selectedStudent!, schoolId!);
         
         setReport({ 
@@ -183,22 +179,19 @@ export function ReportGenerator() {
     }
   };
 
-  // You need to implement this function based on your grade storage
   const fetchStudentGrades = async (studentId: string, schoolId: string): Promise<Grade[]> => {
-    // Example implementation - adjust based on your actual grade storage
     try {
       const gradesQuery = query(
-        collection(firestore, `schools/${schoolId}/grades`),
-        where('studentId', '==', studentId)
+        collection(firestore, `schools/${schoolId}/students/${studentId}/grades`)
       );
       const gradesSnapshot = await getDocs(gradesQuery);
       return gradesSnapshot.docs.map(doc => ({
         assessmentId: doc.data().assessmentId,
-        score: doc.data().score,
-        subject: doc.data().subject
+        score: doc.data().grade, // grade field stores the score
+        subject: doc.data().assessmentTitle // This might need adjustment
       }));
     } catch (error) {
-      console.error('Error fetching grades:', error);
+      console.error('Error fetching grades for student:', error);
       return [];
     }
   };
