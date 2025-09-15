@@ -102,7 +102,12 @@ const getStatusBadge = (status: UserStatus) => {
 export default function UserManagementPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const [allUsers, setAllUsers] = React.useState<User[]>([]);
+    const [adminUsers, setAdminUsers] = React.useState<User[]>([]);
+    const [teacherUsers, setTeacherUsers] = React.useState<User[]>([]);
+    const [studentUsers, setStudentUsers] = React.useState<User[]>([]);
+    const [parentUsers, setParentUsers] = React.useState<User[]>([]);
+    const allUsers = React.useMemo(() => [...adminUsers, ...teacherUsers, ...studentUsers, ...parentUsers], [adminUsers, teacherUsers, studentUsers, parentUsers]);
+
     const [roles, setRoles] = React.useState<string[]>([]);
     const [classes, setClasses] = React.useState<string[]>(['All Classes']);
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -120,16 +125,21 @@ export default function UserManagementPage() {
         if (!schoolId) return;
         setClientReady(true);
         
-        const collectionsToWatch = ['users', 'students', 'teachers', 'parents'];
-        const unsubscribers = collectionsToWatch.map(coll => 
-            onSnapshot(collection(firestore, 'schools', schoolId, coll), (snapshot) => {
-                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-                setAllUsers(prev => {
-                    const otherUsers = prev.filter(u => u.role?.toLowerCase() !== coll.slice(0, -1));
-                    return [...otherUsers, ...usersData];
-                });
-            })
-        );
+        const unsubAdmins = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Admin')), (snapshot) => {
+            setAdminUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+        });
+
+        const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher')), (snapshot) => {
+            setTeacherUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+        });
+        
+        const unsubStudents = onSnapshot(collection(firestore, 'schools', schoolId, 'students'), (snapshot) => {
+            setStudentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+        });
+
+        const unsubParents = onSnapshot(collection(firestore, 'schools', schoolId, 'parents'), (snapshot) => {
+            setParentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+        });
         
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
             setRoles(snapshot.docs.map(doc => doc.id));
@@ -141,7 +151,10 @@ export default function UserManagementPage() {
         });
 
         return () => {
-            unsubscribers.forEach(unsub => unsub());
+            unsubAdmins();
+            unsubTeachers();
+            unsubStudents();
+            unsubParents();
             unsubRoles();
             unsubClasses();
         };
@@ -195,7 +208,7 @@ export default function UserManagementPage() {
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, values.email, values.password);
             const user = userCredential.user;
             
-            const collectionName = `${values.role.toLowerCase()}s`;
+            const collectionName = 'users';
 
             // Create user document in Firestore
             await setDoc(doc(firestore, 'schools', schoolId, collectionName, user.uid), {
@@ -262,18 +275,21 @@ export default function UserManagementPage() {
     };
 
     const renderUserTable = (roleFilter: UserRole | 'All') => {
-        const filteredUsers = allUsers.filter(user => {
+        const usersToFilter = roleFilter === 'All'
+            ? allUsers
+            : allUsers.filter(u => u.role === roleFilter);
+
+        const filteredUsers = usersToFilter.filter(user => {
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch = user.name?.toLowerCase().includes(searchLower) ||
                                   user.email?.toLowerCase().includes(searchLower) ||
                                   user.id?.toLowerCase().includes(searchLower);
 
-            const matchesRole = roleFilter === 'All' || user.role === roleFilter;
             const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
             const matchesClass = classFilter === 'All Classes' || user.class === classFilter;
             const matchesYear = yearFilter === 'All Years' || (user.createdAt && new Date(user.createdAt).getFullYear().toString() === yearFilter);
 
-            return matchesSearch && matchesRole && matchesStatus && (roleFilter !== 'Student' || (matchesClass && matchesYear));
+            return matchesSearch && matchesStatus && (roleFilter !== 'Student' || (matchesClass && matchesYear));
         });
 
         return (
