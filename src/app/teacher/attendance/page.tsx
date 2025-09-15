@@ -241,6 +241,19 @@ export default function AttendancePage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const [teacherName, setTeacherName] = React.useState('Unknown Teacher');
+
+  React.useEffect(() => {
+    if (user && schoolId) {
+      const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setTeacherName(docSnap.data().name || 'Unknown Teacher');
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [user, schoolId]);
 
   // Load classes for this teacher
   React.useEffect(() => {
@@ -323,28 +336,11 @@ export default function AttendancePage() {
       console.warn("Cannot save: missing data", { schoolId, selectedClass, user, selectedDate });
       return;
     }
-    console.log('Saving attendance with schoolId:', schoolId);
     
     const batch = writeBatch(firestore);
     const attendanceDate = format(selectedDate, "yyyy-MM-dd");
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
     
-    console.log("Attendance batch:", {
-      studentId: students[0]?.id,
-      sampleDoc: {
-        studentId: students[0]?.id,
-        studentName: students[0]?.name,
-        class: teacherClasses.find((c) => c.id === selectedClass)?.name || 'Unknown',
-        classId: selectedClass,
-        schoolId: schoolId,
-        date: Timestamp.fromDate(new Date()),
-        status: students[0]?.status,
-        notes: students[0]?.notes || '',
-        teacher: user?.displayName || 'Unknown Teacher',
-        teacherId: user?.uid,
-      }
-    });
-
     for (const student of students) {
       if (student.status === "unmarked") continue;
       const attendanceDocId = `${student.id}_${attendanceDate}`;
@@ -359,7 +355,7 @@ export default function AttendancePage() {
         status: student.status,
         notes: student.notes || "",
         teacherId: user.uid,
-        teacher: user.displayName || "Unknown Teacher",
+        teacher: teacherName,
         schoolId: schoolId,
       });
     }
@@ -378,7 +374,7 @@ export default function AttendancePage() {
         variant: "destructive",
       });
     }
-  }, [selectedClass, schoolId, user, students, selectedDate, teacherClasses, toast]);
+  }, [selectedClass, schoolId, user, students, selectedDate, teacherClasses, toast, teacherName]);
   
   if (isLoading) {
     return <div className="flex h-full items-center justify-center p-8"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
@@ -407,3 +403,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
