@@ -51,7 +51,7 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
                 assessmentId: data.assessmentId,
                 assessmentTitle: assessmentData.title,
                 grade: studentGrade.grade,
-                date: assessmentData.date, // Use the assessment's date
+                date: assessmentData.dueDate, // Use the assessment's due date
             });
         }
     }
@@ -70,3 +70,4 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
       return { success: false, message: 'An unexpected error occurred while saving grades.' };
   }
 }
+
