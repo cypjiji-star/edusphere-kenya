@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -7,14 +5,15 @@ import { z } from 'zod';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 
-export const assignmentSchema = z.object({
+// Move schema definitions outside the server action
+const assignmentSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters.'),
   classId: z.string({ required_error: 'Please select a class.' }),
   dueDate: z.date({ required_error: 'A due date is required.' }),
   instructions: z.string().min(20, 'Instructions must be at least 20 characters.'),
 });
 
-export type AssignmentFormValues = z.infer<typeof assignmentSchema>;
+type AssignmentFormValues = z.infer<typeof assignmentSchema>;
 
 export async function createAssignmentAction(
   schoolId: string,
@@ -70,4 +69,4 @@ export async function createAssignmentAction(
   }
 }
 
-    
+// If you need to use the schema in your form component, create a separate file

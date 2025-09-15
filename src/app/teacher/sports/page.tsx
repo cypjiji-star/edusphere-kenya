@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, ArrowRight, Trophy, Loader2 } from 'lucide-react';
+import { PlusCircle, Users, ArrowRight, Trophy, Loader2, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   Dialog,
@@ -36,6 +36,8 @@ import { useToast } from '@/hooks/use-toast';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { generateTeamIcon } from '@/ai/flows/generate-team-icon-flow';
+import { Textarea } from '@/components/ui/textarea';
 
 
 type SportsTeam = {
@@ -50,10 +52,15 @@ type SportsTeam = {
 export default function SportsPage() {
   const [sportsTeams, setSportsTeams] = React.useState<SportsTeam[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isCreating, setIsCreating] = React.useState(false);
+  const [isGeneratingIcon, setIsGeneratingIcon] = React.useState(false);
+
   const [newTeamName, setNewTeamName] = React.useState('');
   const [newTeamCoach, setNewTeamCoach] = React.useState('');
+  const [newTeamDescription, setNewTeamDescription] = React.useState('');
   const [newTeamIcon, setNewTeamIcon] = React.useState('');
   const [allTeachers, setAllTeachers] = React.useState<string[]>([]);
+  
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -83,8 +90,29 @@ export default function SportsPage() {
     };
   }, [schoolId, user]);
 
+  const handleIconGeneration = async () => {
+    if (!newTeamDescription) {
+        toast({ title: 'Please enter a description first.', variant: 'destructive' });
+        return;
+    }
+    setIsGeneratingIcon(true);
+    try {
+        const result = await generateTeamIcon({ description: newTeamDescription });
+        if (result.icon) {
+            setNewTeamIcon(result.icon);
+            toast({ title: 'Icon Generated!', description: `We've selected an icon for your team.` });
+        } else {
+            throw new Error('AI did not return an icon.');
+        }
+    } catch (e) {
+        toast({ title: 'Icon Generation Failed', variant: 'destructive' });
+    } finally {
+        setIsGeneratingIcon(false);
+    }
+  }
+
   const handleCreateTeam = async () => {
-    if (!newTeamName || !newTeamCoach || !newTeamIcon || !schoolId) {
+    if (!newTeamName || !newTeamCoach || !schoolId) {
         toast({
             title: 'Missing Information',
             description: 'Please fill out all fields to create a team.',
@@ -93,12 +121,13 @@ export default function SportsPage() {
         return;
     }
 
+    setIsCreating(true);
     try {
         const newTeamData = {
             name: newTeamName,
             coach: newTeamCoach,
             members: 0,
-            icon: newTeamIcon,
+            icon: newTeamIcon || '🏆', // Default icon if not generated
         };
         await addDoc(collection(firestore, 'schools', schoolId, 'teams'), newTeamData);
 
@@ -107,8 +136,10 @@ export default function SportsPage() {
             description: `${newTeamName} has been successfully created.`,
         });
 
+        // Reset form
         setNewTeamName('');
         setNewTeamCoach('');
+        setNewTeamDescription('');
         setNewTeamIcon('');
     } catch (error) {
         console.error("Error creating team:", error);
@@ -117,6 +148,8 @@ export default function SportsPage() {
             description: 'Failed to create the new team. Please try again.',
             variant: 'destructive',
         });
+    } finally {
+        setIsCreating(false);
     }
   };
 
@@ -167,8 +200,20 @@ export default function SportsPage() {
                         </Select>
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="team-icon">Icon (Emoji)</Label>
-                        <Input id="team-icon" placeholder="e.g., 🏊" maxLength={2} value={newTeamIcon} onChange={(e) => setNewTeamIcon(e.target.value)}/>
+                        <Label htmlFor="team-description">Description</Label>
+                        <Textarea id="team-description" placeholder="e.g., The official school basketball team for inter-school competitions." value={newTeamDescription} onChange={(e) => setNewTeamDescription(e.target.value)} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Team Icon</Label>
+                        <div className="flex items-center gap-4">
+                            <div className="h-16 w-16 text-4xl flex items-center justify-center rounded-lg border bg-muted">
+                                {newTeamIcon || '?'}
+                            </div>
+                            <Button type="button" variant="outline" className="w-full" onClick={handleIconGeneration} disabled={isGeneratingIcon}>
+                                {isGeneratingIcon ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4"/>}
+                                AI Generate Icon
+                            </Button>
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>
@@ -176,7 +221,10 @@ export default function SportsPage() {
                         <Button variant="outline">Cancel</Button>
                     </DialogClose>
                     <DialogClose asChild>
-                        <Button onClick={handleCreateTeam}>Create Team</Button>
+                        <Button onClick={handleCreateTeam} disabled={isCreating}>
+                            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Create Team
+                        </Button>
                     </DialogClose>
                 </DialogFooter>
               </DialogContent>
