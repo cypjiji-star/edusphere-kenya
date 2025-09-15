@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { firestore, auth } from "@/lib/firebase";
 import {
   collection,
@@ -61,12 +61,6 @@ type TeacherClass = {
   name: string;
 };
 
-type AttendanceRecord = {
-    studentId: string;
-    status: AttendanceStatus;
-    notes?: string;
-};
-
 const getAttendanceBadge = (status: AttendanceStatus) => {
     switch (status) {
         case 'present': return <Badge variant="default" className="bg-green-600 hover:bg-green-700 w-full"><CheckCircle className="mr-2 h-4 w-4"/>Present</Badge>;
@@ -87,14 +81,13 @@ export default function AttendancePage() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   
-  const [studentsInClass, setStudentsInClass] = useState<Student[]>([]);
-  const [attendanceRecords, setAttendanceRecords] = useState<Map<string, AttendanceRecord>>(new Map());
+  const [students, setStudents] = useState<Student[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [teacherName, setTeacherName] = useState('Teacher');
 
-  // Fetch teacher's details
+  // Fetch teacher's details (name)
   useEffect(() => {
     if (!user || !schoolId) return;
     const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
@@ -118,97 +111,87 @@ export default function AttendancePage() {
       setTeacherClasses(classesData);
       if (!selectedClassId && classesData.length > 0) {
         setSelectedClassId(classesData[0].id);
-      } else {
+      } else if (classesData.length === 0) {
         setIsLoading(false);
       }
     });
     return () => unsub();
   }, [user, schoolId, selectedClassId]);
 
-  // Fetch students for the selected class
-  useEffect(() => {
-    if (!schoolId || !selectedClassId) {
-      setStudentsInClass([]);
-      return;
-    };
-    setIsLoading(true);
-    const studentsQuery = query(
-      collection(firestore, "schools", schoolId, "students"),
-      where("classId", "==", selectedClassId)
-    );
-    const unsub = onSnapshot(studentsQuery, (snap) => {
-      const studentList = snap.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
-          name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-          avatarUrl: data.avatarUrl,
-          status: "unmarked",
-          notes: "",
-          ...data
-        } as Student;
-      });
-      setStudentsInClass(studentList);
-      // We set loading to false here, but the attendance fetch will continue
-      setIsLoading(false); 
-    });
-    return () => unsub();
-  }, [schoolId, selectedClassId]);
-  
-  // Fetch attendance records for the selected class and date
+  // Main data fetching effect
   useEffect(() => {
     if (!schoolId || !selectedClassId || !selectedDate) {
-        setAttendanceRecords(new Map());
+        setIsLoading(false);
         return;
-    }
-    
-    const startOfDay = new Date(selectedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(selectedDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    };
 
-    const attendanceQuery = query(
-        collection(firestore, 'schools', schoolId, 'attendance'),
-        where('classId', '==', selectedClassId),
-        where('date', '>=', Timestamp.fromDate(startOfDay)),
-        where('date', '<=', Timestamp.fromDate(endOfDay))
-    );
+    setIsLoading(true);
 
-    const unsub = onSnapshot(attendanceQuery, (snapshot) => {
-        const newRecords = new Map<string, AttendanceRecord>();
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            newRecords.set(data.studentId, { status: data.status, notes: data.notes, studentId: data.studentId });
+    const fetchData = async () => {
+        // 1. Fetch the list of students for the class
+        const studentsQuery = query(
+            collection(firestore, "schools", schoolId, "students"),
+            where("classId", "==", selectedClassId)
+        );
+        const studentsSnapshot = await getDocs(studentsQuery);
+        const studentList: Student[] = studentsSnapshot.docs.map(d => {
+            const data = d.data();
+            return {
+                id: d.id,
+                name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+                avatarUrl: data.avatarUrl,
+                status: "unmarked",
+                notes: "",
+                ...data
+            } as Student;
         });
-        setAttendanceRecords(newRecords);
-    });
 
-    return () => unsub();
+        // 2. Fetch attendance for that day and class
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const attendanceQuery = query(
+            collection(firestore, 'schools', schoolId, 'attendance'),
+            where('classId', '==', selectedClassId),
+            where('date', '>=', Timestamp.fromDate(startOfDay)),
+            where('date', '<=', Timestamp.fromDate(endOfDay))
+        );
+        const attendanceSnapshot = await getDocs(attendanceQuery);
+        const attendanceMap = new Map<string, { status: AttendanceStatus; notes?: string }>();
+        attendanceSnapshot.forEach(doc => {
+            const data = doc.data();
+            attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
+        });
+
+        // 3. Merge student list with attendance records
+        const mergedStudents = studentList.map(student => {
+            const record = attendanceMap.get(student.id);
+            if (record) {
+                return { ...student, status: record.status, notes: record.notes || '' };
+            }
+            return student; // Defaults to unmarked status
+        });
+
+        setStudents(mergedStudents);
+        setIsLoading(false);
+    };
+
+    fetchData().catch(console.error);
+
   }, [schoolId, selectedClassId, selectedDate]);
-
-
-  // Combine students and their attendance records
-  const displayStudents = useMemo(() => {
-    return studentsInClass.map(student => {
-      const record = attendanceRecords.get(student.id);
-      return {
-        ...student,
-        status: record?.status || 'unmarked',
-        notes: record?.notes || '',
-      };
-    });
-  }, [studentsInClass, attendanceRecords]);
   
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
-    setStudentsInClass(prev => prev.map(s => s.id === studentId ? { ...s, status } : s));
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status } : s));
   };
 
   const handleNotesChange = (studentId: string, notes: string) => {
-    setStudentsInClass(prev => prev.map(s => s.id === studentId ? { ...s, notes } : s));
+    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, notes } : s));
   };
 
   const handleSaveAttendance = useCallback(async () => {
-    if (!selectedClassId || !schoolId || !user || studentsInClass.length === 0 || !selectedDate) {
+    if (!selectedClassId || !schoolId || !user || students.length === 0 || !selectedDate) {
       toast({ title: 'Cannot Save', description: 'Missing required information.', variant: 'destructive'});
       return;
     }
@@ -221,26 +204,19 @@ export default function AttendancePage() {
     startOfDay.setHours(0, 0, 0, 0);
     const attendanceDate = Timestamp.fromDate(startOfDay);
 
-    for (const student of displayStudents) { // Use displayStudents which has the latest status
+    for (const student of students) {
       if (student.status === "unmarked") continue;
       
       const attendanceQuery = query(
         collection(firestore, 'schools', schoolId, 'attendance'),
         where('studentId', '==', student.id),
-        where('date', '==', attendanceDate)
+        where('date', '>=', attendanceDate),
+        where('date', '<=', new Timestamp(attendanceDate.seconds, 999999999))
       );
       
       const querySnapshot = await getDocs(attendanceQuery);
       
-      if (!querySnapshot.empty) {
-        // Update existing record
-        const docId = querySnapshot.docs[0].id;
-        const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
-        batch.update(attendanceRef, { status: student.status, notes: student.notes || "" });
-      } else {
-        // Create new record
-        const attendanceRef = doc(collection(firestore, `schools/${schoolId}/attendance`));
-        batch.set(attendanceRef, {
+      const attendanceData = {
           studentId: student.id,
           studentName: student.name,
           classId: selectedClassId,
@@ -251,7 +227,17 @@ export default function AttendancePage() {
           teacherId: user.uid,
           teacher: teacherName,
           schoolId: schoolId,
-        });
+      };
+
+      if (!querySnapshot.empty) {
+        // Update existing record
+        const docId = querySnapshot.docs[0].id;
+        const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
+        batch.update(attendanceRef, { status: student.status, notes: student.notes || "" });
+      } else {
+        // Create new record
+        const attendanceRef = doc(collection(firestore, `schools/${schoolId}/attendance`));
+        batch.set(attendanceRef, attendanceData);
       }
     }
 
@@ -271,13 +257,13 @@ export default function AttendancePage() {
     } finally {
         setIsSaving(false);
     }
-  }, [schoolId, selectedClassId, selectedDate, displayStudents, teacherClasses, teacherName, toast, user]);
+  }, [schoolId, selectedClassId, selectedDate, students, teacherClasses, teacherName, toast, user]);
 
   const markAll = () => handleBulkUpdate('present');
   const clearAll = () => handleBulkUpdate('unmarked');
 
   const handleBulkUpdate = (status: AttendanceStatus) => {
-    setStudentsInClass(prev => prev.map(s => ({ ...s, status })));
+    setStudents(prev => prev.map(s => ({ ...s, status })));
   };
 
   if (isLoading) {
@@ -338,7 +324,7 @@ export default function AttendancePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayStudents.map((student) => (
+                {students.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
