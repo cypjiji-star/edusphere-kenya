@@ -3,10 +3,23 @@
 'use server';
 
 import { z } from 'zod';
-import { gradeEntrySchema, GradeEntryFormValues } from './new/grade-entry-form';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, doc, writeBatch, serverTimestamp, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
+
+
+const studentGradeSchema = z.object({
+  studentId: z.string(),
+  grade: z.string().min(1, { message: "Grade is required" }),
+});
+
+export const gradeEntrySchema = z.object({
+  classId: z.string({ required_error: 'Please select a class.' }),
+  assessmentId: z.string({ required_error: 'Please select an assessment.' }),
+  grades: z.array(studentGradeSchema),
+});
+
+export type GradeEntryFormValues = z.infer<typeof gradeEntrySchema>;
 
 
 // In a real app, this would save to a database.
@@ -71,5 +84,3 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
       return { success: false, message: `An unexpected error occurred: ${error.message}` };
   }
 }
-
-

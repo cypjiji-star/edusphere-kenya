@@ -9,6 +9,8 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import {
   saveGradesAction,
+  gradeEntrySchema,
+  type GradeEntryFormValues,
 } from '../actions';
 
 import { Button } from '@/components/ui/button';
@@ -53,19 +55,6 @@ import { Label } from '@/components/ui/label';
 import { useSearchParams } from 'next/navigation';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
-
-const studentGradeSchema = z.object({
-  studentId: z.string(),
-  grade: z.string().min(1, { message: "Grade is required" }),
-});
-
-export const gradeEntrySchema = z.object({
-  classId: z.string({ required_error: 'Please select a class.' }),
-  assessmentId: z.string({ required_error: 'Please select an assessment.' }),
-  grades: z.array(studentGradeSchema),
-});
-
-export type GradeEntryFormValues = z.infer<typeof gradeEntrySchema>;
 
 type Student = {
     id: string;
@@ -132,27 +121,24 @@ export function GradeEntryForm() {
   React.useEffect(() => {
     if (!schoolId || !selectedClass) return;
 
-    // Fetch students
-    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
-    const unsubStudents = onSnapshot(studentsQuery, snapshot => {
-        const studentData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
+    const fetchData = async () => {
+        // Fetch students
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
+        const studentsSnapshot = await getDocs(studentsQuery);
+        const studentData = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
         setStudents(studentData);
         replace(studentData.map(s => ({ studentId: s.id, grade: '' })));
         form.setValue('classId', selectedClass);
-    });
 
-    // Fetch assessments
-    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assesments'), where('classId', '==', selectedClass));
-    const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
-        const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
+        // Fetch assessments
+        const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assesments'), where('classId', '==', selectedClass));
+        const assessmentsSnapshot = await getDocs(assessmentsQuery);
+        const assessmentData = assessmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
         setAssessments(assessmentData);
         form.resetField('assessmentId');
-    });
-
-    return () => {
-        unsubStudents();
-        unsubAssessments();
     };
+
+    fetchData();
   }, [schoolId, selectedClass, replace, form]);
 
   async function onSubmit(values: GradeEntryFormValues) {
