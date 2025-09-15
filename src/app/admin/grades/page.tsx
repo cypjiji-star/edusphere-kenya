@@ -30,7 +30,8 @@ import {
   CalendarIcon,
   Users,
   Loader2,
-  ArrowLeft,
+  Printer,
+  Trophy,
 } from 'lucide-react';
 import {
   Table,
@@ -82,6 +83,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, Timestamp, addDoc, updateDoc, doc, getDocs, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 type ExamStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Grading';
@@ -112,6 +115,7 @@ type StudentGrade = {
     studentName: string;
     avatarUrl: string;
     grade: string;
+    overall?: number;
 }
 
 
@@ -315,20 +319,17 @@ export default function AdminGradesPage() {
         setIsFetchingGrades(true);
         try {
             const grades: StudentGrade[] = [];
-            // We need to find all students in the class and then find their grade for this specific assessment.
-            // This is inefficient. A better data model would be to have grades under the submission itself.
-            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('class', '==', submission.class));
-            const studentsSnapshot = await getDocs(studentsQuery);
+            // This logic assumes grades are stored under the submission. Adjust if needed.
+            const gradesQuery = query(collection(firestore, `schools/${schoolId}/submissions/${submission.id}/grades`));
+            const gradesSnapshot = await getDocs(gradesQuery);
 
-            for (const studentDoc of studentsSnapshot.docs) {
-                const studentData = studentDoc.data();
-                const gradeQuery = query(collection(firestore, `schools/${schoolId}/students/${studentDoc.id}/grades`), where('assessmentId', '==', submission.examId));
-                const gradeSnapshot = await getDocs(gradeQuery);
-
-                if (!gradeSnapshot.empty) {
-                    const gradeData = gradeSnapshot.docs[0].data();
+            for (const gradeDoc of gradesSnapshot.docs) {
+                const gradeData = gradeDoc.data();
+                const studentSnapshot = await getDoc(gradeData.studentRef);
+                if (studentSnapshot.exists()) {
+                    const studentData = studentSnapshot.data();
                     grades.push({
-                        id: studentDoc.id,
+                        id: studentSnapshot.id,
                         studentName: studentData.name,
                         avatarUrl: studentData.avatarUrl,
                         grade: gradeData.grade,
@@ -347,6 +348,30 @@ export default function AdminGradesPage() {
     const handleAnalyzeExam = (exam: Exam) => {
         setExamForAnalysis(exam);
         setActiveTab('analysis');
+    }
+    
+    const handlePrintRanking = () => {
+        const doc = new jsPDF();
+        doc.text("Class Ranking", 14, 16);
+        
+        const tableData = filteredSubmissions.map((sub, index) => [
+            index + 1,
+            sub.teacher, // Placeholder for student name
+            '85%', // Placeholder for overall grade
+        ]);
+    
+        (doc as any).autoTable({
+            startY: 22,
+            head: [['Rank', 'Student Name', 'Overall Grade']],
+            body: tableData,
+        });
+        
+        doc.save("class-ranking.pdf");
+    
+        toast({
+            title: 'Export Successful',
+            description: 'The class ranking has been downloaded as a PDF.',
+        });
     }
 
     return (
@@ -371,6 +396,7 @@ export default function AdminGradesPage() {
                     <TabsTrigger value="schedules">Exam Schedules</TabsTrigger>
                     <TabsTrigger value="submissions">Submission Status</TabsTrigger>
                     <TabsTrigger value="analysis">Grade Analysis</TabsTrigger>
+                    <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
                     <TabsTrigger value="reports">Reports</TabsTrigger>
                     <TabsTrigger value="settings">Settings &amp; Policies</TabsTrigger>
                 </TabsList>
@@ -635,6 +661,65 @@ export default function AdminGradesPage() {
                 </TabsContent>
                 <TabsContent value="analysis">
                      <GradeAnalysisCharts exam={examForAnalysis} onBack={() => setActiveTab('schedules')} />
+                </TabsContent>
+                 <TabsContent value="ranking">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div>
+                                    <CardTitle>Class Ranking</CardTitle>
+                                    <CardDescription>View ranked student performance for a selected class and exam.</CardDescription>
+                                </div>
+                                <Button variant="outline" onClick={handlePrintRanking}><Printer className="mr-2 h-4 w-4"/>Print List</Button>
+                            </div>
+                            <div className="mt-4 flex flex-col md:flex-row md:items-center gap-4">
+                                <div className="grid w-full md:w-auto gap-1.5">
+                                    <Label htmlFor="ranking-exam-filter">Exam</Label>
+                                    <Select defaultValue={exams[0]?.id}>
+                                        <SelectTrigger id="ranking-exam-filter" className="w-full md:w-auto"><SelectValue /></SelectTrigger>
+                                        <SelectContent>{exams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid w-full md:w-auto gap-1.5">
+                                    <Label htmlFor="ranking-class-filter">Class</Label>
+                                    <Select defaultValue={classes[0]?.id}>
+                                        <SelectTrigger id="ranking-class-filter" className="w-full md:w-auto"><SelectValue /></SelectTrigger>
+                                        <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                             <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[80px]">Rank</TableHead>
+                                            <TableHead>Student</TableHead>
+                                            <TableHead>Overall Grade</TableHead>
+                                            <TableHead>Comment</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {/* Mocked Data - In real app, this would be fetched and sorted */}
+                                        {filteredSubmissions.slice(0, 10).map((sub, index) => (
+                                            <TableRow key={sub.id}>
+                                                <TableCell className="font-bold text-lg text-muted-foreground">{index + 1}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <Avatar><AvatarImage src={`https://picsum.photos/seed/student${index}/100`} /><AvatarFallback>{sub.teacher.charAt(0)}</AvatarFallback></Avatar>
+                                                        <span className="font-medium">{sub.teacher}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell><Badge className="text-base">{Math.round(88 - index * 2.3)}%</Badge></TableCell>
+                                                <TableCell className="text-muted-foreground">Consistent effort.</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
                 <TabsContent value="reports">
                     <ReportGenerator />
