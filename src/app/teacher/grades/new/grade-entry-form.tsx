@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -141,7 +142,7 @@ export function GradeEntryForm() {
     });
 
     // Fetch assessments
-    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
+    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assesments'), where('classId', '==', selectedClass));
     const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
         const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
         setAssessments(assessmentData);

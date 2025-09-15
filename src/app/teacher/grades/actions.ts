@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -17,7 +18,7 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
     gradeEntrySchema.parse(data);
 
     // 1. Get Assessment & Class details
-    const assessmentRef = doc(firestore, 'schools', schoolId, 'assessments', data.assessmentId);
+    const assessmentRef = doc(firestore, 'schools', schoolId, 'assesments', data.assessmentId);
     const assessmentSnap = await getDoc(assessmentRef);
     if (!assessmentSnap.exists()) {
         throw new Error("Assessment not found!");

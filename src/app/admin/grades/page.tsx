@@ -181,7 +181,7 @@ export default function AdminGradesPage() {
         if (!schoolId) return;
 
         setClientReady(true);
-        const examsQuery = query(collection(firestore, `schools/${schoolId}/assessments`), orderBy('startDate', 'desc'));
+        const examsQuery = query(collection(firestore, `schools/${schoolId}/assesments`), orderBy('startDate', 'desc'));
         const unsubExams = onSnapshot(examsQuery, (snapshot) => {
             const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
             setExams(fetchedExams);
@@ -242,9 +242,10 @@ export default function AdminGradesPage() {
         }
         setIsSavingExam(true);
         try {
-            await addDoc(collection(firestore, `schools/${schoolId}/assessments`), {
+            await addDoc(collection(firestore, `schools/${schoolId}/assesments`), {
                 title: newExamTitle,
                 term: newExamTerm,
+                classId: newExamClass,
                 classes: classes.find(c => c.id === newExamClass)?.name || 'N/A',
                 startDate: Timestamp.fromDate(date.from),
                 endDate: Timestamp.fromDate(date.to || date.from),

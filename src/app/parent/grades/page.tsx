@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -185,7 +186,7 @@ export default function ParentGradesPage() {
             if (isNaN(score)) continue;
 
             if (!assessmentDetails[grade.assessmentId]) {
-                 const assessmentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'assessments', grade.assessmentId));
+                 const assessmentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'assesments', grade.assessmentId));
                  if(assessmentDoc.exists()) {
                      assessmentDetails[grade.assessmentId] = assessmentDoc.data() as any;
                  }
