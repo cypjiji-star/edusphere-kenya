@@ -26,95 +26,118 @@ const gradeDistributionRanges = [
   { range: 'E (0-34)', min: 0, max: 34, count: 0 },
 ];
 
-const chartConfig = {
+const ATTENDANCE_COLORS = {
+    present: 'hsl(120, 80%, 70%)',
+    late: 'hsl(40, 90%, 70%)',
+    absent: 'hsl(0, 80%, 70%)',
+};
+
+
+const performanceChartConfig = {
   students: {
     label: 'Students',
     color: 'hsl(var(--primary))',
   },
 };
 
+const attendanceChartConfig = {
+  present: {
+    label: 'Present',
+    color: ATTENDANCE_COLORS.present,
+  },
+  late: {
+    label: 'Late',
+    color: ATTENDANCE_COLORS.late,
+  },
+  absent: {
+    label: 'Absent',
+    color: ATTENDANCE_COLORS.absent,
+  },
+} satisfies React.ComponentProps<typeof ChartContainer>["config"];
+
 export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) {
-  const summary = React.useMemo(() => {
-    if (!students || students.length === 0) {
-      return {
-        average: 0,
-        highest: 0,
-        lowest: 0,
-        distribution: gradeDistributionRanges.map(r => ({ name: r.range.split(' ')[0], students: 0 })),
-      };
-    }
+    
+    const summary = React.useMemo(() => {
+        if (!students || students.length === 0) {
+        return {
+            average: 0,
+            highest: 0,
+            lowest: 0,
+            distribution: gradeDistributionRanges.map(r => ({ name: r.range.split(' ')[0], students: 0 })),
+        };
+        }
 
-    const grades = students.map(s => s.overall);
-    const average = grades.reduce((acc, grade) => acc + grade, 0) / grades.length;
-    const highest = Math.max(...grades);
-    const lowest = Math.min(...grades);
+        const grades = students.map(s => s.overall);
+        const average = grades.reduce((acc, grade) => acc + grade, 0) / grades.length;
+        const highest = Math.max(...grades);
+        const lowest = Math.min(...grades);
 
-    const distribution = [...gradeDistributionRanges.map(r => ({ ...r, count: 0 }))];
-    students.forEach(student => {
-      const grade = student.overall;
-      const range = distribution.find(r => grade >= r.min && grade <= r.max);
-      if (range) {
-        range.count++;
-      }
-    });
+        const distribution = [...gradeDistributionRanges.map(r => ({ ...r, count: 0 }))];
+        students.forEach(student => {
+        const grade = student.overall;
+        const range = distribution.find(r => grade >= r.min && grade <= r.max);
+        if (range) {
+            range.count++;
+        }
+        });
 
-    return {
-      average: Math.round(average),
-      highest,
-      lowest,
-      distribution: distribution.map(d => ({ name: d.range.split(' ')[0], students: d.count })),
-    };
-  }, [students]);
+        return {
+        average: Math.round(average),
+        highest,
+        lowest,
+        distribution: distribution.map(d => ({ name: d.range.split(' ')[0], students: d.count })),
+        };
+    }, [students]);
 
-  return (
-    <Card className="mb-6">
-        <CardHeader>
-            <CardTitle>Class Performance Summary</CardTitle>
-            <CardDescription>An overview of the overall grades for the selected class.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="flex flex-col justify-between space-y-4 col-span-1">
-                <Card className="text-center p-4 bg-muted/50 flex-1">
-                    <p className="text-4xl font-bold text-primary">{summary.average}%</p>
-                    <p className="text-sm font-medium text-muted-foreground">Class Average</p>
-                </Card>
-                <div className="flex gap-4">
+    return (
+        <Card className="mb-6">
+            <CardHeader>
+                <CardTitle>Class Performance Summary</CardTitle>
+                <CardDescription>An overview of the overall grades for the selected class.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div className="flex flex-col justify-between space-y-4 col-span-1">
                     <Card className="text-center p-4 bg-muted/50 flex-1">
-                        <p className="text-2xl font-bold">{summary.highest}%</p>
-                        <p className="text-xs text-muted-foreground">Highest Grade</p>
+                        <p className="text-4xl font-bold text-primary">{summary.average}%</p>
+                        <p className="text-sm font-medium text-muted-foreground">Class Average</p>
                     </Card>
-                    <Card className="text-center p-4 bg-muted/50 flex-1">
-                        <p className="text-2xl font-bold">{summary.lowest}%</p>
-                        <p className="text-xs text-muted-foreground">Lowest Grade</p>
-                    </Card>
+                    <div className="flex gap-4">
+                        <Card className="text-center p-4 bg-muted/50 flex-1">
+                            <p className="text-2xl font-bold">{summary.highest}%</p>
+                            <p className="text-xs text-muted-foreground">Highest Grade</p>
+                        </Card>
+                        <Card className="text-center p-4 bg-muted/50 flex-1">
+                            <p className="text-2xl font-bold">{summary.lowest}%</p>
+                            <p className="text-xs text-muted-foreground">Lowest Grade</p>
+                        </Card>
+                    </div>
                 </div>
-            </div>
-            <div className="md:col-span-2">
-                <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                    <BarChart
-                    data={summary.distribution}
-                    layout="horizontal"
-                    margin={{ left: -10, right: 30 }}
-                    >
-                    <CartesianGrid vertical={false} />
-                    <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={40} />
-                    <XAxis type="number" hide />
-                    <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent hideLabel />}
-                    />
-                    <Bar dataKey="students" fill="var(--color-students)" radius={5} barSize={25}>
-                        <LabelList
-                            position="right"
-                            offset={8}
-                            className="fill-foreground font-semibold"
-                            fontSize={12}
+                <div className="md:col-span-2">
+                    <ChartContainer config={performanceChartConfig} className="h-[200px] w-full">
+                        <BarChart
+                        data={summary.distribution}
+                        layout="horizontal"
+                        margin={{ left: -10, right: 30 }}
+                        >
+                        <CartesianGrid vertical={false} />
+                        <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={40} />
+                        <XAxis type="number" hide />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent hideLabel />}
                         />
-                    </Bar>
-                    </BarChart>
-                </ChartContainer>
-            </div>
-      </CardContent>
-    </Card>
-  );
+                        <Bar dataKey="students" fill="var(--color-students)" radius={5} barSize={25}>
+                            <LabelList
+                                position="right"
+                                offset={8}
+                                className="fill-foreground font-semibold"
+                                fontSize={12}
+                            />
+                        </Bar>
+                        </BarChart>
+                    </ChartContainer>
+                </div>
+        </CardContent>
+        </Card>
+    );
 }
