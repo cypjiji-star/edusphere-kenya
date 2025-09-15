@@ -153,7 +153,9 @@ export default function AttendancePage() {
             });
 
             const studentAttendance = classStudents.map(student => ({
-                ...student,
+                id: student.id,
+                name: student.name,
+                avatarUrl: student.avatarUrl,
                 status: attendanceMap.get(student.id)?.status || 'unmarked',
                 notes: attendanceMap.get(student.id)?.notes || '',
             }));
@@ -185,7 +187,6 @@ export default function AttendancePage() {
       const docId = `${student.id}_${attendanceDateKey}`;
       const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
   
-      // This will now create or completely overwrite the document with the full data.
       batch.set(attendanceRef, {
         studentId: student.id,
         studentName: student.name,
