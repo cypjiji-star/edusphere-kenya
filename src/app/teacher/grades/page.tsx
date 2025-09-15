@@ -101,7 +101,7 @@ export default function GradesPage() {
     const { toast } = useToast();
     const [editingStudent, setEditingStudent] = React.useState<StudentGrades | null>(null);
     const [activeTab, setActiveTab] = React.useState('gradebook');
-    const [isLoading, setIsLoading] = React.useState(true);
+    const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
     const [user, setUser] = React.useState(auth.currentUser);
 
     const [currentAssessments, setCurrentAssessments] = React.useState<Assessment[]>([]);
@@ -129,9 +129,12 @@ export default function GradesPage() {
     }, [schoolId, selectedClass, user]);
 
     React.useEffect(() => {
-        if (!schoolId || !selectedClass) return;
+        if (!schoolId || !selectedClass) {
+            setIsGradebookLoading(false);
+            return;
+        };
 
-        setIsLoading(true);
+        setIsGradebookLoading(true);
 
         // Listener for assessments for the selected class
         const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
@@ -161,7 +164,7 @@ export default function GradesPage() {
                 };
             }));
             setCurrentStudents(studentsData);
-            setIsLoading(false);
+            setIsGradebookLoading(false);
         });
 
 
@@ -301,7 +304,7 @@ export default function GradesPage() {
                 </div>
             </CardHeader>
             <CardContent>
-                {isLoading ? (
+                {isGradebookLoading ? (
                     <div className="flex items-center justify-center h-64">
                       <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     </div>
