@@ -15,6 +15,7 @@ import {
   User,
   Loader2,
   X,
+  Clock,
 } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage, firestore } from '@/lib/firebase';
@@ -71,6 +72,10 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { translateText } from '@/ai/flows/translate-text';
 import { useAuth } from '@/context/auth-context';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 
 type Conversation = {
   id: string;
@@ -86,13 +91,14 @@ type Conversation = {
 
 type Message = { 
   id?: string;
-  sender: string; // Changed to string to store user ID
+  sender: string;
   text: string; 
   timestamp: Timestamp | null;
   read?: boolean; 
   senderName?: string;
   translatedText?: string;
   attachmentUrl?: string;
+  scheduledAt?: Timestamp;
 };
 
 type SelectableContact = {
@@ -125,6 +131,7 @@ export function AdminChatLayout() {
   const [targetLanguage, setTargetLanguage] = React.useState('sw');
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
 
   const translationLanguages: TranslationLanguage[] = [
     { code: 'sw', name: 'Swahili' },
@@ -133,7 +140,6 @@ export function AdminChatLayout() {
     { code: 'es', name: 'Spanish' },
   ];
 
-  // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -201,7 +207,7 @@ export function AdminChatLayout() {
       unsubConvos();
       unsubUsers();
     };
-  }, [schoolId, user, toast]);
+  }, [schoolId, user, selectedConvo, toast]);
 
   React.useEffect(() => {
     if (!selectedConvo || !schoolId || !user) return;
@@ -223,7 +229,6 @@ export function AdminChatLayout() {
           [selectedConvo.id]: convoMessages,
         }));
 
-        // Mark messages as read if they're from other users
         const unreadMessages = convoMessages.filter(
           msg => msg.sender !== user.uid && !msg.read
         );
@@ -264,7 +269,6 @@ export function AdminChatLayout() {
         }
       });
 
-      // Update conversation unread status
       const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
       batch.update(convoRef, { unread: false });
 
@@ -289,24 +293,25 @@ export function AdminChatLayout() {
         messageText += messageText ? `\n\n📎 [Attachment](${attachmentUrl})` : `📎 [Attachment](${attachmentUrl})`;
       } catch (error) {
         console.error("Error uploading file:", error);
+        setIsSending(false);
         toast({
           variant: "destructive",
           title: "Upload Failed",
           description: "Could not upload your file. Please try again.",
         });
-        setIsSending(false);
         return;
       }
     }
 
     try {
-      const newMessage: Omit<Message, 'id'> & { timestamp: any } = {
+      const newMessage: Omit<Message, 'id'> & { timestamp: any, scheduledAt?: any } = {
         sender: user.uid,
         text: messageText,
-        timestamp: serverTimestamp(),
+        timestamp: scheduledDate ? null : serverTimestamp(),
         read: false,
         senderName: user.displayName || 'Admin',
         ...(attachmentUrl && { attachmentUrl }),
+        ...(scheduledDate && { scheduledAt: Timestamp.fromDate(scheduledDate) }),
       };
       
       await addDoc(
@@ -314,24 +319,28 @@ export function AdminChatLayout() {
         newMessage
       );
 
-      // Update last message in conversation
-      const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
-      await updateDoc(convoRef, {
-        lastMessage: messageText.length > 100 ? messageText.substring(0, 100) + '...' : messageText,
-        timestamp: serverTimestamp(),
-        lastMessageSender: user.uid,
-        unread: true,
-      });
+      if (!scheduledDate) {
+        const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
+        await updateDoc(convoRef, {
+          lastMessage: messageText.substring(0, 100),
+          timestamp: serverTimestamp(),
+          lastMessageSender: user.uid,
+          unread: true,
+        });
+      }
 
       setMessage('');
       setAttachment(null);
-    } catch (error) {
-      console.error("Error sending message:", error);
+      setScheduledDate(undefined);
+      
       toast({
-        variant: "destructive",
-        title: "Send Failed",
-        description: "Could not send your message. Please try again.",
+        title: scheduledDate ? 'Message Scheduled!' : 'Message Sent!',
+        description: scheduledDate ? `Your message will be sent on ${format(scheduledDate, 'PPP')} at ${format(scheduledDate, 'p')}.` : 'Your message has been delivered.',
       });
+
+    } catch (error) {
+      console.error("Error sending/scheduling message:", error);
+      toast({ variant: 'destructive', title: 'Action Failed' });
     } finally {
       setIsSending(false);
     }
@@ -339,7 +348,6 @@ export function AdminChatLayout() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      // Check file size (max 5MB)
       if (event.target.files[0].size > 5 * 1024 * 1024) {
         toast({
           variant: "destructive",
@@ -364,14 +372,12 @@ export function AdminChatLayout() {
     try {
       const existingConvoQuery = query(
         collection(firestore, `schools/${schoolId}/conversations`),
-        where('participants', 'array-contains', user.uid)
+        where('participants', '==', [user.uid, contactId].sort())
       );
       const existingConvoSnapshot = await getDocs(existingConvoQuery);
-      const existingConvo = existingConvoSnapshot.docs.find(doc => 
-        doc.data().participants.includes(contactId)
-      );
 
-      if (existingConvo) {
+      if (!existingConvoSnapshot.empty) {
+        const existingConvo = existingConvoSnapshot.docs[0];
         setSelectedConvo({ id: existingConvo.id, ...existingConvo.data() } as Conversation);
         return;
       }
@@ -383,7 +389,7 @@ export function AdminChatLayout() {
         lastMessage: 'New conversation started.',
         timestamp: serverTimestamp(),
         unread: false,
-        participants: [user.uid, contactId],
+        participants: [user.uid, contactId].sort(),
         lastMessageSender: user.uid,
       };
 
@@ -396,73 +402,19 @@ export function AdminChatLayout() {
       });
     } catch (error) {
       console.error("Error creating conversation:", error);
-      toast({
-        variant: "destructive",
-        title: "Creation Failed",
-        description: "Could not start a new conversation. Please try again.",
-      });
+      toast({ variant: 'destructive', title: 'Creation Failed' });
     }
   }
-
-  const handleTranslate = async () => {
-    if (!message.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'No Message to Translate',
-        description: 'Please type a message before using translation.',
-      });
-      return;
-    }
-    
-    setIsTranslating(true);
-    try {
-      const languageName = translationLanguages.find(lang => lang.code === targetLanguage)?.name || targetLanguage;
-      const result = await translateText({ 
-        text: message, 
-        targetLanguage: languageName 
-      });
-      
-      if (result && result.translatedText) {
-        setMessage(result.translatedText);
-        toast({
-          title: 'Translation Complete',
-          description: `The message has been translated to ${languageName}.`,
-        });
-      } else {
-        throw new Error('Translation service did not return translated text.');
-      }
-    } catch(e) {
-      console.error(e);
-      toast({
-        variant: 'destructive',
-        title: 'Translation Failed',
-        description: 'The translation service could not translate the message.',
-      });
-    } finally {
-      setIsTranslating(false);
-    }
-  };
 
   const handleTranslateIncomingMessage = async (messageId: string, text: string, targetLang: string) => {
     if (!selectedConvo || !schoolId) return;
     
     try {
       const languageName = translationLanguages.find(lang => lang.code === targetLang)?.name || targetLang;
-      const result = await translateText({ 
-        text, 
-        targetLanguage: languageName 
-      });
+      const result = await translateText({ text, targetLanguage: languageName });
       
       if (result && result.translatedText) {
-        // Update the message with translated text
-        const messageRef = doc(
-          firestore, 
-          `schools/${schoolId}/conversations`, 
-          selectedConvo.id, 
-          'messages', 
-          messageId
-        );
-        
+        const messageRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages', messageId);
         await updateDoc(messageRef, {
           translatedText: result.translatedText,
           translationLanguage: targetLang,
@@ -472,48 +424,10 @@ export function AdminChatLayout() {
       }
     } catch (e) {
       console.error(e);
-      toast({
-        variant: 'destructive',
-        title: 'Translation Failed',
-        description: 'The translation service could not translate the message.',
-      });
+      toast({ variant: 'destructive', title: 'Translation Failed' });
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedConvo || !schoolId) return;
-    
-    if (!window.confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
-      return;
-    }
-
-    try {
-      await deleteDoc(doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id));
-      
-      setMessages(prev => {
-        const newMessages = { ...prev };
-        delete newMessages[selectedConvo.id];
-        return newMessages;
-      });
-
-      // Select another conversation if available
-      const remainingConvos = conversations.filter(c => c.id !== selectedConvo.id);
-      setSelectedConvo(remainingConvos.length > 0 ? remainingConvos[0] : null);
-
-      toast({
-        title: 'Conversation Deleted',
-        description: 'The conversation has been successfully deleted.',
-      });
-    } catch (error) {
-      console.error("Error deleting conversation:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Deletion Failed',
-        description: 'Could not delete the conversation. Please try again.',
-      });
-    }
-  };
-  
   const getIconComponent = (iconName: string) => {
     if (iconName === 'User') return User;
     if (iconName === 'Users') return Users;
@@ -525,13 +439,11 @@ export function AdminChatLayout() {
     convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Check if user is the sender of a message
   const isSender = (message: Message) => message.sender === user?.uid;
 
   return (
     <div className="z-10 h-full w-full bg-background rounded-lg overflow-hidden">
       <div className="flex h-full">
-        {/* Conversations sidebar */}
         <div className="flex flex-col w-full md:w-[320px] border-r">
           <div className="flex-shrink-0 p-4 border-b">
             <div className="flex items-center justify-between">
@@ -625,7 +537,6 @@ export function AdminChatLayout() {
           </div>
         </div>
 
-        {/* Chat area */}
         <div className="flex flex-col w-full h-full">
           {selectedConvo ? (
             <>
@@ -637,15 +548,7 @@ export function AdminChatLayout() {
                   </Avatar>
                   <div>
                     <p className="font-semibold">{selectedConvo.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedConvo.participants.length === 2 ? 'Direct message' : 'Group chat'}
-                    </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={handleDelete}>
-                    <Trash2 className="h-5 w-5 text-destructive" />
-                  </Button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -672,64 +575,22 @@ export function AdminChatLayout() {
                             : 'bg-secondary rounded-bl-none'
                         )}>
                           <p className="whitespace-pre-wrap">{msg.text}</p>
-                          
                           {msg.attachmentUrl && (
-                            <div className="mt-2">
-                              <a 
-                                href={msg.attachmentUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center text-sm underline"
-                              >
-                                <Paperclip className="h-3 w-3 mr-1" />
-                                View Attachment
-                              </a>
-                            </div>
+                            <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-sm underline"><Paperclip className="h-3 w-3 mr-1" />View Attachment</a>
                           )}
-                          
                           {msg.translatedText && (
-                            <div className="mt-2 pt-2 border-t border-secondary-foreground/20">
-                              <p className="italic text-secondary-foreground/80 text-xs">
-                                {msg.translatedText}
-                              </p>
-                            </div>
+                            <p className="mt-2 pt-2 border-t border-secondary-foreground/20 italic text-secondary-foreground/80 text-xs">{msg.translatedText}</p>
                           )}
-                          
-                          <div className={cn(
-                            "text-xs mt-2 flex items-center gap-2", 
-                            isUserSender ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                          )}>
-                            <span>
-                              {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                          <div className={cn("text-xs mt-2 flex items-center gap-2", isUserSender ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                            <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             {isUserSender && msg.read && <CheckCircle2 className="h-3 w-3" />}
                           </div>
                         </div>
-                        
-                        {!isUserSender && !msg.translatedText && (
-                          <div className="absolute -top-2 -right-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                            <Select
-                              value={targetLanguage}
-                              onValueChange={(value) => msg.id && handleTranslateIncomingMessage(msg.id, msg.text, value)}
-                            >
-                              <SelectTrigger className="h-7 w-7 p-0">
-                                <Languages className="h-4 w-4 text-muted-foreground" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {translationLanguages.map((lang) => (
-                                  <SelectItem key={lang.code} value={lang.code}>
-                                    {lang.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
                       </div>
                       {isUserSender && (
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.photoURL || "https://picsum.photos/seed/admin-avatar/100"} />
-                          <AvatarFallback>{user.displayName?.charAt(0) || 'A'}</AvatarFallback>
+                          <AvatarImage src={user?.photoURL || "https://picsum.photos/seed/admin-avatar/100"} />
+                          <AvatarFallback>{user?.displayName?.charAt(0) || 'A'}</AvatarFallback>
                         </Avatar>
                       )}
                     </div>
@@ -743,76 +604,35 @@ export function AdminChatLayout() {
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted text-sm text-muted-foreground">
                     <Paperclip className="h-4 w-4" />
                     <span className="flex-1 truncate">{attachment.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setAttachment(null)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAttachment(null)}><X className="h-4 w-4" /></Button>
                   </div>
                 )}
-                
+                {scheduledDate && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-blue-500/10 text-sm text-blue-800">
+                    <Clock className="h-4 w-4" />
+                    <span className="flex-1 truncate">Scheduled for: {format(scheduledDate, 'PPP, p')}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setScheduledDate(undefined)}><X className="h-4 w-4" /></Button>
+                  </div>
+                )}
                 <div className="relative">
-                  <Textarea
-                    placeholder="Type a message..."
-                    className="pr-40 min-h-[80px]"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    disabled={isSending}
-                  />
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/*, .pdf, .doc, .docx, .txt"
-                  />
-                  
+                  <Textarea placeholder="Type a message..." className="pr-24 min-h-[60px] max-h-48" value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} disabled={isSending} />
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*, .pdf, .doc, .docx, .txt" />
                   <div className="absolute top-3 right-3 flex items-center gap-1">
-                    <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                      <SelectTrigger className="h-9 w-9 p-0">
-                        <Languages className="h-4 w-4" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {translationLanguages.map((lang) => (
-                          <SelectItem key={lang.code} value={lang.code}>
-                            {lang.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
                     <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={handleAttachmentClick}
-                            disabled={isSending}
-                          >
-                            <Paperclip className="h-5 w-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Attach file (max 5MB)</p>
-                        </TooltipContent>
-                      </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" onClick={handleAttachmentClick} disabled={isSending}><Paperclip className="h-5 w-5" /></Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Attach file (max 5MB)</p></TooltipContent>
+                        </Tooltip>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button size="icon" variant="ghost" disabled={isSending}><Clock className="h-5 w-5"/></Button>
+                          </PopoverTrigger>
+                           <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} initialFocus disabled={(date) => date < new Date()} /></PopoverContent>
+                        </Popover>
                     </TooltipProvider>
-                    
-                    <Button
-                      size="icon"
-                      disabled={(!message.trim() && !attachment) || isSending}
-                      onClick={handleSendMessage}
-                    >
+                    <Button size="icon" disabled={(!message.trim() && !attachment) || isSending} onClick={handleSendMessage}>
                       {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                     </Button>
                   </div>
