@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -315,6 +316,7 @@ export default function AdminGradesPage() {
         try {
             const grades: StudentGrade[] = [];
             // We need to find all students in the class and then find their grade for this specific assessment.
+            // This is inefficient. A better data model would be to have grades under the submission itself.
             const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('class', '==', submission.class));
             const studentsSnapshot = await getDocs(studentsQuery);
 
