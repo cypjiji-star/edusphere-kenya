@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { firestore, auth } from "@/lib/firebase";
 import {
   collection,
@@ -52,8 +52,6 @@ type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
 export type Student = {
   id: string;
   name: string;
-  firstName: string;
-  lastName: string;
   rollNumber: string;
   avatarUrl: string;
   status: AttendanceStatus;
@@ -289,29 +287,39 @@ export default function AttendancePage() {
             id: d.id,
             name: `${data.firstName} ${data.lastName}`,
             avatarUrl: data.avatarUrl,
-            ...data,
             status: "unmarked",
             notes: "",
+            ...data
           } as Student;
       });
 
-      // Fetch attendance for all students in one go
-      const attendanceDate = format(selectedDate, "yyyy-MM-dd");
-      const attendanceQuery = query(collection(firestore, 'schools', schoolId, 'attendance'), where('classId', '==', selectedClass), where('date', '==', attendanceDate));
-      const attendanceSnapshots = await getDocs(attendanceQuery);
+      const attendanceDateStr = format(selectedDate, "yyyy-MM-dd");
+      
+      const studentIds = studentList.map(s => s.id);
+      if (studentIds.length === 0) {
+        setStudents([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const attendancePromises = studentIds.map(studentId => {
+        const attendanceDocRef = doc(firestore, 'schools', schoolId, 'students', studentId, 'attendance', attendanceDateStr);
+        return getDoc(attendanceDocRef);
+      });
+      
+      const attendanceDocs = await Promise.all(attendancePromises);
 
       const attendanceMap = new Map<string, { status: AttendanceStatus, notes?: string }>();
-      attendanceSnapshots.forEach(doc => {
-          const data = doc.data();
-          attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
+      attendanceDocs.forEach((docSnap, index) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          attendanceMap.set(studentIds[index], { status: data.status, notes: data.notes });
+        }
       });
 
       const studentsWithAttendance = studentList.map((student) => {
         const attendance = attendanceMap.get(student.id);
-        if (attendance) {
-          return { ...student, status: attendance.status, notes: attendance.notes || '' };
-        }
-        return student;
+        return { ...student, status: attendance?.status || 'unmarked', notes: attendance?.notes || '' };
       });
       
       setStudents(studentsWithAttendance);
@@ -331,20 +339,19 @@ export default function AttendancePage() {
   }, []);
 
   // Save Attendance
-  const handleSaveAttendance = React.useCallback(async () => {
+  const handleSaveAttendance = useCallback(async () => {
     if (!selectedClass || !schoolId || !user || students.length === 0 || !selectedDate) {
       console.warn("Cannot save: missing data", { schoolId, selectedClass, user, selectedDate });
       return;
     }
     
     const batch = writeBatch(firestore);
-    const attendanceDate = format(selectedDate, "yyyy-MM-dd");
+    const attendanceDateStr = format(selectedDate, "yyyy-MM-dd");
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
     
     for (const student of students) {
       if (student.status === "unmarked") continue;
-      const attendanceDocId = `${student.id}_${attendanceDate}`;
-      const attendanceRef = doc(firestore, "schools", schoolId, "attendance", attendanceDocId);
+      const attendanceRef = doc(firestore, `schools/${schoolId}/students/${student.id}/attendance`, attendanceDateStr);
       
       batch.set(attendanceRef, {
         studentId: student.id,
@@ -374,7 +381,7 @@ export default function AttendancePage() {
         variant: "destructive",
       });
     }
-  }, [selectedClass, schoolId, user, students, selectedDate, teacherClasses, toast, teacherName]);
+  }, [schoolId, selectedClass, selectedDate, students, teacherClasses, teacherName, toast, user]);
   
   if (isLoading) {
     return <div className="flex h-full items-center justify-center p-8"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
@@ -404,4 +411,3 @@ export default function AttendancePage() {
   );
 }
 
-    

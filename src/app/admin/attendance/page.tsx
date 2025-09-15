@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -127,7 +128,7 @@ function LowAttendanceAlerts({ records, dateRange }: { records: AttendanceRecord
             if (dateRange?.from && !dateRange.to) { // Single day selected
                 return recordDate.toDateString() === dateRange.from.toDateString();
             }
-            const isDateInRange = dateRange?.from && dateRange?.to ? recordDate >= dateRange.from && recordDate <= date.to : true;
+            const isDateInRange = dateRange?.from && dateRange?.to ? recordDate >= dateRange.from && recordDate <= dateRange.to : true;
             return isDateInRange;
         });
 
@@ -248,7 +249,7 @@ export default function AdminAttendancePage() {
             return {
                 id: doc.id,
                 studentName: data.studentName,
-                studentAvatar: data.studentAvatar,
+                studentAvatar: `https://picsum.photos/seed/${data.studentId}/100`,
                 class: data.className,
                 teacher: data.teacher,
                 date: data.date,
@@ -603,3 +604,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
