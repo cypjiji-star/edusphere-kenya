@@ -70,6 +70,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { translateText } from '@/ai/flows/translate-text';
+import { useAuth } from '@/context/auth-context';
 
 type Conversation = {
   id: string;
@@ -79,6 +80,7 @@ type Conversation = {
   lastMessage: string;
   timestamp: Timestamp;
   unread: boolean;
+  participants: string[];
 };
 
 type Message = { 
@@ -101,6 +103,7 @@ type SelectableContact = {
 export function AdminChatLayout() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [messages, setMessages] = React.useState<Record<string, Message[]>>({});
   const [selectedConvo, setSelectedConvo] = React.useState<Conversation | null>(null);
@@ -220,13 +223,19 @@ export function AdminChatLayout() {
   };
   
   const handleCreateConversation = async (contactId: string) => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
     const contact = newContactOptions.find(c => c.id === contactId);
     if (!contact) return;
     
-    const existingConvo = conversations.find(c => c.name === contact.name);
+    const existingConvoQuery = query(
+        collection(firestore, `schools/${schoolId}/conversations`),
+        where('participants', 'array-contains', contact.id)
+    );
+    const existingConvoSnapshot = await getDocs(existingConvoQuery);
+    const existingConvo = existingConvoSnapshot.docs.find(doc => doc.data().participants.includes(user.uid));
+
     if (existingConvo) {
-        setSelectedConvo(existingConvo);
+        setSelectedConvo({ id: existingConvo.id, ...existingConvo.data() } as Conversation);
         return;
     }
 
@@ -237,6 +246,7 @@ export function AdminChatLayout() {
         lastMessage: 'New conversation started.',
         timestamp: serverTimestamp(),
         unread: false,
+        participants: [user.uid, contact.id]
     };
 
     const docRef = await addDoc(collection(firestore, `schools/${schoolId}/conversations`), newConvoData);

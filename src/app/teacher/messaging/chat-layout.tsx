@@ -71,6 +71,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { translateText } from '@/ai/flows/translate-text';
+import { useAuth } from '@/context/auth-context';
 
 type Conversation = {
   id: string;
@@ -80,6 +81,7 @@ type Conversation = {
   lastMessage: string;
   timestamp: Timestamp;
   unread: boolean;
+  participants: string[];
 };
 
 type Message = { 
@@ -108,6 +110,7 @@ const getIconComponent = (iconName: string) => {
 export function ChatLayout() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [messages, setMessages] = React.useState<Record<string, Message[]>>({});
   const [selectedConvo, setSelectedConvo] = React.useState<Conversation | null>(null);
@@ -118,12 +121,12 @@ export function ChatLayout() {
   const [attachment, setAttachment] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const teacherId = 'teacher-wanjiku'; // This should be dynamic based on logged-in user
   const [newContactOptions, setNewContactOptions] = React.useState<SelectableContact[]>([]);
 
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
+    const teacherId = user.uid;
     const q = query(
         collection(firestore, `schools/${schoolId}/conversations`), 
         where('participants', 'array-contains', teacherId),
@@ -155,7 +158,7 @@ export function ChatLayout() {
         unsubscribe();
         unsubUsers();
     };
-  }, [selectedConvo, schoolId, teacherId]);
+  }, [selectedConvo, schoolId, user]);
 
   React.useEffect(() => {
     if (!selectedConvo || !schoolId) return;
@@ -205,7 +208,7 @@ export function ChatLayout() {
       text: messageText,
       timestamp: serverTimestamp(),
       read: false,
-      senderName: 'Ms. Wanjiku'
+      senderName: user?.displayName || 'Teacher'
     };
     
     await addDoc(collection(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages'), newMessage);
@@ -233,14 +236,20 @@ export function ChatLayout() {
   };
   
   const handleCreateConversation = async (contactId: string) => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
 
     const contact = newContactOptions.find(c => c.id === contactId);
     if (!contact) return;
     
-    const existingConvo = conversations.find(c => c.name === contact.name);
+    const existingConvoQuery = query(
+        collection(firestore, `schools/${schoolId}/conversations`),
+        where('participants', 'array-contains', contact.id)
+    );
+    const existingConvoSnapshot = await getDocs(existingConvoQuery);
+    const existingConvo = existingConvoSnapshot.docs.find(doc => doc.data().participants.includes(user.uid));
+
     if (existingConvo) {
-        setSelectedConvo(existingConvo);
+        setSelectedConvo({ id: existingConvo.id, ...existingConvo.data() } as Conversation);
         return;
     }
 
@@ -251,7 +260,7 @@ export function ChatLayout() {
         lastMessage: 'New conversation started.',
         timestamp: serverTimestamp(),
         unread: false,
-        participants: [teacherId, contact.id]
+        participants: [user.uid, contact.id]
     };
 
     await addDoc(collection(firestore, `schools/${schoolId}/conversations`), newConvoData);
@@ -492,7 +501,7 @@ export function ChatLayout() {
                                 </Button>
                             )}
                         </div>
-                         {msg.sender === 'me' && <Avatar className="h-8 w-8"><AvatarImage src="https://picsum.photos/seed/teacher-avatar/100" /><AvatarFallback>T</AvatarFallback></Avatar>}
+                         {msg.sender === 'me' && <Avatar className="h-8 w-8"><AvatarImage src={user?.photoURL || "https://picsum.photos/seed/teacher-avatar/100"} /><AvatarFallback>{user?.displayName?.charAt(0) || 'T'}</AvatarFallback></Avatar>}
                     </div>
                 )})}
               </div>
