@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
@@ -221,7 +221,6 @@ export default function AdminAttendancePage() {
     const fetchData = async () => {
         setIsLoading(true);
         
-        // Listen for all attendance records
         const attendanceQuery = query(collection(firestore, 'schools', schoolId, 'attendance'));
         const unsubscribe = onSnapshot(attendanceQuery, (snapshot) => {
             const records = snapshot.docs.map(doc => {
@@ -230,7 +229,7 @@ export default function AdminAttendancePage() {
                     id: doc.id,
                     studentId: data.studentId,
                     studentName: data.studentName || 'Unknown Student',
-                    studentAvatar: data.studentAvatar || 'https://picsum.photos/seed/default/100',
+                    studentAvatar: `https://picsum.photos/seed/${data.studentId}/100`,
                     class: data.className || 'Unknown Class',
                     teacher: data.teacher,
                     date: data.date,
@@ -238,21 +237,14 @@ export default function AdminAttendancePage() {
                 } as AttendanceRecord;
             });
             setAllRecords(records);
+
+            const teacherNames = new Set(records.map(r => r.teacher));
+            setTeachers(['All Teachers', ...Array.from(teacherNames)]);
+
+            const classNames = new Set(records.map(r => r.class));
+            setClasses(['All Classes', ...Array.from(classNames)]);
+
             setIsLoading(false);
-        });
-
-        // Fetch teachers for filter dropdown
-        const teachersQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
-        onSnapshot(teachersQuery, (snapshot) => {
-            const teacherNames = snapshot.docs.map(doc => doc.data().name);
-            setTeachers(['All Teachers', ...teacherNames]);
-        });
-
-        // Fetch classes for filter dropdown
-        const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
-        onSnapshot(classesQuery, (snapshot) => {
-            const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
-            setClasses(['All Classes', ...new Set(classNames)]);
         });
 
         return unsubscribe;
