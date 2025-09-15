@@ -305,12 +305,14 @@ export default function AttendancePage() {
 
       const startOfDay = new Date(selectedDate);
       startOfDay.setHours(0, 0, 0, 0);
-      const attendanceDateTimestamp = Timestamp.fromDate(startOfDay);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
       
       const attendanceQuery = query(
           collection(firestore, 'schools', schoolId, 'attendance'),
           where('classId', '==', selectedClass),
-          where('date', '==', attendanceDateTimestamp)
+          where('date', '>=', Timestamp.fromDate(startOfDay)),
+          where('date', '<=', Timestamp.fromDate(endOfDay))
       );
 
       const attendanceSnapshot = await getDocs(attendanceQuery);
