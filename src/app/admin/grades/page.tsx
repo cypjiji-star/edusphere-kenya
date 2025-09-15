@@ -8,22 +8,18 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   FileText,
   PlusCircle,
-  Save,
   Trophy,
   Loader2,
   Printer,
   CalendarIcon,
   Settings,
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
 import { ReportGenerator } from './report-generator';
 import {
   Dialog,
@@ -61,6 +57,9 @@ import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { GradeAnalysisCharts } from './grade-analysis-charts';
 
 type GradeStatus = 'Graded' | 'Pending';
 
@@ -454,12 +453,6 @@ export default function AdminGradesPage() {
                        </div>
                   </div>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                  <Button onClick={handleSaveScale}>
-                      <Save className="mr-2 h-4 w-4"/>
-                      Save Policies
-                  </Button>
-              </CardFooter>
            </Card>
         </TabsContent>
       </Tabs>

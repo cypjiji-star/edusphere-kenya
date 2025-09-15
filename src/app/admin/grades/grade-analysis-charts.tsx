@@ -147,7 +147,7 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
       <Card className="min-h-[600px]">
         <CardHeader>
           <CardTitle>Grade Analysis</CardTitle>
-          <CardDescription>Select an exam from the "Exam Schedules" tab to see an analysis.</CardDescription>
+          <CardDescription>Select an exam to see an analysis.</CardDescription>
         </CardHeader>
         <CardContent className="flex h-full items-center justify-center">
           <div className="text-center text-muted-foreground">

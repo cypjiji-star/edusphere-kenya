@@ -62,7 +62,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 

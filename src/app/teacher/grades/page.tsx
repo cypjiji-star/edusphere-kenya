@@ -55,13 +55,13 @@ import {
 } from '@/components/ui/dialog';
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ReportGenerator } from '../grades/report-generator';
+import { ReportGenerator } from './report-generator';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { GradeEntryForm } from './new/grade-entry-form';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
 
@@ -86,6 +86,7 @@ export type Assessment = {
   title: string;
   type: 'Exam' | 'Assignment' | 'Quiz';
   date: Timestamp;
+  subject?: string;
 };
 
 type TeacherClass = {
@@ -98,7 +99,9 @@ export default function GradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+    const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
     const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
+    const [selectedSubject, setSelectedSubject] = React.useState<string>('All Subjects');
     const [searchTerm, setSearchTerm] = React.useState('');
     const { toast } = useToast();
     const [editingStudent, setEditingStudent] = React.useState<StudentGrades | null>(null);
@@ -127,7 +130,17 @@ export default function GradesPage() {
             }
         });
 
-        return () => unsubClasses();
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
+         const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
+            const subjects = snapshot.docs.map(doc => doc.data().name as string);
+            setTeacherSubjects(['All Subjects', ...subjects]);
+        });
+
+
+        return () => {
+            unsubClasses();
+            unsubSubjects();
+        };
     }, [schoolId, selectedClass, user]);
 
     React.useEffect(() => {
@@ -138,13 +151,25 @@ export default function GradesPage() {
 
         setIsGradebookLoading(true);
 
-        const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
+        let assessmentsQuery;
+        if (selectedSubject === 'All Subjects') {
+            assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
+        } else {
+            assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass), where('title', '==', selectedSubject));
+        }
+
         const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
             const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
             setCurrentAssessments(assessments);
         });
-
-        const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass));
+        
+        let gradesQuery;
+        if (selectedSubject === 'All Subjects') {
+            gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass));
+        } else {
+             gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass), where('subject', '==', selectedSubject));
+        }
+        
         const unsubGrades = onSnapshot(gradesQuery, async (snapshot) => {
              const gradesByStudent: Record<string, { grades: Grade[], studentInfo?: any }> = {};
 
@@ -185,7 +210,7 @@ export default function GradesPage() {
             unsubGrades();
         }
 
-    }, [selectedClass, schoolId]);
+    }, [selectedClass, schoolId, selectedSubject]);
 
     const filteredStudents = currentStudents.filter(s => 
         s.studentName && s.studentName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -266,13 +291,25 @@ export default function GradesPage() {
                <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center">
                      <Select value={selectedClass} onValueChange={setSelectedClass}>
-                        <SelectTrigger className="w-full md:w-[240px]">
+                        <SelectTrigger className="w-full md:w-[180px]">
                             <SelectValue placeholder="Select a class" />
                         </SelectTrigger>
                         <SelectContent>
                             {teacherClasses.map((cls) => (
                                 <SelectItem key={cls.id} value={cls.id}>
                                 {cls.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                     </Select>
+                     <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                        <SelectTrigger className="w-full md:w-[180px]">
+                            <SelectValue placeholder="Select a subject" />
+                        </SelectTrigger>
+                        <SelectContent>
+                             {teacherSubjects.map((subject) => (
+                                <SelectItem key={subject} value={subject}>
+                                {subject}
                                 </SelectItem>
                             ))}
                         </SelectContent>
