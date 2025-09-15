@@ -103,7 +103,6 @@ export function AdminChatLayout() {
   React.useEffect(() => {
     if (!schoolId || !user) return;
 
-    // Admin sees all conversations, ordered by the most recent message.
     const convosQuery = query(
       collection(firestore, `schools/${schoolId}/conversations`), 
       orderBy('timestamp', 'desc')
