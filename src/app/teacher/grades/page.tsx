@@ -275,18 +275,17 @@ export default function GradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="md:flex md:items-center md:justify-between mb-6">
             <div>
               <h1 className="font-headline text-3xl font-bold">Gradebook</h1>
               <p className="text-muted-foreground">View, manage, and export student grades for your classes.</p>
             </div>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto mt-4 md:mt-0">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
-                    <TabsTrigger value="entry">Enter Grades</TabsTrigger>
-                    <TabsTrigger value="reports">Reports</TabsTrigger>
-                </TabsList>
-            </Tabs>
+            <TabsList className="grid w-full grid-cols-3 mt-4 md:mt-0 md:w-auto">
+                <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+                <TabsTrigger value="entry">Enter Grades</TabsTrigger>
+                <TabsTrigger value="reports">Reports</TabsTrigger>
+            </TabsList>
         </div>
 
         <TabsContent value="gradebook" className="mt-0">
@@ -477,6 +476,7 @@ export default function GradesPage() {
         <TabsContent value="reports">
             <ReportGenerator />
         </TabsContent>
+      </Tabs>
       <Dialog open={!!editingStudent} onOpenChange={(open) => !open && setEditingStudent(null)}>
         {editingStudent && (
           <DialogContent>
@@ -495,4 +495,5 @@ export default function GradesPage() {
     </div>
   );
 }
+
 
