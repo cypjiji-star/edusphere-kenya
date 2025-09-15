@@ -190,7 +190,7 @@ export default function AttendancePage() {
             notes: student.notes || '',
             teacher: user.displayName || 'Unknown Teacher',
             teacherId: user.uid,
-        }, { merge: true });
+        });
     }
 
     try {
