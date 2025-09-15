@@ -168,8 +168,7 @@ export function TeacherChatLayout() {
     );
 
     const usersQuery = query(
-      collection(firestore, `schools/${schoolId}/users`), 
-      where('role', '==', 'Parent')
+      collection(firestore, `schools/${schoolId}/parents`)
     );
     
     const unsubUsers = onSnapshot(usersQuery, 
@@ -695,3 +694,5 @@ export function TeacherChatLayout() {
     </div>
   );
 }
+
+    
