@@ -39,6 +39,8 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
                 studentId: studentGrade.studentId,
                 assessmentId: data.assessmentId,
                 classId: data.classId,
+                className: className,
+                subject: assessmentData.title,
                 grade: studentGrade.grade,
                 teacherId,
                 teacherName,

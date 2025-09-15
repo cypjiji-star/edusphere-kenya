@@ -130,7 +130,7 @@ export function GradeEntryForm() {
         form.setValue('classId', selectedClass);
 
         // Fetch assessments
-        const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assesments'), where('classId', '==', selectedClass));
+        const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
         const assessmentsSnapshot = await getDocs(assessmentsQuery);
         const assessmentData = assessmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
         setAssessments(assessmentData);

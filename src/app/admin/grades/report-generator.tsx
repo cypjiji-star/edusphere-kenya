@@ -138,28 +138,21 @@ export function ReportGenerator() {
       // Fetch students for the selected class
       const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
       const studentsSnapshot = await getDocs(studentsQuery);
-      const studentIds = studentsSnapshot.docs.map(doc => doc.id);
-
-      // Fetch grades for all students in the class
-      const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', selectedClass));
-      const gradesSnapshot = await getDocs(gradesQuery);
       
-      const gradesByStudent: Record<string, Grade[]> = {};
-      gradesSnapshot.forEach(doc => {
-        const data = doc.data();
-        if (!gradesByStudent[data.studentId]) {
-          gradesByStudent[data.studentId] = [];
-        }
-        gradesByStudent[data.studentId].push({ assessmentId: data.assessmentId, score: data.grade });
-      });
-
-      const studentsData = studentsSnapshot.docs.map(studentDoc => {
+      const studentsData = await Promise.all(studentsSnapshot.docs.map(async (studentDoc) => {
         const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
-        const grades = gradesByStudent[student.studentId] || [];
+        
+        // Fetch grades for the student
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', student.studentId));
+        const gradesSnapshot = await getDocs(gradesQuery);
+        const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
+        
         const numericScores = grades.map(g => parseInt(String(g.score), 10)).filter(s => !isNaN(s));
         const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length) : 0;
+        
         return { ...student, grades, overall };
-      });
+      }));
+
       setStudentsInClass(studentsData);
 
       // Fetch assessments for the selected class
@@ -172,10 +165,10 @@ export function ReportGenerator() {
       return unsubAssessments;
     };
     
-    const unsub = fetchClassData();
+    const unsubPromise = fetchClassData();
 
     return () => {
-      unsub.then(u => u());
+      unsubPromise.then(unsub => unsub && unsub());
     };
   }, [selectedClass, schoolId]);
 

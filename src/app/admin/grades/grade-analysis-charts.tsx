@@ -70,7 +70,6 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
     const fetchDataForExam = async () => {
       try {
         setIsLoading(true);
-        // Query the new top-level grades collection
         const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('assessmentId', '==', exam.id));
         const gradesSnapshot = await getDocs(gradesQuery);
 
@@ -86,16 +85,12 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         const subjectScores: Record<string, { total: number, count: number }> = {};
         const classScores: Record<string, { total: number, count: number }> = {};
         
-        // Fetch assessment details in one go
-        const assessmentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'assessments', exam.id));
-        const assessmentData = assessmentSnap.data();
-
         for (const gradeDoc of gradesSnapshot.docs) {
           const gradeData = gradeDoc.data();
           const score = parseInt(gradeData.grade, 10);
           if (isNaN(score)) continue;
 
-          const subjectName = gradeData.subject || assessmentData?.title || 'Unknown';
+          const subjectName = gradeData.subject || 'Unknown Subject';
           const className = gradeData.className || 'Unknown Class';
 
           if (!subjectScores[subjectName]) subjectScores[subjectName] = { total: 0, count: 0 };
