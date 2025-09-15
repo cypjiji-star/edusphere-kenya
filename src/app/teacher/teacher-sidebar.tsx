@@ -45,7 +45,8 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc } from 'firebase/firestore';
+import { useAuth } from '@/context/auth-context';
 
 
 const navGroups = [
@@ -90,12 +91,23 @@ export function TeacherSidebar() {
   const schoolId = searchParams.get('schoolId');
   const isActive = (href: string) => pathname === href || (href !== '/teacher' && pathname.startsWith(href));
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
-  const [user, setUser] = React.useState(auth.currentUser);
+  const { user } = useAuth();
+  const [teacherName, setTeacherName] = React.useState('Teacher');
+  const [teacherEmail, setTeacherEmail] = React.useState('');
 
   React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe();
-  }, []);
+    if (user && schoolId) {
+      const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          setTeacherName(userData.name || 'Teacher');
+          setTeacherEmail(userData.email || '');
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [user, schoolId]);
 
   React.useEffect(() => {
     if (!schoolId || !user) return;
@@ -186,10 +198,10 @@ export function TeacherSidebar() {
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.photoURL || "https://picsum.photos/seed/teacher-avatar/100"} alt="Teacher" />
-                <AvatarFallback>{user?.displayName?.charAt(0) || 'T'}</AvatarFallback>
+                <AvatarFallback>{teacherName.charAt(0) || 'T'}</AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <p className="text-sm font-medium">{user?.displayName || 'Teacher'}</p>
+                <p className="text-sm font-medium">{teacherName}</p>
                 <p className="text-xs text-muted-foreground">Teacher</p>
               </div>
               <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
@@ -198,9 +210,9 @@ export function TeacherSidebar() {
           <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.displayName || 'Teacher'}</p>
+                <p className="text-sm font-medium leading-none">{teacherName}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email || 'teacher@school.ac.ke'}
+                  {teacherEmail}
                 </p>
               </div>
             </DropdownMenuLabel>

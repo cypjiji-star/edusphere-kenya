@@ -12,6 +12,7 @@ import {
   doc,
   Timestamp,
   getDoc,
+  getDocs,
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
+import { useAuth } from "@/context/auth-context";
 
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
@@ -237,13 +239,8 @@ export default function AttendancePage() {
   const [selectedClass, setSelectedClass] = React.useState<string | null>(null);
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(new Date());
   const [isLoading, setIsLoading] = React.useState(true);
-  const [user, setUser] = React.useState(auth.currentUser);
+  const { user } = useAuth();
   const { toast } = useToast();
-
-  React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe();
-  }, []);
 
   // Load classes for this teacher
   React.useEffect(() => {
@@ -286,27 +283,24 @@ export default function AttendancePage() {
       });
 
       // Fetch attendance for all students in one go
-      const attendancePromises = studentList.map(student => {
-        const attendanceDocId = format(selectedDate, "yyyy-MM-dd");
-        const attendanceRef = doc(firestore, 'schools', schoolId, 'students', student.id, 'attendance', attendanceDocId);
-        return getDoc(attendanceRef);
-      });
-      
-      const attendanceSnapshots = await Promise.all(attendancePromises);
+      const attendanceDate = format(selectedDate, "yyyy-MM-dd");
+      const attendanceQuery = query(collection(firestore, 'schools', schoolId, 'attendance'), where('classId', '==', selectedClass), where('date', '==', attendanceDate));
+      const attendanceSnapshots = await getDocs(attendanceQuery);
 
-      const studentsWithAttendance = studentList.map((student, index) => {
-        const attendanceDoc = attendanceSnapshots[index];
-        if (attendanceDoc.exists()) {
-          const data = attendanceDoc.data();
-          return {
-            ...student,
-            status: data.status,
-            notes: data.notes || '',
-          };
+      const attendanceMap = new Map<string, { status: AttendanceStatus, notes?: string }>();
+      attendanceSnapshots.forEach(doc => {
+          const data = doc.data();
+          attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
+      });
+
+      const studentsWithAttendance = studentList.map((student) => {
+        const attendance = attendanceMap.get(student.id);
+        if (attendance) {
+          return { ...student, status: attendance.status, notes: attendance.notes || '' };
         }
         return student;
       });
-
+      
       setStudents(studentsWithAttendance);
       setIsLoading(false);
     });
@@ -329,29 +323,44 @@ export default function AttendancePage() {
       console.warn("Cannot save: missing data", { schoolId, selectedClass, user, selectedDate });
       return;
     }
-
+    console.log('Saving attendance with schoolId:', schoolId);
+    
     const batch = writeBatch(firestore);
-    const attendanceDocId = format(selectedDate, "yyyy-MM-dd");
+    const attendanceDate = format(selectedDate, "yyyy-MM-dd");
     const currentClass = teacherClasses.find((c) => c.id === selectedClass);
     
+    console.log("Attendance batch:", {
+      studentId: students[0]?.id,
+      sampleDoc: {
+        studentId: students[0]?.id,
+        studentName: students[0]?.name,
+        class: teacherClasses.find((c) => c.id === selectedClass)?.name || 'Unknown',
+        classId: selectedClass,
+        schoolId: schoolId,
+        date: Timestamp.fromDate(new Date()),
+        status: students[0]?.status,
+        notes: students[0]?.notes || '',
+        teacher: user?.displayName || 'Unknown Teacher',
+        teacherId: user?.uid,
+      }
+    });
+
     for (const student of students) {
       if (student.status === "unmarked") continue;
-      
-      // Correctly reference the nested subcollection
-      const attendanceRef = doc(firestore, "schools", schoolId, "students", student.id, "attendance", attendanceDocId);
+      const attendanceDocId = `${student.id}_${attendanceDate}`;
+      const attendanceRef = doc(firestore, "schools", schoolId, "attendance", attendanceDocId);
       
       batch.set(attendanceRef, {
+        studentId: student.id,
+        studentName: student.name,
+        classId: selectedClass,
+        className: currentClass?.name || "Unknown",
         date: Timestamp.fromDate(selectedDate),
         status: student.status,
         notes: student.notes || "",
-        teacher: user.displayName || "Unknown Teacher",
         teacherId: user.uid,
-        classId: selectedClass,
-        className: currentClass?.name || "Unknown",
-        schoolId: schoolId, // Ensure schoolId is saved
-        studentId: student.id, // Save studentId for easier querying
-        studentName: student.name, // Save denormalized name
-        studentAvatar: student.avatarUrl // Save denormalized avatar
+        teacher: user.displayName || "Unknown Teacher",
+        schoolId: schoolId,
       });
     }
 
