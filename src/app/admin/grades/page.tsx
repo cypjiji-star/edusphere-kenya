@@ -160,9 +160,18 @@ export default function AdminGradesPage() {
     const [submissions, setSubmissions] = React.useState<Submission[]>([]);
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
     
+    const currentYear = new Date().getFullYear();
+    const academicTerms = [
+        `Term 1, ${currentYear}`,
+        `Term 2, ${currentYear}`,
+        `Term 3, ${currentYear}`,
+        `Term 1, ${currentYear + 1}`,
+        `Term 2, ${currentYear + 1}`,
+    ];
+
     // State for the create exam dialog
     const [newExamTitle, setNewExamTitle] = React.useState('');
-    const [newExamTerm, setNewExamTerm] = React.useState('Term 2, 2024');
+    const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[1]);
     const [newExamClass, setNewExamClass] = React.useState<string | undefined>();
     const [newExamNotes, setNewExamNotes] = React.useState('');
     const [isSavingExam, setIsSavingExam] = React.useState(false);
@@ -352,8 +361,9 @@ export default function AdminGradesPage() {
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="Term 2, 2024">Term 2, 2024</SelectItem>
-                                                                <SelectItem value="Term 3, 2024">Term 3, 2024</SelectItem>
+                                                               {academicTerms.map(term => (
+                                                                <SelectItem key={term} value={term}>{term}</SelectItem>
+                                                               ))}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
