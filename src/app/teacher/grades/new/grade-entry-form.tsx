@@ -60,9 +60,7 @@ const studentGradeSchema = z.object({
 
 export const gradeEntrySchema = z.object({
   classId: z.string({ required_error: 'Please select a class.' }),
-  assessmentTitle: z.string().min(3, 'Assessment title must be at least 3 characters.'),
-  assessmentType: z.enum(['Exam', 'Quiz', 'Assignment', 'Project']),
-  assessmentDate: z.date({ required_error: 'An assessment date is required.' }),
+  assessmentId: z.string({ required_error: 'Please select an assessment.' }),
   grades: z.array(studentGradeSchema),
 });
 
@@ -79,16 +77,19 @@ type TeacherClass = {
   name: string;
 };
 
-const assessmentTypes = ['Exam', 'Quiz', 'Assignment', 'Project'] as const;
+type Assessment = {
+  id: string;
+  title: string;
+  date: any;
+};
 
 export function GradeEntryForm() {
   const [isLoading, setIsLoading] = React.useState(false);
-  const [isWeighted, setIsWeighted] = React.useState(false);
-  const [useRubric, setUseRubric] = React.useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+  const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const [studentsByClass, setStudentsByClass] = React.useState<Record<string, Student[]>>({});
   const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
   const [user, setUser] = React.useState(auth.currentUser);
@@ -98,6 +99,7 @@ export function GradeEntryForm() {
     return () => unsubscribe();
   }, []);
   
+  // Fetch teacher's classes
   React.useEffect(() => {
     if (!schoolId || !user) return;
     const teacherId = user.uid;
@@ -112,6 +114,7 @@ export function GradeEntryForm() {
     return () => unsubscribe();
   }, [schoolId, selectedClass, user]);
 
+  // Fetch students for all teacher's classes
   React.useEffect(() => {
     if (!schoolId || teacherClasses.length === 0) return;
 
@@ -126,12 +129,24 @@ export function GradeEntryForm() {
     return () => unsubscribers.forEach(unsub => unsub());
   }, [schoolId, teacherClasses]);
 
+  // Fetch assessments for the selected class
+  React.useEffect(() => {
+    if (!schoolId || !selectedClass) return;
+
+    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
+    const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
+        const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
+        setAssessments(assessmentData);
+    });
+
+    return () => unsubAssessments();
+  }, [schoolId, selectedClass]);
+
+
   const form = useForm<GradeEntryFormValues>({
     resolver: zodResolver(gradeEntrySchema),
     defaultValues: {
       classId: selectedClass,
-      assessmentTitle: '',
-      assessmentType: 'Quiz',
       grades: [],
     },
   });
@@ -150,20 +165,23 @@ export function GradeEntryForm() {
   }, [selectedClass, replace, form, studentsByClass]);
 
   async function onSubmit(values: GradeEntryFormValues) {
-    if (!schoolId) {
-        toast({ variant: 'destructive', title: 'Error', description: 'School ID is missing.' });
+    if (!schoolId || !user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'School ID is missing or user is not authenticated.' });
         return;
     }
     setIsLoading(true);
-    const result = await saveGradesAction(schoolId, values);
+    const result = await saveGradesAction(schoolId, user.uid, user.displayName || 'Teacher', values);
     setIsLoading(false);
 
     if (result.success) {
       toast({
         title: 'Grades Saved!',
-        description: `The grades for "${values.assessmentTitle}" have been successfully recorded.`,
+        description: `The grades have been successfully recorded.`,
       });
-      // In a real app, you would likely redirect or reset the form.
+      form.reset({
+        ...values,
+        grades: studentsByClass[values.classId].map(s => ({ studentId: s.id, grade: '' })),
+      });
     } else {
       toast({
         variant: 'destructive',
@@ -211,90 +229,33 @@ export function GradeEntryForm() {
             />
             <FormField
               control={form.control}
-              name="assessmentTitle"
+              name="assessmentId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Assessment Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., End of Term 1 Exam" {...field} />
-                  </FormControl>
+                  <FormLabel>Assessment</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={!selectedClass || assessments.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an assessment" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {assessments.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Select an exam or assignment created by the admin.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
-               <FormField
-                control={form.control}
-                name="assessmentType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {assessmentTypes.map((type) => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                  control={form.control}
-                  name="assessmentDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
-             <div className="space-y-4 pt-4">
-                <h4 className="font-medium">Advanced Options</h4>
-                 <div className="flex items-center space-x-2">
-                    <Switch id="weighted-grading" checked={isWeighted} onCheckedChange={setIsWeighted} />
-                    <Label htmlFor="weighted-grading">Enable Weighted Grading</Label>
-                </div>
-                 <div className="flex items-center space-x-2">
-                    <Switch id="custom-rubric" checked={useRubric} onCheckedChange={setUseRubric} />
-                    <Label htmlFor="custom-rubric">Use Custom Rubric</Label>
-                </div>
-            </div>
           </div>
           <div className="md:col-span-2">
             <h3 className="font-headline text-lg mb-6">Enter Student Grades</h3>

@@ -1,49 +1,59 @@
 
-
 'use server';
 
 import { z } from 'zod';
 import { gradeEntrySchema, GradeEntryFormValues } from './new/grade-entry-form';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, doc, writeBatch, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
+import { collection, addDoc, doc, writeBatch, serverTimestamp, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 
 
 // In a real app, this would save to a database.
-export async function saveGradesAction(schoolId: string, data: GradeEntryFormValues) {
+export async function saveGradesAction(schoolId: string, teacherId: string, teacherName: string, data: GradeEntryFormValues) {
   if (!schoolId) {
     return { success: false, message: 'School ID is missing.' };
   }
   try {
     gradeEntrySchema.parse(data);
 
-    // 1. Create a new assessment record in the 'assessments' collection
-    const assessmentRef = await addDoc(collection(firestore, 'schools', schoolId, 'assessments'), {
-      title: data.assessmentTitle,
-      type: data.assessmentType,
-      date: data.assessmentDate,
-      classId: data.classId,
-      teacherId: 'teacher-wanjiku', // Placeholder for logged-in teacher
-      createdAt: serverTimestamp(),
+    // 1. Get Assessment & Class details
+    const assessmentRef = doc(firestore, 'schools', schoolId, 'assessments', data.assessmentId);
+    const assessmentSnap = await getDoc(assessmentRef);
+    if (!assessmentSnap.exists()) {
+        throw new Error("Assessment not found!");
+    }
+    const assessmentData = assessmentSnap.data();
+
+    const classRef = doc(firestore, 'schools', schoolId, 'classes', data.classId);
+    const classSnap = await getDoc(classRef);
+    const className = classSnap.exists() ? `${classSnap.data().name} ${classSnap.data().stream || ''}`.trim() : 'Unknown Class';
+
+
+    // 2. Create a 'submission' document
+    const submissionRef = await addDoc(collection(firestore, 'schools', schoolId, 'submissions'), {
+      examId: data.assessmentId,
+      subject: assessmentData.title, // Or a more specific subject field if available
+      teacher: teacherName,
+      teacherId: teacherId,
+      class: className,
+      status: 'Submitted',
+      lastUpdated: serverTimestamp(),
     });
 
-    // 2. Create grade records for each student in a subcollection
+    // 3. Create grade records for each student in a subcollection under the student
     const batch = writeBatch(firestore);
-    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', data.classId));
-    const studentsSnapshot = await getDocs(studentsQuery);
     
-    studentsSnapshot.forEach(studentDoc => {
-        const studentGrade = data.grades.find(g => g.studentId === studentDoc.id);
-        if (studentGrade) {
-            const gradeRef = doc(collection(firestore, 'schools', schoolId, 'students', studentDoc.id, 'grades'));
+    for (const studentGrade of data.grades) {
+        if (studentGrade.grade) { // Only save if a grade was entered
+            const gradeRef = doc(collection(firestore, 'schools', schoolId, 'students', studentGrade.studentId, 'grades'));
             batch.set(gradeRef, {
-                assessmentId: assessmentRef.id,
-                assessmentTitle: data.assessmentTitle,
+                assessmentId: data.assessmentId,
+                assessmentTitle: assessmentData.title,
                 grade: studentGrade.grade,
-                date: data.assessmentDate,
+                date: assessmentData.date, // Use the assessment's date
             });
         }
-    });
+    }
 
     await batch.commit();
   
@@ -59,5 +69,3 @@ export async function saveGradesAction(schoolId: string, data: GradeEntryFormVal
       return { success: false, message: 'An unexpected error occurred while saving grades.' };
   }
 }
-
-    
