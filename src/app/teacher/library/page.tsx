@@ -8,7 +8,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,8 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Library, Search, Book, FileText, Newspaper, Upload, Bookmark, Clock, Eye, Printer, FileDown, ChevronDown, Star, ScanLine, Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import { Library, Search, Book, FileText, Newspaper, Eye, Printer, FileDown, ChevronDown, Star, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ResourceDetailsDialog } from './resource-details-dialog';
@@ -34,11 +32,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import { firestore } from '@/lib/firebase';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 
 const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 const subjects = ['All Subjects', 'Chemistry', 'Mathematics', 'History', 'Physics', 'English'];
@@ -56,57 +52,6 @@ const statusConfig: Record<Resource['status'], { label: string; className: strin
     Digital: { label: 'Digital', className: 'bg-blue-100 text-blue-800 border-blue-200' },
 }
 
-function BorrowDialog({ resource, open, onOpenChange, onBorrow }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, onBorrow: (quantity: number) => void }) {
-    const [quantity, setQuantity] = React.useState(1);
-
-    React.useEffect(() => {
-        setQuantity(1); // Reset quantity when dialog opens for a new resource
-    }, [open]);
-
-    if (!resource) return null;
-
-    const handleBorrow = () => {
-        if (quantity > resource.availableCopies) {
-            alert("Cannot borrow more copies than available.");
-            return;
-        }
-        onBorrow(quantity);
-    }
-    
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Borrow: {resource.title}</DialogTitle>
-                    <DialogDescription>
-                        Specify the number of copies you want to borrow.
-                        <span className="font-semibold text-foreground block mt-2">
-                           {resource.availableCopies} copies available.
-                        </span>
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                    <Label htmlFor="quantity">Number of Copies</Label>
-                    <Input
-                        id="quantity"
-                        type="number"
-                        min={1}
-                        max={resource.availableCopies}
-                        value={quantity}
-                        onChange={(e) => setQuantity(Number(e.target.value))}
-                    />
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button onClick={handleBorrow} disabled={quantity <= 0 || quantity > resource.availableCopies}>
-                        Confirm Borrow
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
 export default function LibraryPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -116,11 +61,8 @@ export default function LibraryPage() {
   const [filteredType, setFilteredType] = React.useState('All Types');
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [selectedResource, setSelectedResource] = React.useState<Resource | null>(null);
-  const [borrowingResource, setBorrowingResource] = React.useState<Resource | null>(null);
   const [clientReady, setClientReady] = React.useState(false);
   const { toast } = useToast();
-  const user = auth.currentUser;
-  const teacherId = user?.uid;
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -141,60 +83,7 @@ export default function LibraryPage() {
     (filteredType === 'All Types' || res.type === filteredType) &&
     (filteredSubject === 'All Subjects' || res.subject === filteredSubject)
   );
-  
-  const handleBorrow = async (quantity: number) => {
-    if (!schoolId || !teacherId || !borrowingResource) return;
-    
-    const resourceRef = doc(firestore, `schools/${schoolId}/library-resources`, borrowingResource.id);
-    
-    try {
-        const newAvailableCopies = borrowingResource.availableCopies - quantity;
-        const newStatus = newAvailableCopies > 0 ? 'Available' : 'Out';
 
-        await updateDoc(resourceRef, { 
-            availableCopies: newAvailableCopies,
-            status: newStatus,
-            borrowedBy: [{
-                teacherId: teacherId,
-                teacherName: user?.displayName || "Unknown Teacher",
-                quantity: quantity
-            }]
-        });
-
-        // Add to user's borrowed items
-        const borrowedItemRef = doc(firestore, `schools/${schoolId}/users`, teacherId, 'borrowed-items', borrowingResource.id);
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 14); // 2 week loan period
-
-        await setDoc(borrowedItemRef, {
-            title: borrowingResource.title,
-            borrowedDate: serverTimestamp(),
-            dueDate: Timestamp.fromDate(dueDate),
-            quantity: quantity,
-        }, { merge: true }); // Use set with merge to handle re-borrowing
-
-        toast({
-            title: 'Item Borrowed',
-            description: `You have checked out ${quantity} copies of "${borrowingResource.title}".`,
-        });
-        setBorrowingResource(null);
-    } catch (error) {
-        console.error("Error borrowing item:", error);
-        toast({ variant: 'destructive', title: 'Action Failed' });
-    }
-  }
-
-  const renderActionButton = (resource: Resource) => {
-    switch (resource.status) {
-        case 'Available':
-            return <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setBorrowingResource(resource); }}><Bookmark className="mr-2 h-4 w-4" />Borrow</Button>;
-        case 'Out':
-             return <Button variant="outline" size="sm" disabled><Clock className="mr-2 h-4 w-4" />All Out</Button>;
-        case 'Digital':
-             return <Button variant="outline" size="sm" onClick={() => setSelectedResource(resource)}><Eye className="mr-2 h-4 w-4" />View</Button>;
-    }
-  }
-  
   const handleExport = (type: 'PDF' | 'CSV') => {
     if (type === 'CSV') {
         const headers = ['Title', 'Type', 'Subject', 'Status'];
@@ -234,7 +123,7 @@ export default function LibraryPage() {
         description: `The resource list is being exported as a ${type} file.`
     });
   };
-
+  
   if (!schoolId) {
     return <div className="p-8">Error: School ID is missing.</div>
   }
@@ -251,16 +140,6 @@ export default function LibraryPage() {
           }
         }}
       />
-      <BorrowDialog
-        resource={borrowingResource}
-        open={!!borrowingResource}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setBorrowingResource(null);
-          }
-        }}
-        onBorrow={handleBorrow}
-      />
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-6">
         <div className="text-left">
           <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -269,10 +148,6 @@ export default function LibraryPage() {
           </h1>
           <p className="text-muted-foreground">Access digital textbooks, past papers, and other learning materials.</p>
         </div>
-         <Button onClick={() => toast({ title: 'Feature Coming Soon', description: 'Resource uploading will be available in a future update.' })}>
-            <Upload className="mr-2" />
-            Upload Resource
-        </Button>
       </div>
 
       <Card>
@@ -289,10 +164,6 @@ export default function LibraryPage() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                 <Button variant="outline" size="icon" disabled className="shrink-0">
-                    <ScanLine className="h-5 w-5" />
-                    <span className="sr-only">Scan ISBN</span>
-                </Button>
             </div>
             <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
                 <Select value={filteredType} onValueChange={setFilteredType}>
@@ -384,7 +255,7 @@ export default function LibraryPage() {
                                         )}
                                     </td>
                                     <td className="p-4 align-middle text-right" onClick={(e) => e.stopPropagation()}>
-                                       {renderActionButton(res)}
+                                       <Button variant="outline" size="sm" onClick={() => setSelectedResource(res)}><Eye className="mr-2 h-4 w-4" />View</Button>
                                     </td>
                                 </tr>
                                 );
@@ -422,7 +293,7 @@ export default function LibraryPage() {
                                 )}
                             </CardContent>
                              <CardFooter onClick={(e) => e.stopPropagation()}>
-                               {renderActionButton(res)}
+                               <Button variant="outline" size="sm" className="w-full" onClick={() => setSelectedResource(res)}><Eye className="mr-2 h-4 w-4" />View Details</Button>
                             </CardFooter>
                         </Card>
                     );

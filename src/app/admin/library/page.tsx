@@ -37,13 +37,13 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Library, Search, PlusCircle, Book, FileText, Newspaper, Upload, Edit, Trash2, Loader2, Filter, ChevronDown, FileDown, Printer, AlertTriangle, User } from 'lucide-react';
+import { Library, Search, PlusCircle, Book, FileText, Newspaper, Upload, Edit, Trash2, Loader2, Filter, ChevronDown, FileDown, Printer, AlertTriangle, User, Hand } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc, Timestamp, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { Resource, ResourceType, ResourceStatus } from '@/app/teacher/library/types';
@@ -71,6 +71,80 @@ const getStatusBadge = (resource: Resource) => {
     return <Badge className="bg-green-100 text-green-800 border-green-200">Available ({resource.availableCopies}/{resource.totalCopies})</Badge>;
 }
 
+function CheckOutDialog({ resource, open, onOpenChange, users, onCheckOut }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, users: {id: string, name: string}[], onCheckOut: (userId: string, userName: string, quantity: number) => void }) {
+    const [quantity, setQuantity] = React.useState(1);
+    const [selectedUser, setSelectedUser] = React.useState<string>('');
+
+    React.useEffect(() => {
+        setQuantity(1);
+        setSelectedUser('');
+    }, [open]);
+
+    if (!resource) return null;
+
+    const handleCheckOut = () => {
+        if (!selectedUser) {
+            alert("Please select a user to check out the book to.");
+            return;
+        }
+        if (quantity > resource.availableCopies) {
+            alert("Cannot check out more copies than available.");
+            return;
+        }
+        const user = users.find(u => u.id === selectedUser);
+        if(user) {
+            onCheckOut(user.id, user.name, quantity);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Check Out: {resource.title}</DialogTitle>
+                    <DialogDescription>
+                        Issue this resource to a student or teacher.
+                        <span className="font-semibold text-foreground block mt-2">
+                           {resource.availableCopies} copies available.
+                        </span>
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="checkout-user">Borrower</Label>
+                         <Select value={selectedUser} onValueChange={setSelectedUser}>
+                            <SelectTrigger id="checkout-user">
+                                <SelectValue placeholder="Select a student or teacher..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {users.map(user => (
+                                    <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="checkout-quantity">Number of Copies</Label>
+                        <Input
+                            id="checkout-quantity"
+                            type="number"
+                            min={1}
+                            max={resource.availableCopies}
+                            value={quantity}
+                            onChange={(e) => setQuantity(Number(e.target.value))}
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button onClick={handleCheckOut} disabled={quantity <= 0 || quantity > resource.availableCopies || !selectedUser}>
+                        Confirm Check Out
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 function EditResourceDialog({ resource, open, onOpenChange, onSave, onDelete }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Resource>) => void, onDelete: (id: string) => void }) {
     const [title, setTitle] = React.useState('');
@@ -147,6 +221,7 @@ export default function AdminLibraryPage() {
     const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
     const [filteredStatus, setFilteredStatus] = React.useState('All Statuses');
     const [editingResource, setEditingResource] = React.useState<Resource | null>(null);
+    const [checkingOutResource, setCheckingOutResource] = React.useState<Resource | null>(null);
     const { toast } = useToast();
     
     // State for new resource dialog
@@ -310,6 +385,48 @@ export default function AdminLibraryPage() {
         }
     };
 
+    const handleCheckOut = async (userId: string, userName: string, quantity: number) => {
+        if (!schoolId || !checkingOutResource) return;
+        
+        const resourceRef = doc(firestore, `schools/${schoolId}/library-resources`, checkingOutResource.id);
+        
+        try {
+            const newAvailableCopies = checkingOutResource.availableCopies - quantity;
+            const newStatus = newAvailableCopies > 0 ? 'Available' : 'Out';
+
+            const newBorrowedBy = [
+                ...(checkingOutResource.borrowedBy || []), 
+                { teacherId: userId, teacherName: userName, quantity: quantity }
+            ];
+
+            await updateDoc(resourceRef, { 
+                availableCopies: newAvailableCopies,
+                status: newStatus,
+                borrowedBy: newBorrowedBy
+            });
+
+            const borrowedItemRef = doc(firestore, `schools/${schoolId}/users`, userId, 'borrowed-items', checkingOutResource.id);
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 14); // 2 week loan period
+
+            await setDoc(borrowedItemRef, {
+                title: checkingOutResource.title,
+                borrowedDate: serverTimestamp(),
+                dueDate: Timestamp.fromDate(dueDate),
+                quantity: quantity,
+            }, { merge: true });
+
+            toast({
+                title: 'Item Checked Out',
+                description: `${quantity} copies of "${checkingOutResource.title}" have been checked out to ${userName}.`,
+            });
+            setCheckingOutResource(null);
+        } catch (error) {
+            console.error("Error checking out item:", error);
+            toast({ variant: 'destructive', title: 'Action Failed' });
+        }
+    };
+
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing.</div>
     }
@@ -412,7 +529,10 @@ export default function AdminLibraryPage() {
                                                 <TableCell>{res.type}</TableCell>
                                                 <TableCell>{res.subject}</TableCell>
                                                 <TableCell>{getStatusBadge(res)}</TableCell>
-                                                <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setEditingResource(res)}><Edit className="mr-2 h-4 w-4" />Edit</Button></TableCell>
+                                                <TableCell className="text-right space-x-1">
+                                                    <Button variant="outline" size="sm" onClick={() => setCheckingOutResource(res)} disabled={res.availableCopies === 0}><Hand className="mr-2 h-4 w-4"/>Check Out</Button>
+                                                    <Button variant="ghost" size="sm" onClick={() => setEditingResource(res)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
+                                                </TableCell>
                                             </TableRow>
                                         )})}
                                     </TableBody>
@@ -475,6 +595,7 @@ export default function AdminLibraryPage() {
             </TabsContent>
         </Tabs>
       <EditResourceDialog resource={editingResource} open={!!editingResource} onOpenChange={(open) => !open && setEditingResource(null)} onSave={handleUpdateResource} onDelete={handleDeleteResource} />
+      <CheckOutDialog resource={checkingOutResource} open={!!checkingOutResource} users={allUsers} onOpenChange={(open) => !open && setCheckingOutResource(null)} onCheckOut={handleCheckOut} />
     </div>
   );
 }
