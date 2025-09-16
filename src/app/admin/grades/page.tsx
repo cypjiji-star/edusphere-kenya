@@ -35,6 +35,7 @@ import {
   TrendingUp,
   TrendingDown,
   FileDown,
+  Mail,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -187,7 +188,7 @@ export default function AdminGradesPage() {
   const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>(initialGradingScale);
   const { toast } = useToast();
   const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
-  const [activeTab, setActiveTab] = React.useState('exams');
+  const [activeTab, setActiveTab] = React.useState('ranking');
   const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
   const [selectedClassForRanking, setSelectedClassForRanking] = React.useState<string>('');
   const [selectedSubjectForRanking, setSelectedSubjectForRanking] = React.useState<string>('All Subjects');
@@ -571,6 +572,13 @@ export default function AdminGradesPage() {
     },
   };
 
+  const handleShare = () => {
+    toast({
+        title: "Sharing Report",
+        description: "An email with the performance overview has been sent to the Principal.",
+    });
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -689,12 +697,14 @@ export default function AdminGradesPage() {
                                 <SelectContent>{subjectsForRanking.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                             </Select>
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild><Button variant="outline"><FileDown className="mr-2 h-4 w-4" />Export<ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
+                                <DropdownMenuTrigger asChild><Button variant="outline"><FileDown className="mr-2 h-4 w-4" />Export/Actions<ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
                                 <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print Ranking</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={() => handleExportRanking('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleExportRanking('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print Ranking</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handleShare}><Mail className="mr-2 h-4 w-4" />Share Overview</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -709,6 +719,21 @@ export default function AdminGradesPage() {
                     <Tabs defaultValue="ranking-table" className="w-full">
                         <TabsList><TabsTrigger value="ranking-table">Student Ranking</TabsTrigger><TabsTrigger value="subject-performance">Subject Performance</TabsTrigger><TabsTrigger value="stream-comparison">Stream Comparison</TabsTrigger></TabsList>
                         <TabsContent value="ranking-table" className="mt-4">
+                             <div className="flex items-center justify-around p-6 bg-muted/50 rounded-lg mb-6 text-center">
+                                {topStudents.map((student, index) => (
+                                    <div key={student.id} className={`flex flex-col items-center ${index === 0 ? 'transform -translate-y-4' : ''}`}>
+                                        <div className="relative">
+                                            <Avatar className={`h-20 w-20 border-4 ${index === 0 ? 'border-yellow-400' : index === 1 ? 'border-gray-400' : 'border-orange-400'}`}>
+                                                <AvatarImage src={student.avatarUrl} />
+                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <Badge className={`absolute -bottom-2 left-1/2 -translate-x-1/2 ${index === 0 ? 'bg-yellow-400 text-black' : index === 1 ? 'bg-gray-400' : 'bg-orange-400'}`}>{index + 1}</Badge>
+                                        </div>
+                                        <p className="font-bold mt-3">{student.studentName}</p>
+                                        <p className="text-sm text-muted-foreground">{student.overall}%</p>
+                                    </div>
+                                ))}
+                             </div>
                             {studentsForRanking.length > 0 ? (
                                 <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
                                      <div className="w-full overflow-auto rounded-lg border mt-6">
@@ -742,8 +767,8 @@ export default function AdminGradesPage() {
                                                             <TableCell>
                                                                 <TooltipProvider>
                                                                     <Tooltip>
-                                                                        <TooltipTrigger>
-                                                                            {deviation > 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
+                                                                        <TooltipTrigger asChild>
+                                                                            <button>{deviation > 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}</button>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
                                                                             <p>{deviation.toFixed(1)}% {deviation > 0 ? 'above' : 'below'} class average</p>
@@ -944,5 +969,6 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
 
 
