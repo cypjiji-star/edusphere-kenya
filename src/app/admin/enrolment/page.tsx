@@ -325,7 +325,7 @@ export default function StudentEnrolmentPage() {
                 medicalConditions: values.medicalConditions,
                 emergencyContactName: values.emergencyContactName,
                 emergencyContactPhone: values.emergencyContactPhone,
-                status: 'Pending',
+                status: 'Approved',
                 createdAt: serverTimestamp(),
                 avatarUrl: photoUrl,
                 documents: admissionDocUrls,
@@ -335,11 +335,11 @@ export default function StudentEnrolmentPage() {
             await setDoc(studentDocRef, studentData);
 
             await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
-                title: 'New Student Enrolment',
-                description: `${studentName} has a new enrolment application pending review.`,
+                title: 'New Student Enrolled',
+                description: `${studentName} has been enrolled and is now active in the system.`,
                 createdAt: serverTimestamp(),
                 read: false,
-                href: `/admin/enrolment?schoolId=${schoolId}`,
+                href: `/admin/users?schoolId=${schoolId}`,
             });
 
             await logAuditEvent({
