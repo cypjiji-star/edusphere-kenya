@@ -37,7 +37,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Library, Search, PlusCircle, Book, FileText, Newspaper, Upload, Edit, Trash2, Loader2, Filter, ChevronDown, FileDown, Printer, AlertTriangle, User, Hand } from 'lucide-react';
+import { Library, Search, PlusCircle, Book, FileText, Newspaper, Upload, Edit, Trash2, Loader2, Filter, ChevronDown, FileDown, Printer, AlertTriangle, User, Hand, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,9 +59,10 @@ type StudentAssignment = {
     bookTitle: string;
     studentId: string;
     studentName: string;
+    teacherId: string;
     teacherName: string;
     assignedDate: Timestamp;
-    status: 'Assigned' | 'Returned';
+    status: 'Assigned' | 'Returned' | 'Pending Return';
 };
 
 const typeIcons: Record<Resource['type'], React.ElementType> = {
@@ -251,7 +252,7 @@ export default function AdminLibraryPage() {
     
     // State for returns tab
     const [selectedReturnUser, setSelectedReturnUser] = React.useState<string>('');
-    const [userBorrowedBooks, setUserBorrowedBooks] = React.useState<{id: string, title: string, quantity: number}[]>([]);
+    const [userBorrowedBooks, setUserBorrowedBooks] = React.useState<{id: string, title: string, quantity: number, bookId: string}[]>([]);
     const [selectedBookToReturn, setSelectedBookToReturn] = React.useState<string>('');
     const [returnQuantity, setReturnQuantity] = React.useState(1);
     const [isReturning, setIsReturning] = React.useState(false);
@@ -354,6 +355,7 @@ export default function AdminLibraryPage() {
                 id: doc.id,
                 title: doc.data().title,
                 quantity: doc.data().quantity || 1,
+                bookId: doc.id, // The document ID is the book ID
             }));
             setUserBorrowedBooks(books);
         });
@@ -368,10 +370,14 @@ export default function AdminLibraryPage() {
         }
 
         setIsReturning(true);
+        const bookToReturn = userBorrowedBooks.find(b => b.id === selectedBookToReturn);
+
         try {
             await runTransaction(firestore, async (transaction) => {
-                const resourceRef = doc(firestore, 'schools', schoolId, 'library-resources', selectedBookToReturn);
-                const userBorrowedItemRef = doc(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowed-items', selectedBookToReturn);
+                if (!bookToReturn) throw new Error("Book to return not found");
+
+                const resourceRef = doc(firestore, 'schools', schoolId, 'library-resources', bookToReturn.bookId);
+                const userBorrowedItemRef = doc(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowed-items', bookToReturn.id);
                 
                 const resourceSnap = await transaction.get(resourceRef);
                 const userItemSnap = await transaction.get(userBorrowedItemRef);
@@ -381,7 +387,7 @@ export default function AdminLibraryPage() {
                 }
 
                 const resourceData = resourceSnap.data() as Resource;
-                const userItemData = userItemSnap.data() as { quantity: number; title: string };
+                const userItemData = userItemSnap.data() as { quantity: number; title: string; borrowedDate: Timestamp };
                 
                 if (returnQuantity > userItemData.quantity) {
                     throw new Error("Cannot return more copies than were borrowed.");
@@ -389,7 +395,7 @@ export default function AdminLibraryPage() {
 
                 // Update main inventory
                 transaction.update(resourceRef, {
-                    availableCopies: resourceData.availableCopies + returnQuantity
+                    availableCopies: (resourceData.availableCopies || 0) + returnQuantity
                 });
                 
                 // Update or delete user's borrowed record
@@ -405,7 +411,7 @@ export default function AdminLibraryPage() {
                 const historyRef = doc(collection(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowing-history'));
                 transaction.set(historyRef, {
                     title: userItemData.title,
-                    borrowedDate: userItemData.borrowedDate, // Assuming this field exists
+                    borrowedDate: userItemData.borrowedDate,
                     returnedDate: serverTimestamp(),
                 });
             });
@@ -419,6 +425,51 @@ export default function AdminLibraryPage() {
             toast({ title: 'Return Failed', description: error.message, variant: 'destructive'});
         } finally {
             setIsReturning(false);
+        }
+    };
+    
+    const handleConfirmReturn = async (assignment: StudentAssignment) => {
+        if (!schoolId) return;
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignment.id);
+                const resourceQuery = query(collection(firestore, `schools/${schoolId}/library-resources`), where('title', '==', assignment.bookTitle));
+                const resourceSnapshot = await getDocs(resourceQuery);
+
+                if (resourceSnapshot.empty) {
+                    throw new Error(`Book "${assignment.bookTitle}" not found in library.`);
+                }
+                const resourceDoc = resourceSnapshot.docs[0];
+                const resourceRef = resourceDoc.ref;
+                const resourceData = resourceDoc.data() as Resource;
+                
+                // Update assignment status
+                transaction.update(assignmentRef, { status: 'Returned' });
+
+                // Update inventory
+                transaction.update(resourceRef, { availableCopies: (resourceData.availableCopies || 0) + 1 });
+
+                // Update teacher's borrowed count (optional, but good for consistency)
+                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/users/${assignment.teacherId}/borrowed-items`, resourceDoc.id);
+                const teacherItemSnap = await transaction.get(teacherBorrowedItemRef);
+                if (teacherItemSnap.exists()) {
+                    const currentQuantity = teacherItemSnap.data().quantity;
+                    if (currentQuantity > 1) {
+                        transaction.update(teacherBorrowedItemRef, { quantity: currentQuantity - 1 });
+                    } else {
+                        transaction.delete(teacherBorrowedItemRef);
+                    }
+                }
+            });
+
+            toast({
+                title: 'Return Confirmed',
+                description: `${assignment.bookTitle} has been returned to the library inventory.`,
+            });
+        } catch (error: any) {
+            console.error("Error confirming return:", error);
+            toast({ title: 'Confirmation Failed', description: error.message, variant: 'destructive' });
         }
     };
 
@@ -539,18 +590,6 @@ export default function AdminLibraryPage() {
         } catch (error) {
             console.error("Error checking out item:", error);
             toast({ variant: 'destructive', title: 'Action Failed' });
-        }
-    };
-    
-    const handleMarkAsReturned = async (assignmentId: string) => {
-        if (!schoolId) return;
-        const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignmentId);
-        try {
-            await updateDoc(assignmentRef, { status: 'Returned' });
-            toast({ title: 'Success', description: 'Book marked as returned.' });
-        } catch (e) {
-            console.error('Failed to mark as returned', e);
-            toast({ variant: 'destructive', title: 'Update Failed' });
         }
     };
 
@@ -758,8 +797,11 @@ export default function AdminLibraryPage() {
                                                                         <TableCell>{assignment.assignedDate.toDate().toLocaleDateString()}</TableCell>
                                                                         <TableCell className="text-right">
                                                                             {assignment.status === 'Assigned' ? (
-                                                                                <Button variant="outline" size="sm" onClick={() => handleMarkAsReturned(assignment.id)}>
-                                                                                    Mark as Returned
+                                                                                <Badge variant="secondary">Assigned</Badge>
+                                                                            ) : assignment.status === 'Pending Return' ? (
+                                                                                <Button variant="outline" size="sm" onClick={() => handleConfirmReturn(assignment)}>
+                                                                                    <CheckCircle className="mr-2 h-4 w-4 text-orange-500" />
+                                                                                    Confirm Return
                                                                                 </Button>
                                                                             ) : (
                                                                                 <Badge variant="default" className="bg-green-600">Returned</Badge>

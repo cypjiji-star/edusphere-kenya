@@ -56,7 +56,7 @@ type StudentAssignment = {
     studentId: string;
     studentName: string;
     assignedDate: Timestamp;
-    status: 'Assigned' | 'Returned';
+    status: 'Assigned' | 'Returned' | 'Pending Return';
 };
 
 type TeacherStudent = {
@@ -142,7 +142,7 @@ export default function MyLibraryPage() {
             unsubAssignments();
             unsubClasses();
         }
-    }, [schoolId, user]);
+    }, [schoolId, user, selectedClassForAssignment]);
     
      // Fetch all students from the teacher's classes
     React.useEffect(() => {
@@ -315,16 +315,16 @@ export default function MyLibraryPage() {
         if (!schoolId) return;
         const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignmentId);
         try {
-            await updateDoc(assignmentRef, { status: 'Returned' });
-            toast({ title: 'Success', description: 'Book marked as returned.' });
+            await updateDoc(assignmentRef, { status: 'Pending Return' });
+            toast({ title: 'Return Initiated', description: 'The librarian has been notified to confirm the return.' });
         } catch (e) {
-            console.error('Failed to mark as returned', e);
+            console.error('Failed to mark for return', e);
             toast({ variant: 'destructive', title: 'Update Failed' });
         }
     };
     
     if (!schoolId) {
-        return <div className="p-8">Error: School ID is missing from URL.</div>
+        return <div className="p-8">Error: School ID is missing.</div>
     }
 
 
@@ -458,6 +458,8 @@ export default function MyLibraryPage() {
                                                                             <TableCell className="text-right">
                                                                                 {assignment.status === 'Assigned' ? (
                                                                                     <Button variant="outline" size="sm" onClick={() => handleMarkAsReturned(assignment.id)}>Mark as Returned</Button>
+                                                                                ) : assignment.status === 'Pending Return' ? (
+                                                                                    <Badge variant="secondary">Pending Return</Badge>
                                                                                 ) : (
                                                                                     <Badge variant="default" className="bg-green-600">Returned</Badge>
                                                                                 )}
