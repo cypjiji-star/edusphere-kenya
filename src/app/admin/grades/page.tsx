@@ -20,6 +20,11 @@ import {
   BarChart2,
   Settings,
   Edit,
+  Copy,
+  Archive,
+  Search,
+  Filter,
+  ChevronDown,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -132,6 +137,7 @@ export default function AdminGradesPage() {
   const [selectedStudentForDetails, setSelectedStudentForDetails] = React.useState<StudentGrade | null>(null);
   const [allExams, setAllExams] = React.useState<Exam[]>([]);
   const [isLoadingRanking, setIsLoadingRanking] = React.useState(true);
+  const [examSearchTerm, setExamSearchTerm] = React.useState('');
   
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -349,6 +355,12 @@ export default function AdminGradesPage() {
     return grade ? grade.grade : '—';
   };
 
+  const filteredExams = allExams.filter(exam => 
+      exam.title.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
+      exam.term.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
+      exam.className.toLowerCase().includes(examSearchTerm.toLowerCase())
+  );
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -443,7 +455,7 @@ export default function AdminGradesPage() {
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
             <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
-            <TabsTrigger value="settings">Settings &amp; Policies</TabsTrigger>
+            <TabsTrigger value="exams">Manage Exams</TabsTrigger>
           </TabsList>
 
           <TabsContent value="reports">
@@ -602,49 +614,52 @@ export default function AdminGradesPage() {
              </Card>
           </TabsContent>
 
-          <TabsContent value="settings">
+          <TabsContent value="exams">
              <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Grading Policies</CardTitle>
-                    <CardDescription>Define the grading scale and other report card settings.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Manage Exam Schedules</CardTitle>
+                    <CardDescription>View, edit, or clone existing examination schedules.</CardDescription>
+                    <div className="relative w-full md:max-w-sm pt-4">
+                        <Search className="absolute left-2.5 top-6 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="search"
+                            placeholder="Search by title, term, or class..."
+                            className="w-full bg-background pl-8"
+                            value={examSearchTerm}
+                            onChange={(e) => setExamSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid md:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                             <h4 className="font-semibold text-base">Grading Scale</h4>
-                             <div className="space-y-2">
-                                {gradingScale.map((item, index) => (
-                                <div key={index} className="grid grid-cols-[80px_1fr_1fr] items-center gap-2">
-                                    <Input defaultValue={item.grade} className="font-bold"/>
-                                    <Input type="number" defaultValue={item.min} onChange={(e) => handleGradingScaleChange(index, 'min', Number(e.target.value))} />
-                                    <Input type="number" defaultValue={item.max} onChange={(e) => handleGradingScaleChange(index, 'max', Number(e.target.value))} />
-                                </div>
-                                ))}
-                             </div>
-                        </div>
-                         <div className="space-y-4">
-                            <h4 className="font-semibold text-base">Exam Schedules</h4>
-                            <div className="w-full overflow-auto rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Exam Title</TableHead>
-                                            <TableHead>Term</TableHead>
-                                            <TableHead>Date</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                    {allExams.map(exam => (
-                                        <TableRow key={exam.id}>
-                                            <TableCell className="font-medium">{exam.title}</TableCell>
-                                            <TableCell>{exam.term}</TableCell>
-                                            <TableCell>{format(exam.startDate.toDate(), 'dd MMM')} - {format(exam.endDate.toDate(), 'dd MMM, yyyy')}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                         </div>
+                    <div className="w-full overflow-auto rounded-lg border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Exam Title</TableHead>
+                                    <TableHead>Term</TableHead>
+                                    <TableHead>Class</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {filteredExams.map(exam => (
+                                <TableRow key={exam.id}>
+                                    <TableCell className="font-medium">{exam.title}</TableCell>
+                                    <TableCell>{exam.term}</TableCell>
+                                    <TableCell>{exam.className}</TableCell>
+                                    <TableCell>{format(exam.startDate.toDate(), 'dd MMM')} - {format(exam.endDate.toDate(), 'dd MMM, yyyy')}</TableCell>
+                                    <TableCell><Badge variant={exam.status === 'Scheduled' ? 'default' : 'secondary'}>{exam.status}</Badge></TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8"><Edit className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8"><Copy className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Archive className="h-4 w-4"/></Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
                     </div>
                 </CardContent>
              </Card>
