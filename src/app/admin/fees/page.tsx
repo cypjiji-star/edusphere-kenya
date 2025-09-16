@@ -229,7 +229,7 @@ export default function FeesPage() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [classFilter, setClassFilter] = React.useState('All Classes');
   const [statusFilter, setStatusFilter] = React.useState<string>('All Statuses');
-  const [classes, setClasses] = React.useState<string[]>(['All Classes']);
+  const [classes, setClasses] = React.useState<{id: string; name: string}[]>([]);
   const [selectedStudent, setSelectedStudent] = React.useState<StudentFeeProfile | null>(null);
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
   const [schoolName, setSchoolName] = React.useState('');
@@ -275,7 +275,7 @@ export default function FeesPage() {
       const studentDebtors: any[] = [];
       let nextDeadline: Date | null = null;
       const studentProfiles: StudentFeeProfile[] = [];
-      const classSet = new Set<string>();
+      const classSet = new Set<{id: string, name: string}>();
 
       snapshot.forEach(doc => {
         const data = doc.data();
@@ -302,7 +302,7 @@ export default function FeesPage() {
             admissionNo: data.admissionNumber,
         });
 
-        if (data.class) classSet.add(data.class);
+        if (data.classId) classSet.add({id: data.classId, name: data.class});
 
         if (studentBalance <= 0) {
             clearedCount++;
@@ -338,10 +338,10 @@ export default function FeesPage() {
       setTopDebtors(studentDebtors.sort((a, b) => b.balance - a.balance).slice(0, 5));
       setAllStudents(studentProfiles);
       setFilteredStudents(studentProfiles); // Initially show all
-      const classList = ['All Classes', ...Array.from(classSet)];
+      const classList = Array.from(classSet);
       setClasses(classList);
-      if (!selectedClassForStructure && classList.length > 1) {
-        setSelectedClassForStructure(classList[1]); // Default to first actual class
+      if (!selectedClassForStructure && classList.length > 0) {
+        setSelectedClassForStructure(classList[0].id); // Default to first actual class
       }
     });
 
@@ -564,7 +564,7 @@ export default function FeesPage() {
         transaction.set(structureRef, { items: feeStructure }, { merge: true });
 
         // 2. Apply fees to all students in the class
-        const studentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('class', '==', selectedClassForStructure));
+        const studentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClassForStructure));
         const studentsSnapshot = await getDocs(studentsInClassQuery);
         
         const fee = totalYearlyFee;
@@ -596,7 +596,7 @@ export default function FeesPage() {
 
       toast({
           title: 'Fees Applied',
-          description: `Annual fee of ${formatCurrency(totalYearlyFee)} has been applied to all students in ${selectedClassForStructure}.`,
+          description: `Annual fee of ${formatCurrency(totalYearlyFee)} has been applied to all students in ${classes.find(c=>c.id === selectedClassForStructure)?.name}.`,
       });
     } catch (e) {
       console.error(e);
@@ -812,11 +812,14 @@ export default function FeesPage() {
                               </div>
                               <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                                   <Select value={classFilter} onValueChange={setClassFilter}>
-                                      <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
-                                      <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                                      <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Classes" /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="All Classes">All Classes</SelectItem>
+                                        {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                                      </SelectContent>
                                   </Select>
                                   <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v)}>
-                                      <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
+                                      <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Statuses" /></SelectTrigger>
                                       <SelectContent>
                                           <SelectItem value="All Statuses">All Statuses</SelectItem>
                                           <SelectItem value="Paid">Paid</SelectItem>
@@ -898,7 +901,7 @@ export default function FeesPage() {
                                       <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                      {classes.filter(c => c !== 'All Classes').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                      {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                   </SelectContent>
                               </Select>
                            </div>
@@ -1152,4 +1155,5 @@ export default function FeesPage() {
     </>
   );
 }
+
 
