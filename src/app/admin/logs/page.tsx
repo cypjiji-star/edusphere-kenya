@@ -63,7 +63,7 @@ type AuditLog = {
   id: string;
   action: string;
   actionType: ActionType;
-  description: string;
+  details: string;
   user: {
     id: string;
     name: string;
@@ -71,7 +71,6 @@ type AuditLog = {
     avatarUrl?: string;
   };
   timestamp: Timestamp;
-  details: string | { oldValue: string | null; newValue: string };
   ipAddress?: string;
   userAgent?: string;
 };
@@ -149,9 +148,8 @@ export default function AuditLogsPage() {
       if (!recordDate) return false;
 
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
-      const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (typeof log.details === 'string' && log.details.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (log.details && log.details.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesUser = userFilter === 'All Users' || log.user.name === userFilter;
       const matchesAction = actionFilter === 'All Types' || log.actionType === actionFilter;
 
@@ -195,14 +193,13 @@ export default function AuditLogsPage() {
       return;
     }
 
-    const headers = ['Timestamp', 'User', 'Role', 'Action', 'Description', 'Details'];
+    const headers = ['Timestamp', 'User', 'Role', 'Action', 'Details'];
     const data = filteredLogs.map(log => [
       log.timestamp?.toDate().toLocaleString() || 'N/A',
       log.user.name,
       log.user.role,
       log.action,
-      log.description,
-      typeof log.details === 'string' ? log.details : `Old: ${log.details.oldValue}, New: ${log.details.newValue}`
+      log.details,
     ]);
 
     if (type === 'CSV') {
@@ -435,7 +432,7 @@ export default function AuditLogsPage() {
                                                             {log.timestamp?.toDate().toLocaleString()}
                                                         </TableCell>
                                                         <TableCell className="text-muted-foreground max-w-xs truncate">
-                                                            {log.description}
+                                                            {log.details}
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <Button variant="ghost" size="sm">
@@ -478,32 +475,16 @@ export default function AuditLogsPage() {
                 </DialogHeader>
                 <div className="py-4 space-y-6">
                     <div className="space-y-1">
-                        <h4 className="font-semibold">{selectedLog.description}</h4>
+                        <h4 className="font-semibold">{selectedLog.action}</h4>
                         <div className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.actionType}</Badge></div>
                     </div>
 
                     <Separator />
                     
-                    {typeof selectedLog.details === 'object' && selectedLog.details !== null ? (
-                        <div className="space-y-4">
-                            <h4 className="font-semibold">Changes</h4>
-                            <div className="grid grid-cols-2 gap-4 text-sm p-4 border rounded-lg bg-muted/50">
-                                <div>
-                                    <h5 className="text-muted-foreground font-medium mb-2">Before</h5>
-                                    <p className="font-mono bg-background p-2 rounded-md break-words">{selectedLog.details.oldValue || 'N/A (New Record)'}</p>
-                                </div>
-                                <div>
-                                    <h5 className="text-muted-foreground font-medium mb-2">After</h5>
-                                    <p className="font-mono bg-background p-2 rounded-md break-words">{selectedLog.details.newValue}</p>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            <h4 className="font-semibold">Details</h4>
-                            <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">{selectedLog.details}</p>
-                        </div>
-                    )}
+                    <div className="space-y-2">
+                        <h4 className="font-semibold">Details</h4>
+                        <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">{selectedLog.details}</p>
+                    </div>
                     
                     <Separator />
 
