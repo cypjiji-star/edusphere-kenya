@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import * as React from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -39,7 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, FileText, BookOpen, ClipboardCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
 import { firestore, auth } from '@/lib/firebase';
@@ -60,9 +59,18 @@ type Assessment = {
   id: string;
   title: string;
   date: any;
+  subject: string;
 };
 
-export function GradeEntryForm() {
+interface GradeEntryFormProps {
+  preselectedTask?: {
+    classId: string;
+    assessmentId: string;
+    subject: string;
+  } | null;
+}
+
+export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -71,13 +79,28 @@ export function GradeEntryForm() {
   const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const [students, setStudents] = React.useState<Student[]>([]);
-  const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
+  const [selectedClass, setSelectedClass] = React.useState<string | undefined>(preselectedTask?.classId);
   const [user, setUser] = React.useState(auth.currentUser);
 
   React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
     return () => unsubscribe();
   }, []);
+  
+  const form = useForm<GradeEntryFormValues>({
+    resolver: zodResolver(gradeEntrySchema),
+    defaultValues: {
+      classId: preselectedTask?.classId || '',
+      subject: preselectedTask?.subject || '',
+      assessmentId: preselectedTask?.assessmentId || '',
+      grades: [],
+    },
+  });
+
+  const { fields, replace } = useFieldArray({
+    control: form.control,
+    name: 'grades',
+  });
   
   // Fetch teacher's classes and subjects
   React.useEffect(() => {
@@ -88,12 +111,11 @@ export function GradeEntryForm() {
     const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
         const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
         setTeacherClasses(classesData);
-        if (!selectedClass && classesData.length > 0) {
+        if (!selectedClass && !preselectedTask && classesData.length > 0) {
             setSelectedClass(classesData[0].id);
         }
     });
     
-    // Correctly fetch subjects from the subjects collection
     const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
     const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
         const subjects = snapshot.docs.map(doc => doc.data().name as string);
@@ -105,20 +127,8 @@ export function GradeEntryForm() {
       unsubClasses();
       unsubSubjects();
     };
-  }, [schoolId, user]);
+  }, [schoolId, user, selectedClass, preselectedTask]);
 
-  const form = useForm<GradeEntryFormValues>({
-    resolver: zodResolver(gradeEntrySchema),
-    defaultValues: {
-      classId: selectedClass,
-      grades: [],
-    },
-  });
-
-  const { fields, replace } = useFieldArray({
-    control: form.control,
-    name: 'grades',
-  });
 
   // Fetch students and assessments for the selected class
   React.useEffect(() => {
@@ -138,11 +148,13 @@ export function GradeEntryForm() {
         const assessmentsSnapshot = await getDocs(assessmentsQuery);
         const assessmentData = assessmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
         setAssessments(assessmentData);
-        form.resetField('assessmentId');
+        if (!preselectedTask) {
+          form.resetField('assessmentId');
+        }
     };
 
     fetchData();
-  }, [schoolId, selectedClass, replace, form]);
+  }, [schoolId, selectedClass, replace, form, preselectedTask]);
 
   async function onSubmit(values: GradeEntryFormValues) {
     if (!schoolId || !user) {
@@ -171,13 +183,13 @@ export function GradeEntryForm() {
     }
   }
 
+  const selectedAssessment = assessments.find(a => a.id === form.getValues('assessmentId'));
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           <div className="space-y-6">
-            <h3 className="font-headline text-lg">Assessment Details</h3>
             <FormField
               control={form.control}
               name="classId"
@@ -263,50 +275,68 @@ export function GradeEntryForm() {
             />
           </div>
           <div className="md:col-span-2">
-            <h3 className="font-headline text-lg mb-6">Enter Student Grades</h3>
-            <div className="w-full overflow-auto rounded-lg border max-h-[600px]">
-              <Table>
-                <TableHeader className="sticky top-0 bg-muted">
-                  <TableRow>
-                    <TableHead className="w-full md:w-[250px]">Student Name</TableHead>
-                    <TableHead className="text-right">Grade/Score</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {fields.map((field, index) => {
-                    const student = students[index];
-                    if (!student) return null;
-                    return (
-                      <TableRow key={field.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={student.avatarUrl} alt={student.name} />
-                              <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{student.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <FormField
-                            control={form.control}
-                            name={`grades.${index}.grade`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Input {...field} className="max-w-[120px] ml-auto text-right" placeholder="e.g., 85"/>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <Card>
+                <CardHeader>
+                    {selectedAssessment ? (
+                        <>
+                        <CardTitle className="flex items-center gap-2">
+                           <FileText className="h-5 w-5 text-primary"/>
+                           Grading: {selectedAssessment.title}
+                        </CardTitle>
+                        <CardDescription>
+                            Enter scores for <span className="font-semibold">{teacherClasses.find(c => c.id === selectedClass)?.name}</span> - <span className="font-semibold">{selectedAssessment.subject}</span>. Max Marks: 100
+                        </CardDescription>
+                        </>
+                    ) : (
+                         <CardTitle>Enter Student Grades</CardTitle>
+                    )}
+                </CardHeader>
+                <CardContent>
+                    <div className="w-full overflow-auto rounded-lg border max-h-[600px]">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-muted z-10">
+                        <TableRow>
+                            <TableHead className="w-full md:w-[250px]">Student Name</TableHead>
+                            <TableHead className="text-right">Grade/Score</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {fields.map((field, index) => {
+                            const student = students[index];
+                            if (!student) return null;
+                            return (
+                            <TableRow key={field.id}>
+                                <TableCell>
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8">
+                                    <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                    <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">{student.name}</span>
+                                </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                <FormField
+                                    control={form.control}
+                                    name={`grades.${index}.grade`}
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                        <Input {...field} className="max-w-[120px] ml-auto text-right" placeholder="e.g., 85"/>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                </TableCell>
+                            </TableRow>
+                            );
+                        })}
+                        </TableBody>
+                    </Table>
+                    </div>
+                </CardContent>
+            </Card>
           </div>
         </div>
         
@@ -329,4 +359,3 @@ export function GradeEntryForm() {
     </Form>
   );
 }
-

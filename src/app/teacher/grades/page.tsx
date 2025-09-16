@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -101,6 +100,7 @@ export type Assessment = {
   date: Timestamp;
   subject?: string;
   className: string;
+  classId: string;
   totalStudents?: number;
   submissions?: number;
   dueDate?: Timestamp;
@@ -147,6 +147,7 @@ export default function GradesPage() {
     const [user, setUser] = React.useState(auth.currentUser);
     const [gradingTasks, setGradingTasks] = React.useState<Assessment[]>([]);
     const [recentActivities, setRecentActivities] = React.useState<RecentActivity[]>([]);
+    const [selectedTaskForGrading, setSelectedTaskForGrading] = React.useState<{classId: string; assessmentId: string; subject: string;} | null>(null);
 
 
     const [currentAssessments, setCurrentAssessments] = React.useState<Assessment[]>([]);
@@ -427,7 +428,10 @@ export default function GradesPage() {
                                             <span>{task.submissions || 0} / {task.totalStudents || 0} Graded</span>
                                         </div>
                                         <Progress value={((task.submissions || 0) / (task.totalStudents || 1)) * 100} />
-                                        <Button size="sm" variant="secondary" className="w-full" onClick={() => setActiveTab('entry')}>Grade Now</Button>
+                                        <Button size="sm" variant="secondary" className="w-full" onClick={() => {
+                                            setSelectedTaskForGrading({ classId: task.classId, assessmentId: task.id, subject: task.subject || '' });
+                                            setActiveTab('entry');
+                                        }}>Grade Now</Button>
                                     </div>
                                 ))
                             ) : (
@@ -575,18 +579,17 @@ export default function GradesPage() {
         </TabsContent>
         <TabsContent value="entry">
            <Card>
-                <CardHeader>
-                    <CardTitle>Enter Grades</CardTitle>
-                    <CardDescription>Select an assessment and enter grades for your class. You can also upload a completed CSV file.</CardDescription>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <Tabs defaultValue="manual">
                     <TabsList>
                       <TabsTrigger value="manual">Manual Entry</TabsTrigger>
                       <TabsTrigger value="bulk">Bulk Grade Upload</TabsTrigger>
                     </TabsList>
                     <TabsContent value="manual" className="pt-6">
-                      <GradeEntryForm />
+                      <GradeEntryForm 
+                        key={selectedTaskForGrading ? `${selectedTaskForGrading.classId}-${selectedTaskForGrading.assessmentId}` : 'default'}
+                        preselectedTask={selectedTaskForGrading}
+                      />
                     </TabsContent>
                     <TabsContent value="bulk" className="pt-6">
                        <BulkGradeEntry />
@@ -617,4 +620,3 @@ export default function GradesPage() {
     </div>
   );
 }
-
