@@ -47,6 +47,8 @@ import { firestore, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp, getDocs, where, increment, arrayUnion, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -171,7 +173,6 @@ export default function AdminAnnouncementsPage() {
         setPastAnnouncements(fetchedAnnouncements);
     });
     
-    // Real-time listener for user count
     const usersQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', 'in', ['Student', 'Parent', 'Teacher']));
     const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
         setTotalUserCount(snapshot.size);
@@ -285,7 +286,7 @@ export default function AdminAnnouncementsPage() {
                 sms: values.notifySms
             },
             readCount: 0,
-            totalRecipients: totalUserCount, // Use live user count
+            totalRecipients: totalUserCount,
             ...(attachmentUrl && { attachmentUrl, attachmentName }),
             readBy: [],
         };
@@ -333,287 +334,288 @@ export default function AdminAnnouncementsPage() {
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Megaphone className="h-8 w-8 text-primary"/>School-Wide Announcements</h1>
         <p className="text-muted-foreground">Broadcast messages to the entire school community.</p>
        </div>
-
-       <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-            <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Send className="h-6 w-6 text-primary"/>Compose New Announcement</CardTitle>
-                    <CardDescription>Draft and send a new broadcast message to selected groups.</CardDescription>
-                </CardHeader>
-                  <CardContent className="space-y-6">
-                       <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Title</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g., School Closure for Public Holiday" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                       />
-                      <FormField
-                        control={form.control}
-                        name="message"
-                        render={({ field }) => (
-                            <FormItem>
-                                <div className="flex items-center justify-between">
-                                    <FormLabel>Message</FormLabel>
-                                    <Button type="button" variant="outline" size="sm" onClick={handleTranslate} disabled={isTranslating}>
-                                    {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
-                                    Translate with AI
+       
+        <Tabs defaultValue="all" className="w-full">
+            <TabsList>
+                <TabsTrigger value="all">All Announcements</TabsTrigger>
+                <TabsTrigger value="compose">Compose New</TabsTrigger>
+            </TabsList>
+            <TabsContent value="all" className="mt-4">
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <History className="h-5 w-5 text-primary" />
+                                Announcement Feed
+                            </CardTitle>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                        Export
+                                        <ChevronDown className="ml-2 h-4 w-4" />
                                     </Button>
-                                </div>
-                                <FormControl>
-                                    <Textarea placeholder="Type your announcement here..." className="min-h-[150px]" {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                    Use the AI to translate your message into multiple languages like Swahili.
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                       />
-                      <div className="space-y-2">
-                          <Label>File Attachments</Label>
-                           {attachedFile ? (
-                                <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
-                                  <div className="flex items-center gap-2 text-sm font-medium">
-                                      <Paperclip className="h-5 w-5 text-primary" />
-                                      <span className="truncate">{attachedFile.name}</span>
-                                  </div>
-                                  <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
-                                      <X className="h-4 w-4 text-destructive" />
-                                  </Button>
-                              </div>
-                          ) : (
-                            <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                    <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                                    <p className="mb-2 text-sm text-muted-foreground">Attach files, images, or newsletters</p>
-                                    <p className="text-xs text-muted-foreground">(PDF, JPG, etc.)</p>
-                                </div>
-                                <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} />
-                            </Label>
-                          )}
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormField
-                                control={form.control}
-                                name="audience"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Audience</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select target groups" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="All Students, Parents & Staff">All Students, Parents & Staff</SelectItem>
-                                            <SelectItem value="All Students">All Students</SelectItem>
-                                            <SelectItem value="All Parents">All Parents</SelectItem>
-                                            <SelectItem value="All Staff">All Staff</SelectItem>
-                                            <SelectItem value="specific-classes">Specific Classes (coming soon)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                           <FormField
-                                control={form.control}
-                                name="category"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Category</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select a category" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {Object.entries(announcementCategories).map(([key, {label}]) => (
-                                                <SelectItem key={key} value={key as AnnouncementCategory}>{label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                      </div>
-                       <div className="space-y-2">
-                              <div className="flex items-center space-x-2 mb-2">
-                                  <Switch id="schedule-send" checked={isScheduling} onCheckedChange={setIsScheduling} />
-                                  <Label htmlFor="schedule-send">Schedule for later</Label>
-                              </div>
-                              {isScheduling && (
-                                  <Popover>
-                                      <PopoverTrigger asChild>
-                                      <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                          "w-full justify-start text-left font-normal",
-                                          !scheduledDate && "text-muted-foreground"
-                                        )}
-                                      >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {scheduledDate ? format(scheduledDate, "PPP 'at' h:mm a") : <span>Pick a date and time</span>}
-                                      </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                          mode="single"
-                                          selected={scheduledDate}
-                                          onSelect={setScheduledDate}
-                                          initialFocus
-                                          disabled={(date) => date < new Date()}
-                                        />
-                                        <div className="p-3 border-t border-border">
-                                          <Input type="time" defaultValue={scheduledDate ? format(scheduledDate, "HH:mm") : format(new Date(), "HH:mm")} className="w-full" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={handleExport}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem disabled><Archive className="mr-2 h-4 w-4" />Archive All</DropdownMenuItem>
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                        </div>
+                         <CardDescription>A live feed of all announcements sent by admins and teachers.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {pastAnnouncements.map((ann) => (
+                            <div key={ann.id}>
+                                <div className="space-y-3">
+                                     <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-9 w-9">
+                                                <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
+                                                <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="text-sm font-semibold">{ann.sender.name}</p>
+                                                <p className="text-xs text-muted-foreground">To: {ann.audience}</p>
+                                            </div>
                                         </div>
-                                      </PopoverContent>
-                                  </Popover>
-                              )}
-                          </div>
-                        <Separator />
-                      <div className="space-y-4">
-                          <Alert>
-                              <Bell className="h-4 w-4" />
-                              <AlertTitle>Notification Channels</AlertTitle>
-                              <AlertDescription>
-                                  Choose how this announcement will be delivered. Additional charges may apply for SMS.
-                              </AlertDescription>
-                          </Alert>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                              <FormField
-                                control={form.control}
-                                name="notifyApp"
-                                render={({ field }) => (
-                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                        <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-app" />
-                                        </FormControl>
-                                        <Label htmlFor="notify-app">In-App Notification</Label>
-                                    </FormItem>
-                                )}
-                              />
-                               <FormField
-                                control={form.control}
-                                name="notifyEmail"
-                                render={({ field }) => (
-                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                        <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-email" />
-                                        </FormControl>
-                                        <Label htmlFor="notify-email">Send as Email</Label>
-                                    </FormItem>
-                                )}
-                                />
-                                <FormField
-                                control={form.control}
-                                name="notifySms"
-                                render={({ field }) => (
-                                    <FormItem className="flex items-center space-x-2 space-y-0">
-                                        <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-sms" />
-                                        </FormControl>
-                                        <Label htmlFor="notify-sms">Send as SMS</Label>
-                                    </FormItem>
-                                )}
-                                />
-                          </div>
-                      </div>
-                  </CardContent>
-                <CardFooter>
-                    <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4" />}
-                        {isScheduling ? 'Schedule Announcement' : 'Send Announcement'}
-                    </Button>
-                </CardFooter>
-            </Card>
-            </form>
-            </Form>
-        </div>
-        <div className="lg:col-span-1">
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            <History className="h-5 w-5 text-primary" />
-                            Sent History
-                        </CardTitle>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    Export
-                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuItem onClick={handleExport}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
-                                <DropdownMenuItem disabled><Archive className="mr-2 h-4 w-4" />Archive All</DropdownMenuItem>
-                            </DropdownMenuContent>
-                         </DropdownMenu>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {pastAnnouncements.map((ann) => (
-                        <div key={ann.id}>
-                            <div className="space-y-3">
-                                 <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-9 w-9">
-                                            <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
-                                            <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="text-sm font-semibold">{ann.sender.name}</p>
-                                            <p className="text-xs text-muted-foreground">To: {ann.audience}</p>
+                                        <Badge className={cn(announcementCategories[ann.category]?.color, 'ml-auto')}>
+                                            {announcementCategories[ann.category]?.label}
+                                        </Badge>
+                                    </div>
+
+                                    <p className="text-sm leading-relaxed pl-12">{ann.content}</p>
+                                    
+                                    <div className="text-xs text-muted-foreground flex items-center justify-end">
+                                        <span>{ann.sentAt?.toDate().toLocaleString()}</span>
+                                    </div>
+
+                                    <Separator className="my-2"/>
+                                     <div className="flex items-center justify-between text-xs text-muted-foreground pl-12">
+                                        <div className="flex items-center gap-2" title="Views">
+                                            <Eye className="h-4 w-4" />
+                                            <span className="font-medium">{ann.totalRecipients > 0 ? Math.round((ann.readCount / ann.totalRecipients) * 100) : 0}% view rate</span>
                                         </div>
+                                         <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => handleViewStats(ann)}>
+                                            View Stats
+                                            <ArrowRight className="ml-1 h-3 w-3" />
+                                        </Button>
                                     </div>
-                                    <Badge className={cn(announcementCategories[ann.category]?.color, 'ml-auto')}>
-                                        {announcementCategories[ann.category]?.label}
-                                    </Badge>
-                                </div>
-
-                                <p className="text-sm leading-relaxed pl-12">{ann.content}</p>
-                                
-                                <div className="text-xs text-muted-foreground flex items-center justify-end">
-                                    <span>{ann.sentAt?.toDate().toLocaleString()}</span>
-                                </div>
-
-                                <Separator className="my-2"/>
-                                 <div className="flex items-center justify-between text-xs text-muted-foreground pl-12">
-                                    <div className="flex items-center gap-2" title="Views">
-                                        <Eye className="h-4 w-4" />
-                                        <span className="font-medium">{ann.totalRecipients > 0 ? Math.round((ann.readCount / ann.totalRecipients) * 100) : 0}% view rate</span>
-                                    </div>
-                                     <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => handleViewStats(ann)}>
-                                        View Stats
-                                        <ArrowRight className="ml-1 h-3 w-3" />
-                                    </Button>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </CardContent>
-            </Card>
-        </div>
-       </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="compose" className="mt-4">
+                 <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)}>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Send className="h-6 w-6 text-primary"/>Compose New Announcement</CardTitle>
+                        <CardDescription>Draft and send a new broadcast message to selected groups.</CardDescription>
+                    </CardHeader>
+                      <CardContent className="space-y-6">
+                           <FormField
+                            control={form.control}
+                            name="title"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Title</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., School Closure for Public Holiday" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                           />
+                          <FormField
+                            control={form.control}
+                            name="message"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className="flex items-center justify-between">
+                                        <FormLabel>Message</FormLabel>
+                                        <Button type="button" variant="outline" size="sm" onClick={handleTranslate} disabled={isTranslating}>
+                                        {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
+                                        Translate with AI
+                                        </Button>
+                                    </div>
+                                    <FormControl>
+                                        <Textarea placeholder="Type your announcement here..." className="min-h-[150px]" {...field} />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Use the AI to translate your message into multiple languages like Swahili.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                           />
+                          <div className="space-y-2">
+                              <Label>File Attachments</Label>
+                               {attachedFile ? (
+                                    <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                      <div className="flex items-center gap-2 text-sm font-medium">
+                                          <Paperclip className="h-5 w-5 text-primary" />
+                                          <span className="truncate">{attachedFile.name}</span>
+                                      </div>
+                                      <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
+                                          <X className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                  </div>
+                              ) : (
+                                <Label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                        <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                                        <p className="mb-2 text-sm text-muted-foreground">Attach files, images, or newsletters</p>
+                                        <p className="text-xs text-muted-foreground">(PDF, JPG, etc.)</p>
+                                    </div>
+                                    <Input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} />
+                                </Label>
+                              )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField
+                                    control={form.control}
+                                    name="audience"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Audience</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select target groups" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="All Students, Parents & Staff">All Students, Parents & Staff</SelectItem>
+                                                <SelectItem value="All Students">All Students</SelectItem>
+                                                <SelectItem value="All Parents">All Parents</SelectItem>
+                                                <SelectItem value="All Staff">All Staff</SelectItem>
+                                                <SelectItem value="specific-classes">Specific Classes (coming soon)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                               <FormField
+                                    control={form.control}
+                                    name="category"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Category</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a category" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {Object.entries(announcementCategories).map(([key, {label}]) => (
+                                                    <SelectItem key={key} value={key as AnnouncementCategory}>{label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                          </div>
+                           <div className="space-y-2">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                      <Switch id="schedule-send" checked={isScheduling} onCheckedChange={setIsScheduling} />
+                                      <Label htmlFor="schedule-send">Schedule for later</Label>
+                                  </div>
+                                  {isScheduling && (
+                                      <Popover>
+                                          <PopoverTrigger asChild>
+                                          <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                              "w-full justify-start text-left font-normal",
+                                              !scheduledDate && "text-muted-foreground"
+                                            )}
+                                          >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {scheduledDate ? format(scheduledDate, "PPP 'at' h:mm a") : <span>Pick a date and time</span>}
+                                          </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0">
+                                            <Calendar
+                                              mode="single"
+                                              selected={scheduledDate}
+                                              onSelect={setScheduledDate}
+                                              initialFocus
+                                              disabled={(date) => date < new Date()}
+                                            />
+                                            <div className="p-3 border-t border-border">
+                                              <Input type="time" defaultValue={scheduledDate ? format(scheduledDate, "HH:mm") : format(new Date(), "HH:mm")} className="w-full" />
+                                            </div>
+                                          </PopoverContent>
+                                      </Popover>
+                                  )}
+                              </div>
+                            <Separator />
+                          <div className="space-y-4">
+                              <Alert>
+                                  <Bell className="h-4 w-4" />
+                                  <AlertTitle>Notification Channels</AlertTitle>
+                                  <AlertDescription>
+                                      Choose how this announcement will be delivered. Additional charges may apply for SMS.
+                                  </AlertDescription>
+                              </Alert>
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                                  <FormField
+                                    control={form.control}
+                                    name="notifyApp"
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center space-x-2 space-y-0">
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-app" />
+                                            </FormControl>
+                                            <Label htmlFor="notify-app">In-App Notification</Label>
+                                        </FormItem>
+                                    )}
+                                  />
+                                   <FormField
+                                    control={form.control}
+                                    name="notifyEmail"
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center space-x-2 space-y-0">
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-email" />
+                                            </FormControl>
+                                            <Label htmlFor="notify-email">Send as Email</Label>
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="notifySms"
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center space-x-2 space-y-0">
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} id="notify-sms" />
+                                            </FormControl>
+                                            <Label htmlFor="notify-sms">Send as SMS</Label>
+                                        </FormItem>
+                                    )}
+                                    />
+                              </div>
+                          </div>
+                      </CardContent>
+                    <CardFooter>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4" />}
+                            {isScheduling ? 'Schedule Announcement' : 'Send Announcement'}
+                        </Button>
+                    </CardFooter>
+                </Card>
+                </form>
+                </Form>
+            </TabsContent>
+        </Tabs>
     </div>
     </>
   );
 }
-
-    
-
-    
