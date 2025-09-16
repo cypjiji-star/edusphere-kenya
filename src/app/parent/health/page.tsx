@@ -45,6 +45,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type Child = {
@@ -63,7 +64,7 @@ type Incident = {
   reportedBy: string;
   status: 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
   actionsTaken: string;
-  followUpNeeded: string;
+  followUpNeeded?: string;
 };
 
 type Medication = {
@@ -84,6 +85,8 @@ type HealthRecord = {
 export default function ParentHealthPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const { user } = useAuth();
+    const parentId = user?.uid;
     const [childrenData, setChildrenData] = React.useState<Child[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [healthRecord, setHealthRecord] = React.useState<HealthRecord | null>(null);
@@ -95,11 +98,13 @@ export default function ParentHealthPage() {
     const [absenceReason, setAbsenceReason] = React.useState('');
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const { toast } = useToast();
-    const parentId = 'parent-user-id'; // This should be dynamic
 
     React.useEffect(() => {
-        if (!schoolId) return;
-        // In a real app, you would filter by parent ID.
+        if (!schoolId || !parentId) {
+            setIsLoading(false);
+            return;
+        };
+
         const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
@@ -109,7 +114,7 @@ export default function ParentHealthPage() {
             }
         });
         return () => unsubscribe();
-    }, [schoolId, selectedChild, parentId]);
+    }, [schoolId, parentId, selectedChild]);
     
     React.useEffect(() => {
         if (!selectedChild || !schoolId) return;
@@ -120,11 +125,11 @@ export default function ParentHealthPage() {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 setHealthRecord({
-                    allergies: data.allergies || ['None known'],
+                    allergies: data.allergies ? [data.allergies] : ['None known'],
                     conditions: data.medicalConditions ? [data.medicalConditions] : ['None known'],
                     emergencyContact: {
                         name: data.emergencyContactName || 'N/A',
-                        relationship: 'Parent/Guardian',
+                        relationship: data.parentRelationship || 'Guardian',
                         phone: data.parentPhone || 'N/A',
                     },
                     lastHealthCheck: data.lastHealthCheck || 'N/A',
@@ -143,7 +148,6 @@ export default function ParentHealthPage() {
             setMedications(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Medication)));
         });
 
-
         return () => {
             unsubChild();
             unsubIncidents();
@@ -153,7 +157,7 @@ export default function ParentHealthPage() {
     }, [selectedChild, schoolId]);
 
     const handleReportAbsence = async () => {
-        if (!selectedChild || !absenceDate || !absenceReason || !schoolId) {
+        if (!selectedChild || !absenceDate || !absenceReason || !schoolId || !user) {
             toast({ title: 'Missing Information', description: 'Please select a date and provide a reason.', variant: 'destructive' });
             return;
         }
@@ -164,7 +168,8 @@ export default function ParentHealthPage() {
                 studentName: childrenData.find(c => c.id === selectedChild)?.name,
                 date: Timestamp.fromDate(absenceDate),
                 reason: absenceReason,
-                reportedBy: 'Parent', // In a real app, use parent's ID/name
+                reportedBy: user.displayName || 'Parent',
+                reporterId: user.uid,
                 reportedAt: serverTimestamp(),
             });
 
@@ -407,7 +412,7 @@ export default function ParentHealthPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>Date & Time</TableHead>
+                                                <TableHead>Date &amp; Time</TableHead>
                                                 <TableHead>Medication</TableHead>
                                                 <TableHead>Dosage</TableHead>
                                                 <TableHead>Administered By</TableHead>
@@ -462,14 +467,18 @@ export default function ParentHealthPage() {
                             <h4 className="font-semibold text-primary mb-2">Actions Taken by School Staff</h4>
                             <p className="text-sm text-muted-foreground">{selectedIncident.actionsTaken}</p>
                         </div>
-                        <Separator />
-                        <div>
-                            <h4 className="font-semibold text-primary mb-2">Follow-up Needed</h4>
-                            <div className="flex items-center gap-2">
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                                <p className="text-sm">{selectedIncident.followUpNeeded}</p>
+                        {selectedIncident.followUpNeeded && (
+                            <>
+                            <Separator />
+                            <div>
+                                <h4 className="font-semibold text-primary mb-2">Follow-up Needed</h4>
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle className="h-5 w-5 text-green-600" />
+                                    <p className="text-sm">{selectedIncident.followUpNeeded}</p>
+                                </div>
                             </div>
-                        </div>
+                            </>
+                        )}
                     </div>
                     <DialogFooter>
                         <DialogClose asChild>
@@ -481,7 +490,3 @@ export default function ParentHealthPage() {
         </Dialog>
     );
 }
-
-  
-
-    
