@@ -19,7 +19,7 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield, CalendarIcon, Printer, Mail } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield, CalendarIcon, Printer, Mail, FileDown, ChevronDown } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
@@ -62,6 +62,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 const formatCurrency = (amount: number) => {
@@ -538,6 +540,43 @@ export default function FeesPage() {
           description: `The fee statement for ${selectedStudent?.name} has been sent to their parent.`,
       });
   }
+  
+  const handleExport = (format: 'PDF' | 'CSV') => {
+    if(format === 'PDF') {
+        const doc = new jsPDF();
+        doc.text("Student Fee Report", 14, 16);
+        const tableData = filteredStudents.map(s => [
+            s.name,
+            s.class,
+            formatCurrency(s.balance),
+            s.status,
+        ]);
+        (doc as any).autoTable({
+            startY: 22,
+            head: [['Student', 'Class', 'Balance', 'Status']],
+            body: tableData,
+        });
+        doc.save('student_fees.pdf');
+    } else {
+        const headers = ['Name', 'Class', 'Total Billed', 'Total Paid', 'Balance', 'Status'];
+        const csvContent = [
+            headers.join(','),
+            ...filteredStudents.map(s => [s.name, s.class, s.totalBilled, s.totalPaid, s.balance, s.status].join(','))
+        ].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "student_fees.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+    toast({ title: 'Export Successful', description: `Student fee data has been exported as a ${format} file.` });
+  }
 
 
   if (isLoading) {
@@ -692,7 +731,7 @@ export default function FeesPage() {
                       <CardHeader>
                           <CardTitle>Debtors & Student Accounts</CardTitle>
                           <CardDescription>Search for a student to view their detailed fee profile and payment history. Filter by status to see a list of debtors.</CardDescription>
-                          <div className="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                           <div className="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div className="relative w-full md:max-w-sm">
                                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                   <Input placeholder="Search by name or admission no..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -711,6 +750,19 @@ export default function FeesPage() {
                                           <SelectItem value="Overdue">Overdue</SelectItem>
                                       </SelectContent>
                                   </Select>
+                                   <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline">
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export
+                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem onClick={() => handleExport('PDF')}>Export as PDF</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExport('CSV')}>Export as CSV</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                           </div>
                       </CardHeader>
@@ -1010,4 +1062,3 @@ export default function FeesPage() {
     </>
   );
 }
-
