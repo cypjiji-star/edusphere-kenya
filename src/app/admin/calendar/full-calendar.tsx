@@ -302,92 +302,95 @@ export function FullCalendar() {
             <PopoverTrigger asChild>
                 <Button><PlusCircle className="mr-2"/> Add Event</Button>
             </PopoverTrigger>
-             <PopoverContent className="w-[90vw] md:w-96">
-                <div className="grid gap-4">
-                    <div className="space-y-1">
-                        <h4 className="font-medium leading-none">{editingEvent ? 'Edit Event' : 'Add New Event'}</h4>
-                        <p className="text-sm text-muted-foreground">
-                        {editingEvent ? 'Update the details for this event.' : 'Fill in the details to add a new event.'}
-                        </p>
-                    </div>
+             <PopoverContent className="w-[90vw] md:w-96 p-0">
+                <div className="p-4 max-h-[80vh] overflow-y-auto">
                     <div className="grid gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="event-title">Title</Label>
-                        <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} />
-                      </div>
-                       <div className="grid gap-2">
-                          <Label>Date</Label>
-                          <Popover>
-                              <PopoverTrigger asChild>
-                                  <Button variant="outline" className="font-normal w-full justify-start">
-                                      <CalendarIcon className="mr-2 h-4 w-4"/>
-                                      {newEventDate ? format(newEventDate, 'PPP') : 'Pick a date'}
-                                  </Button>
-                              </PopoverTrigger>
-                              <PopoverContent>
-                                  <Calendar mode="single" selected={newEventDate} onSelect={setNewEventDate} initialFocus/>
-                              </PopoverContent>
-                          </Popover>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <h4 className="font-medium leading-none">{editingEvent ? 'Edit Event' : 'Add New Event'}</h4>
+                            <p className="text-sm text-muted-foreground">
+                            {editingEvent ? 'Update the details for this event.' : 'Fill in the details to add a new event.'}
+                            </p>
+                        </div>
+                        <div className="grid gap-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="start-time">Start Time</Label>
-                            <Input id="start-time" type="time" value={newEventStartTime} onChange={(e) => setNewEventStartTime(e.target.value)} />
+                            <Label htmlFor="event-title">Title</Label>
+                            <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} />
                         </div>
-                         <div className="grid gap-2">
-                            <Label htmlFor="end-time">End Time</Label>
-                            <Input id="end-time" type="time" value={newEventEndTime} onChange={(e) => setNewEventEndTime(e.target.value)} />
-                        </div>
-                      </div>
-                       <div className="grid gap-2">
-                          <Label htmlFor="event-type">Event Type</Label>
-                          <Select value={newEventType} onValueChange={(value: CalendarEvent['type']) => setNewEventType(value)}>
-                            <SelectTrigger id="event-type">
-                                <SelectValue placeholder="Select a type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {Object.entries(eventColors).map(([type, colorClass]) => (
-                                    <SelectItem key={type} value={type}>
-                                        <div className="flex items-center gap-2">
-                                            <div className={cn("w-2 h-2 rounded-full", colorClass)} />
-                                            <span className="capitalize">{type}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                      </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="event-description">Description</Label>
-                            <Textarea id="event-description" placeholder="Event details..." value={newEventDescription} onChange={(e) => setNewEventDescription(e.target.value)} />
+                            <Label>Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="font-normal w-full justify-start">
+                                        <CalendarIcon className="mr-2 h-4 w-4"/>
+                                        {newEventDate ? format(newEventDate, 'PPP') : 'Pick a date'}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent>
+                                    <Calendar mode="single" selected={newEventDate} onSelect={setNewEventDate} initialFocus/>
+                                </PopoverContent>
+                            </Popover>
                         </div>
-                         <div className="grid gap-2">
-                            <Label htmlFor="event-location">Location</Label>
-                            <Input id="event-location" placeholder="e.g., Main Hall" value={newEventLocation} onChange={(e) => setNewEventLocation(e.target.value)} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="start-time">Start Time</Label>
+                                <Input id="start-time" type="time" value={newEventStartTime} onChange={(e) => setNewEventStartTime(e.target.value)} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="end-time">End Time</Label>
+                                <Input id="end-time" type="time" value={newEventEndTime} onChange={(e) => setNewEventEndTime(e.target.value)} />
+                            </div>
                         </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="event-type">Event Type</Label>
+                            <Select value={newEventType} onValueChange={(value: CalendarEvent['type']) => setNewEventType(value)}>
+                                <SelectTrigger id="event-type">
+                                    <SelectValue placeholder="Select a type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(eventColors).map(([type, colorClass]) => (
+                                        <SelectItem key={type} value={type}>
+                                            <div className="flex items-center gap-2">
+                                                <div className={cn("w-2 h-2 rounded-full", colorClass)} />
+                                                <span className="capitalize">{type}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="event-description">Description</Label>
+                                <Textarea id="event-description" placeholder="Event details..." value={newEventDescription} onChange={(e) => setNewEventDescription(e.target.value)} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="event-location">Location</Label>
+                                <Input id="event-location" placeholder="e.g., Main Hall" value={newEventLocation} onChange={(e) => setNewEventLocation(e.target.value)} />
+                            </div>
 
-                      <Separator />
+                        <Separator />
 
-                      <div className="space-y-3">
-                         <h4 className="font-medium leading-none flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Notifications</h4>
-                          <p className="text-xs text-muted-foreground">Notify relevant groups about this event.</p>
-                          <div className="flex flex-col space-y-2 pt-2">
-                               <div className="flex items-center space-x-2">
-                                  <Switch id="notify-staff" checked={notifyStaff} onCheckedChange={setNotifyStaff}/>
-                                  <Label htmlFor="notify-staff">All Staff</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                  <Switch id="notify-parents" checked={notifyParents} onCheckedChange={setNotifyParents} />
-                                  <Label htmlFor="notify-parents">All Parents</Label>
-                              </div>
-                          </div>
-                      </div>
-
-                      <Button onClick={handleAddOrUpdateEvent} className="w-full">
+                        <div className="space-y-3">
+                            <h4 className="font-medium leading-none flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Notifications</h4>
+                            <p className="text-xs text-muted-foreground">Notify relevant groups about this event.</p>
+                            <div className="flex flex-col space-y-2 pt-2">
+                                    <div className="flex items-center space-x-2">
+                                    <Switch id="notify-staff" checked={notifyStaff} onCheckedChange={setNotifyStaff}/>
+                                    <Label htmlFor="notify-staff">All Staff</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch id="notify-parents" checked={notifyParents} onCheckedChange={setNotifyParents} />
+                                    <Label htmlFor="notify-parents">All Parents</Label>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-4 border-t">
+                    <Button onClick={handleAddOrUpdateEvent} className="w-full">
                         <PlusCircle className="mr-2 h-4 w-4"/>
                         {editingEvent ? 'Save Changes' : 'Add to Calendar'}
-                      </Button>
-                    </div>
+                    </Button>
                 </div>
             </PopoverContent>
         </Popover>
