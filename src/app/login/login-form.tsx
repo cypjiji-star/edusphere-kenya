@@ -41,12 +41,30 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+      let userDocRef;
+      let userRoleCollection = 'users';
+
+      if (role === 'parent') {
+        userRoleCollection = 'parents';
+      }
+
+      userDocRef = doc(firestore, 'schools', schoolCode, userRoleCollection, user.uid);
+      
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists() && userDocSnap.data().role?.toLowerCase() === role) {
         router.push(`/${role}?schoolId=${schoolCode}`);
       } else {
+        // If not found, a teacher might be in the general 'users' collection
+        if (role === 'teacher' && userRoleCollection !== 'users') {
+             userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+             const generalUserDocSnap = await getDoc(userDocRef);
+             if (generalUserDocSnap.exists() && generalUserDocSnap.data().role?.toLowerCase() === role) {
+                 router.push(`/${role}?schoolId=${schoolCode}`);
+                 return;
+             }
+        }
+
         await auth.signOut();
         toast({
           title: 'Access Denied',
