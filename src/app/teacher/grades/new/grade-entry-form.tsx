@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -47,11 +46,11 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Save, FileText } from 'lucide-react';
+import { Loader2, Save, FileText, AlertCircle, Edit, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
@@ -84,7 +83,7 @@ interface GradeEntryFormProps {
   } | null;
 }
 
-const getGradeFromScore = (score: string | undefined): string => {
+const getGradeFromScore = (score: string | number | undefined): string => {
     if (score === undefined || score === '') return '';
     const numScore = Number(score);
     if (isNaN(numScore) || numScore < 0 || numScore > 100) return 'N/A';
@@ -102,8 +101,19 @@ const getGradeFromScore = (score: string | undefined): string => {
     return 'E';
 };
 
+type SubmittedGrade = {
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  avatarUrl: string;
+  score: string;
+  grade: string;
+};
+
+
 export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isDataLoading, setIsDataLoading] = React.useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -112,6 +122,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const [students, setStudents] = React.useState<Student[]>([]);
   const [selectedClass, setSelectedClass] = React.useState<string | undefined>(preselectedTask?.classId);
+  const [submittedGrades, setSubmittedGrades] = React.useState<SubmittedGrade[] | null>(null);
   const { user } = useAuth();
 
   const form = useForm<GradeEntryFormValues>({
@@ -134,6 +145,10 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
     name: "grades",
   });
   
+  const watchedClassId = useWatch({ control: form.control, name: "classId" });
+  const watchedSubject = useWatch({ control: form.control, name: "subject" });
+  const watchedAssessmentId = useWatch({ control: form.control, name: "assessmentId" });
+  
   // Fetch teacher's classes and subjects
   React.useEffect(() => {
     if (!schoolId || !user) return;
@@ -145,6 +160,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
         setTeacherClasses(classesData);
         if (!selectedClass && !preselectedTask && classesData.length > 0) {
             setSelectedClass(classesData[0].id);
+            form.setValue('classId', classesData[0].id);
         }
     });
     
@@ -154,39 +170,87 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
         setTeacherSubjects(subjects);
     });
 
-
     return () => {
       unsubClasses();
       unsubSubjects();
     };
-  }, [schoolId, user, selectedClass, preselectedTask]);
+  }, [schoolId, user, selectedClass, preselectedTask, form]);
 
 
-  // Fetch students and assessments for the selected class
+  // Fetch data when selections change
   React.useEffect(() => {
-    if (!schoolId || !selectedClass) return;
+    if (!schoolId || !watchedClassId || !watchedSubject || !watchedAssessmentId) {
+      setSubmittedGrades(null);
+      setStudents([]);
+      replace([]);
+      return;
+    }
 
     const fetchData = async () => {
-        // Fetch students
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
+        setIsDataLoading(true);
+        setSubmittedGrades(null);
+
+        // 1. Check if grades are already submitted
+        const gradesQuery = query(
+            collection(firestore, 'schools', schoolId, 'grades'),
+            where('classId', '==', watchedClassId),
+            where('subject', '==', watchedSubject),
+            where('assessmentId', '==', watchedAssessmentId)
+        );
+        const gradesSnapshot = await getDocs(gradesQuery);
+
+        // 2. Fetch all students in the class
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', watchedClassId));
         const studentsSnapshot = await getDocs(studentsQuery);
         const studentData = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl, admissionNumber: doc.data().admissionNumber }));
         setStudents(studentData);
-        replace(studentData.map(s => ({ studentId: s.id, grade: '' })));
-        form.setValue('classId', selectedClass);
 
-        // Fetch assessments
-        const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
-        const assessmentsSnapshot = await getDocs(assessmentsQuery);
-        const assessmentData = assessmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
+        if (!gradesSnapshot.empty) {
+            // Grades exist, prepare read-only view
+            const studentMap = new Map(studentData.map(s => [s.id, s]));
+            const gradesData: SubmittedGrade[] = gradesSnapshot.docs.map(doc => {
+                const gradeInfo = doc.data();
+                const student = studentMap.get(gradeInfo.studentId);
+                return {
+                    studentId: gradeInfo.studentId,
+                    studentName: student?.name || 'Unknown Student',
+                    admissionNumber: student?.admissionNumber || 'N/A',
+                    avatarUrl: student?.avatarUrl || '',
+                    score: gradeInfo.grade,
+                    grade: getGradeFromScore(gradeInfo.grade),
+                };
+            }).sort((a, b) => parseInt(b.score) - parseInt(a.score));
+            setSubmittedGrades(gradesData);
+            replace([]); // Clear the form array
+        } else {
+            // No grades, prepare for entry
+            setSubmittedGrades(null);
+            replace(studentData.map(s => ({ studentId: s.id, grade: '' })));
+        }
+
+        setIsDataLoading(false);
+    };
+
+    fetchData();
+  }, [schoolId, watchedClassId, watchedSubject, watchedAssessmentId, replace]);
+  
+  // Fetch assessments when class changes
+  React.useEffect(() => {
+    if (!schoolId || !watchedClassId) {
+      setAssessments([]);
+      return;
+    }
+    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', watchedClassId));
+    const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
+        const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
         setAssessments(assessmentData);
         if (!preselectedTask) {
           form.resetField('assessmentId');
         }
-    };
+    });
+    return () => unsubAssessments();
+  }, [schoolId, watchedClassId, form, preselectedTask]);
 
-    fetchData();
-  }, [schoolId, selectedClass, replace, form, preselectedTask]);
 
   async function handleSave(values: GradeEntryFormValues) {
     if (!schoolId || !user) {
@@ -202,9 +266,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
         title: 'Grades Saved!',
         description: `The grades have been successfully recorded.`,
       });
-      // Optionally reset only the grade fields, keeping selections
-      const newGrades = values.grades.map(g => ({ ...g, grade: '' }));
-      form.setValue('grades', newGrades);
+      // Do not reset form, instead the useEffect will trigger a re-fetch and show read-only view
     } else {
       toast({
         variant: 'destructive',
@@ -212,6 +274,13 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
         description: result.message || 'There was a problem saving the grades.',
       });
     }
+  }
+
+  const handleRequestEdit = () => {
+    toast({
+        title: 'Edit Request Sent',
+        description: 'An administrator has been notified of your request to edit these grades.',
+    });
   }
 
   const selectedAssessment = assessments.find(a => a.id === form.getValues('assessmentId'));
@@ -315,7 +384,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                            Grading: {selectedAssessment.title}
                         </CardTitle>
                         <CardDescription>
-                            Enter scores for <span className="font-semibold">{teacherClasses.find(c => c.id === selectedClass)?.name}</span> - <span className="font-semibold">{form.getValues('subject')}</span>. Max Marks: 100
+                            {submittedGrades ? `Viewing submitted grades for` : `Enter scores for`} <span className="font-semibold">{teacherClasses.find(c => c.id === selectedClass)?.name}</span> - <span className="font-semibold">{form.getValues('subject')}</span>. Max Marks: 100
                         </CardDescription>
                         </>
                     ) : (
@@ -323,63 +392,95 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                     )}
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border max-h-[600px]">
-                    <Table>
-                        <TableHeader className="sticky top-0 bg-muted z-10">
-                        <TableRow>
-                            <TableHead className="w-full md:w-[250px]">Student Name</TableHead>
-                            <TableHead className="hidden md:table-cell">Admission No.</TableHead>
-                            <TableHead className="text-right w-[120px]">Score</TableHead>
-                            <TableHead className="text-center w-[80px]">Grade</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {fields.map((field, index) => {
-                            const student = students[index];
-                            if (!student) return null;
-                            const currentGradeValue = currentGrades?.[index]?.grade;
-                            const isInvalid = currentGradeValue !== '' && (Number(currentGradeValue) < 0 || Number(currentGradeValue) > 100 || isNaN(Number(currentGradeValue)));
+                    {isDataLoading ? (
+                         <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                    ) : submittedGrades ? (
+                        <div className="w-full overflow-auto rounded-lg border max-h-[600px]">
+                           <Table>
+                                <TableHeader className="sticky top-0 bg-muted z-10">
+                                <TableRow>
+                                    <TableHead className="w-full md:w-[250px]">Student Name</TableHead>
+                                    <TableHead className="hidden md:table-cell">Admission No.</TableHead>
+                                    <TableHead className="text-center w-[120px]">Score</TableHead>
+                                    <TableHead className="text-center w-[80px]">Grade</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {submittedGrades.map(student => (
+                                        <TableRow key={student.studentId}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-8 w-8"><AvatarImage src={student.avatarUrl} alt={student.studentName} /><AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback></Avatar>
+                                                    <span className="font-medium">{student.studentName}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="hidden md:table-cell text-muted-foreground">{student.admissionNumber}</TableCell>
+                                            <TableCell className="text-center font-bold">{student.score}</TableCell>
+                                            <TableCell className="text-center"><Badge variant="secondary">{student.grade}</Badge></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                           </Table>
+                        </div>
+                    ) : (
+                        <div className="w-full overflow-auto rounded-lg border max-h-[600px]">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-muted z-10">
+                                <TableRow>
+                                    <TableHead className="w-full md:w-[250px]">Student Name</TableHead>
+                                    <TableHead className="hidden md:table-cell">Admission No.</TableHead>
+                                    <TableHead className="text-right w-[120px]">Score</TableHead>
+                                    <TableHead className="text-center w-[80px]">Grade</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                {fields.map((field, index) => {
+                                    const student = students[index];
+                                    if (!student) return null;
+                                    const currentGradeValue = currentGrades?.[index]?.grade;
+                                    const isInvalid = currentGradeValue !== '' && (Number(currentGradeValue) < 0 || Number(currentGradeValue) > 100 || isNaN(Number(currentGradeValue)));
 
-                            return (
-                            <TableRow key={field.id}>
-                                <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-8 w-8">
-                                    <AvatarImage src={student.avatarUrl} alt={student.name} />
-                                    <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">{student.name}</span>
-                                </div>
-                                </TableCell>
-                                 <TableCell className="hidden md:table-cell text-muted-foreground">{student.admissionNumber}</TableCell>
-                                <TableCell className="text-right">
-                                <FormField
-                                    control={form.control}
-                                    name={`grades.${index}.grade`}
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormControl>
-                                        <Input
-                                            {...field}
-                                            className={cn("max-w-[120px] ml-auto text-right", isInvalid && "border-destructive ring-destructive ring-1")}
-                                            placeholder="e.g., 85"
+                                    return (
+                                    <TableRow key={field.id}>
+                                        <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-8 w-8">
+                                            <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                            <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">{student.name}</span>
+                                        </div>
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell text-muted-foreground">{student.admissionNumber}</TableCell>
+                                        <TableCell className="text-right">
+                                        <FormField
+                                            control={form.control}
+                                            name={`grades.${index}.grade`}
+                                            render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    className={cn("max-w-[120px] ml-auto text-right", isInvalid && "border-destructive ring-destructive ring-1")}
+                                                    placeholder="e.g., 85"
+                                                />
+                                                </FormControl>
+                                            </FormItem>
+                                            )}
                                         />
-                                        </FormControl>
-                                    </FormItem>
-                                    )}
-                                />
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <Badge variant={isInvalid ? "destructive" : "secondary"} className="w-12 justify-center">
-                                      {getGradeFromScore(currentGradeValue)}
-                                    </Badge>
-                                </TableCell>
-                            </TableRow>
-                            );
-                        })}
-                        </TableBody>
-                    </Table>
-                    </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant={isInvalid ? "destructive" : "secondary"} className="w-12 justify-center">
+                                            {getGradeFromScore(currentGradeValue)}
+                                            </Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                    );
+                                })}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
                      <FormMessage className="mt-2 text-red-500">{form.formState.errors.grades?.root?.message}</FormMessage>
                 </CardContent>
             </Card>
@@ -387,31 +488,46 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
         </div>
         
         <div className="flex justify-end pt-4 gap-2">
-            <Button type="submit" variant="secondary" disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Draft
-            </Button>
-             <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button type="button" disabled={isLoading}>
-                        Submit Final Grades
+            {submittedGrades ? (
+                <div className="flex w-full justify-between items-center">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ShieldCheck className="h-5 w-5 text-green-600" />
+                        <span>Grades for this assessment have been submitted and are read-only.</span>
+                    </div>
+                    <Button type="button" variant="outline" onClick={handleRequestEdit}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Request Edit Access
                     </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure you want to submit?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Once submitted, you will not be able to make further changes to these grades without administrative approval.
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={form.handleSubmit(handleSave)}>
-                        Yes, Submit Final Grades
-                    </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                </div>
+            ) : (
+                <>
+                    <Button type="submit" variant="secondary" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save Draft
+                    </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button type="button" disabled={isLoading}>
+                                Submit Final Grades
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure you want to submit?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Once submitted, you will not be able to make further changes to these grades without administrative approval.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={form.handleSubmit(handleSave)}>
+                                Yes, Submit Final Grades
+                            </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </>
+            )}
         </div>
       </form>
     </Form>
