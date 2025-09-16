@@ -386,7 +386,25 @@ export default function FeesPage() {
                 </div>
               </div>
             </DialogHeader>
-            <Separator />
+            
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center border-t border-b py-4">
+                <div>
+                    <p className="text-xs text-muted-foreground">Arrears B/F</p>
+                    <p className="font-semibold">{formatCurrency(0)}</p>
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Total Payable</p>
+                    <p className="font-semibold">{formatCurrency(selectedStudent.totalBilled)}</p>
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Total Paid</p>
+                    <p className="font-semibold text-green-600">{formatCurrency(selectedStudent.totalPaid)}</p>
+                </div>
+                 <div>
+                    <p className="text-xs text-muted-foreground">Current Balance</p>
+                    <p className={`font-semibold text-lg ${selectedStudent.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(selectedStudent.balance)}</p>
+                </div>
+            </div>
 
              <Accordion type="single" defaultValue="fee-structure" collapsible className="w-full">
                 <AccordionItem value="fee-structure">
