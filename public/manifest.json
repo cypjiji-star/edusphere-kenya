@@ -1,21 +1,21 @@
 {
-  "name": "EduSphere Kenya",
-  "short_name": "EduSphere",
-  "description": "Empowering Kenya's Future, One School at a Time.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
-  "icons": [
-    {
-      "src": "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
+    "name": "EduSphere Kenya",
+    "short_name": "EduSphere",
+    "description": "The premier school management system for Kenyan schools.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#2563eb",
+    "icons": [
+      {
+        "src": "https://i.postimg.cc/tg4TVRDr/android-launchericon-192-192.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
