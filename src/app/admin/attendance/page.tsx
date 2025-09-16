@@ -72,6 +72,7 @@ import {
   Send,
   Loader2,
   User as UserIcon,
+  Mail,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -102,6 +103,16 @@ type Student = {
     admissionNumber: string;
     avatarUrl: string;
 };
+
+type CommunicationLog = {
+    id: string;
+    studentName: string;
+    parentName: string;
+    parentContact: string;
+    reason: string;
+    sentAt: Timestamp;
+};
+
 
 const statuses: (AttendanceStatus | 'All Statuses')[] = ['All Statuses', 'Present', 'Absent', 'Late'];
 
@@ -279,6 +290,7 @@ export default function AdminAttendancePage() {
   const [selectedTerm, setSelectedTerm] = React.useState(getCurrentTerm());
   const { toast } = useToast();
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
+  const [communicationLogs, setCommunicationLogs] = React.useState<CommunicationLog[]>([]);
   const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -372,11 +384,17 @@ export default function AdminAttendancePage() {
         })));
     });
 
+    const qCommLogs = query(collection(firestore, 'schools', schoolId, 'communication_logs'), where('type', '==', 'attendance'));
+    const unsubCommLogs = onSnapshot(qCommLogs, (snapshot) => {
+      setCommunicationLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationLog)));
+    });
+
     return () => {
       unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
       unsubTeachers();
       unsubClasses();
       unsubStudents();
+      unsubCommLogs();
     };
   }, [schoolId, toast]);
   
@@ -534,9 +552,10 @@ export default function AdminAttendancePage() {
       </div>
       
        <Tabs defaultValue="overview">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 grid grid-cols-1 md:grid-cols-3 md:w-auto">
             <TabsTrigger value="overview">School-wide Overview</TabsTrigger>
             <TabsTrigger value="student">Student Analytics</TabsTrigger>
+            <TabsTrigger value="comms">Communication Log</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
             {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : (
@@ -876,9 +895,50 @@ export default function AdminAttendancePage() {
                 </CardContent>
            </Card>
         </TabsContent>
+         <TabsContent value="comms">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Parent Communication Log</CardTitle>
+                    <CardDescription>A log of all attendance-related notifications sent to parents.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="w-full overflow-auto rounded-lg border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date Sent</TableHead>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead>Parent</TableHead>
+                                    <TableHead>Reason</TableHead>
+                                    <TableHead>Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                             <TableBody>
+                                {communicationLogs.length > 0 ? communicationLogs.map(log => (
+                                    <TableRow key={log.id}>
+                                        <TableCell>{log.sentAt.toDate().toLocaleString()}</TableCell>
+                                        <TableCell>{log.studentName}</TableCell>
+                                        <TableCell>{log.parentName} ({log.parentContact})</TableCell>
+                                        <TableCell><Badge variant="secondary">{log.reason}</Badge></TableCell>
+                                        <TableCell><Badge className="bg-green-600">Sent</Badge></TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center">
+                                        No communication logs found.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+             </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
 }
 
     
+
