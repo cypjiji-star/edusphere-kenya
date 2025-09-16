@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -136,6 +137,10 @@ function NewTransactionDialog({ students, feeStructure, open, onOpenChange, scho
     const [studentId, setStudentId] = React.useState<string | undefined>();
     const [amount, setAmount] = React.useState('');
     const [description, setDescription] = React.useState('');
+    
+    const selectedStudentDetails = React.useMemo(() => {
+        return students.find(s => s.id === studentId);
+    }, [students, studentId]);
 
     const resetForm = () => {
         setTransactionType('payment');
@@ -233,6 +238,11 @@ function NewTransactionDialog({ students, feeStructure, open, onOpenChange, scho
                                 ))}
                             </SelectContent>
                         </Select>
+                        {selectedStudentDetails && (
+                            <div className="text-xs text-muted-foreground p-2 bg-muted rounded-md">
+                                Yearly Fee for {selectedStudentDetails.class}: {formatCurrency(selectedStudentDetails.totalFee)}
+                            </div>
+                        )}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="transaction-type">Transaction Type</Label>
@@ -254,9 +264,12 @@ function NewTransactionDialog({ students, feeStructure, open, onOpenChange, scho
                                 <SelectValue placeholder="Select a fee item..." />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="School Fees">School Fees</SelectItem>
+                                <Separator/>
                                 {feeStructure.map(item => (
                                     <SelectItem key={item.id} value={item.category}>{item.category}</SelectItem>
                                 ))}
+                                <Separator />
                                 <SelectItem value="Other">Other (Specify in notes)</SelectItem>
                             </SelectContent>
                         </Select>
@@ -852,3 +865,4 @@ export default function FeesPage() {
         </div>
     );
 }
+
