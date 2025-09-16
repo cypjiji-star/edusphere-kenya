@@ -47,7 +47,7 @@ import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/context/auth-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MyAttendanceCalendar } from "./my-attendance-calendar";
+import { MyAttendanceHistory } from "./my-attendance-calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
@@ -413,18 +413,7 @@ export default function AttendancePage() {
             </TabsContent>
 
             <TabsContent value="my-attendance" className="mt-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                           <User className="h-5 w-5 text-primary"/>
-                           My Attendance History
-                        </CardTitle>
-                        <CardDescription>A calendar view of your attendance record for the selected month.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                       <MyAttendanceCalendar />
-                    </CardContent>
-                </Card>
+               <MyAttendanceHistory />
             </TabsContent>
         </Tabs>
     </div>
