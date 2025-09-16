@@ -24,6 +24,7 @@ import {
   HeartPulse,
   Bell,
   Check,
+  CircleDollarSign,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -44,8 +45,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, onSnapshot, query, where, doc, updateDoc, orderBy, limit } from 'firebase/firestore';
@@ -61,6 +60,7 @@ const navGroups = [
       { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck, badgeKey: null },
       { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked, badgeKey: 'ungradedAssignments' },
       { href: '/teacher/grades', label: 'Grades/Reports', icon: FileText, badgeKey: null },
+      { href: '/teacher/payments', label: 'Class Funds', icon: CircleDollarSign, badgeKey: null },
       { href: '/teacher/sports', label: 'Sports', icon: Trophy, badgeKey: null },
       { href: '/teacher/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },
     ],
