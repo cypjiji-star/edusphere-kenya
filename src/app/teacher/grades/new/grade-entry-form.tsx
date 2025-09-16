@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -54,6 +54,8 @@ import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/auth-context';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type Student = {
     id: string;
@@ -82,6 +84,24 @@ interface GradeEntryFormProps {
   } | null;
 }
 
+const getGradeFromScore = (score: string | undefined): string => {
+    if (score === undefined || score === '') return '';
+    const numScore = Number(score);
+    if (isNaN(numScore) || numScore < 0 || numScore > 100) return 'N/A';
+    if (numScore >= 80) return 'A';
+    if (numScore >= 75) return 'A-';
+    if (numScore >= 70) return 'B+';
+    if (numScore >= 65) return 'B';
+    if (numScore >= 60) return 'B-';
+    if (numScore >= 55) return 'C+';
+    if (numScore >= 50) return 'C';
+    if (numScore >= 45) return 'C-';
+    if (numScore >= 40) return 'D+';
+    if (numScore >= 35) return 'D';
+    if (numScore >= 30) return 'D-';
+    return 'E';
+};
+
 export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
@@ -107,6 +127,11 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
   const { fields, replace } = useFieldArray({
     control: form.control,
     name: 'grades',
+  });
+  
+  const currentGrades = useWatch({
+    control: form.control,
+    name: "grades",
   });
   
   // Fetch teacher's classes and subjects
@@ -304,13 +329,17 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                         <TableRow>
                             <TableHead className="w-full md:w-[250px]">Student Name</TableHead>
                             <TableHead className="hidden md:table-cell">Admission No.</TableHead>
-                            <TableHead className="text-right">Grade/Score</TableHead>
+                            <TableHead className="text-right w-[120px]">Score</TableHead>
+                            <TableHead className="text-center w-[80px]">Grade</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                         {fields.map((field, index) => {
                             const student = students[index];
                             if (!student) return null;
+                            const currentGradeValue = currentGrades?.[index]?.grade;
+                            const isInvalid = currentGradeValue !== '' && (Number(currentGradeValue) < 0 || Number(currentGradeValue) > 100 || isNaN(Number(currentGradeValue)));
+
                             return (
                             <TableRow key={field.id}>
                                 <TableCell>
@@ -330,12 +359,20 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                                     render={({ field }) => (
                                     <FormItem>
                                         <FormControl>
-                                        <Input {...field} className="max-w-[120px] ml-auto text-right" placeholder="e.g., 85"/>
+                                        <Input
+                                            {...field}
+                                            className={cn("max-w-[120px] ml-auto text-right", isInvalid && "border-destructive ring-destructive ring-1")}
+                                            placeholder="e.g., 85"
+                                        />
                                         </FormControl>
-                                        <FormMessage />
                                     </FormItem>
                                     )}
                                 />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant={isInvalid ? "destructive" : "secondary"} className="w-12 justify-center">
+                                      {getGradeFromScore(currentGradeValue)}
+                                    </Badge>
                                 </TableCell>
                             </TableRow>
                             );
@@ -343,6 +380,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                         </TableBody>
                     </Table>
                     </div>
+                     <FormMessage className="mt-2 text-red-500">{form.formState.errors.grades?.root?.message}</FormMessage>
                 </CardContent>
             </Card>
           </div>
