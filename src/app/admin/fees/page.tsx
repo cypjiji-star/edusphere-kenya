@@ -714,15 +714,16 @@ export default function FeesPage() {
             </div>
 
             <Tabs defaultValue="dashboard">
-                <TabsList className="mb-6 grid w-full grid-cols-3 md:w-auto md:inline-flex">
+                <TabsList className="mb-6 grid w-full grid-cols-4 md:w-auto md:inline-flex">
                     <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                     <TabsTrigger value="records">Student Records</TabsTrigger>
+                    <TabsTrigger value="class-fees">Class Fees</TabsTrigger>
                     <TabsTrigger value="structure">Fee Structure</TabsTrigger>
                 </TabsList>
                 <TabsContent value="dashboard" className="space-y-6">
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Collected</CardTitle><CircleDollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(totalCollected)}</div></CardContent></Card>
-                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle><CircleDollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{formatCurrency(outstandingBalance)}</div></CardContent></Card>
+                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Collected (School-Wide)</CardTitle><CircleDollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(totalCollected)}</div></CardContent></Card>
+                        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Outstanding Balance (School-Wide)</CardTitle><CircleDollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{formatCurrency(outstandingBalance)}</div></CardContent></Card>
                         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Overdue Balances</CardTitle><CircleDollarSign className="h-4 w-4 text-destructive" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{formatCurrency(students.filter(s => s.feeStatus === 'Overdue').reduce((sum, s) => sum + s.balance, 0))}</div></CardContent></Card>
                         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Collection Rate</CardTitle><Percent className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{collectionRate}%</div></CardContent></Card>
                     </div>
@@ -736,39 +737,41 @@ export default function FeesPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                <TabsContent value="class-fees">
+                    <Card>
+                         <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Yearly School Fees by Class</CardTitle>
+                                <CardDescription>Define the base school fees for each class.</CardDescription>
+                            </div>
+                            <Button onClick={handleSaveClassFees}>Save School Fees</Button>
+                        </CardHeader>
+                         <CardContent>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Class Name</TableHead><TableHead className="text-right">Yearly Fee (KES)</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {classFees.map(item => (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="font-medium">{item.name}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Input 
+                                                        type="number" 
+                                                        value={item.fee}
+                                                        onChange={(e) => handleClassFeeChange(item.id, Number(e.target.value))}
+                                                        className="w-32 ml-auto text-right"
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
                 <TabsContent value="structure">
                     <div className="grid gap-6 lg:grid-cols-2">
-                        <Card>
-                             <CardHeader className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle>Yearly School Fees by Class</CardTitle>
-                                    <CardDescription>Define the base school fees for each class.</CardDescription>
-                                </div>
-                                <Button onClick={handleSaveClassFees}>Save School Fees</Button>
-                            </CardHeader>
-                             <CardContent>
-                                <div className="w-full overflow-auto rounded-lg border">
-                                    <Table>
-                                        <TableHeader><TableRow><TableHead>Class Name</TableHead><TableHead className="text-right">Yearly Fee (KES)</TableHead></TableRow></TableHeader>
-                                        <TableBody>
-                                            {classFees.map(item => (
-                                                <TableRow key={item.id}>
-                                                    <TableCell className="font-medium">{item.name}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Input 
-                                                            type="number" 
-                                                            value={item.fee}
-                                                            onChange={(e) => handleClassFeeChange(item.id, Number(e.target.value))}
-                                                            className="w-32 ml-auto text-right"
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
                          <Card>
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
@@ -804,7 +807,7 @@ export default function FeesPage() {
                                 </div>
                             </CardContent>
                         </Card>
-                        <Card className="lg:col-span-2">
+                        <Card>
                             <CardHeader><CardTitle className="flex items-center gap-2"><HandHelping className="h-5 w-5 text-primary"/>Discounts &amp; Scholarships</CardTitle><CardDescription>Manage financial aid and discounts.</CardDescription></CardHeader>
                             <CardContent><div className="w-full overflow-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Discount Name</TableHead><TableHead>Type</TableHead><TableHead>Value</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{discounts.map(item => (<TableRow key={item.id}><TableCell className="font-medium">{item.name}</TableCell><TableCell><Badge variant="outline">{item.type}</Badge></TableCell><TableCell>{item.value}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => setEditingDiscount(item)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem('discounts', item.id, item.name)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody></Table></div></CardContent>
                         </Card>
