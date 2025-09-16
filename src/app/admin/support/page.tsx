@@ -174,7 +174,7 @@ export default function SupportPage() {
     React.useEffect(() => {
         if (!schoolId) return;
 
-        const ticketsQuery = query(collection(firestore, 'schools', schoolId, 'support-tickets'), orderBy('lastUpdate', 'desc'));
+        const ticketsQuery = query(collection(firestore, 'schools', schoolId, 'support-tickets'), orderBy('createdAt', 'desc'));
         const unsubTickets = onSnapshot(ticketsQuery, (snapshot) => {
             const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket));
             setAllTickets(tickets);
