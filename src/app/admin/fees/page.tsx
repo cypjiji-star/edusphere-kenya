@@ -384,6 +384,18 @@ export default function FeesPage() {
     setFilteredStudents(students);
   }, [searchTerm, classFilter, statusFilter, allStudents]);
   
+  const classPerformance = React.useMemo(() => {
+    if (classFilter === 'All Classes') return null;
+    const billed = filteredStudents.reduce((acc, s) => acc + s.totalBilled, 0);
+    const collected = filteredStudents.reduce((acc, s) => acc + s.totalPaid, 0);
+    return {
+      billed,
+      collected,
+      outstanding: billed - collected,
+      collectionRate: billed > 0 ? Math.round((collected / billed) * 100) : 0,
+    };
+  }, [filteredStudents, classFilter]);
+  
   React.useEffect(() => {
     const classFees = feeStructure
         .filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students')
@@ -703,6 +715,19 @@ export default function FeesPage() {
                           </div>
                       </CardHeader>
                       <CardContent>
+                          {classPerformance && (
+                            <Card className="mb-6 bg-muted/50">
+                              <CardHeader>
+                                <CardTitle className="text-lg">Summary for {classFilter}</CardTitle>
+                              </CardHeader>
+                              <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                <div><p className="text-xs text-muted-foreground">Total Billed</p><p className="font-bold text-lg">{formatCurrency(classPerformance.billed)}</p></div>
+                                <div><p className="text-xs text-muted-foreground">Total Collected</p><p className="font-bold text-lg text-green-600">{formatCurrency(classPerformance.collected)}</p></div>
+                                <div><p className="text-xs text-muted-foreground">Outstanding</p><p className="font-bold text-lg text-destructive">{formatCurrency(classPerformance.outstanding)}</p></div>
+                                <div><p className="text-xs text-muted-foreground">Collection Rate</p><p className="font-bold text-lg text-primary">{classPerformance.collectionRate}%</p></div>
+                              </CardContent>
+                            </Card>
+                          )}
                           <div className="w-full overflow-auto rounded-lg border">
                               <Table>
                                   <TableHeader>
@@ -985,3 +1010,4 @@ export default function FeesPage() {
     </>
   );
 }
+
