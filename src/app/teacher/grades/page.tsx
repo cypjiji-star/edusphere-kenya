@@ -43,6 +43,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  PlusCircle,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -337,86 +338,117 @@ export default function GradesPage() {
                                   {teacherSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                               </SelectContent>
                           </Select>
-                          <Button variant="outline" onClick={() => handleExport('PDF')}>
-                              <Printer className="mr-2 h-4 w-4"/>
-                              Print Ranking
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    Export / Actions
+                                    <ChevronDown className="ml-2 h-4 w-4"/>
+                                </Button>
+                            </DropdownMenuTrigger>
+                             <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print Ranking</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                       </div>
                   </div>
               </CardHeader>
               <CardContent>
                 {isGradebookLoading ? (
-                  <div className="flex justify-center items-center py-16">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="ml-2">Loading ranking data...</span>
-                  </div>
+                  <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Loading ranking data...</span></div>
                 ) : (
-                  <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
-                    {filteredStudents.length > 0 ? (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {filteredStudents.map((student, index) => (
-                                <DialogTrigger key={student.studentId} asChild>
-                                    <Card className="flex items-center p-4 gap-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedStudentForDetails(student)}>
-                                        <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
-                                        <Avatar className="h-12 w-12">
-                                            <AvatarImage src={student.studentAvatar} />
-                                            <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
-                                            <p className="font-semibold">{student.studentName}</p>
-                                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                                Score: <span className="font-bold text-foreground">{student.overall}%</span>
-                                                {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
-                                                {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
-                                                {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
-                                            </p>
+                  <>
+                  <GradeSummaryWidget students={filteredStudents} />
+                  <div className="w-full overflow-auto rounded-lg border mt-6">
+                  <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Rank</TableHead>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Overall Grade</TableHead>
+                            <TableHead>Trend</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                     <TableBody>
+                        {filteredStudents.length > 0 ? (
+                            filteredStudents.map((student, index) => (
+                                <TableRow key={student.studentId}>
+                                    <TableCell className="font-bold">{index + 1}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-9 w-9">
+                                                <AvatarImage src={student.studentAvatar} alt={student.studentName} />
+                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">{student.studentName}</span>
                                         </div>
-                                    </Card>
-                                </DialogTrigger>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center text-muted-foreground py-16">
-                            <p>No ranking data available for this class and subject yet.</p>
-                            <p className="text-sm mt-2">Make sure students have grades assigned.</p>
-                        </div>
-                    )}
-                    <DialogContent className="sm:max-w-md">
-                        {selectedStudentForDetails && (
-                            <>
-                                <DialogHeader>
-                                    <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
-                                    <DialogDescription>
-                                      Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span>
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="py-4">
-                                    <h4 className="mb-4 font-semibold">Scores by Subject</h4>
-                                    <div className="w-full overflow-auto rounded-lg border">
-                                      <Table>
-                                          <TableHeader>
-                                              <TableRow>
-                                                  <TableHead>Subject</TableHead>
-                                                  <TableHead className="text-right">Score</TableHead>
-                                              </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                              {selectedStudentForDetails.grades?.map((gradeInfo, index) => {
-                                                return (
-                                                  <TableRow key={index}>
-                                                      <TableCell className="font-medium">{gradeInfo.subject || 'Unknown'}</TableCell>
-                                                      <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
-                                                  </TableRow>
-                                                )
-                                              })}
-                                          </TableBody>
-                                      </Table>
-                                    </div>
-                                </div>
-                            </>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline">{student.overall}%</Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                         {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                                         {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                                         {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="ghost" size="sm" onClick={() => setSelectedStudentForDetails(student)}>
+                                                    View Details
+                                                </Button>
+                                            </DialogTrigger>
+                                             {selectedStudentForDetails?.studentId === student.studentId && (
+                                                <DialogContent className="sm:max-w-md">
+                                                    <DialogHeader>
+                                                        <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
+                                                        <DialogDescription>
+                                                        Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span>
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="py-4">
+                                                        <h4 className="mb-4 font-semibold">Scores by Subject</h4>
+                                                        <div className="w-full overflow-auto rounded-lg border">
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>Subject</TableHead>
+                                                                    <TableHead className="text-right">Score</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {selectedStudentForDetails.grades?.map((gradeInfo, index) => {
+                                                                    return (
+                                                                    <TableRow key={index}>
+                                                                        <TableCell className="font-medium">{gradeInfo.subject || 'Unknown'}</TableCell>
+                                                                        <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
+                                                                    </TableRow>
+                                                                    )
+                                                                })}
+                                                            </TableBody>
+                                                        </Table>
+                                                        </div>
+                                                    </div>
+                                                </DialogContent>
+                                            )}
+                                        </Dialog>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                             <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    No students found for the selected filters.
+                                </TableCell>
+                            </TableRow>
                         )}
-                    </DialogContent>
-                  </Dialog>
+                    </TableBody>
+                  </Table>
+                  </div>
+                  </>
                 )}
               </CardContent>
           </Card>
