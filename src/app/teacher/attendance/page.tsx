@@ -158,7 +158,7 @@ export default function AttendancePage() {
         const attendanceSnapshot = await getDocs(attendanceQuery);
         const attendanceData: Record<string, {status: AttendanceStatus, notes: string}> = {};
         
-        attendanceSnapshot.docs.forEach(doc => {
+        attendanceSnapshot.forEach(doc => {
           const data = doc.data();
           attendanceData[data.studentId] = {
             status: data.status || "unmarked",
