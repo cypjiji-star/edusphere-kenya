@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -57,7 +56,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, writeBatch, collectionGroup, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, writeBatch, collectionGroup, getDocs, orderBy, setDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -101,6 +100,13 @@ type Transaction = {
     balance: number;
     recordedBy: string;
 };
+
+type ClassFee = {
+    id: string;
+    name: string;
+    fee: number;
+};
+
 
 const statuses: (PaymentStatus | 'All Statuses')[] = ['All Statuses', 'Paid', 'Partial', 'Unpaid', 'Overdue'];
 
@@ -458,6 +464,7 @@ export default function FeesPage() {
     const [editingDiscount, setEditingDiscount] = React.useState<DiscountItem | null>(null);
     const [isAddTransactionOpen, setIsAddTransactionOpen] = React.useState(false);
     const [classes, setClasses] = React.useState<string[]>(['All Classes']);
+    const [classFees, setClassFees] = React.useState<ClassFee[]>([]);
 
 
     React.useEffect(() => {
@@ -498,6 +505,13 @@ export default function FeesPage() {
         const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
             const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
             setClasses(['All Classes', ...new Set(classNames)]);
+            
+            const fetchedClassFees = snapshot.docs.map(doc => ({
+                id: doc.id,
+                name: `${doc.data().name} ${doc.data().stream || ''}`.trim(),
+                fee: doc.data().yearlyFee || 0,
+            }));
+            setClassFees(fetchedClassFees);
         });
 
         return () => {
@@ -572,6 +586,27 @@ export default function FeesPage() {
             setEditingCategory(null);
         } catch (error) {
             toast({ title: "Error saving fee item.", variant: "destructive" });
+        }
+    };
+    
+    const handleClassFeeChange = (classId: string, fee: number) => {
+        setClassFees(prev => prev.map(c => c.id === classId ? { ...c, fee } : c));
+    };
+    
+    const handleSaveClassFees = async () => {
+        if (!schoolId) return;
+        const batch = writeBatch(firestore);
+        classFees.forEach(cf => {
+            const classRef = doc(firestore, 'schools', schoolId, 'classes', cf.id);
+            batch.update(classRef, { yearlyFee: cf.fee });
+        });
+
+        try {
+            await batch.commit();
+            toast({ title: 'Class Fees Updated', description: 'Yearly tuition fees have been saved.' });
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Error Saving Fees', variant: 'destructive' });
         }
     };
 
@@ -696,8 +731,39 @@ export default function FeesPage() {
                         <Card>
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle>Fee Structure Management</CardTitle>
-                                    <CardDescription>Define and manage fee categories.</CardDescription>
+                                    <CardTitle>Yearly Tuition Fee by Class</CardTitle>
+                                    <CardDescription>Define the base tuition fee for each class.</CardDescription>
+                                </div>
+                                <Button onClick={handleSaveClassFees}>Save Tuition Fees</Button>
+                            </CardHeader>
+                             <CardContent>
+                                <div className="w-full overflow-auto rounded-lg border">
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Class Name</TableHead><TableHead className="text-right">Yearly Fee (KES)</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {classFees.map(item => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell className="font-medium">{item.name}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Input 
+                                                            type="number" 
+                                                            value={item.fee}
+                                                            onChange={(e) => handleClassFeeChange(item.id, Number(e.target.value))}
+                                                            className="w-32 ml-auto text-right"
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                             <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle>Additional Fee Items</CardTitle>
+                                    <CardDescription>Manage other mandatory or optional fee categories.</CardDescription>
                                 </div>
                                 <Button onClick={() => { setEditingCategory(null); setIsFeeItemDialogOpen(true); }}>
                                     <PlusCircle className="mr-2 h-4 w-4" /> Add Item
@@ -728,7 +794,7 @@ export default function FeesPage() {
                                 </div>
                             </CardContent>
                         </Card>
-                        <Card>
+                        <Card className="lg:col-span-2">
                             <CardHeader><CardTitle className="flex items-center gap-2"><HandHelping className="h-5 w-5 text-primary"/>Discounts &amp; Scholarships</CardTitle><CardDescription>Manage financial aid and discounts.</CardDescription></CardHeader>
                             <CardContent><div className="w-full overflow-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Discount Name</TableHead><TableHead>Type</TableHead><TableHead>Value</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{discounts.map(item => (<TableRow key={item.id}><TableCell className="font-medium">{item.name}</TableCell><TableCell><Badge variant="outline">{item.type}</Badge></TableCell><TableCell>{item.value}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => setEditingDiscount(item)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem('discounts', item.id, item.name)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody></Table></div></CardContent>
                         </Card>
