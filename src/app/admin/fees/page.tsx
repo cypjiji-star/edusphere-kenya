@@ -19,7 +19,7 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield, CalendarIcon } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
@@ -60,6 +60,9 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-KE', {
@@ -132,6 +135,15 @@ export default function FeesPage() {
   const [statusFilter, setStatusFilter] = React.useState('All Statuses');
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [selectedStudent, setSelectedStudent] = React.useState<StudentFeeProfile | null>(null);
+  
+  // State for manual payment dialog
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
+  const [selectedStudentForPayment, setSelectedStudentForPayment] = React.useState('');
+  const [paymentAmount, setPaymentAmount] = React.useState('');
+  const [paymentMethod, setPaymentMethod] = React.useState('Cash');
+  const [paymentDate, setPaymentDate] = React.useState<Date | undefined>(new Date());
+  const [paymentNotes, setPaymentNotes] = React.useState('');
+  const [isSavingPayment, setIsSavingPayment] = React.useState(false);
 
   // State for Fee Structure tab
   const [feeStructure, setFeeStructure] = React.useState<FeeStructureItem[]>([]);
@@ -289,6 +301,63 @@ export default function FeesPage() {
     ];
     setSelectedStudent({ ...student, transactions: mockTransactions });
   }
+  
+  const handleRecordPayment = async () => {
+    if (!schoolId || !selectedStudentForPayment || !paymentAmount || !paymentDate) {
+        toast({ title: "Missing fields", description: "Please select a student and enter an amount and date.", variant: "destructive" });
+        return;
+    }
+    setIsSavingPayment(true);
+    
+    const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedStudentForPayment);
+    
+    try {
+        await writeBatch(firestore).commit(); // Use a transaction or batch write
+        
+        const studentDoc = await getDoc(studentRef);
+        if (!studentDoc.exists()) throw new Error("Student not found");
+        
+        const currentData = studentDoc.data();
+        const amount = Number(paymentAmount);
+        
+        const newPaid = (currentData.amountPaid || 0) + amount;
+        
+        const batch = writeBatch(firestore);
+        
+        // Update student balance
+        batch.update(studentRef, { amountPaid: newPaid });
+
+        // Add to transactions subcollection
+        const transactionRef = doc(collection(studentRef, 'transactions'));
+        batch.set(transactionRef, {
+            date: Timestamp.fromDate(paymentDate),
+            description: `Payment via ${paymentMethod}`,
+            type: 'Payment',
+            amount: -amount,
+            notes: paymentNotes
+        });
+
+        await batch.commit();
+
+        toast({
+            title: "Payment Recorded",
+            description: `A ${paymentMethod} payment of ${formatCurrency(amount)} has been recorded.`
+        });
+        
+        // Reset form
+        setSelectedStudentForPayment('');
+        setPaymentAmount('');
+        setPaymentNotes('');
+        setIsPaymentDialogOpen(false);
+
+    } catch (e) {
+        console.error("Error recording payment:", e);
+        toast({ title: 'Error', description: 'Could not record payment.', variant: 'destructive'});
+    } finally {
+        setIsSavingPayment(false);
+    }
+  }
+
 
   const handleSaveFeeItem = async (itemId?: string) => {
     if (!newFeeItemCategory || !newFeeItemAmount || !schoolId) {
@@ -408,7 +477,76 @@ export default function FeesPage() {
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Collections</CardTitle><Hourglass className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(financials.todaysCollections)}</div><p className="text-xs text-muted-foreground">{format(new Date(), 'PPP')}</p></CardContent></Card>
                 </div>
 
-                <Card><CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader><CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4"><Button><CreditCard className="mr-2 h-4 w-4" />Record Payment</Button><Button><Send className="mr-2 h-4 w-4" />Send Reminders</Button><Button><FileText className="mr-2 h-4 w-4" />Generate Report</Button><Button><PlusCircle className="mr-2 h-4 w-4" />New Invoice</Button></CardContent></Card>
+                <Card>
+                    <CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader>
+                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button><CreditCard className="mr-2 h-4 w-4" />Record Payment</Button>
+                            </DialogTrigger>
+                             <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Record Manual Payment</DialogTitle>
+                                    <DialogDescription>Record a cash, cheque, or bank deposit payment.</DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="payment-student">Student</Label>
+                                        <Select value={selectedStudentForPayment} onValueChange={setSelectedStudentForPayment}>
+                                            <SelectTrigger id="payment-student"><SelectValue placeholder="Select a student..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {allStudents.map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="payment-amount">Amount (KES)</Label>
+                                            <Input id="payment-amount" type="number" placeholder="e.g., 10000" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="payment-method">Payment Method</Label>
+                                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                                <SelectTrigger id="payment-method"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Cash">Cash</SelectItem>
+                                                    <SelectItem value="Bank Deposit">Bank Deposit</SelectItem>
+                                                    <SelectItem value="Cheque">Cheque</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                     <div className="space-y-2">
+                                        <Label>Date of Payment</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className={cn("w-full font-normal", !paymentDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4"/>
+                                                    {paymentDate ? format(paymentDate, 'PPP') : 'Pick a date'}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent><Calendar mode="single" selected={paymentDate} onSelect={setPaymentDate} /></PopoverContent>
+                                        </Popover>
+                                    </div>
+                                     <div className="space-y-2">
+                                        <Label htmlFor="payment-notes">Notes / Reference No.</Label>
+                                        <Textarea id="payment-notes" placeholder="e.g., Cheque no. 12345, Deposit slip ref..." value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <Button onClick={handleRecordPayment} disabled={isSavingPayment}>
+                                        {isSavingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                        Save Payment
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                        <Button><Send className="mr-2 h-4 w-4" />Send Reminders</Button>
+                        <Button><FileText className="mr-2 h-4 w-4" />Generate Report</Button>
+                        <Button><PlusCircle className="mr-2 h-4 w-4" />New Invoice</Button>
+                    </CardContent>
+                </Card>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2"><UserCheck className="h-4 w-4 text-green-600"/>Students with Cleared Balances</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-green-600">{studentsWithFees.cleared}</div><p className="text-xs text-muted-foreground">students have a zero or positive balance.</p></CardContent></Card>
                     <Card className="border-red-500/50"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center gap-2 text-destructive"><UserX className="h-4 w-4"/>Students with Overdue Payments</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-destructive">{studentsWithFees.overdue}</div><p className="text-xs text-muted-foreground">{studentsWithFees.arrears} total students have some arrears.</p></CardContent></Card>
