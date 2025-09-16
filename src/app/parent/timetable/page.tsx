@@ -37,9 +37,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type Child = {
@@ -49,14 +50,17 @@ type Child = {
 };
 
 type Lesson = {
-    subject: string;
-    teacher: { name: string; avatar: string; };
+    subject: {
+        name: string;
+        teacher: string;
+    };
     room: string;
 };
 
 type TimetableData = Record<string, Record<string, Lesson>>;
 
 type PeriodData = { 
+    id: number,
     time: string; 
     isBreak?: boolean; 
     title?: string 
@@ -78,6 +82,9 @@ const subjectDetails: Record<string, { color: string }> = {
 export default function ParentTimetablePage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const { user } = useAuth();
+    const parentId = user?.uid;
+
     const [childrenData, setChildrenData] = React.useState<Child[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [timetableData, setTimetableData] = React.useState<TimetableData>({});
@@ -87,10 +94,8 @@ export default function ParentTimetablePage() {
     const { toast } = useToast();
     
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !parentId) return;
         setClientReady(true);
-        // In a real app, filter by parent ID. For now, we fetch a few students.
-        const parentId = 'parent-user-id'; // Placeholder for logged-in parent
         const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
@@ -100,7 +105,7 @@ export default function ParentTimetablePage() {
             }
         });
         return () => unsubscribe();
-    }, [schoolId, selectedChild]);
+    }, [schoolId, selectedChild, parentId]);
 
     React.useEffect(() => {
         if (!selectedChild || !schoolId) return;
@@ -114,7 +119,7 @@ export default function ParentTimetablePage() {
                 if (timetableSnap.exists()) {
                     setTimetableData(timetableSnap.data() as TimetableData);
                 } else {
-                    setTimetableData({}); // No timetable found for this class
+                    setTimetableData({});
                 }
             } else {
                 setTimetableData({});
@@ -136,7 +141,7 @@ export default function ParentTimetablePage() {
     const todaysLessons = clientReady && timetableData[todayDayName] 
         ? Object.entries(timetableData[todayDayName]).map(([time, lessonData]) => {
             const [startTime, endTime] = time.split(' - ');
-            const lesson = lessonData as any; // Cast to access subject
+            const lesson = lessonData as any;
             return {
                 startTime,
                 endTime,
@@ -246,11 +251,11 @@ export default function ParentTimetablePage() {
                                     </TableHeader>
                                     <TableBody>
                                         {periods.map(period => (
-                                            <TableRow key={period.time}>
+                                            <TableRow key={period.id}>
                                                 <TableCell className="font-semibold text-center text-primary">{period.time}</TableCell>
                                                 {days.map(day => {
                                                     const entry = timetableData[day]?.[period.time];
-                                                    const subject = entry ? (entry as any).subject?.name || entry.subject : null;
+                                                    const subject = entry ? (entry as any).subject?.name : null;
 
                                                     return (
                                                         <TableCell key={`${day}-${period.time}`} className="text-center p-1">
@@ -273,11 +278,11 @@ export default function ParentTimetablePage() {
                                                                             </h4>
                                                                             <div className="flex items-center gap-3">
                                                                                 <Avatar className="h-9 w-9">
-                                                                                    <AvatarImage src={entry.teacher.avatar} alt={entry.teacher.name} />
-                                                                                    <AvatarFallback>{entry.teacher.name.charAt(0)}</AvatarFallback>
+                                                                                    <AvatarImage src={`https://picsum.photos/seed/${entry.subject.teacher}/100`} alt={entry.subject.teacher} />
+                                                                                    <AvatarFallback>{entry.subject.teacher.charAt(0)}</AvatarFallback>
                                                                                 </Avatar>
                                                                                 <div>
-                                                                                    <p className="text-sm font-semibold">{entry.teacher.name}</p>
+                                                                                    <p className="text-sm font-semibold">{entry.subject.teacher}</p>
                                                                                     <p className="text-xs text-muted-foreground">Teacher</p>
                                                                                 </div>
                                                                             </div>
