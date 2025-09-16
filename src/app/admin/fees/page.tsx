@@ -99,6 +99,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
@@ -332,10 +333,16 @@ function StudentProfileDialog({
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleSendStatement} aria-label="Send fee statement">
-            <Mail className="mr-2 h-4 w-4" />
-            Send Statement
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleSendStatement} aria-label="Send fee statement">
+                <Mail className="mr-2 h-4 w-4" />
+                Send Statement
+            </Button>
+             <Button variant="secondary" aria-label="Print fee statement">
+                <Printer className="mr-2 h-4 w-4" />
+                Print Statement
+            </Button>
+          </div>
         </div>
       </DialogHeader>
 
@@ -369,7 +376,6 @@ function StudentProfileDialog({
                 <h4 className="font-semibold text-primary">Yearly Fees</h4>
                 <div className="text-sm mt-2 space-y-1">
                   {feeStructure
-                    .filter((item) => item.id === selectedStudent.classId)
                     .map((item) => (
                       <div key={item.id} className="flex justify-between">
                         <span>{item.category}</span>
@@ -599,7 +605,7 @@ export default function FeesPage() {
   const [paymentNotes, setPaymentNotes] = React.useState('');
   const [isSavingPayment, setIsSavingPayment] = React.useState(false);
   
-  // State for new invoice dialog
+    // State for new invoice dialog
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = React.useState(false);
   const [newInvoiceStudentId, setNewInvoiceStudentId] = React.useState('');
   const [newInvoiceAmount, setNewInvoiceAmount] = React.useState('');
@@ -795,11 +801,6 @@ export default function FeesPage() {
         setFeeStructure(docSnap.data().items || []);
       } else {
         setFeeStructure([]);
-        setDoc(structureRef, { items: [] }, { merge: true }).catch((e: unknown) => {
-          console.error('Error initializing fee structure:', e);
-          const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-          toast({ title: 'Error', description: `Failed to initialize fee structure: ${errorMessage}`, variant: 'destructive' });
-        });
       }
       setIsFeeStructureLoading(false);
     }, (error: unknown) => {
@@ -1037,60 +1038,58 @@ export default function FeesPage() {
 
   const handleSaveClassFees = async () => {
     if (!selectedClassForStructure || !schoolId || totalYearlyFee <= 0) {
-      toast({ title: 'Invalid Data', description: 'Please select a class and ensure the total fee is positive.', variant: 'destructive' });
-      return;
+        toast({ title: 'Invalid Data', description: 'Please select a class and ensure the total fee is positive.', variant: 'destructive' });
+        return;
     }
 
     try {
-      await runTransaction(firestore, async (transaction) => {
-        const structureRef = doc(firestore, `schools/${schoolId}/fee-structures`, selectedClassForStructure);
-        transaction.set(structureRef, { items: feeStructure }, { merge: true });
+        await runTransaction(firestore, async (transaction) => {
+            const structureRef = doc(firestore, `schools/${schoolId}/fee-structures`, selectedClassForStructure);
+            transaction.set(structureRef, { items: feeStructure }, { merge: true });
 
-        const studentsInClassQuery = query(
-          collection(firestore, `schools/${schoolId}/students`),
-          where('classId', '==', selectedClassForStructure)
-        );
-        const studentsSnapshot = await getDocs(studentsInClassQuery);
+            const studentsInClassQuery = query(
+                collection(firestore, `schools/${schoolId}/students`),
+                where('classId', '==', selectedClassForStructure)
+            );
+            const studentsSnapshot = await getDocs(studentsInClassQuery);
 
-        const fee = totalYearlyFee;
-        const dueDate = yearlyDueDate;
+            const fee = totalYearlyFee;
+            const dueDate = yearlyDueDate;
 
-        for (const studentDoc of studentsSnapshot.docs) {
-          const studentRef = doc(firestore, `schools/${schoolId}/students`, studentDoc.id);
-          const currentStudentData = await transaction.get(studentRef);
-          if (!currentStudentData.exists()) continue;
-          
-          const studentData = currentStudentData.data();
-          const existingBalance = (studentData.balance || 0);
-          const newBalance = existingBalance + fee;
+            for (const studentDoc of studentsSnapshot.docs) {
+                const studentRef = doc(firestore, `schools/${schoolId}/students`, studentDoc.id);
+                const currentStudentSnap = await transaction.get(studentRef); // Read within transaction
+                if (!currentStudentSnap.exists()) continue;
 
-          transaction.update(studentRef, {
-            totalFee: (studentData.totalFee || 0) + fee,
-            balance: newBalance,
-            dueDate: Timestamp.fromDate(dueDate),
-          });
+                const studentData = currentStudentSnap.data();
+                const newTotalFee = (studentData.totalFee || 0) + fee;
+                const newBalance = (studentData.balance || 0) + fee;
 
-          const transactionRef = doc(collection(studentRef, 'transactions'));
-          transaction.set(transactionRef, {
-            date: Timestamp.now(),
-            description: `Annual School Fees`,
-            type: 'Charge',
-            amount: fee,
-            balance: newBalance,
-          });
-        }
-      });
+                transaction.update(studentRef, {
+                    totalFee: newTotalFee,
+                    balance: newBalance,
+                    dueDate: Timestamp.fromDate(dueDate),
+                });
 
-      toast({
-        title: 'Fees Applied',
-        description: `Annual fee of ${formatCurrency(totalYearlyFee)} has been applied to all students in ${
-          classes.find((c) => c.id === selectedClassForStructure)?.name
-        }.`,
-      });
+                const transactionRef = doc(collection(studentRef, 'transactions'));
+                transaction.set(transactionRef, {
+                    date: Timestamp.now(),
+                    description: `Annual School Fees`,
+                    type: 'Charge',
+                    amount: fee,
+                    balance: newBalance,
+                });
+            }
+        });
+
+        toast({
+            title: 'Fees Applied!',
+            description: `Annual fee of ${formatCurrency(totalYearlyFee)} has been applied to all students in ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
+        });
     } catch (e: unknown) {
-      console.error('Error applying fees:', e);
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-      toast({ title: 'Error', description: `Failed to apply fees: ${errorMessage}`, variant: 'destructive' });
+        console.error('Error applying fees:', e);
+        const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+        toast({ title: 'Error', description: `Failed to apply fees: ${errorMessage}`, variant: 'destructive' });
     }
   };
 
@@ -1158,7 +1157,7 @@ export default function FeesPage() {
     }
   };
   
-  const handleExportSummary = (format: 'PDF' | 'CSV') => {
+    const handleExportSummary = (format: 'PDF' | 'CSV') => {
      try {
       if (format === 'PDF') {
         const doc = new jsPDF();
@@ -1220,6 +1219,16 @@ export default function FeesPage() {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+  
+    const handleBulkPrint = () => {
+    toast({
+      title: 'Printing Class Report...',
+      description: `Generating statements for ${filteredStudents.length} students.`,
+    });
+    // This is a placeholder for a more complex print generation logic
+    setTimeout(() => window.print(), 1000);
+  };
+
 
   if (isLoading) {
     return (
@@ -1595,7 +1604,7 @@ export default function FeesPage() {
                       <BarChart data={collectionTrend}>
                         <CartesianGrid vertical={false} />
                         <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                        <YAxis tickFormatter={(value) => `${value / 1000000}M`} />
+                        <YAxis tickFormatter={(value) => `${Number(value) / 1000000}M`} />
                         <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                         <Bar dataKey="collected" fill="var(--color-collected)" radius={8} />
                       </BarChart>
@@ -1650,13 +1659,15 @@ export default function FeesPage() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" aria-label="Export options">
                             <FileDown className="mr-2 h-4 w-4" />
-                            Export
+                            Export / Print
                             <ChevronDown className="ml-2 h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem onClick={() => handleExport('PDF')}>Export as PDF</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleExport('CSV')}>Export as CSV</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleBulkPrint}><Printer className="mr-2 h-4 w-4" /> Print Class Report</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -1851,11 +1862,11 @@ export default function FeesPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent>
-                              <Calendar mode="single" selected={yearlyDueDate} onSelect={setYearlyDueDate} />
+                              <Calendar mode="single" selected={yearlyDueDate} onSelect={(date) => date && setYearlyDueDate(date)} />
                             </PopoverContent>
                           </Popover>
                           <Button onClick={handleSaveClassFees} aria-label="Apply fees to class">
-                            Apply Fees
+                            Save & Apply Fees
                           </Button>
                         </div>
                       </CardFooter>
