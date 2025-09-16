@@ -316,8 +316,8 @@ export default function TeacherSupportPage() {
                                 </Avatar>
                                 <div className="w-full rounded-md border bg-muted/50 p-3">
                                     <div className="flex items-center justify-between mb-2">
-                                        <p className="font-semibold text-sm">{msg.user}</p>
-                                        <p className="text-xs text-muted-foreground">{msg.time}</p>
+                                        <div className="font-semibold text-sm">{msg.user}</div>
+                                        <div className="text-xs text-muted-foreground">{msg.time}</div>
                                     </div>
                                     <p className="text-sm">{msg.text}</p>
                                 </div>
@@ -346,5 +346,3 @@ export default function TeacherSupportPage() {
     </Dialog>
   );
 }
-
-    
