@@ -1,11 +1,10 @@
-
 import Link from 'next/link';
 import Image from 'next/image';
 import {
   Card,
   CardContent,
 } from '@/components/ui/card';
-import { GraduationCap } from 'lucide-react';
+import { AppLogo } from '@/components/ui/app-logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoginForm } from './login-form';
 import { DeveloperLoginForm } from './developer-login-form';
@@ -40,15 +39,14 @@ function LoginPageContent() {
                     href="/"
                     className="relative z-20 flex items-center text-lg font-medium"
                 >
-                    <GraduationCap className="h-6 w-6 mr-2 text-primary" />
+                    <AppLogo className="h-6 w-6 mr-2" />
                     EduSphere Kenya
                 </Link>
 
                 <div className="relative z-20 mt-auto text-center">
                     <div className="flex items-center justify-center mb-4">
-                        <Avatar className="h-20 w-20 border-4 border-white/50">
-                            <AvatarImage src={profile.logoUrl} alt={profile.name} />
-                            <AvatarFallback>{profile.name.substring(0, 2)}</AvatarFallback>
+                        <Avatar className="h-20 w-20 border-4 border-white/50 bg-background p-2">
+                           <AppLogo />
                         </Avatar>
                     </div>
                     <h1 className="text-3xl font-bold font-headline">{profile.name}</h1>

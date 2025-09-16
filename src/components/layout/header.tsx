@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { GraduationCap, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import Image from 'next/image';
+import { AppLogo } from '../ui/app-logo';
 
 const navLinks = [
   { href: '/#features', label: 'Features' },
@@ -16,7 +17,7 @@ export function AppHeader() {
       <div className="container flex h-14 max-w-screen-2xl items-center">
         <div className="mr-4 flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <GraduationCap className="h-6 w-6 text-primary" />
+            <AppLogo className="h-6 w-6" />
             <span className="font-bold font-headline sm:inline-block">
               EduSphere Kenya
             </span>
@@ -47,7 +48,7 @@ export function AppHeader() {
             <SheetContent side="right">
               <div className="flex flex-col gap-6 pt-6">
                 <Link href="/" className="flex items-center space-x-2">
-                  <GraduationCap className="h-6 w-6 text-primary" />
+                  <AppLogo className="h-6 w-6" />
                   <span className="font-bold font-headline">EduSphere Kenya</span>
                 </Link>
                 <nav className="flex flex-col gap-4">

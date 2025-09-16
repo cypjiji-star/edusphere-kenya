@@ -3,9 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
-import { cn } from '@/lib/utils';
-import { GraduationCap } from 'lucide-react';
+import { AppLogo } from '../ui/app-logo';
 
 export function SplashScreen() {
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +33,7 @@ export function SplashScreen() {
             className="relative flex items-center justify-center w-32 h-32"
           >
             <div className="absolute w-full h-full border-4 border-primary/20 rounded-full animate-pulse" />
-            <GraduationCap className="h-16 w-16 text-primary" />
+            <AppLogo className="w-16 h-16" />
           </motion.div>
           <motion.h1
             initial={{ y: 20, opacity: 0 }}
