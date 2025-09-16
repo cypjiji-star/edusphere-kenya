@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -35,6 +36,7 @@ import {
   TrendingDown,
   FileDown,
   Mail,
+  Save,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -77,7 +79,8 @@ import {
   DocumentData,
   doc,
   getDoc,
-  updateDoc
+  updateDoc,
+  setDoc,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
@@ -201,6 +204,8 @@ export default function AdminGradesPage() {
   
   const [currentAssessments, setCurrentAssessments] = React.useState<Exam[]>([]);
   const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
+  const [isSavingScale, setIsSavingScale] = React.useState(false);
+
 
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -255,9 +260,16 @@ export default function AdminGradesPage() {
       }
     });
 
+    const unsubGradingScale = onSnapshot(doc(firestore, `schools/${schoolId}/settings`, 'grading'), (docSnap) => {
+        if (docSnap.exists() && docSnap.data().scale) {
+            setGradingScale(docSnap.data().scale);
+        }
+    });
+
     return () => {
       unsubExams();
       unsubClasses();
+      unsubGradingScale();
     };
   }, [schoolId, selectedClassForRanking]);
 
@@ -388,11 +400,29 @@ export default function AdminGradesPage() {
     setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0 }]);
   };
   
-  const handleSaveScale = () => {
-    toast({
-      title: 'Grading Scale Saved',
-      description: 'The new grading scale has been applied school-wide.',
-    });
+  const handleSaveScale = async () => {
+    if (!schoolId) {
+        toast({ title: 'School ID missing', variant: 'destructive'});
+        return;
+    }
+    setIsSavingScale(true);
+    try {
+        const settingsRef = doc(firestore, `schools/${schoolId}/settings`, 'grading');
+        await setDoc(settingsRef, { scale: gradingScale }, { merge: true });
+        toast({
+            title: 'Grading Scale Saved',
+            description: 'The new grading scale has been applied school-wide.',
+        });
+    } catch (e) {
+         toast({
+            title: 'Save Failed',
+            description: 'Could not save the new grading scale.',
+            variant: 'destructive',
+        });
+        console.error(e);
+    } finally {
+        setIsSavingScale(false);
+    }
   }
   
   const handleCreateExam = async () => {
@@ -673,6 +703,7 @@ export default function AdminGradesPage() {
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
             <TabsTrigger value="gradebook">Broad Sheet</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
            <TabsContent value="ranking">
@@ -963,6 +994,41 @@ export default function AdminGradesPage() {
                 </CardContent>
              </Card>
              )}
+          </TabsContent>
+          <TabsContent value="settings">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Grading Scale & Policies</CardTitle>
+                    <CardDescription>Define the grade boundaries for the entire school.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <div className="w-full max-w-lg space-y-4">
+                        {gradingScale.map((scale, index) => (
+                            <div key={index} className="grid grid-cols-3 items-center gap-4">
+                                <Input value={scale.grade} readOnly className="font-semibold bg-muted" />
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor={`min-${index}`} className="shrink-0">Min</Label>
+                                    <Input id={`min-${index}`} type="number" value={scale.min} onChange={(e) => handleGradingScaleChange(index, 'min', Number(e.target.value))} />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor={`max-${index}`} className="shrink-0">Max</Label>
+                                    <Input id={`max-${index}`} type="number" value={scale.max} onChange={(e) => handleGradingScaleChange(index, 'max', Number(e.target.value))} />
+                                </div>
+                            </div>
+                        ))}
+                        <Button variant="outline" size="sm" onClick={addGradingRow} className="mt-4">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add Row
+                        </Button>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleSaveScale} disabled={isSavingScale}>
+                        {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                        Save Scale
+                    </Button>
+                </CardFooter>
+            </Card>
           </TabsContent>
         </Tabs>
     </div>
