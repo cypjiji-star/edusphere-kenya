@@ -562,22 +562,26 @@ export default function FeesPage() {
     
     const { fee, dueDate } = termFees[term];
     
-    studentsSnapshot.forEach(studentDoc => {
+    for (const studentDoc of studentsSnapshot.docs) {
         const studentRef = doc(firestore, 'schools', schoolId, 'students', studentDoc.id);
+        const studentData = studentDoc.data();
+        const currentBalance = (studentData.totalFee || 0) - (studentData.amountPaid || 0);
+        const newBalance = currentBalance + fee;
+
         batch.update(studentRef, { 
-            totalFee: fee, 
+            totalFee: (studentData.totalFee || 0) + fee,
             dueDate: Timestamp.fromDate(dueDate) 
         });
         
-        // Add a charge transaction
         const transactionRef = doc(collection(studentRef, 'transactions'));
         batch.set(transactionRef, {
             date: Timestamp.now(),
             description: `${term} School Fees`,
             type: 'Charge',
             amount: fee,
+            balance: newBalance,
         });
-    });
+    }
 
     try {
         await batch.commit();
