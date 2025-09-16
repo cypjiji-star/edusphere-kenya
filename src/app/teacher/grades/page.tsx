@@ -45,6 +45,7 @@ import {
   Minus,
   PlusCircle,
   ClipboardList,
+  History,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -69,7 +70,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { GradeEntryForm } from './new/grade-entry-form';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDoc, doc, orderBy, limit } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
 import { BulkGradeEntry } from './new/bulk-grade-entry';
@@ -110,6 +111,26 @@ type TeacherClass = {
   name: string;
 };
 
+type RecentActivity = {
+    id: string;
+    description: string;
+    date: string;
+};
+
+function formatTimeAgo(timestamp: Timestamp | undefined) {
+    if (!timestamp) return '';
+    const now = new Date();
+    const then = timestamp.toDate();
+    const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
 
 export default function GradesPage() {
     const searchParams = useSearchParams();
@@ -125,6 +146,7 @@ export default function GradesPage() {
     const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
     const [user, setUser] = React.useState(auth.currentUser);
     const [gradingTasks, setGradingTasks] = React.useState<Assessment[]>([]);
+    const [recentActivities, setRecentActivities] = React.useState<RecentActivity[]>([]);
 
 
     const [currentAssessments, setCurrentAssessments] = React.useState<Assessment[]>([]);
@@ -166,11 +188,27 @@ export default function GradesPage() {
             setGradingTasks(tasks);
         });
 
+        const activityQuery = query(
+            collection(firestore, 'schools', schoolId, 'notifications'),
+            where('userId', '==', teacherId),
+            orderBy('createdAt', 'desc'),
+            limit(5)
+        );
+        const unsubActivities = onSnapshot(activityQuery, (snapshot) => {
+            const activities = snapshot.docs.map(doc => ({
+                id: doc.id,
+                description: doc.data().description,
+                date: formatTimeAgo(doc.data().createdAt),
+            }));
+            setRecentActivities(activities);
+        });
+
 
         return () => {
             unsubClasses();
             unsubSubjects();
             unsubTasks();
+            unsubActivities();
         };
     }, [schoolId, selectedClass, user]);
 
@@ -399,6 +437,31 @@ export default function GradesPage() {
                             )}
                         </CardContent>
                     </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <History className="h-5 w-5 text-primary"/>
+                                Recent Activity
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                             {recentActivities.length > 0 ? (
+                                recentActivities.map(activity => (
+                                    <div key={activity.id} className="text-sm">
+                                        <p className="font-medium">{activity.description}</p>
+                                        <p className="text-xs text-muted-foreground">{activity.date}</p>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center text-muted-foreground py-4">
+                                    <p>No recent activity.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                        <CardFooter>
+                            <Button variant="link" size="sm" className="w-full p-0 h-auto">View Full Activity Log</Button>
+                        </CardFooter>
+                    </Card>
                 </div>
             </div>
         </TabsContent>
@@ -554,3 +617,4 @@ export default function GradesPage() {
     </div>
   );
 }
+
