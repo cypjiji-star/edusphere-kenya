@@ -97,6 +97,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { GradeAnalysisCharts } from './grade-analysis-charts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { GradeSummaryWidget } from './grade-summary-widget';
 
 
 type GradeStatus = 'Graded' | 'Pending';
@@ -643,102 +644,51 @@ export default function AdminGradesPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex mb-6">
             <TabsTrigger value="exams">Exam Dashboard</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
             <TabsTrigger value="gradebook">Broad Sheet</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="reports">
-            <ReportGenerator />
-          </TabsContent>
-          
-          <TabsContent value="ranking">
-          <Card>
-              <CardHeader>
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                      <div>
-                          <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
-                          <CardDescription>Student ranking based on performance in a specific subject or overall.</CardDescription>
-                      </div>
-                      <div className="flex w-full flex-col md:flex-row flex-wrap md:items-center gap-2">
-                           <Select defaultValue={'2024'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="2024">2024</SelectItem><SelectItem value="2023">2023</SelectItem></SelectContent></Select>
-                           <Select defaultValue={'Term 2'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Term 2">Term 2</SelectItem><SelectItem value="Term 1">Term 1</SelectItem></SelectContent></Select>
-                           <Select defaultValue={'Mid-Term'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Mid-Term">Mid-Term</SelectItem><SelectItem value="End of Term">End of Term</SelectItem></SelectContent></Select>
-                           <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
-                              <SelectTrigger className="w-full md:w-auto">
-                                  <SelectValue placeholder="Select a class" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
-                          <Select value={selectedSubjectForRanking} onValueChange={setSelectedSubjectForRanking}>
-                              <SelectTrigger className="w-full md:w-auto">
-                                  <SelectValue placeholder="Select a subject" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {subjectsForRanking.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
+           <TabsContent value="ranking">
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
+                            <CardDescription>Student ranking based on performance in a specific subject or overall.</CardDescription>
+                        </div>
+                        <div className="flex w-full flex-col md:flex-row flex-wrap md:items-center gap-2">
+                            <Select><SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Year: 2024" /></SelectTrigger></Select>
+                            <Select><SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Term: Term 2" /></SelectTrigger></Select>
+                            <Select><SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Exam: End of Term" /></SelectTrigger></Select>
+                            <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                                <SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Select a class" /></SelectTrigger>
+                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={selectedSubjectForRanking} onValueChange={setSelectedSubjectForRanking}>
+                                <SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Select a subject" /></SelectTrigger>
+                                <SelectContent>{subjectsForRanking.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                            </Select>
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    <FileDown className="mr-2 h-4 w-4" />
-                                    Export
-                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                                </DropdownMenuTrigger>
+                                <DropdownMenuTrigger asChild><Button variant="outline"><FileDown className="mr-2 h-4 w-4" />Export<ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                <DropdownMenuItem onClick={() => handleExportRanking('PDF')}>
-                                    <FileDown className="mr-2 h-4 w-4" />
-                                    Export as PDF
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExportRanking('CSV')}>
-                                    <FileDown className="mr-2 h-4 w-4" />
-                                    Export as CSV
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => window.print()}>
-                                    <Printer className="mr-2 h-4 w-4" />
-                                    Print Ranking
-                                </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExportRanking('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExportRanking('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print Ranking</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                      </div>
-                  </div>
-              </CardHeader>
-              <CardContent>
-                {isLoadingRanking ? (
-                  <div className="flex justify-center items-center py-16">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="ml-2">Loading ranking data...</span>
-                  </div>
-                ) : (
-                  <>
-                  <Card className="mb-6 border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-amber-500"><Trophy/> Top Performers</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                        {topStudents.map((student, index) => (
-                            <div key={student.id} className={cn("p-4 rounded-lg", index === 0 && "bg-amber-100 dark:bg-amber-900/20")}>
-                                <Avatar className="h-16 w-16 mx-auto mb-2">
-                                    <AvatarImage src={student.avatarUrl} />
-                                    <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <p className="font-bold text-lg">{index + 1}{index === 0 ? 'st' : index === 1 ? 'nd' : 'rd'}</p>
-                                <p className="font-semibold">{student.studentName}</p>
-                                <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
-                                <Badge className="mt-2">{student.overall}% ({getGradeFromScore(student.overall)})</Badge>
-                            </div>
-                        ))}
-                    </CardContent>
-                  </Card>
-                   <Tabs defaultValue="ranking-table" className="w-full">
-                        <TabsList>
-                            <TabsTrigger value="ranking-table">Student Ranking</TabsTrigger>
-                            <TabsTrigger value="subject-performance">Subject Performance</TabsTrigger>
-                        </TabsList>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingRanking ? (
+                    <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Loading ranking data...</span></div>
+                  ) : (
+                    <>
+                    <GradeSummaryWidget students={studentsForRanking} />
+                    <Tabs defaultValue="ranking-table" className="w-full">
+                        <TabsList><TabsTrigger value="ranking-table">Student Ranking</TabsTrigger><TabsTrigger value="subject-performance">Subject Performance</TabsTrigger></TabsList>
                         <TabsContent value="ranking-table" className="mt-4">
                             {studentsForRanking.length > 0 ? (
                                 <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
@@ -800,27 +750,17 @@ export default function AdminGradesPage() {
                                                     <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
                                                     <DialogDescription>
                                                     Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span>
-                                                    {selectedStudentForDetails.rollNumber && (
-                                                        <span> | Adm No: {selectedStudentForDetails.rollNumber}</span>
-                                                    )}
+                                                    {selectedStudentForDetails.rollNumber && (<span> | Adm No: {selectedStudentForDetails.rollNumber}</span>)}
                                                     </DialogDescription>
                                                 </DialogHeader>
                                                 <div className="py-4">
                                                     <h4 className="mb-4 font-semibold">Scores by Subject</h4>
                                                     <div className="w-full overflow-auto rounded-lg border">
                                                     <Table>
-                                                        <TableHeader>
-                                                            <TableRow>
-                                                                <TableHead>Subject</TableHead>
-                                                                <TableHead className="text-right">Score</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
+                                                        <TableHeader><TableRow><TableHead>Subject</TableHead><TableHead className="text-right">Score</TableHead></TableRow></TableHeader>
                                                         <TableBody>
                                                             {selectedStudentForDetails.grades?.map((gradeInfo, index) => (
-                                                                <TableRow key={index}>
-                                                                    <TableCell className="font-medium">{gradeInfo.subject}</TableCell>
-                                                                    <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
-                                                                </TableRow>
+                                                                <TableRow key={index}><TableCell className="font-medium">{gradeInfo.subject}</TableCell><TableCell className="text-right">{gradeInfo.grade}%</TableCell></TableRow>
                                                             ))}
                                                         </TableBody>
                                                     </Table>
@@ -831,25 +771,13 @@ export default function AdminGradesPage() {
                                     </DialogContent>
                                 </Dialog>
                             ) : (
-                                <div className="text-center text-muted-foreground py-16">
-                                    <p>No ranking data available for this class and subject yet.</p>
-                                    <p className="text-sm mt-2">Make sure students have grades assigned.</p>
-                                </div>
+                                <div className="text-center text-muted-foreground py-16"><p>No ranking data available for this class and subject yet.</p><p className="text-sm mt-2">Make sure students have grades assigned.</p></div>
                             )}
                         </TabsContent>
                         <TabsContent value="subject-performance" className="mt-4">
                              <div className="w-full overflow-auto rounded-lg border">
                                 <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Subject</TableHead>
-                                            <TableHead className="text-center">Mean Score</TableHead>
-                                            <TableHead className="text-center">Highest</TableHead>
-                                            <TableHead className="text-center">Lowest</TableHead>
-                                            <TableHead className="text-center">No. of A's</TableHead>
-                                            <TableHead className="text-center">No. of E's</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
+                                    <TableHeader><TableRow><TableHead>Subject</TableHead><TableHead className="text-center">Mean Score</TableHead><TableHead className="text-center">Highest</TableHead><TableHead className="text-center">Lowest</TableHead><TableHead className="text-center">No. of A's</TableHead><TableHead className="text-center">No. of E's</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {subjectPerformance.map(subject => (
                                             <TableRow key={subject.name}>
@@ -880,10 +808,7 @@ export default function AdminGradesPage() {
                 </CardHeader>
                  <CardContent>
                  {isGradebookLoading ? (
-                  <div className="flex justify-center items-center py-16">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="ml-2">Loading gradebook...</span>
-                  </div>
+                  <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Loading gradebook...</span></div>
                  ) : (
                     <div className="w-full overflow-auto rounded-lg border">
                         <Table>
@@ -899,21 +824,14 @@ export default function AdminGradesPage() {
                                     <TableRow key={student.id}>
                                         <TableCell className="sticky left-0 bg-card z-10">
                                           <div className="flex items-center gap-3">
-                                            <Avatar className="h-9 w-9">
-                                                <AvatarImage src={student.avatarUrl} alt={student.studentName} />
-                                                <AvatarFallback>{student.studentName.slice(0,2)}</AvatarFallback>
-                                            </Avatar>
+                                            <Avatar className="h-9 w-9"><AvatarImage src={student.avatarUrl} alt={student.studentName} /><AvatarFallback>{student.studentName.slice(0,2)}</AvatarFallback></Avatar>
                                             <span className="font-medium">{student.studentName}</span>
                                           </div>
                                         </TableCell>
                                          {currentAssessments.map(assessment => (
-                                            <TableCell key={assessment.id} className="text-center">
-                                                {getGradeForStudent(student, assessment.id)}
-                                            </TableCell>
+                                            <TableCell key={assessment.id} className="text-center">{getGradeForStudent(student, assessment.id)}</TableCell>
                                         ))}
-                                        <TableCell className="text-center font-bold sticky right-0 bg-card z-10">
-                                            <Badge>{student.overall}%</Badge>
-                                        </TableCell>
+                                        <TableCell className="text-center font-bold sticky right-0 bg-card z-10"><Badge>{student.overall}%</Badge></TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -922,6 +840,10 @@ export default function AdminGradesPage() {
                  )}
                  </CardContent>
              </Card>
+          </TabsContent>
+          
+          <TabsContent value="reports">
+            <ReportGenerator />
           </TabsContent>
 
           <TabsContent value="exams">
@@ -934,29 +856,13 @@ export default function AdminGradesPage() {
                     <CardDescription>View, edit, or clone existing examination schedules.</CardDescription>
                     <div className="relative w-full md:max-w-sm pt-4">
                         <Search className="absolute left-2.5 top-6 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="search"
-                            placeholder="Search by title, term, or class..."
-                            className="w-full bg-background pl-8"
-                            value={examSearchTerm}
-                            onChange={(e) => setExamSearchTerm(e.target.value)}
-                        />
+                        <Input type="search" placeholder="Search by title, term, or class..." className="w-full bg-background pl-8" value={examSearchTerm} onChange={(e) => setExamSearchTerm(e.target.value)} />
                     </div>
                 </CardHeader>
                 <CardContent>
                     <div className="w-full overflow-auto rounded-lg border">
                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Exam Title</TableHead>
-                                    <TableHead>Term</TableHead>
-                                    <TableHead>Class</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Progress</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
+                            <TableHeader><TableRow><TableHead>Exam Title</TableHead><TableHead>Term</TableHead><TableHead>Class</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Progress</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                             <TableBody>
                             {filteredExams.map(exam => (
                                 <TableRow key={exam.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedExam(exam)}>
@@ -964,22 +870,11 @@ export default function AdminGradesPage() {
                                     <TableCell>{exam.term}</TableCell>
                                     <TableCell>{exam.className}</TableCell>
                                     <TableCell>{format(exam.startDate.toDate(), 'dd MMM')} - {format(exam.endDate.toDate(), 'dd MMM, yyyy')}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline" className={cn("text-white", getStatusBadgeColor(exam.status))}>{exam.status}</Badge>
-                                    </TableCell>
-                                     <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Progress value={exam.progress} className="w-24" />
-                                            <span className="text-xs text-muted-foreground">{exam.progress}%</span>
-                                        </div>
-                                    </TableCell>
+                                    <TableCell><Badge variant="outline" className={cn("text-white", getStatusBadgeColor(exam.status))}>{exam.status}</Badge></TableCell>
+                                     <TableCell><div className="flex items-center gap-2"><Progress value={exam.progress} className="w-24" /><span className="text-xs text-muted-foreground">{exam.progress}%</span></div></TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
-                                                    <ChevronDown className="h-4 w-4"/>
-                                                </Button>
-                                            </DropdownMenuTrigger>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}><ChevronDown className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 {renderExamActions(exam)}
                                                 <DropdownMenuSeparator />
