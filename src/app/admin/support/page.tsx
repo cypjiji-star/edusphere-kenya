@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User, Star, TrendingUp, Clock, Smile, X, XCircle, CheckCircle } from 'lucide-react';
+import { HelpCircle, LifeBuoy, Send, Book, MessageSquare, Lightbulb, Mail, Phone, Ticket, History, Paperclip, AlertOctagon, Filter, Search, User, Star, TrendingUp, Clock, Smile, X, XCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -25,8 +25,9 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
+import { firestore, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, orderBy, where, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
 import { differenceInHours, formatDistanceStrict } from 'date-fns';
 
@@ -92,6 +93,9 @@ type Ticket = {
     createdAt: Timestamp;
     lastUpdate: Timestamp; 
     user: { name: string; avatarUrl: string; };
+    description?: string;
+    attachmentUrl?: string;
+    attachmentName?: string;
 };
 
 type Feedback = {
@@ -159,6 +163,7 @@ export default function SupportPage() {
     const [description, setDescription] = React.useState('');
     const [attachment, setAttachment] = React.useState<File | null>(null);
     const { toast } = useToast();
+    const [isSubmittingTicket, setIsSubmittingTicket] = React.useState(false);
     
     // State for filtering ticket dashboard
     const [ticketSearchTerm, setTicketSearchTerm] = React.useState('');
@@ -271,7 +276,17 @@ export default function SupportPage() {
             return;
         }
 
+        setIsSubmittingTicket(true);
+        let attachmentUrl, attachmentName;
+
         try {
+            if (attachment) {
+                const storageRef = ref(storage, `schools/${schoolId}/support-attachments/${Date.now()}_${attachment.name}`);
+                await uploadBytes(storageRef, attachment);
+                attachmentUrl = await getDownloadURL(storageRef);
+                attachmentName = attachment.name;
+            }
+
             await addDoc(collection(firestore, `schools/${schoolId}/support-tickets`), {
                 subject,
                 description,
@@ -284,7 +299,7 @@ export default function SupportPage() {
                     name: 'Admin User',
                     avatarUrl: 'https://picsum.photos/seed/admin-avatar/100',
                 },
-                // In a real app, you would upload the attachment to Firebase Storage
+                ...(attachmentUrl && { attachmentUrl, attachmentName }),
             });
 
             toast({
@@ -302,6 +317,8 @@ export default function SupportPage() {
         } catch(e) {
             console.error(e);
             toast({ variant: 'destructive', title: 'Submission failed.'})
+        } finally {
+            setIsSubmittingTicket(false);
         }
     };
     
@@ -475,7 +492,10 @@ export default function SupportPage() {
                             </div>
                         </CardContent>
                         <CardFooter>
-                            <Button onClick={handleSubmitTicket}>Submit Ticket</Button>
+                            <Button onClick={handleSubmitTicket} disabled={isSubmittingTicket}>
+                                {isSubmittingTicket && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Submit Ticket
+                            </Button>
                         </CardFooter>
                     </Card>
                     
@@ -667,6 +687,22 @@ export default function SupportPage() {
                     </div>
                 </DialogHeader>
                 <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto">
+                    {selectedTicket.description && (
+                         <>
+                            <div>
+                                <h4 className="font-semibold text-primary mb-2">Initial Report</h4>
+                                <p className="text-sm text-muted-foreground">{selectedTicket.description}</p>
+                                {selectedTicket.attachmentUrl && (
+                                    <Button asChild variant="link" className="p-0 h-auto mt-2">
+                                        <a href={selectedTicket.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                            <Paperclip className="mr-2 h-4 w-4"/>View Attachment
+                                        </a>
+                                    </Button>
+                                )}
+                            </div>
+                            <Separator/>
+                         </>
+                    )}
                     <div className="space-y-4 pr-4">
                         {mockConversation.map((msg, index) => (
                             <div key={index} className="flex items-start gap-3">
@@ -708,3 +744,5 @@ export default function SupportPage() {
     </Dialog>
   );
 }
+
+    
