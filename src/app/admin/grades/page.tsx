@@ -98,6 +98,8 @@ import {
 import { GradeAnalysisCharts } from './grade-analysis-charts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { GradeSummaryWidget } from './grade-summary-widget';
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 
 type GradeStatus = 'Graded' | 'Pending';
@@ -552,6 +554,23 @@ export default function AdminGradesPage() {
     });
   }, [studentsForRanking]);
 
+  const streamComparisonData = React.useMemo(() => {
+    // This is mock data. In a real app, you would fetch and compute this.
+    return [
+      { name: 'Form 3 North', avg: 72 },
+      { name: 'Form 3 South', avg: 68 },
+      { name: 'Form 3 East', avg: 75 },
+      { name: 'Form 3 West', avg: 65 },
+    ];
+  }, [selectedClassForRanking]);
+
+  const streamComparisonConfig = {
+    avg: {
+      label: 'Average Score',
+      color: 'hsl(var(--primary))',
+    },
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -688,7 +707,7 @@ export default function AdminGradesPage() {
                     <>
                     <GradeSummaryWidget students={studentsForRanking} />
                     <Tabs defaultValue="ranking-table" className="w-full">
-                        <TabsList><TabsTrigger value="ranking-table">Student Ranking</TabsTrigger><TabsTrigger value="subject-performance">Subject Performance</TabsTrigger></TabsList>
+                        <TabsList><TabsTrigger value="ranking-table">Student Ranking</TabsTrigger><TabsTrigger value="subject-performance">Subject Performance</TabsTrigger><TabsTrigger value="stream-comparison">Stream Comparison</TabsTrigger></TabsList>
                         <TabsContent value="ranking-table" className="mt-4">
                             {studentsForRanking.length > 0 ? (
                                 <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
@@ -792,6 +811,33 @@ export default function AdminGradesPage() {
                                     </TableBody>
                                 </Table>
                              </div>
+                        </TabsContent>
+                        <TabsContent value="stream-comparison" className="mt-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Stream Mean Score Comparison</CardTitle>
+                                    <CardDescription>Comparing the average performance across different streams for Form 3.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ChartContainer config={streamComparisonConfig} className="h-[300px] w-full">
+                                        <RechartsBarChart data={streamComparisonData} margin={{ top: 20 }}>
+                                            <CartesianGrid vertical={false} />
+                                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                                            <YAxis />
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <Bar dataKey="avg" fill="var(--color-avg)" radius={8}>
+                                                 <LabelList
+                                                    position="top"
+                                                    offset={12}
+                                                    className="fill-foreground"
+                                                    fontSize={12}
+                                                    formatter={(value: number) => `${value}%`}
+                                                />
+                                            </Bar>
+                                        </RechartsBarChart>
+                                    </ChartContainer>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
                    </Tabs>
                   </>
@@ -898,4 +944,5 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
 
