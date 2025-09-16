@@ -1,4 +1,5 @@
 
+      
 'use client';
 
 import * as React from 'react';
@@ -70,10 +71,14 @@ import {
   AlertTriangle,
   Send,
   Loader2,
+  User as UserIcon,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+
 
 // Define both lowercase and title case status types
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
@@ -89,6 +94,13 @@ type AttendanceRecord = {
   teacherId?: string;
   date: Timestamp;
   status: AttendanceStatus;
+};
+
+type Student = {
+    id: string;
+    name: string;
+    admissionNumber: string;
+    avatarUrl: string;
 };
 
 const statuses: (AttendanceStatus | 'All Statuses')[] = ['All Statuses', 'Present', 'Absent', 'Late'];
@@ -271,6 +283,11 @@ export default function AdminAttendancePage() {
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
 
+  // New state for student analytics
+  const [allStudents, setAllStudents] = React.useState<Student[]>([]);
+  const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
+  const [studentSearchTerm, setStudentSearchTerm] = React.useState('');
+
   // Fetch all attendance records from the correct database structure
   React.useEffect(() => {
     if (!schoolId) {
@@ -345,10 +362,21 @@ export default function AdminAttendancePage() {
       setClasses(['All Classes', ...new Set(classNames)]);
     });
 
+    const qStudents = query(collection(firestore, 'schools', schoolId, 'students'));
+    const unsubStudents = onSnapshot(qStudents, (snapshot) => {
+        setAllStudents(snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().name,
+            admissionNumber: doc.data().admissionNumber,
+            avatarUrl: doc.data().avatarUrl,
+        })));
+    });
+
     return () => {
       unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
       unsubTeachers();
       unsubClasses();
+      unsubStudents();
     };
   }, [schoolId, toast]);
   
@@ -475,6 +503,22 @@ export default function AdminAttendancePage() {
   const totalRecords = filteredRecords.length;
   const attendanceRate = totalRecords > 0 ? Math.round(((summaryStats.present + summaryStats.late) / totalRecords) * 100) : 0;
   
+  const studentFilteredRecords = React.useMemo(() => {
+    if (!selectedStudent) return [];
+    return allRecords.filter(record => record.studentId === selectedStudent.id);
+  }, [allRecords, selectedStudent]);
+
+  const studentSummaryStats = React.useMemo(() => {
+    return {
+        present: studentFilteredRecords.filter(r => r.status === 'Present').length,
+        absent: studentFilteredRecords.filter(r => r.status === 'Absent').length,
+        late: studentFilteredRecords.filter(r => r.status === 'Late').length,
+    }
+  }, [studentFilteredRecords]);
+
+  const studentTotalRecords = studentFilteredRecords.length;
+  const studentAttendanceRate = studentTotalRecords > 0 ? Math.round(((studentSummaryStats.present + studentSummaryStats.late) / studentTotalRecords) * 100) : 0;
+
   if (!schoolId) {
     return <div className="p-8">Error: School ID is missing from URL.</div>
   }
@@ -489,258 +533,352 @@ export default function AdminAttendancePage() {
         <p className="text-muted-foreground">View and export attendance data for the entire school.</p>
       </div>
       
-      {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : (
-        <>
-            <div className="grid gap-6 lg:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Attendance Summary</CardTitle>
-                        <CardDescription>
-                            Summary for the selected period: {date?.from && format(date.from, 'LLL dd, y')}
-                            {date?.to && date.from?.getTime() !== date.to?.getTime() ? ` - ${format(date.to, 'LLL dd, y')}` : ''}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid gap-6 sm:grid-cols-3">
-                            <button className="w-full text-left" onClick={() => setStatusFilter('All Statuses')}>
-                                <Card className="hover:bg-muted/50 transition-colors h-full">
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">Overall Attendance Rate</CardTitle>
-                                        <Percent className="h-4 w-4 text-muted-foreground" />
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-bold">{attendanceRate}%</div>
-                                        <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students</p>
-                                    </CardContent>
-                                </Card>
-                            </button>
-                            <button className="w-full text-left" onClick={() => setStatusFilter('Absent')}>
-                                <Card className="hover:bg-muted/50 transition-colors h-full">
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
-                                        <UserX className="h-4 w-4 text-muted-foreground" />
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-bold">{summaryStats.absent}</div>
-                                        <p className="text-xs text-muted-foreground">students marked absent</p>
-                                    </CardContent>
-                                </Card>
-                            </button>
-                            <button className="w-full text-left" onClick={() => setStatusFilter('Late')}>
-                                <Card className="hover:bg-muted/50 transition-colors h-full">
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
-                                        <UserCheck className="h-4 w-4 text-muted-foreground" />
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-bold">{summaryStats.late}</div>
-                                        <p className="text-xs text-muted-foreground">students marked late</p>
-                                    </CardContent>
-                                </Card>
-                            </button>
-                        </div>
-                    </CardContent>
-                </Card>
-                <LowAttendanceAlerts records={allRecords} dateRange={date} schoolId={schoolId} />
-            </div>
+       <Tabs defaultValue="overview">
+        <TabsList className="mb-4">
+            <TabsTrigger value="overview">School-wide Overview</TabsTrigger>
+            <TabsTrigger value="student">Student Analytics</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+            {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : (
+            <>
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Attendance Summary</CardTitle>
+                            <CardDescription>
+                                Summary for the selected period: {date?.from && format(date.from, 'LLL dd, y')}
+                                {date?.to && date.from?.getTime() !== date.to?.getTime() ? ` - ${format(date.to, 'LLL dd, y')}` : ''}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-6 sm:grid-cols-3">
+                                <button className="w-full text-left" onClick={() => setStatusFilter('All Statuses')}>
+                                    <Card className="hover:bg-muted/50 transition-colors h-full">
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-sm font-medium">Overall Attendance Rate</CardTitle>
+                                            <Percent className="h-4 w-4 text-muted-foreground" />
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-2xl font-bold">{attendanceRate}%</div>
+                                            <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students</p>
+                                        </CardContent>
+                                    </Card>
+                                </button>
+                                <button className="w-full text-left" onClick={() => setStatusFilter('Absent')}>
+                                    <Card className="hover:bg-muted/50 transition-colors h-full">
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
+                                            <UserX className="h-4 w-4 text-muted-foreground" />
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-2xl font-bold">{summaryStats.absent}</div>
+                                            <p className="text-xs text-muted-foreground">students marked absent</p>
+                                        </CardContent>
+                                    </Card>
+                                </button>
+                                <button className="w-full text-left" onClick={() => setStatusFilter('Late')}>
+                                    <Card className="hover:bg-muted/50 transition-colors h-full">
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
+                                            <UserCheck className="h-4 w-4 text-muted-foreground" />
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-2xl font-bold">{summaryStats.late}</div>
+                                            <p className="text-xs text-muted-foreground">students marked late</p>
+                                        </CardContent>
+                                    </Card>
+                                </button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <LowAttendanceAlerts records={allRecords} dateRange={date} schoolId={schoolId} />
+                </div>
 
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                            <TrendingUp className="h-6 w-6 text-primary" />
-                            <div>
-                                <CardTitle>Attendance Trends</CardTitle>
-                                <CardDescription>Daily attendance rate for the selected period.</CardDescription>
+                <Card className="mt-6">
+                    <CardHeader>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                                <TrendingUp className="h-6 w-6 text-primary" />
+                                <div>
+                                    <CardTitle>Attendance Trends</CardTitle>
+                                    <CardDescription>Daily attendance rate for the selected period.</CardDescription>
+                                </div>
+                            </div>
+                            <div className="flex w-full md:w-auto items-center gap-2">
+                                <Select value={selectedTerm} onValueChange={(v) => setSelectedTerm(v)}>
+                                    <SelectTrigger className="w-full md:w-auto">
+                                        <SelectValue placeholder="Select term" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {academicTerms.map(term => (
+                                            <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="outline" onClick={handleCompare}>Compare</Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Term comparison feature is coming soon.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
-                        <div className="flex w-full md:w-auto items-center gap-2">
-                            <Select value={selectedTerm} onValueChange={(v) => setSelectedTerm(v)}>
-                                <SelectTrigger className="w-full md:w-auto">
-                                    <SelectValue placeholder="Select term" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {academicTerms.map(term => (
-                                        <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="outline" onClick={handleCompare}>Compare</Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Term comparison feature is coming soon.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                        <BarChart data={dailyTrendData}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis
-                            dataKey="date"
-                            tickLine={false}
-                            tickMargin={10}
-                            axisLine={false}
-                            />
-                            <ChartTooltip
-                            cursor={false}
-                            content={<ChartTooltipContent indicator="dot" />}
-                            />
-                            <Bar dataKey="rate" fill="var(--color-rate)" radius={8} />
-                        </BarChart>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
+                    </CardHeader>
+                    <CardContent>
+                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                            <BarChart data={dailyTrendData}>
+                                <CartesianGrid vertical={false} />
+                                <XAxis
+                                dataKey="date"
+                                tickLine={false}
+                                tickMargin={10}
+                                axisLine={false}
+                                />
+                                <ChartTooltip
+                                cursor={false}
+                                content={<ChartTooltipContent indicator="dot" />}
+                                />
+                                <Bar dataKey="rate" fill="var(--color-rate)" radius={8} />
+                            </BarChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
 
-            <Card>
-                <CardHeader>
-                <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="relative w-full md:max-w-sm">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Search by student name..."
-                                className="w-full bg-background pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full md:w-auto">
-                                    <Filter className="mr-2 h-4 w-4" />
-                                    Filters
-                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="p-4 space-y-4 w-64">
-                                    <div>
-                                        <label className="text-sm font-medium">Class</label>
-                                        <Select value={classFilter} onValueChange={setClassFilter}>
-                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                            <SelectContent>
-                                                {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium">Teacher</label>
-                                        <Select value={teacherFilter} onValueChange={setTeacherFilter}>
-                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                            <SelectContent>
-                                                {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium">Status</label>
-                                        <Select value={statusFilter} onValueChange={(v: AttendanceStatus | 'All Statuses') => setStatusFilter(v)}>
-                                            <SelectTrigger><SelectValue/></SelectTrigger>
-                                            <SelectContent>
-                                                {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <Button
-                                    id="date"
-                                    variant="outline"
-                                    className={cn('w-full justify-start text-left font-normal md:w-[300px]', !date && 'text-muted-foreground')}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {date?.from ? (
-                                    date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
-                                    ) : <span>Pick a date range</span>}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="end">
-                                <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
-                                </PopoverContent>
-                            </Popover>
-
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="secondary" className="w-full md:w-auto">
-                                        Export
+                <Card className="mt-6">
+                    <CardHeader>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <div className="relative w-full md:max-w-sm">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search by student name..."
+                                    className="w-full bg-background pl-8"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" className="w-full md:w-auto">
+                                        <Filter className="mr-2 h-4 w-4" />
+                                        Filters
                                         <ChevronDown className="ml-2 h-4 w-4" />
                                     </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="p-4 space-y-4 w-64">
+                                        <div>
+                                            <label className="text-sm font-medium">Class</label>
+                                            <Select value={classFilter} onValueChange={setClassFilter}>
+                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                <SelectContent>
+                                                    {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium">Teacher</label>
+                                            <Select value={teacherFilter} onValueChange={setTeacherFilter}>
+                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                <SelectContent>
+                                                    {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-medium">Status</label>
+                                            <Select value={statusFilter} onValueChange={(v: AttendanceStatus | 'All Statuses') => setStatusFilter(v)}>
+                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                <SelectContent>
+                                                    {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button
+                                        id="date"
+                                        variant="outline"
+                                        className={cn('w-full justify-start text-left font-normal md:w-[300px]', !date && 'text-muted-foreground')}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date?.from ? (
+                                        date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
+                                        ) : <span>Pick a date range</span>}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                                    </PopoverContent>
+                                </Popover>
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="secondary" className="w-full md:w-auto">
+                                            Export
+                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2" />Export as PDF</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2" />Export as CSV</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {classFilter !== 'All Classes' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setClassFilter('All Classes')}>Class: {classFilter} &times;</Badge>}
+                            {teacherFilter !== 'All Teachers' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setTeacherFilter('All Teachers')}>Teacher: {teacherFilter} &times;</Badge>}
+                            {statusFilter !== 'All Statuses' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setStatusFilter('All Statuses')}>Status: {statusFilter} &times;</Badge>}
                         </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        {classFilter !== 'All Classes' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setClassFilter('All Classes')}>Class: {classFilter} &times;</Badge>}
-                        {teacherFilter !== 'All Teachers' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setTeacherFilter('All Teachers')}>Teacher: {teacherFilter} &times;</Badge>}
-                        {statusFilter !== 'All Statuses' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setStatusFilter('All Statuses')}>Status: {statusFilter} &times;</Badge>}
+                    </CardHeader>
+                    <CardContent>
+                    <div className="w-full overflow-auto rounded-lg border">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Class</TableHead>
+                            <TableHead>Teacher</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredRecords.length > 0 ? (
+                            filteredRecords.map((record) => (
+                                <TableRow key={record.id}>
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                    <Avatar>
+                                        <AvatarImage src={record.studentAvatar} alt={record.studentName} />
+                                        <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">{record.studentName}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell>{record.class}</TableCell>
+                                <TableCell>{record.teacher}</TableCell>
+                                <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
+                                <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                </TableRow>
+                            ))
+                            ) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                No records found for the selected filters.
+                                </TableCell>
+                            </TableRow>
+                            )}
+                        </TableBody>
+                        </Table>
                     </div>
-                </div>
+                    </CardContent>
+                    <CardFooter>
+                        <div className="text-xs text-muted-foreground">
+                            Showing <strong>{filteredRecords.length}</strong> of <strong>{allRecords.length}</strong> records.
+                        </div>
+                    </CardFooter>
+                </Card>
+            </>
+            )}
+        </TabsContent>
+         <TabsContent value="student">
+           <Card>
+                <CardHeader>
+                    <CardTitle>Detailed Student History</CardTitle>
+                    <CardDescription>Search for a student by name or admission number to view their complete attendance history.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                <div className="w-full overflow-auto rounded-lg border">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Student</TableHead>
-                        <TableHead>Class</TableHead>
-                        <TableHead>Teacher</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredRecords.length > 0 ? (
-                        filteredRecords.map((record) => (
-                            <TableRow key={record.id}>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                <Avatar>
-                                    <AvatarImage src={record.studentAvatar} alt={record.studentName} />
-                                    <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <span className="font-medium">{record.studentName}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell>{record.class}</TableCell>
-                            <TableCell>{record.teacher}</TableCell>
-                            <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
-                            <TableCell>{getStatusBadge(record.status)}</TableCell>
-                            </TableRow>
-                        ))
-                        ) : (
-                        <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
-                            No records found for the selected filters.
-                            </TableCell>
-                        </TableRow>
-                        )}
-                    </TableBody>
-                    </Table>
-                </div>
+                    <Command className="rounded-lg border shadow-md">
+                        <CommandInput
+                            placeholder="Search student by name or admission number..."
+                            value={studentSearchTerm}
+                            onValueChange={setStudentSearchTerm}
+                        />
+                        <CommandList>
+                            <CommandEmpty>{studentSearchTerm ? "No students found." : "Start typing to search..."}</CommandEmpty>
+                            {studentSearchTerm && allStudents.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || s.admissionNumber?.includes(studentSearchTerm)).map(student => (
+                                <CommandItem key={student.id} onSelect={() => { setSelectedStudent(student); setStudentSearchTerm(''); }}>
+                                    <UserIcon className="mr-2" />
+                                    <span>{student.name}</span>
+                                </CommandItem>
+                            ))}
+                        </CommandList>
+                    </Command>
+
+                    {selectedStudent && (
+                        <div className="mt-6">
+                            <Card className="border-primary">
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <Avatar className="h-16 w-16">
+                                                <AvatarImage src={selectedStudent.avatarUrl} />
+                                                <AvatarFallback>{selectedStudent.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <CardTitle className="text-2xl">{selectedStudent.name}</CardTitle>
+                                                <CardDescription>Admission No: {selectedStudent.admissionNumber}</CardDescription>
+                                            </div>
+                                        </div>
+                                        <Button variant="outline" onClick={() => setSelectedStudent(null)}>Clear Selection</Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center my-4">
+                                        <div className="p-4 bg-muted/50 rounded-lg">
+                                            <p className="text-2xl font-bold">{studentAttendanceRate}%</p>
+                                            <p className="text-xs text-muted-foreground">Overall Attendance</p>
+                                        </div>
+                                        <div className="p-4 bg-muted/50 rounded-lg">
+                                            <p className="text-2xl font-bold">{studentSummaryStats.present}</p>
+                                            <p className="text-xs text-muted-foreground">Days Present</p>
+                                        </div>
+                                        <div className="p-4 bg-muted/50 rounded-lg">
+                                            <p className="text-2xl font-bold">{studentSummaryStats.absent}</p>
+                                            <p className="text-xs text-muted-foreground">Days Absent</p>
+                                        </div>
+                                        <div className="p-4 bg-muted/50 rounded-lg">
+                                            <p className="text-2xl font-bold">{studentSummaryStats.late}</p>
+                                            <p className="text-xs text-muted-foreground">Days Late</p>
+                                        </div>
+                                    </div>
+                                     <div className="w-full overflow-auto rounded-lg border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Recorded By</TableHead></TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                            {studentFilteredRecords.map(record => (
+                                                <TableRow key={record.id}>
+                                                    <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
+                                                    <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                                    <TableCell>{record.teacher}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
                 </CardContent>
-                <CardFooter>
-                    <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredRecords.length}</strong> of <strong>{allRecords.length}</strong> records.
-                    </div>
-                </CardFooter>
-            </Card>
-        </>
-      )}
+           </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
+    
