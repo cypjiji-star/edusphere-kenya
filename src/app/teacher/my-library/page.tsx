@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp, getDocs, runTransaction } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -55,6 +55,8 @@ type StudentAssignment = {
     bookTitle: string;
     studentId: string;
     studentName: string;
+    teacherId: string;
+    teacherName: string;
     assignedDate: Timestamp;
     status: 'Assigned' | 'Returned' | 'Pending Return';
 };
@@ -500,7 +502,7 @@ export default function MyLibraryPage() {
                                      <Card key={item.id} className="bg-muted/50">
                                         <CardContent className="p-4">
                                             <div className="font-semibold">{item.title}</div>
-                                            {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {item.borrowedDate.toDate().toLocaleDateString()} | Returned: {item.returnedDate.toDate().toLocaleDateString()}</p>}
+                                            {clientReady && item.borrowedDate && item.returnedDate && <p className="text-sm text-muted-foreground">Borrowed: {item.borrowedDate.toDate().toLocaleDateString()} | Returned: {item.returnedDate.toDate().toLocaleDateString()}</p>}
                                         </CardContent>
                                     </Card>
                                 ))}
@@ -583,3 +585,5 @@ export default function MyLibraryPage() {
     </div>
   );
 }
+
+    
