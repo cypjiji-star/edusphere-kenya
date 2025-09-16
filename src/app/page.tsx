@@ -11,9 +11,23 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 const getImage = (id: string) => {
     const image = PlaceHolderImages.find((img) => img.id === id);
     if (!image) return { src: '', width: 0, height: 0, alt: '', hint: '' };
-    const parts = image.imageUrl.split('/');
-    const height = parseInt(parts[parts.length - 1], 10);
-    const width = parseInt(parts[parts.length - 2], 10);
+    
+    // Check if the URL is from picsum to parse dimensions
+    if (image.imageUrl.includes('picsum.photos')) {
+        const parts = image.imageUrl.split('/');
+        const height = parseInt(parts[parts.length - 1], 10);
+        const width = parseInt(parts[parts.length - 2], 10);
+        return { src: image.imageUrl, width, height, alt: image.description, hint: image.imageHint };
+    }
+    
+    // For other images, like postimg.cc, use predefined dimensions if needed
+    if (id === 'hero') {
+         return { src: image.imageUrl, width: 1200, height: 800, alt: image.description, hint: image.imageHint };
+    }
+
+    // Default fallback for other non-picsum images
+    const width = 600;
+    const height = 400;
     return { src: image.imageUrl, width, height, alt: image.description, hint: image.imageHint };
 };
 
