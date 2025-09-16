@@ -26,7 +26,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, Timestamp, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, Timestamp, where, doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '@/context/auth-context';
 
 
 type CalendarView = 'month' | 'week' | 'day';
@@ -41,11 +42,13 @@ export type CalendarEvent = {
   startTime?: string;
   endTime?: string;
   attachments?: { name: string; size: string }[];
+  audience?: string; // e.g., 'All', or a classId
 };
 
 type Child = {
     id: string;
     name: string;
+    classId: string;
 };
 
 
@@ -61,7 +64,7 @@ const eventColors: Record<CalendarEvent['type'], string> = {
 const eventTypes: CalendarEvent['type'][] = ['exam', 'meeting', 'trip', 'sports', 'holiday', 'event'];
 
 
-export function FullCalendar({ schoolId }: { schoolId: string }) {
+export function FullCalendar({ schoolId }: { schoolId:string }) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [view, setView] = React.useState<CalendarView>('month');
   const [clientReady, setClientReady] = React.useState(false);
@@ -71,13 +74,18 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
   const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
   const [eventTypeFilter, setEventTypeFilter] = React.useState('all');
   const { toast } = useToast();
-  const parentId = 'parent-user-id'; // This should be dynamic
+  const { user } = useAuth();
+  const parentId = user?.uid;
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !parentId) return;
     const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+        const fetchedChildren = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            name: doc.data().name, 
+            classId: doc.data().classId 
+        }));
         setChildrenData(fetchedChildren);
         if (!selectedChild && fetchedChildren.length > 0) {
             setSelectedChild(fetchedChildren[0].id);
@@ -123,13 +131,14 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
   }
 
   const filteredEvents = React.useMemo(() => {
+    const currentChild = childrenData.find(c => c.id === selectedChild);
     return events.filter(event => {
         const matchesType = eventTypeFilter === 'all' || event.type === eventTypeFilter;
-        // In a real app, you would add logic to filter by child's class, etc.
-        const matchesChild = selectedChild ? true : false;
-        return matchesType && matchesChild;
+        // Show event if it's for everyone OR for the selected child's class
+        const matchesAudience = !event.audience || event.audience === 'All' || event.audience === currentChild?.classId;
+        return matchesType && matchesAudience;
     });
-  }, [events, eventTypeFilter, selectedChild]);
+  }, [events, eventTypeFilter, selectedChild, childrenData]);
 
 
   const renderHeader = () => (
@@ -314,3 +323,5 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
     </Dialog>
   );
 }
+
+    
