@@ -16,11 +16,12 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
-import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2 } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-KE', {
@@ -180,6 +181,30 @@ export default function FeesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Button>
+            <CreditCard className="mr-2 h-4 w-4" />
+            Record Payment
+          </Button>
+          <Button>
+            <Send className="mr-2 h-4 w-4" />
+            Send Reminders
+          </Button>
+          <Button>
+            <FileText className="mr-2 h-4 w-4" />
+            Generate Report
+          </Button>
+          <Button>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            New Invoice
+          </Button>
+        </CardContent>
+      </Card>
 
        <div className="grid gap-6 md:grid-cols-2">
           <Card>
