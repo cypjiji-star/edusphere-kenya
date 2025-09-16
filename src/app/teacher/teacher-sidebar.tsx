@@ -10,21 +10,21 @@ import {
   BookMarked,
   LogOut,
   ChevronDown,
-  ClipboardCheck,
+  Settings,
+  HelpCircle,
   FileText,
   MessageCircle,
   Calendar,
-  BookOpen,
-  Library,
-  Settings,
-  HelpCircle,
-  Trophy,
+  CircleDollarSign,
+  ClipboardCheck,
   Megaphone,
-  User,
   HeartPulse,
+  Trophy,
+  User,
+  Library,
+  BookOpen,
   Bell,
   Check,
-  CircleDollarSign,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -50,6 +50,8 @@ import { firestore, auth } from '@/lib/firebase';
 import { collection, onSnapshot, query, where, doc, updateDoc, orderBy, limit } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 
 const navGroups = [
