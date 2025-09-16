@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -30,6 +31,8 @@ import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
+import { logAuditEvent } from '@/lib/audit-log.service';
 
 
 type Permission = {
@@ -94,6 +97,7 @@ const permissionStructure: PermissionCategory[] = [
 export default function PermissionsPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
   const [rolePermissions, setRolePermissions] = React.useState<Record<string, Role>>({});
   const [isLoading, setIsLoading] = React.useState(true);
   const [newRoleName, setNewRoleName] = React.useState('');
@@ -168,10 +172,18 @@ export default function PermissionsPage() {
   };
 
   const handleSave = async (role: string) => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
     try {
         const roleRef = doc(firestore, `schools/${schoolId}/roles`, role);
         await updateDoc(roleRef, { permissions: rolePermissions[role].permissions });
+
+        await logAuditEvent({
+            schoolId,
+            actionType: 'Security',
+            description: `Permissions Updated for ${role}`,
+            user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        });
+
         toast({
             title: 'Permissions Saved',
             description: `Permissions for the ${role} role have been updated.`,

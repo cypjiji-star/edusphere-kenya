@@ -542,7 +542,7 @@ export default function AdminGradesPage() {
   };
   
   const handleSaveScale = async () => {
-    if (!schoolId) {
+    if (!schoolId || !user) {
         toast({ title: 'School ID missing', variant: 'destructive'});
         return;
     }
@@ -550,6 +550,15 @@ export default function AdminGradesPage() {
     try {
         const settingsRef = doc(firestore, `schools/${schoolId}/settings`, 'grading');
         await setDoc(settingsRef, { scale: gradingScale }, { merge: true });
+
+        await logAuditEvent({
+            schoolId,
+            actionType: 'Settings',
+            description: 'Grading Scale Updated',
+            user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+            details: 'The school-wide grading scale was modified.',
+        });
+
         toast({
             title: 'Grading Scale Saved',
             description: 'The new grading scale has been applied school-wide.',
