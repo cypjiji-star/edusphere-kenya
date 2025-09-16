@@ -23,7 +23,7 @@ import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditC
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import { format, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { format, isPast, differenceInDays, formatDistanceToNow, startOfMonth, endOfMonth, eachMonthOfInterval, getMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -377,15 +377,38 @@ export default function FeesPage() {
       setFinancials(prev => ({...prev, todaysCollections: todaysTotal}));
     });
 
-    const trends = [ { month: 'Jan', collected: 4500000 }, { month: 'Feb', collected: 4800000 }, { month: 'Mar', collected: 5200000 }, { month: 'Apr', collected: 3900000 }, { month: 'May', collected: 6100000 }, ];
-    setCollectionTrend(trends);
-    
+    const transactionsQuery = query(collection(firestore, `schools/${schoolId}/transactions`), where('type', '==', 'Payment'));
+    const unsubTransactions = onSnapshot(transactionsQuery, (snapshot) => {
+        const monthlyCollections: Record<string, number> = {};
+        const months = eachMonthOfInterval({
+          start: startOfMonth(sub(new Date(), { months: 5 })),
+          end: endOfMonth(new Date()),
+        });
+
+        months.forEach(monthStart => {
+          const monthName = format(monthStart, 'MMM');
+          monthlyCollections[monthName] = 0;
+        });
+
+        snapshot.forEach(doc => {
+            const tx = doc.data();
+            const txMonth = getMonth(tx.date.toDate());
+            const monthName = format(new Date(2000, txMonth, 1), 'MMM');
+            if(monthlyCollections.hasOwnProperty(monthName)){
+                monthlyCollections[monthName] += Math.abs(tx.amount);
+            }
+        });
+
+        setCollectionTrend(Object.entries(monthlyCollections).map(([month, collected]) => ({ month, collected })));
+    });
+
     setIsLoading(false);
 
     return () => {
       unsubStudents();
       unsubPayments();
       unsubFeeStructure();
+      unsubTransactions();
     };
   }, [schoolId]);
 
@@ -1127,3 +1150,4 @@ export default function FeesPage() {
     </>
   );
 }
+
