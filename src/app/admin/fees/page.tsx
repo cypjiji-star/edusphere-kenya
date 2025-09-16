@@ -783,7 +783,7 @@ export default function FeesPage() {
                               </CardContent>
                               <CardFooter className="bg-muted/50 p-4 flex justify-between items-center rounded-b-lg">
                                   <div className="font-semibold">Total Yearly Fee for {selectedClassForStructure}: {formatCurrency(classYearlyFee)}</div>
-                                  <Button onClick={handleSaveClassFees}>Save & Apply to Class</Button>
+                                  <Button onClick={handleSaveClassFees}>Save &amp; Apply to Class</Button>
                               </CardFooter>
                            </Card>
                       </CardContent>
