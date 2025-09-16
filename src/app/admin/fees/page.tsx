@@ -129,7 +129,7 @@ const chartConfig = {
 
 type TransactionType = 'payment' | 'charge' | 'waiver' | 'refund';
 
-function NewTransactionDialog({ students, open, onOpenChange, schoolId }: { students: StudentFee[], open: boolean, onOpenChange: (open: boolean) => void, schoolId: string }) {
+function NewTransactionDialog({ students, feeStructure, open, onOpenChange, schoolId }: { students: StudentFee[], feeStructure: FeeStructureItem[], open: boolean, onOpenChange: (open: boolean) => void, schoolId: string }) {
     const { toast } = useToast();
     const [transactionType, setTransactionType] = React.useState<TransactionType>('payment');
     const [date, setDate] = React.useState<Date | undefined>(new Date());
@@ -247,6 +247,20 @@ function NewTransactionDialog({ students, open, onOpenChange, schoolId }: { stud
                         </Select>
                     </div>
                     <Separator />
+                    <div className="space-y-2">
+                        <Label htmlFor="transaction-description">Description / For</Label>
+                        <Select value={description} onValueChange={setDescription}>
+                            <SelectTrigger id="transaction-description">
+                                <SelectValue placeholder="Select a fee item..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {feeStructure.map(item => (
+                                    <SelectItem key={item.id} value={item.category}>{item.category}</SelectItem>
+                                ))}
+                                <SelectItem value="Other">Other (Specify in notes)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="transaction-amount">Amount (KES)</Label>
@@ -264,10 +278,6 @@ function NewTransactionDialog({ students, open, onOpenChange, schoolId }: { stud
                                 <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} initialFocus /></PopoverContent>
                             </Popover>
                         </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="transaction-description">Description / Notes</Label>
-                        <Textarea id="transaction-description" placeholder="e.g., 'Term 2 Fee Payment', 'Charge for lost textbook'" value={description} onChange={e => setDescription(e.target.value)} />
                     </div>
                 </div>
                 <DialogFooter>
@@ -824,7 +834,7 @@ export default function FeesPage() {
                 </TabsContent>
             </Tabs>
 
-            <NewTransactionDialog students={students} open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen} schoolId={schoolId} />
+            <NewTransactionDialog students={students} feeStructure={feeStructure} open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen} schoolId={schoolId} />
             <StudentLedgerDialog student={selectedStudent} transactions={allTransactions[selectedStudent?.id ?? ''] || []} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} />
             <ManageFeeItemDialog 
                 item={editingCategory} 
