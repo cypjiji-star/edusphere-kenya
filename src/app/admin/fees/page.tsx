@@ -1174,4 +1174,3 @@ export default function FeesPage() {
     </>
   );
 }
-
