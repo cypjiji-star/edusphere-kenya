@@ -23,7 +23,7 @@ import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditC
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import { format, isPast, differenceInDays, formatDistanceToNow, startOfMonth, endOfMonth, eachMonthOfInterval, getMonth } from 'date-fns';
+import { format, isPast, differenceInDays, formatDistanceToNow, startOfMonth, endOfMonth, eachMonthOfInterval, getMonth, sub } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -1150,4 +1150,5 @@ export default function FeesPage() {
     </>
   );
 }
+
 
