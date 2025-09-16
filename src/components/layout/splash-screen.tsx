@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { GraduationCap } from 'lucide-react';
 
 export function SplashScreen() {
   const [isLoading, setIsLoading] = useState(true);
@@ -34,12 +35,7 @@ export function SplashScreen() {
             className="relative flex items-center justify-center w-32 h-32"
           >
             <div className="absolute w-full h-full border-4 border-primary/20 rounded-full animate-pulse" />
-            <Image 
-                src="https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png" 
-                alt="EduSphere Logo"
-                width={96}
-                height={96}
-            />
+            <GraduationCap className="h-16 w-16 text-primary" />
           </motion.div>
           <motion.h1
             initial={{ y: 20, opacity: 0 }}

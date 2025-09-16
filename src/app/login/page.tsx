@@ -40,7 +40,7 @@ function LoginPageContent() {
                     href="/"
                     className="relative z-20 flex items-center text-lg font-medium"
                 >
-                    <Image src={profile.logoUrl} alt="EduSphere Logo" width={24} height={24} className="mr-2"/>
+                    <GraduationCap className="h-6 w-6 mr-2 text-primary" />
                     EduSphere Kenya
                 </Link>
 
