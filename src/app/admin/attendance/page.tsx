@@ -8,6 +8,8 @@ import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'rechar
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, getDocs, doc, getDoc, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 import { cn } from '@/lib/utils';
 import {
@@ -327,7 +329,16 @@ export default function AdminAttendancePage() {
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
     
-    const termRecords = allRecords.slice(0, 500); // Limit for performance
+    const termDates: Record<string, { start: Date, end: Date }> = {
+      'term1-2024': { start: new Date('2024-01-01'), end: new Date('2024-04-30') },
+      'term2-2024': { start: new Date('2024-05-01'), end: new Date('2024-08-31') },
+    };
+    const currentTermRange = termDates[selectedTerm];
+
+    const termRecords = allRecords.filter(record => {
+      const recordDate = record.date.toDate();
+      return recordDate >= currentTermRange.start && recordDate <= currentTermRange.end;
+    });
 
     const dailyData: Record<string, { present: number, total: number }> = {};
 
@@ -348,7 +359,7 @@ export default function AdminAttendancePage() {
         rate: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0,
       }))
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-5);
+      .slice(-30); // Show last 30 days of the term
       
   }, [allRecords, selectedTerm]);
   
@@ -358,13 +369,6 @@ export default function AdminAttendancePage() {
         description: 'Term comparison feature is coming soon.',
     });
   }
-
-  const handleExport = (type: 'PDF' | 'CSV') => {
-    toast({
-      title: 'Exporting Records',
-      description: `Your attendance records are being exported as a ${type} file.`,
-    });
-  };
 
   const filteredRecords = allRecords.filter(record => {
       const recordDate = record.date.toDate();
@@ -388,6 +392,49 @@ export default function AdminAttendancePage() {
       return isDateInRange && matchesSearch && matchesClass && matchesTeacher && matchesStatus;
   });
   
+  const handleExport = (type: 'PDF' | 'CSV') => {
+    const doc = new jsPDF();
+    const tableData = filteredRecords.map(record => [
+        record.studentName,
+        record.class,
+        record.teacher,
+        record.date.toDate().toLocaleDateString(),
+        record.status,
+    ]);
+    const tableHeaders = ["Student", "Class", "Teacher", "Date", "Status"];
+
+    if (type === 'CSV') {
+        const csvContent = [
+            tableHeaders.join(","),
+            ...tableData.map(e => e.join(","))
+        ].join("\n");
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "attendance_report.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    } else {
+        doc.text("Attendance Report", 14, 16);
+        (doc as any).autoTable({
+            startY: 22,
+            head: [tableHeaders],
+            body: tableData,
+        });
+        doc.save("attendance_report.pdf");
+    }
+    toast({
+      title: 'Exporting Records',
+      description: `Your attendance records are being exported as a ${type} file.`,
+    });
+  };
+
   const summaryStats = {
       present: filteredRecords.filter(r => r.status === 'Present').length,
       absent: filteredRecords.filter(r => r.status === 'Absent').length,
@@ -664,3 +711,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
