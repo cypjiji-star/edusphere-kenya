@@ -53,6 +53,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 const resourceTypes: ResourceType[] = ['Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 const statuses: ResourceStatus[] = ['Available', 'Out', 'Digital'];
 
+type StudentAssignment = {
+    id: string;
+    bookTitle: string;
+    studentName: string;
+    teacherName: string;
+    assignedDate: Timestamp;
+    status: 'Assigned' | 'Returned';
+};
+
 const typeIcons: Record<Resource['type'], React.ElementType> = {
   Textbook: Book,
   'Past Paper': FileText,
@@ -244,6 +253,9 @@ export default function AdminLibraryPage() {
     const [selectedBookToReturn, setSelectedBookToReturn] = React.useState<string>('');
     const [returnQuantity, setReturnQuantity] = React.useState(1);
 
+    // State for student assignments tab
+    const [studentAssignments, setStudentAssignments] = React.useState<StudentAssignment[]>([]);
+
 
     React.useEffect(() => {
         if (!schoolId) {
@@ -279,12 +291,19 @@ export default function AdminLibraryPage() {
             setAllUsers(userNames);
         });
 
+        const studentAssignmentsQuery = query(collection(firestore, `schools/${schoolId}/student-assignments`));
+        const unsubStudentAssignments = onSnapshot(studentAssignmentsQuery, (snapshot) => {
+            const assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentAssignment));
+            setStudentAssignments(assignments);
+        });
+
 
         return () => {
             unsubscribe();
             unsubSubjects();
             unsubClasses();
             unsubUsers();
+            unsubStudentAssignments();
         };
     }, [schoolId]);
 
@@ -426,6 +445,18 @@ export default function AdminLibraryPage() {
             toast({ variant: 'destructive', title: 'Action Failed' });
         }
     };
+    
+    const handleMarkAsReturned = async (assignmentId: string) => {
+        if (!schoolId) return;
+        const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignmentId);
+        try {
+            await updateDoc(assignmentRef, { status: 'Returned' });
+            toast({ title: 'Success', description: 'Book marked as returned.' });
+        } catch (e) {
+            console.error('Failed to mark as returned', e);
+            toast({ variant: 'destructive', title: 'Update Failed' });
+        }
+    };
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing.</div>
@@ -455,6 +486,7 @@ export default function AdminLibraryPage() {
             <TabsList>
                 <TabsTrigger value="inventory">Inventory</TabsTrigger>
                 <TabsTrigger value="checkin">Check-in / Returns</TabsTrigger>
+                <TabsTrigger value="student_assignments">Student Assignments</TabsTrigger>
             </TabsList>
             <TabsContent value="inventory" className="mt-4">
                  <Card>
@@ -592,6 +624,58 @@ export default function AdminLibraryPage() {
                          <Button disabled={!selectedBookToReturn || returnQuantity <= 0}>Process Return</Button>
                     </CardContent>
                  </Card>
+            </TabsContent>
+            <TabsContent value="student_assignments" className="mt-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Student Book Assignments</CardTitle>
+                        <CardDescription>Track books assigned to individual students by teachers.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead>Book Title</TableHead>
+                                        <TableHead>Assigned By</TableHead>
+                                        <TableHead>Date Assigned</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {studentAssignments.length > 0 ? studentAssignments.map(assignment => (
+                                        <TableRow key={assignment.id}>
+                                            <TableCell className="font-medium">{assignment.studentName}</TableCell>
+                                            <TableCell>{assignment.bookTitle}</TableCell>
+                                            <TableCell>{assignment.teacherName}</TableCell>
+                                            <TableCell>{assignment.assignedDate.toDate().toLocaleDateString()}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={assignment.status === 'Returned' ? 'default' : 'secondary'} className={assignment.status === 'Returned' ? 'bg-green-600' : ''}>
+                                                    {assignment.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {assignment.status === 'Assigned' && (
+                                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsReturned(assignment.id)}>
+                                                        Mark as Returned
+                                                    </Button>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-24 text-center">
+                                                No books have been assigned to students.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                         </div>
+                    </CardContent>
+                </Card>
             </TabsContent>
         </Tabs>
       <EditResourceDialog resource={editingResource} open={!!editingResource} onOpenChange={(open) => !open && setEditingResource(null)} onSave={handleUpdateResource} onDelete={handleDeleteResource} />
