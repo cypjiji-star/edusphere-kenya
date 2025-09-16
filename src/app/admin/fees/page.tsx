@@ -19,9 +19,9 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { format, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -38,10 +38,27 @@ import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+  DialogFooter
+} from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useToast } from '@/hooks/use-toast';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-KE', {
@@ -82,10 +99,17 @@ type StudentFeeProfile = {
     transactions?: any[];
 };
 
+type FeeStructureItem = {
+    id: string;
+    category: string;
+    amount: number;
+    appliesTo: string;
+}
 
 export default function FeesPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { toast } = useToast();
   const [financials, setFinancials] = React.useState({
     totalBilled: 0,
     totalCollected: 0,
@@ -99,7 +123,7 @@ export default function FeesPage() {
   const [topDebtors, setTopDebtors] = React.useState<any[]>([]);
   const [upcomingDeadline, setUpcomingDeadline] = React.useState<Date | null>(null);
 
-  // New state for student profiles tab
+  // State for student profiles tab
   const [allStudents, setAllStudents] = React.useState<StudentFeeProfile[]>([]);
   const [filteredStudents, setFilteredStudents] = React.useState<StudentFeeProfile[]>([]);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -107,6 +131,13 @@ export default function FeesPage() {
   const [statusFilter, setStatusFilter] = React.useState('All Statuses');
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [selectedStudent, setSelectedStudent] = React.useState<StudentFeeProfile | null>(null);
+
+  // State for Fee Structure tab
+  const [feeStructure, setFeeStructure] = React.useState<FeeStructureItem[]>([]);
+  const [selectedClassForStructure, setSelectedClassForStructure] = React.useState('');
+  const [classYearlyFee, setClassYearlyFee] = React.useState<number>(0);
+  const [newFeeItemCategory, setNewFeeItemCategory] = React.useState('');
+  const [newFeeItemAmount, setNewFeeItemAmount] = React.useState('');
 
 
   React.useEffect(() => {
@@ -189,7 +220,17 @@ export default function FeesPage() {
       setTopDebtors(studentDebtors.sort((a, b) => b.balance - a.balance).slice(0, 5));
       setAllStudents(studentProfiles);
       setFilteredStudents(studentProfiles); // Initially show all
-      setClasses(['All Classes', ...Array.from(classSet)]);
+      const classList = ['All Classes', ...Array.from(classSet)];
+      setClasses(classList);
+      if (!selectedClassForStructure && classList.length > 1) {
+        setSelectedClassForStructure(classList[1]); // Default to first actual class
+      }
+    });
+
+    const feeStructureQuery = query(collection(firestore, `schools/${schoolId}/feeStructure`));
+    const unsubFeeStructure = onSnapshot(feeStructureQuery, (snapshot) => {
+        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeeStructureItem));
+        setFeeStructure(items);
     });
 
     const today = new Date();
@@ -215,6 +256,7 @@ export default function FeesPage() {
     return () => {
       unsubStudents();
       unsubPayments();
+      unsubFeeStructure();
     };
   }, [schoolId]);
 
@@ -231,15 +273,84 @@ export default function FeesPage() {
     }
     setFilteredStudents(students);
   }, [searchTerm, classFilter, statusFilter, allStudents]);
+  
+  React.useEffect(() => {
+    const classFees = feeStructure
+        .filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students')
+        .reduce((total, item) => total + item.amount, 0);
+    setClassYearlyFee(classFees);
+  }, [selectedClassForStructure, feeStructure]);
 
   const openStudentDialog = (student: StudentFeeProfile) => {
-    // Here you would fetch detailed transactions for the student
     const mockTransactions = [
         { id: '1', date: new Timestamp(1675209600,0), description: 'Term 1 Fees', type: 'Charge', amount: 50000, balance: 50000 },
         { id: '2', date: new Timestamp(1675814400,0), description: 'Bank Deposit', type: 'Payment', amount: -25000, balance: 25000 },
     ];
     setSelectedStudent({ ...student, transactions: mockTransactions });
   }
+
+  const handleSaveFeeItem = async (itemId?: string) => {
+    if (!newFeeItemCategory || !newFeeItemAmount || !schoolId) {
+        toast({ title: "Missing Information", variant: "destructive" });
+        return;
+    }
+    
+    const itemData = {
+        category: newFeeItemCategory,
+        amount: Number(newFeeItemAmount),
+        appliesTo: selectedClassForStructure
+    };
+
+    try {
+        if (itemId) {
+            await updateDoc(doc(firestore, `schools/${schoolId}/feeStructure`, itemId), itemData);
+            toast({ title: "Fee Item Updated" });
+        } else {
+            await addDoc(collection(firestore, `schools/${schoolId}/feeStructure`), itemData);
+            toast({ title: "New Fee Item Added" });
+        }
+        setNewFeeItemCategory('');
+        setNewFeeItemAmount('');
+    } catch (e) {
+        console.error(e);
+        toast({ title: "Save Failed", variant: "destructive" });
+    }
+  }
+
+  const handleDeleteFeeItem = async (itemId: string) => {
+    if (!window.confirm("Are you sure you want to delete this fee item?")) return;
+    if (!schoolId) return;
+    try {
+        await deleteDoc(doc(firestore, `schools/${schoolId}/feeStructure`, itemId));
+        toast({ title: "Fee Item Deleted" });
+    } catch (e) {
+        console.error(e);
+        toast({ title: "Delete Failed", variant: "destructive" });
+    }
+  }
+  
+  const handleSaveClassFees = async () => {
+    if (!selectedClassForStructure || !schoolId) return;
+    const batch = writeBatch(firestore);
+    const studentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('class', '==', selectedClassForStructure));
+    const studentsSnapshot = await getDocs(studentsInClassQuery);
+    
+    studentsSnapshot.forEach(studentDoc => {
+        const studentRef = doc(firestore, 'schools', schoolId, 'students', studentDoc.id);
+        batch.update(studentRef, { totalFee: classYearlyFee });
+    });
+
+    try {
+        await batch.commit();
+        toast({
+            title: 'Fees Applied',
+            description: `Yearly fee of ${formatCurrency(classYearlyFee)} has been applied to all students in ${selectedClassForStructure}.`,
+        });
+    } catch (e) {
+        console.error(e);
+        toast({title: 'Failed to Apply Fees', variant: 'destructive'});
+    }
+  };
 
   if (isLoading) {
     return <div className="p-8 h-full flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
@@ -258,6 +369,9 @@ export default function FeesPage() {
     }
   };
 
+  const currentClassFeeItems = feeStructure.filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students');
+
+
   return (
     <Dialog onOpenChange={(open) => !open && setSelectedStudent(null)}>
       <div className="p-4 sm:p-6 lg:p-8">
@@ -270,9 +384,10 @@ export default function FeesPage() {
         </div>
 
         <Tabs defaultValue="dashboard">
-            <TabsList className="mb-4">
+            <TabsList className="mb-4 grid w-full grid-cols-3">
                 <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                 <TabsTrigger value="students">Student Accounts</TabsTrigger>
+                <TabsTrigger value="structure">Fee Structure</TabsTrigger>
             </TabsList>
             <TabsContent value="dashboard" className="space-y-6">
                  {upcomingDeadline && differenceInDays(upcomingDeadline, new Date()) <= 30 && (
@@ -312,7 +427,7 @@ export default function FeesPage() {
                     <Card><CardHeader><CardTitle>Monthly Collection Trend</CardTitle><CardDescription>A look at the fee collection performance over the past few months.</CardDescription></CardHeader><CardContent><ChartContainer config={collectionTrendConfig} className="h-[250px] w-full"><BarChart data={collectionTrend}><CartesianGrid vertical={false} /><XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} /><YAxis tickFormatter={(value) => `${value / 1000000}M`} /><ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} /><Bar dataKey="collected" fill="var(--color-collected)" radius={8} /></BarChart></ChartContainer></CardContent></Card>
                 </div>
             </TabsContent>
-             <TabsContent value="students">
+            <TabsContent value="students">
                 <Card>
                     <CardHeader>
                         <CardTitle>Student Fee Accounts</CardTitle>
@@ -369,6 +484,60 @@ export default function FeesPage() {
                                 </TableBody>
                             </Table>
                         </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="structure">
+                <Card>
+                     <CardHeader>
+                        <CardTitle>Class Fee Structures</CardTitle>
+                        <CardDescription>Define the fee items for each class. These amounts will be used to calculate the total yearly fee for each student.</CardDescription>
+                         <div className="pt-4">
+                            <Label htmlFor="class-structure-select">Select a Class to Manage</Label>
+                             <Select value={selectedClassForStructure} onValueChange={setSelectedClassForStructure}>
+                                <SelectTrigger id="class-structure-select" className="w-full md:w-72 mt-2">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {classes.filter(c => c !== 'All Classes').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                         </div>
+                    </CardHeader>
+                    <CardContent>
+                         <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">Fee Items for {selectedClassForStructure}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Category</TableHead><TableHead>Applies To</TableHead><TableHead className="text-right">Amount (KES)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {currentClassFeeItems.map(item => (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="font-medium">{item.category}</TableCell>
+                                                <TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell>
+                                                <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                                                <TableCell className="text-right space-x-2">
+                                                    <Button variant="ghost" size="icon" disabled><Edit2 className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteFeeItem(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        <TableRow>
+                                            <TableCell><Input placeholder="New Item Category" value={newFeeItemCategory} onChange={e => setNewFeeItemCategory(e.target.value)}/></TableCell>
+                                            <TableCell>{selectedClassForStructure}</TableCell>
+                                            <TableCell className="text-right"><Input type="number" placeholder="Amount" className="ml-auto text-right w-32" value={newFeeItemAmount} onChange={e => setNewFeeItemAmount(e.target.value)} /></TableCell>
+                                            <TableCell className="text-right"><Button size="sm" onClick={() => handleSaveFeeItem()}>Add Item</Button></TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                            <CardFooter className="bg-muted/50 p-4 flex justify-between items-center rounded-b-lg">
+                                <div className="font-semibold">Total Yearly Fee for {selectedClassForStructure}: {formatCurrency(classYearlyFee)}</div>
+                                <Button onClick={handleSaveClassFees}>Save & Apply to Class</Button>
+                            </CardFooter>
+                         </Card>
                     </CardContent>
                 </Card>
             </TabsContent>
