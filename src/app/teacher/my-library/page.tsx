@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer } from 'lucide-react';
+import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
@@ -21,8 +21,10 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
 type BorrowedItem = {
@@ -46,6 +48,18 @@ type RequestItem = {
     status: 'Approved' | 'Pending' | 'Declined';
 }
 
+type StudentAssignment = {
+    id: string;
+    bookTitle: string;
+    studentName: string;
+    assignedDate: Timestamp;
+}
+
+type TeacherStudent = {
+    id: string;
+    name: string;
+}
+
 export default function MyLibraryPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
@@ -53,9 +67,14 @@ export default function MyLibraryPage() {
     const [borrowedItems, setBorrowedItems] = React.useState<BorrowedItem[]>([]);
     const [historyItems, setHistoryItems] = React.useState<HistoryItem[]>([]);
     const [requestItems, setRequestItems] = React.useState<RequestItem[]>([]);
+    const [studentAssignments, setStudentAssignments] = React.useState<StudentAssignment[]>([]);
     const [newRequestTitle, setNewRequestTitle] = React.useState('');
     const { toast } = useToast();
     const user = auth.currentUser;
+
+    const [teacherStudents, setTeacherStudents] = React.useState<TeacherStudent[]>([]);
+    const [selectedBookForAssignment, setSelectedBookForAssignment] = React.useState('');
+    const [selectedStudentForAssignment, setSelectedStudentForAssignment] = React.useState('');
 
     React.useEffect(() => {
         if (!schoolId || !user) return;
@@ -81,10 +100,24 @@ export default function MyLibraryPage() {
             setRequestItems(items);
         });
 
+        const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/student-assignments`), where('teacherId', '==', teacherId));
+        const unsubAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
+            const assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentAssignment));
+            setStudentAssignments(assignments);
+        });
+
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId));
+        const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+            const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as TeacherStudent));
+            setTeacherStudents(students);
+        });
+
         return () => {
             unsubBorrowed();
             unsubHistory();
             unsubRequests();
+            unsubAssignments();
+            unsubStudents();
         }
     }, [schoolId, user]);
 
@@ -161,6 +194,42 @@ export default function MyLibraryPage() {
             toast({ variant: 'destructive', title: 'Submission Failed' });
         }
     };
+
+    const handleAssignBook = async () => {
+        if (!selectedBookForAssignment || !selectedStudentForAssignment || !schoolId || !user) {
+            toast({ variant: 'destructive', title: 'Please select a book and a student.' });
+            return;
+        }
+
+        const book = borrowedItems.find(b => b.id === selectedBookForAssignment);
+        const student = teacherStudents.find(s => s.id === selectedStudentForAssignment);
+
+        if (!book || !student) return;
+        
+        try {
+            await addDoc(collection(firestore, `schools/${schoolId}/student-assignments`), {
+                bookId: book.id,
+                bookTitle: book.title,
+                studentId: student.id,
+                studentName: student.name,
+                teacherId: user.uid,
+                assignedDate: serverTimestamp(),
+                status: 'Assigned',
+            });
+
+            toast({
+                title: 'Book Assigned',
+                description: `"${book.title}" has been assigned to ${student.name}.`,
+            });
+
+            setSelectedBookForAssignment('');
+            setSelectedStudentForAssignment('');
+
+        } catch (error) {
+            console.error("Error assigning book:", error);
+            toast({ variant: 'destructive', title: 'Assignment Failed' });
+        }
+    };
     
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -180,12 +249,12 @@ export default function MyLibraryPage() {
         <Tabs defaultValue="borrowed" className="w-full">
             <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex">
                 <TabsTrigger value="borrowed">Currently Borrowed</TabsTrigger>
-                <TabsTrigger value="reserved">My Reservations</TabsTrigger>
+                <TabsTrigger value="assignments">Student Assignments</TabsTrigger>
                 <TabsTrigger value="history">Borrowing History</TabsTrigger>
                 <TabsTrigger value="requests">My Requests</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="borrowed">
+            <TabsContent value="borrowed" className="mt-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Currently Borrowed Items</CardTitle>
@@ -222,26 +291,86 @@ export default function MyLibraryPage() {
                 </Card>
             </TabsContent>
 
-             <TabsContent value="reserved">
+            <TabsContent value="assignments" className="mt-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle>My Reservations</CardTitle>
-                        <CardDescription>These are items you have reserved. You will be notified when they become available.</CardDescription>
+                        <CardTitle>Assign Books to Students</CardTitle>
+                        <CardDescription>Distribute the books you have borrowed to students in your class.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                         {/* This section will be populated from Firestore reservations subcollection */}
-                        <div className="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                            <div className="text-center">
-                                <Clock className="mx-auto h-12 w-12 text-muted-foreground" />
-                                <h3 className="mt-4 text-lg font-semibold">No Reservations</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">You have no items currently on reserve.</p>
+                    <CardContent className="space-y-6">
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg">
+                            <div className="space-y-2">
+                                <Label>Select Book</Label>
+                                <Select value={selectedBookForAssignment} onValueChange={setSelectedBookForAssignment}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a borrowed book..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {borrowedItems.map(item => (
+                                            <SelectItem key={item.id} value={item.id}>{item.title} ({item.quantity} copies)</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Select Student</Label>
+                                <Select value={selectedStudentForAssignment} onValueChange={setSelectedStudentForAssignment}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a student..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {teacherStudents.map(student => (
+                                            <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button onClick={handleAssignBook} className="self-end" disabled={!selectedBookForAssignment || !selectedStudentForAssignment}>
+                                <Users className="mr-2 h-4 w-4" />
+                                Assign to Student
+                            </Button>
+                        </div>
+                        
+                        <Separator />
+
+                        <div>
+                            <h3 className="font-semibold mb-2">Current Assignments</h3>
+                             <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Student</TableHead>
+                                            <TableHead>Book Title</TableHead>
+                                            <TableHead>Date Assigned</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {studentAssignments.length > 0 ? studentAssignments.map(assignment => (
+                                            <TableRow key={assignment.id}>
+                                                <TableCell className="font-medium">{assignment.studentName}</TableCell>
+                                                <TableCell>{assignment.bookTitle}</TableCell>
+                                                <TableCell>{assignment.assignedDate?.toDate().toLocaleDateString()}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="outline" size="sm">Mark as Returned</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="h-24 text-center">
+                                                    No books have been assigned to students yet.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
-             </TabsContent>
-            
-             <TabsContent value="history">
+            </TabsContent>
+
+             <TabsContent value="history" className="mt-4">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
@@ -278,7 +407,7 @@ export default function MyLibraryPage() {
                 </Card>
              </TabsContent>
              
-            <TabsContent value="requests">
+            <TabsContent value="requests" className="mt-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
