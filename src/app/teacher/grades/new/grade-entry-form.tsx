@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -35,6 +35,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Save, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -152,7 +163,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
     fetchData();
   }, [schoolId, selectedClass, replace, form, preselectedTask]);
 
-  async function onSubmit(values: GradeEntryFormValues) {
+  async function handleSave(values: GradeEntryFormValues) {
     if (!schoolId || !user) {
         toast({ variant: 'destructive', title: 'Error', description: 'School ID is missing or user is not authenticated.' });
         return;
@@ -166,10 +177,9 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
         title: 'Grades Saved!',
         description: `The grades have been successfully recorded.`,
       });
-      form.reset({
-        ...values,
-        grades: students.map(s => ({ studentId: s.id, grade: '' })),
-      });
+      // Optionally reset only the grade fields, keeping selections
+      const newGrades = values.grades.map(g => ({ ...g, grade: '' }));
+      form.setValue('grades', newGrades);
     } else {
       toast({
         variant: 'destructive',
@@ -183,7 +193,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(handleSave)}>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           <div className="space-y-6">
             <FormField
@@ -338,20 +348,32 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
           </div>
         </div>
         
-        <div className="flex justify-end pt-4">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving Grades...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save All Grades
-              </>
-            )}
-          </Button>
+        <div className="flex justify-end pt-4 gap-2">
+            <Button type="submit" variant="secondary" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Draft
+            </Button>
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button type="button" disabled={isLoading}>
+                        Submit Final Grades
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to submit?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Once submitted, you will not be able to make further changes to these grades without administrative approval.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={form.handleSubmit(handleSave)}>
+                        Yes, Submit Final Grades
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
       </form>
     </Form>
