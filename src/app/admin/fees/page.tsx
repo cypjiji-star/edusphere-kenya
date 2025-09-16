@@ -17,11 +17,11 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
-import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import { format, isPast } from 'date-fns';
+import { format, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-KE', {
@@ -72,8 +74,9 @@ export default function FeesPage() {
   const [collectionTrend, setCollectionTrend] = React.useState<any[]>([]);
   const [arrearsData, setArrearsData] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [studentsWithFees, setStudentsWithFees] = React.useState<{cleared: number, arrears: number, overdue: number}>({ cleared: 0, arrears: 0, overdue: 0 });
+  const [studentsWithFees, setStudentsWithFees] = React.useState<{cleared: number; arrears: number; overdue: number}>({ cleared: 0, arrears: 0, overdue: 0 });
   const [topDebtors, setTopDebtors] = React.useState<any[]>([]);
+  const [upcomingDeadline, setUpcomingDeadline] = React.useState<Date | null>(null);
 
 
   React.useEffect(() => {
@@ -91,6 +94,7 @@ export default function FeesPage() {
       let arrearsCount = 0;
       let overdueCount = 0;
       const studentDebtors: any[] = [];
+      let nextDeadline: Date | null = null;
 
       snapshot.forEach(doc => {
         const data = doc.data();
@@ -106,6 +110,10 @@ export default function FeesPage() {
             arrearsCount++;
             if(isPast(dueDate)) {
                 overdueCount++;
+            } else {
+                if (!nextDeadline || dueDate < nextDeadline) {
+                    nextDeadline = dueDate;
+                }
             }
             studentDebtors.push({
                 id: doc.id,
@@ -118,6 +126,7 @@ export default function FeesPage() {
       });
       const outstanding = totalBilled - totalCollected;
       setFinancials(prev => ({...prev, totalBilled, totalCollected, outstanding }));
+      setUpcomingDeadline(nextDeadline);
       
       const collectedPercentage = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
       setArrearsData([
@@ -179,6 +188,16 @@ export default function FeesPage() {
         </h1>
         <p className="text-muted-foreground">An overview of the school's fee collection status.</p>
       </div>
+
+      {upcomingDeadline && differenceInDays(upcomingDeadline, new Date()) <= 30 && (
+         <Alert className="mb-6">
+            <Calendar className="h-4 w-4" />
+            <AlertTitle>Upcoming Deadline</AlertTitle>
+            <AlertDescription>
+                A fee payment deadline is approaching on {format(upcomingDeadline, 'PPP')} ({formatDistanceToNow(upcomingDeadline, { addSuffix: true })}).
+            </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <Card>
