@@ -15,6 +15,7 @@ import {
   sub,
   eachWeekOfInterval,
   isToday,
+  parse,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, User, Filter, Calendar as CalendarIcon, Clock, MapPin, Paperclip, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -313,5 +314,3 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
     </Dialog>
   );
 }
-
-    

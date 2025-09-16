@@ -14,7 +14,6 @@ import {
   add,
   sub,
   eachWeekOfInterval,
-  getDay,
   isToday,
   parse,
 } from 'date-fns';
@@ -266,5 +265,3 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
     </div>
   );
 }
-
-    
