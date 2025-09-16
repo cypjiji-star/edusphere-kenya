@@ -243,14 +243,14 @@ export default function AnnouncementsPage() {
       
       const userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
-      const teacherName = userDoc.exists() ? userDoc.data().name : 'Teacher';
+      const teacherName = userDoc.exists() ? userDoc.data().name : user.displayName || 'Teacher';
 
       const newAnnouncement = {
           title: values.title,
           content: values.message,
           audience: values.audience,
           category: values.category,
-          sender: { id: user.uid, name: teacherName, avatarUrl: user.photoURL || 'https://picsum.photos/seed/teacher-avatar/100' },
+          sender: { id: user.uid, name: teacherName, avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100` },
           sentAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
           readBy: [],
           readCount: 0,
