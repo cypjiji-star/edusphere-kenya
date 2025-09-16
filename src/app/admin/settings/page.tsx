@@ -241,13 +241,13 @@ export default function SettingsPage() {
                         <Label className="text-base font-semibold">School Identity</Label>
                         <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                             <div>
-                                <p className="font-medium">School Name & Motto</p>
+                                <p className="font-medium">School Name, Motto & Branding</p>
                                 <p className="text-xs text-muted-foreground">This is managed in the School Profile section.</p>
                             </div>
                             <Button asChild variant="secondary">
                                 <Link href={`/admin/profile?schoolId=${schoolId}`}>
                                     <Edit className="mr-2 h-4 w-4" />
-                                    Edit Profile
+                                    Manage Profile
                                 </Link>
                             </Button>
                         </div>
@@ -478,19 +478,19 @@ export default function SettingsPage() {
                      <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                         <div>
                             <Label className="font-semibold">Communication Channels</Label>
-                            <p className="text-xs text-muted-foreground">Configure SMS, Email, and Push Notifications.</p>
+                            <p className="text-xs text-muted-foreground">Configure SMS, Email, and Payment gateways.</p>
                         </div>
                          <Dialog>
                             <DialogTrigger asChild>
                                 <Button variant="secondary">
                                     <LinkIcon className="mr-2 h-4 w-4"/>
-                                    Manage
+                                    Manage Gateways
                                 </Button>
                             </DialogTrigger>
                              <DialogContent>
                                 <DialogHeader>
-                                    <DialogTitle>Communication Channels</DialogTitle>
-                                    <DialogDescription>Manage gateways for sending SMS and email.</DialogDescription>
+                                    <DialogTitle>Communication & Payment Gateways</DialogTitle>
+                                    <DialogDescription>Manage gateways for sending SMS, email, and processing payments.</DialogDescription>
                                 </DialogHeader>
                                 <div className="py-4 space-y-4">
                                      <Card>
@@ -510,28 +510,26 @@ export default function SettingsPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>API Key</Label>
-                                                <Input type="password" placeholder="Enter your API key..." />
+                                                <Input type="password" placeholder="Enter your SMS API key..." />
                                             </div>
                                         </CardContent>
                                      </Card>
-                                      <Card>
+                                     <Card>
                                         <CardHeader>
-                                            <CardTitle className="text-base">Email Gateway</CardTitle>
+                                            <CardTitle className="text-base">M-Pesa Paybill/Till</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
                                             <div className="space-y-2">
-                                                <Label>Provider</Label>
-                                                <Select defaultValue="sendgrid">
-                                                    <SelectTrigger><SelectValue/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="sendgrid">SendGrid</SelectItem>
-                                                        <SelectItem value="mailgun">Mailgun</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <Label>Paybill/Till Number</Label>
+                                                <Input placeholder="e.g., 888888" />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label>API Key</Label>
-                                                <Input type="password" placeholder="Enter your API key..." />
+                                                <Label>API Consumer Key</Label>
+                                                <Input type="password" placeholder="Enter your M-Pesa Consumer Key..." />
+                                            </div>
+                                             <div className="space-y-2">
+                                                <Label>API Consumer Secret</Label>
+                                                <Input type="password" placeholder="Enter your M-Pesa Consumer Secret..." />
                                             </div>
                                         </CardContent>
                                      </Card>
@@ -541,7 +539,7 @@ export default function SettingsPage() {
                                         <Button variant="outline">Cancel</Button>
                                     </DialogClose>
                                     <DialogClose asChild>
-                                        <Button onClick={() => toast({title: 'Gateways Saved'})}>Save Gateways</Button>
+                                        <Button onClick={() => toast({title: 'Gateways Saved'})}>Save Gateway Settings</Button>
                                     </DialogClose>
                                 </DialogFooter>
                             </DialogContent>
