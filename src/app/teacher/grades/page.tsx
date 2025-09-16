@@ -67,6 +67,7 @@ import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
+import { BulkGradeEntry } from './new/bulk-grade-entry';
 
 
 // --- Data Types ---
@@ -520,11 +521,22 @@ export default function GradesPage() {
         <TabsContent value="entry">
            <Card>
                 <CardHeader>
-                    <CardTitle>Enter New Grades</CardTitle>
-                    <CardDescription>Fill out the form to add a new assessment and enter grades for your class.</CardDescription>
+                    <CardTitle>Enter Grades</CardTitle>
+                    <CardDescription>Select an assessment and enter grades for your class. You can also upload a completed CSV file.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <GradeEntryForm />
+                  <Tabs defaultValue="manual">
+                    <TabsList>
+                      <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+                      <TabsTrigger value="bulk">Bulk Grade Upload</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="manual" className="pt-6">
+                      <GradeEntryForm />
+                    </TabsContent>
+                    <TabsContent value="bulk" className="pt-6">
+                       <BulkGradeEntry />
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
             </Card>
         </TabsContent>
@@ -550,3 +562,4 @@ export default function GradesPage() {
     </div>
   );
 }
+
