@@ -250,7 +250,7 @@ export default function MyLibraryPage() {
         }
 
         const book = borrowedItems.find(b => b.id === selectedBookForAssignment);
-        const student = teacherStudents.find(s => s.id === selectedStudentForAssignment);
+        const student = allTeacherStudents.find(s => s.id === selectedStudentForAssignment);
 
         if (!book || !student) return;
         
