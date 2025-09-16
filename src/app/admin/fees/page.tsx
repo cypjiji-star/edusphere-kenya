@@ -483,13 +483,27 @@ export default function FeesPage() {
         
         batch.update(studentRef, { amountPaid: newPaid });
 
-        const transactionRef = doc(collection(studentRef, 'transactions'));
-        batch.set(transactionRef, {
+        // Record in student's subcollection
+        const studentTransactionRef = doc(collection(studentRef, 'transactions'));
+        batch.set(studentTransactionRef, {
             date: Timestamp.fromDate(paymentDate),
             description: `Payment via ${paymentMethod}`,
             type: 'Payment',
             amount: -amount,
             notes: paymentNotes
+        });
+
+        // Record in top-level transactions collection for reporting
+        const schoolTransactionRef = doc(collection(firestore, `schools/${schoolId}/transactions`));
+        batch.set(schoolTransactionRef, {
+            studentId: selectedStudentForPayment,
+            studentName: currentData.name,
+            class: currentData.class,
+            date: Timestamp.fromDate(paymentDate),
+            description: `Payment via ${paymentMethod}`,
+            type: 'Payment',
+            amount: -amount,
+            method: paymentMethod,
         });
 
         await batch.commit();
