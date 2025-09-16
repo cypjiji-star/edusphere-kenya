@@ -393,7 +393,7 @@ function ManageFeeItemDialog({ item, open, onOpenChange, onSave, allClassNames }
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="category">Category Name</Label>
-                        <Input id="category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Tuition Fee, Transport Fee" />
+                        <Input id="category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Transport Fee, Lunch Program" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="amount">Amount (KES)</Label>
@@ -613,7 +613,7 @@ export default function FeesPage() {
 
         try {
             await batch.commit();
-            toast({ title: 'Class Fees Updated', description: 'Yearly tuition fees have been saved.' });
+            toast({ title: 'Class Fees Updated', description: 'Yearly school fees have been saved.' });
         } catch (e) {
             console.error(e);
             toast({ title: 'Error Saving Fees', variant: 'destructive' });
@@ -741,10 +741,10 @@ export default function FeesPage() {
                         <Card>
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle>Yearly Tuition Fee by Class</CardTitle>
-                                    <CardDescription>Define the base tuition fee for each class.</CardDescription>
+                                    <CardTitle>Yearly School Fees by Class</CardTitle>
+                                    <CardDescription>Define the base school fees for each class.</CardDescription>
                                 </div>
-                                <Button onClick={handleSaveClassFees}>Save Tuition Fees</Button>
+                                <Button onClick={handleSaveClassFees}>Save School Fees</Button>
                             </CardHeader>
                              <CardContent>
                                 <div className="w-full overflow-auto rounded-lg border">

@@ -128,7 +128,7 @@ export default function DeveloperDashboard() {
         // 6. Add default fee structure item
         const feeStructureRef = doc(collection(firestore, 'schools', schoolCode, 'feeStructure'));
         batch.set(feeStructureRef, {
-            category: 'Tuition Fee',
+            category: 'School Fees',
             appliesTo: 'All Students',
             amount: 50000,
         });
