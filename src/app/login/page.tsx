@@ -16,7 +16,7 @@ const defaultProfile = {
     name: 'EduSphere Kenya',
     motto: 'Empowering Education for All',
     logoUrl: 'https://picsum.photos/seed/default-logo/200',
-    coverImageUrl: 'https://picsum.photos/seed/default-cover/1200/1800',
+    coverImageUrl: 'https://i.postimg.cc/1tRnvG0P/Chat-GPT-Image-Sep-16-2025-08-14-02-PM.png',
 };
 
 
