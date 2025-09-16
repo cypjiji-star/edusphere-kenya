@@ -43,7 +43,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc, Timestamp, setDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc, Timestamp, setDoc, getDocs, runTransaction } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { Resource, ResourceType, ResourceStatus } from '@/app/teacher/library/types';
@@ -251,9 +251,10 @@ export default function AdminLibraryPage() {
     
     // State for returns tab
     const [selectedReturnUser, setSelectedReturnUser] = React.useState<string>('');
-    const [userBorrowedBooks, setUserBorrowedBooks] = React.useState<{id: string, title: string}[]>([]);
+    const [userBorrowedBooks, setUserBorrowedBooks] = React.useState<{id: string, title: string, quantity: number}[]>([]);
     const [selectedBookToReturn, setSelectedBookToReturn] = React.useState<string>('');
     const [returnQuantity, setReturnQuantity] = React.useState(1);
+    const [isReturning, setIsReturning] = React.useState(false);
 
     // State for student assignments tab
     const [studentAssignments, setStudentAssignments] = React.useState<StudentAssignment[]>([]);
@@ -352,12 +353,74 @@ export default function AdminLibraryPage() {
             const books = snapshot.docs.map(doc => ({
                 id: doc.id,
                 title: doc.data().title,
+                quantity: doc.data().quantity || 1,
             }));
             setUserBorrowedBooks(books);
         });
 
         return () => unsubscribe();
     }, [selectedReturnUser, schoolId]);
+    
+    const handleProcessReturn = async () => {
+        if (!selectedReturnUser || !selectedBookToReturn || returnQuantity <= 0 || !schoolId) {
+            toast({ title: 'Invalid return information', variant: 'destructive'});
+            return;
+        }
+
+        setIsReturning(true);
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const resourceRef = doc(firestore, 'schools', schoolId, 'library-resources', selectedBookToReturn);
+                const userBorrowedItemRef = doc(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowed-items', selectedBookToReturn);
+                
+                const resourceSnap = await transaction.get(resourceRef);
+                const userItemSnap = await transaction.get(userBorrowedItemRef);
+
+                if (!resourceSnap.exists() || !userItemSnap.exists()) {
+                    throw new Error("Book or borrowed record not found.");
+                }
+
+                const resourceData = resourceSnap.data() as Resource;
+                const userItemData = userItemSnap.data() as { quantity: number; title: string };
+                
+                if (returnQuantity > userItemData.quantity) {
+                    throw new Error("Cannot return more copies than were borrowed.");
+                }
+
+                // Update main inventory
+                transaction.update(resourceRef, {
+                    availableCopies: resourceData.availableCopies + returnQuantity
+                });
+                
+                // Update or delete user's borrowed record
+                if (returnQuantity === userItemData.quantity) {
+                    transaction.delete(userBorrowedItemRef);
+                } else {
+                    transaction.update(userBorrowedItemRef, {
+                        quantity: userItemData.quantity - returnQuantity
+                    });
+                }
+                
+                // Add to user's history
+                const historyRef = doc(collection(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowing-history'));
+                transaction.set(historyRef, {
+                    title: userItemData.title,
+                    borrowedDate: userItemData.borrowedDate, // Assuming this field exists
+                    returnedDate: serverTimestamp(),
+                });
+            });
+
+            toast({ title: 'Return Processed', description: 'Inventory has been updated.'});
+            setSelectedBookToReturn('');
+            setReturnQuantity(1);
+
+        } catch (error: any) {
+            console.error("Error processing return:", error);
+            toast({ title: 'Return Failed', description: error.message, variant: 'destructive'});
+        } finally {
+            setIsReturning(false);
+        }
+    };
 
     const filteredResources = resources.filter(res => 
         res.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -644,7 +707,7 @@ export default function AdminLibraryPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {userBorrowedBooks.map(book => (
-                                            <SelectItem key={book.id} value={book.id}>{book.title}</SelectItem>
+                                            <SelectItem key={book.id} value={book.id}>{book.title} ({book.quantity} borrowed)</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -654,7 +717,10 @@ export default function AdminLibraryPage() {
                             <Label htmlFor="return-quantity">Quantity to Return</Label>
                             <Input id="return-quantity" type="number" placeholder="1" value={returnQuantity} onChange={e => setReturnQuantity(Number(e.target.value))} />
                         </div>
-                         <Button disabled={!selectedBookToReturn || returnQuantity <= 0}>Process Return</Button>
+                         <Button onClick={handleProcessReturn} disabled={!selectedBookToReturn || returnQuantity <= 0 || isReturning}>
+                            {isReturning && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Process Return
+                        </Button>
                     </CardContent>
                  </Card>
             </TabsContent>
