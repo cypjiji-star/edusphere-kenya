@@ -56,6 +56,8 @@ import { collection, query, onSnapshot, where, doc, getDoc, Timestamp, writeBatc
 import type { DocumentData } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { logAuditEvent } from '@/lib/audit-log.service';
+
 
 type Child = {
     id: string;
@@ -199,13 +201,16 @@ export default function ParentFeesPage() {
     };
 
     const handleMpesaPayment = async () => {
-        if (!selectedChild || paymentAmount <= 0 || !schoolId) {
+        if (!selectedChild || paymentAmount <= 0 || !schoolId || !user) {
             toast({ variant: 'destructive', title: 'Invalid amount or missing information.' });
             return;
         }
 
         setIsProcessingPayment(true);
         const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedChild);
+        const studentSnap = await getDoc(studentRef);
+        const studentName = studentSnap.exists() ? studentSnap.data().name : 'a student';
+
 
         try {
             await runTransaction(firestore, async (transaction) => {
@@ -230,6 +235,14 @@ export default function ParentFeesPage() {
                     balance: newBalance,
                     recordedBy: 'Parent Portal',
                 });
+            });
+
+            await logAuditEvent({
+                schoolId,
+                actionType: 'Finance',
+                description: `M-Pesa Payment Received`,
+                user: { name: user.displayName || 'Parent', avatarUrl: user.photoURL || '' },
+                details: `${formatCurrency(paymentAmount)} paid for ${studentName} via Parent Portal.`,
             });
 
             toast({

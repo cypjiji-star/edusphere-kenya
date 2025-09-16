@@ -44,7 +44,7 @@ import {
   Trash2,
   Shield,
 } from 'lucide-react';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import {
   collection,
   query,
@@ -112,6 +112,9 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Calendar } from '@/components/ui/calendar';
+import { logAuditEvent } from '@/lib/audit-log.service';
+import { useAuth } from '@/context/auth-context';
+
 
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-KE', {
@@ -563,6 +566,7 @@ function StudentProfileDialog({
 export default function FeesPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
   const { toast } = useToast();
   const [financials, setFinancials] = React.useState({
     totalBilled: 0,
@@ -863,7 +867,7 @@ export default function FeesPage() {
   };
 
   const handleRecordPayment = async () => {
-    if (!schoolId || !selectedStudentForPayment || !paymentAmount || !paymentDate) {
+    if (!schoolId || !selectedStudentForPayment || !paymentAmount || !paymentDate || !user) {
       toast({ title: 'Missing Fields', description: 'Please select a student and enter an amount and date.', variant: 'destructive' });
       return;
     }
@@ -875,6 +879,13 @@ export default function FeesPage() {
     setIsSavingPayment(true);
 
     const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedStudentForPayment);
+    const studentSnap = await getDoc(studentRef);
+    if (!studentSnap.exists()) {
+        toast({ title: 'Error', description: 'Student not found', variant: 'destructive' });
+        setIsSavingPayment(false);
+        return;
+    }
+    const studentData = studentSnap.data();
 
     try {
       await runTransaction(firestore, async (transaction) => {
@@ -913,6 +924,14 @@ export default function FeesPage() {
         });
       });
 
+      await logAuditEvent({
+        schoolId,
+        actionType: 'Finance',
+        description: `Payment Recorded`,
+        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        details: `${formatCurrency(amount)} recorded for ${studentData.name} via ${paymentMethod}.`,
+      });
+
       toast({
         title: 'Payment Recorded',
         description: `A ${paymentMethod} payment of ${formatCurrency(amount)} has been recorded.`,
@@ -932,7 +951,7 @@ export default function FeesPage() {
   };
   
     const handleCreateInvoice = async () => {
-    if (!schoolId || !newInvoiceStudentId || !newInvoiceAmount || !newInvoiceDescription || !newInvoiceDueDate) {
+    if (!schoolId || !newInvoiceStudentId || !newInvoiceAmount || !newInvoiceDescription || !newInvoiceDueDate || !user) {
       toast({ title: 'Missing Fields', description: 'Please fill out all invoice details.', variant: 'destructive' });
       return;
     }
@@ -946,11 +965,13 @@ export default function FeesPage() {
     const studentRef = doc(firestore, `schools/${schoolId}/students`, newInvoiceStudentId);
 
     try {
+      let studentName = 'Unknown Student';
       await runTransaction(firestore, async (transaction) => {
         const studentDoc = await transaction.get(studentRef);
         if (!studentDoc.exists()) throw new Error('Student not found');
 
         const currentData = studentDoc.data();
+        studentName = currentData.name;
         const newTotalFee = (currentData.totalFee || 0) + amount;
         const newBalance = (currentData.balance || 0) + amount;
 
@@ -968,6 +989,14 @@ export default function FeesPage() {
           balance: newBalance,
           dueDate: Timestamp.fromDate(newInvoiceDueDate),
         });
+      });
+
+      await logAuditEvent({
+        schoolId,
+        actionType: 'Finance',
+        description: `Invoice Generated`,
+        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        details: `Invoice for ${formatCurrency(amount)} (${newInvoiceDescription}) created for ${studentName}.`,
       });
 
       toast({
@@ -990,7 +1019,7 @@ export default function FeesPage() {
 
   const handleSaveFeeItem = async () => {
     const { category, amount } = newFeeItem;
-    if (!category || !amount || !schoolId || !selectedClassForStructure) {
+    if (!category || !amount || !schoolId || !selectedClassForStructure || !user) {
       toast({ title: 'Missing Information', description: 'Please provide a category and amount.', variant: 'destructive' });
       return;
     }
@@ -1011,6 +1040,15 @@ export default function FeesPage() {
       const structureRef = doc(firestore, `schools/${schoolId}/fee-structures`, selectedClassForStructure);
       const updatedStructure = [...feeStructure, newItem];
       await setDoc(structureRef, { items: updatedStructure }, { merge: true });
+
+      await logAuditEvent({
+        schoolId,
+        actionType: 'Finance',
+        description: 'Fee Structure Item Added',
+        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        details: `Item "${category}" for ${formatCurrency(parsedAmount)} added to class ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
+      });
+
       toast({ title: 'New Fee Item Added', description: `${category} added successfully.` });
       setNewFeeItem({ category: '', amount: '' });
     } catch (e: unknown) {
@@ -1020,14 +1058,23 @@ export default function FeesPage() {
     }
   };
 
-  const handleDeleteFeeItem = async (itemId: string) => {
+  const handleDeleteFeeItem = async (itemId: string, itemCategory: string) => {
     if (!window.confirm('Are you sure you want to delete this fee item?')) return;
-    if (!schoolId || !selectedClassForStructure) return;
+    if (!schoolId || !selectedClassForStructure || !user) return;
 
     try {
       const structureRef = doc(firestore, `schools/${schoolId}/fee-structures`, selectedClassForStructure);
       const updatedStructure = feeStructure.filter((item) => item.id !== itemId);
       await setDoc(structureRef, { items: updatedStructure });
+
+       await logAuditEvent({
+        schoolId,
+        actionType: 'Finance',
+        description: 'Fee Structure Item Removed',
+        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        details: `Item "${itemCategory}" removed from class ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
+      });
+
       toast({ title: 'Fee Item Deleted', description: 'Fee item removed successfully.' });
     } catch (e: unknown) {
       console.error('Error deleting fee item:', e);
@@ -1037,7 +1084,7 @@ export default function FeesPage() {
   };
 
   const handleSaveClassFees = async () => {
-    if (!selectedClassForStructure || !schoolId || totalYearlyFee <= 0) {
+    if (!selectedClassForStructure || !schoolId || totalYearlyFee <= 0 || !user) {
         toast({ title: 'Invalid Data', description: 'Please select a class and ensure the total fee is positive.', variant: 'destructive' });
         return;
     }
@@ -1081,6 +1128,15 @@ export default function FeesPage() {
                 });
             }
         });
+
+        await logAuditEvent({
+            schoolId,
+            actionType: 'Finance',
+            description: 'Bulk Fees Applied',
+            user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+            details: `Annual fee of ${formatCurrency(totalYearlyFee)} applied to ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
+        });
+
 
         toast({
             title: 'Fees Applied!',
@@ -1813,7 +1869,7 @@ export default function FeesPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => handleDeleteFeeItem(item.id)}
+                                    onClick={() => handleDeleteFeeItem(item.id, item.category)}
                                     aria-label={`Delete ${item.category} fee item`}
                                   >
                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -1897,4 +1953,3 @@ export default function FeesPage() {
     </>
   );
 }
-
