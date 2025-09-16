@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -20,7 +21,7 @@ import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditC
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, isPast } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -71,7 +72,7 @@ export default function FeesPage() {
   const [collectionTrend, setCollectionTrend] = React.useState<any[]>([]);
   const [arrearsData, setArrearsData] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [studentsWithFees, setStudentsWithFees] = React.useState<{cleared: number, arrears: number}>({ cleared: 0, arrears: 0 });
+  const [studentsWithFees, setStudentsWithFees] = React.useState<{cleared: number, arrears: number, overdue: number}>({ cleared: 0, arrears: 0, overdue: 0 });
   const [topDebtors, setTopDebtors] = React.useState<any[]>([]);
 
 
@@ -88,11 +89,13 @@ export default function FeesPage() {
       let totalCollected = 0;
       let clearedCount = 0;
       let arrearsCount = 0;
+      let overdueCount = 0;
       const studentDebtors: any[] = [];
 
       snapshot.forEach(doc => {
         const data = doc.data();
         const studentBalance = (data.totalFee || 0) - (data.amountPaid || 0);
+        const dueDate = data.dueDate instanceof Timestamp ? data.dueDate.toDate() : (data.dueDate ? new Date(data.dueDate) : new Date());
 
         totalBilled += data.totalFee || 0;
         totalCollected += data.amountPaid || 0;
@@ -101,6 +104,9 @@ export default function FeesPage() {
             clearedCount++;
         } else {
             arrearsCount++;
+            if(isPast(dueDate)) {
+                overdueCount++;
+            }
             studentDebtors.push({
                 id: doc.id,
                 name: data.name,
@@ -119,7 +125,7 @@ export default function FeesPage() {
           { name: 'Outstanding', value: 100 - collectedPercentage, fill: 'hsl(var(--chart-2))'},
       ]);
 
-      setStudentsWithFees({ cleared: clearedCount, arrears: arrearsCount });
+      setStudentsWithFees({ cleared: clearedCount, arrears: arrearsCount, overdue: overdueCount });
       setTopDebtors(studentDebtors.sort((a, b) => b.balance - a.balance).slice(0, 5));
     });
 
@@ -252,11 +258,11 @@ export default function FeesPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2"><UserX className="h-4 w-4 text-destructive"/>Students with Arrears</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2"><UserX className="h-4 w-4 text-destructive"/>Students with Overdue Payments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-destructive">{studentsWithFees.arrears}</div>
-            <p className="text-xs text-muted-foreground">students have an outstanding balance.</p>
+            <div className="text-3xl font-bold text-destructive">{studentsWithFees.overdue}</div>
+            <p className="text-xs text-muted-foreground">{studentsWithFees.arrears} students have some arrears.</p>
           </CardContent>
         </Card>
         <Card className="lg:col-span-1 md:col-span-2">
