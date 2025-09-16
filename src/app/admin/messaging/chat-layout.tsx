@@ -16,6 +16,7 @@ import {
   Languages,
   PlusCircle,
   Filter,
+  Trash2,
 } from 'lucide-react';
 import {
   collection,
@@ -31,6 +32,7 @@ import {
   where,
   getDocs,
   setDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
@@ -226,6 +228,27 @@ export function AdminChatLayout() {
       setIsSending(false);
     }
   };
+
+  const handleDeleteConversation = async () => {
+    if (!selectedConvo || !schoolId) return;
+
+    try {
+      await deleteDoc(doc(firestore, 'schools', schoolId, 'conversations', selectedConvo.id));
+      toast({
+        title: 'Conversation Deleted',
+        description: 'The conversation has been permanently removed.',
+        variant: 'destructive'
+      });
+      setSelectedConvo(null);
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not delete the conversation.',
+        variant: 'destructive',
+      });
+    }
+  };
   
   const filteredConversations = conversations.filter(convo => 
     (convo.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -291,6 +314,28 @@ export function AdminChatLayout() {
             <>
               <div className="flex-shrink-0 p-4 border-b border-slate-700/50 flex items-center justify-between">
                 <div className="flex items-center gap-3"><Avatar className="h-10 w-10"><AvatarImage src={selectedConvo.avatar} alt={selectedConvo.name} /><AvatarFallback><User/></AvatarFallback></Avatar><div><p className="font-semibold text-slate-100">{selectedConvo.name}</p></div></div>
+                 <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Close Conversation
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Are you sure?</DialogTitle>
+                            <DialogDescription>
+                                This will permanently delete the conversation for all participants. This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                            <DialogClose asChild>
+                                <Button variant="destructive" onClick={handleDeleteConversation}>Delete Permanently</Button>
+                            </DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {(messages[selectedConvo.id] || []).map((msg, index) => {
