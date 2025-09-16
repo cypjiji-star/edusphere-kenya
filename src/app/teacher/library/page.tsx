@@ -35,7 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, addDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
