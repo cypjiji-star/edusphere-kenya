@@ -240,7 +240,7 @@ function NewTransactionDialog({ students, feeStructure, open, onOpenChange, scho
                         </Select>
                         {selectedStudentDetails && (
                             <div className="text-xs text-muted-foreground p-2 bg-muted rounded-md">
-                                Yearly Fee for {selectedStudentDetails.class}: {formatCurrency(selectedStudentDetails.totalFee)}
+                                Yearly Fee for {selectedStudentDetails.class}: {formatCurrency(selectedStudentDetails.totalFee || 0)}
                             </div>
                         )}
                     </div>
@@ -495,7 +495,16 @@ export default function FeesPage() {
 
         const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
         const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
-            setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentFee)));
+            setStudents(snapshot.docs.map(doc => {
+                const data = doc.data();
+                return { 
+                    id: doc.id,
+                    totalFee: Number(data.totalFee) || 0,
+                    amountPaid: Number(data.amountPaid) || 0,
+                    balance: Number(data.balance) || 0,
+                    ...data 
+                } as StudentFee;
+            }));
         });
 
         const transactionsQuery = query(collectionGroup(firestore, 'transactions'), orderBy('date', 'desc'));
@@ -626,7 +635,7 @@ export default function FeesPage() {
 
         try {
             await batch.commit();
-            toast({ title: 'Class Fees Updated', description: 'Yearly school fees have been saved.' });
+            toast({ title: 'School Fees Updated', description: 'Yearly school fees have been saved.' });
         } catch (e) {
             console.error(e);
             toast({ title: 'Error Saving Fees', variant: 'destructive' });
@@ -762,7 +771,7 @@ export default function FeesPage() {
                          <CardContent>
                             <div className="w-full overflow-auto rounded-lg border">
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Class Name</TableHead><TableHead className="text-right">Yearly Fee (KES)</TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow><TableHead>Class Name</TableHead><TableHead className="text-right">Yearly School Fee (KES)</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {classFees.map(item => (
                                             <TableRow key={item.id}>
