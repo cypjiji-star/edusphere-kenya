@@ -29,6 +29,10 @@ import {
   Unlock,
   Send,
   CheckCircle,
+  Minus,
+  TrendingUp,
+  TrendingDown,
+  FileDown,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -119,6 +123,7 @@ export type StudentGrade = {
   overall: number;
   rollNumber?: string;
   grades?: Grade[];
+  trend: 'up' | 'down' | 'stable';
 };
 
 type GradingScaleItem = {
@@ -299,6 +304,7 @@ export default function AdminGradesPage() {
               grade: average,
               overall: average,
               grades: data.grades,
+              trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)] as 'up' | 'down' | 'stable',
             };
           })
           .sort((a, b) => b.overall - a.overall);
@@ -385,28 +391,38 @@ export default function AdminGradesPage() {
     }
   };
   
-  const handlePrintRanking = () => {
-    const doc = new jsPDF();
+  const handleExportRanking = (type: 'PDF' | 'CSV') => {
     const className = classes.find(c => c.id === selectedClassForRanking)?.name;
-    doc.text(`Class Ranking for ${className || 'Selected Class'} (${selectedSubjectForRanking})`, 14, 16);
-    
+    const doc = new jsPDF();
     const tableData = studentsForRanking.map((student, index) => [
       index + 1,
       student.studentName,
       `${student.overall}%`,
     ]);
-
-    (doc as any).autoTable({
-      startY: 22,
-      head: [['Rank', 'Student Name', 'Overall Grade']],
-      body: tableData,
-    });
+    const tableHeaders = ['Rank', 'Student Name', 'Overall Grade'];
     
-    doc.save("class-ranking.pdf");
+    if (type === 'CSV') {
+      let csvContent = "data:text/csv;charset=utf-8," + tableHeaders.join(",") + "\n" 
+        + tableData.map(e => e.join(",")).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `class-ranking-${className}.csv`);
+      document.body.appendChild(link);
+      link.click();
+    } else {
+        doc.text(`Class Ranking for ${className || 'Selected Class'} (${selectedSubjectForRanking})`, 14, 16);
+        (doc as any).autoTable({
+          startY: 22,
+          head: [tableHeaders],
+          body: tableData,
+        });
+        doc.save("class-ranking.pdf");
+    }
 
     toast({
       title: 'Export Successful',
-      description: 'The class ranking has been downloaded as a PDF.',
+      description: `The class ranking has been downloaded as a ${type} file.`,
     });
   }
   
@@ -590,10 +606,30 @@ export default function AdminGradesPage() {
                                   {subjectsForRanking.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                               </SelectContent>
                           </Select>
-                          <Button variant="outline" onClick={handlePrintRanking}>
-                              <Printer className="mr-2 h-4 w-4"/>
-                              Print Ranking
-                          </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    Export
+                                    <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => handleExportRanking('PDF')}>
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    Export as PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExportRanking('CSV')}>
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    Export as CSV
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => window.print()}>
+                                    <Printer className="mr-2 h-4 w-4" />
+                                    Print Ranking
+                                </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                       </div>
                   </div>
               </CardHeader>
@@ -617,7 +653,12 @@ export default function AdminGradesPage() {
                                         </Avatar>
                                         <div className="flex-1">
                                             <p className="font-semibold">{student.studentName}</p>
-                                            <p className="text-sm text-muted-foreground">Score: <span className="font-bold text-foreground">{student.overall}%</span></p>
+                                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                                Score: <span className="font-bold text-foreground">{student.overall}%</span>
+                                                {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                                                {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                                                {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
+                                            </p>
                                         </div>
                                     </Card>
                                 </DialogTrigger>

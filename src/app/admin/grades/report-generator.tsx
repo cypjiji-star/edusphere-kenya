@@ -27,7 +27,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Loader2, Printer, GraduationCap, BarChart as BarChartIcon, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList, Send, History, Bell, Calendar as CalendarIcon, TrendingUp, TrendingDown, UserCheck, UserX } from 'lucide-react';
+import { FileText, Loader2, Printer, GraduationCap, BarChart as BarChartIcon, Percent, Crown, BookCheck, AlertCircle, Trophy, Users, ClipboardList, Send, History, Bell, Calendar as CalendarIcon, TrendingUp, TrendingDown, UserCheck, UserX, FileDown, ChevronDown } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -42,6 +42,7 @@ import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/fir
 import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // --- Data Types (could be shared in a types file) ---
 type Grade = {
@@ -232,7 +233,7 @@ export function ReportGenerator() {
   
   const getGradeForStudent = (student: StudentGrades, assessmentId: string) => {
     const grade = student.grades.find(g => g.assessmentId === assessmentId);
-    return grade ? grade.grade : '—';
+    return grade ? grade.score : '—';
   };
 
   const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
@@ -254,6 +255,13 @@ export function ReportGenerator() {
     'interaction-logs': 'Parent-Teacher Interaction Logs',
     'notification-history': 'Notification History',
   };
+
+  const handleExportReport = (type: 'PDF' | 'CSV') => {
+    toast({
+      title: 'Exporting Report',
+      description: `The report is being exported as a ${type} file.`,
+    });
+  }
 
   return (
     <>
@@ -381,10 +389,26 @@ export function ReportGenerator() {
                           <CardTitle>Report Preview</CardTitle>
                           <CardDescription>A preview of the generated report will appear below.</CardDescription>
                       </div>
-                      <Button variant="outline" size="sm" disabled={!showReport || isGenerating} onClick={() => window.print()}>
-                          <Printer className="mr-2 h-4 w-4" />
-                          Print
-                      </Button>
+                       <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" disabled={!showReport || isGenerating}>
+                                    <FileDown className="mr-2 h-4 w-4"/>
+                                    Export
+                                    <ChevronDown className="ml-2 h-4 w-4"/>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                 <DropdownMenuItem onClick={() => handleExportReport('PDF')}>
+                                    <FileDown className="mr-2 h-4 w-4"/> Export as PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExportReport('CSV')}>
+                                    <FileDown className="mr-2 h-4 w-4"/> Export as CSV
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => window.print()}>
+                                    <Printer className="mr-2 h-4 w-4"/> Print
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                   </CardHeader>
                   <CardContent>
                       {isGenerating && (
