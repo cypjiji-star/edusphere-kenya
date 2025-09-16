@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, BookMarked, ClipboardCheck, Percent, Loader2 } from 'lucide-react';
@@ -22,6 +23,7 @@ import { firestore, auth } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { MyAttendanceWidget } from './my-attendance-widget';
 
 export default function TeacherDashboard() {
     const searchParams = useSearchParams();
@@ -140,6 +142,10 @@ export default function TeacherDashboard() {
         <h1 className="font-headline text-3xl font-bold">Welcome, {teacherName}!</h1>
         <p className="text-muted-foreground">Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
       </div>
+
+       <div className="mb-8">
+          <MyAttendanceWidget />
+       </div>
 
        {isLoading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
