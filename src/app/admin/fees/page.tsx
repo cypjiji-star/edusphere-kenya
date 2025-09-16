@@ -21,7 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield, CalendarIcon, Printer, Mail, FileDown, ChevronDown } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { format, isPast, differenceInDays, formatDistanceToNow, startOfMonth, endOfMonth, eachMonthOfInterval, getMonth, sub } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -410,7 +410,7 @@ export default function FeesPage() {
       unsubFeeStructure();
       unsubTransactions();
     };
-  }, [schoolId]);
+  }, [schoolId, selectedClassForStructure]);
 
   React.useEffect(() => {
     let students = allStudents;
