@@ -40,13 +40,15 @@ export async function saveGradeAction(
 
     const studentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'students', studentId));
     const assignmentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'assignments', assignmentId));
+    const studentData = studentSnap.data();
+    const assignmentData = assignmentSnap.data();
 
     await logAuditEvent({
         schoolId,
+        action: 'GRADE_UPDATED',
         actionType: 'Academics',
-        description: 'Student Grade Updated',
-        user: { name: actor.name, avatarUrl: '' },
-        details: `Grade for ${studentSnap.data()?.name || 'student'} on "${assignmentSnap.data()?.title || 'assignment'}" changed from ${oldGrade} to ${data.grade}.`,
+        user: { id: actor.id, name: actor.name, role: 'Teacher' },
+        details: `Changed ${assignmentData?.subject || 'score'} for AdmNo: ${studentData?.admissionNumber || studentId}, ${studentData?.name || 'student'} from ${oldGrade} to ${data.grade} in "${assignmentData?.title || 'assignment'}".`,
     });
 
     revalidatePath(`/teacher/assignments/${assignmentId}?schoolId=${schoolId}`);

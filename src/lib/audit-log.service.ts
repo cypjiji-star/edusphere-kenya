@@ -10,13 +10,12 @@ type AuditLogPayload = {
     schoolId: string;
     action: string; // e.g., USER_LOGIN_SUCCESS, GRADE_UPDATED
     actionType: ActionType;
-    description: string; // e.g., "Brian Njoroge logged in."
     user: {
         id: string;
         name: string;
         role: string;
     };
-    details?: string | { oldValue: any; newValue: any };
+    details?: string;
     ipAddress?: string;
     userAgent?: string;
 };

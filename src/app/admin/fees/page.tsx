@@ -879,20 +879,15 @@ export default function FeesPage() {
     setIsSavingPayment(true);
 
     const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedStudentForPayment);
-    const studentSnap = await getDoc(studentRef);
-    if (!studentSnap.exists()) {
-        toast({ title: 'Error', description: 'Student not found', variant: 'destructive' });
-        setIsSavingPayment(false);
-        return;
-    }
-    const studentData = studentSnap.data();
-
+    
     try {
+      let studentName = 'Unknown Student';
       await runTransaction(firestore, async (transaction) => {
         const studentDoc = await transaction.get(studentRef);
         if (!studentDoc.exists()) throw new Error('Student not found');
 
         const currentData = studentDoc.data();
+        studentName = currentData.name;
         const newPaid = (currentData.amountPaid || 0) + amount;
         const newBalance = (currentData.totalFee || 0) - newPaid;
 
@@ -926,10 +921,10 @@ export default function FeesPage() {
 
       await logAuditEvent({
         schoolId,
+        action: 'PAYMENT_RECORDED',
         actionType: 'Finance',
-        description: `Payment Recorded`,
-        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-        details: `${formatCurrency(amount)} recorded for ${studentData.name} via ${paymentMethod}.`,
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
+        details: `Recorded ${paymentMethod} payment of ${formatCurrency(amount)} for ${studentName}.`,
       });
 
       toast({
@@ -993,9 +988,9 @@ export default function FeesPage() {
 
       await logAuditEvent({
         schoolId,
+        action: 'INVOICE_GENERATED',
         actionType: 'Finance',
-        description: `Invoice Generated`,
-        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
         details: `Invoice for ${formatCurrency(amount)} (${newInvoiceDescription}) created for ${studentName}.`,
       });
 
@@ -1041,12 +1036,12 @@ export default function FeesPage() {
       const updatedStructure = [...feeStructure, newItem];
       await setDoc(structureRef, { items: updatedStructure }, { merge: true });
 
-      await logAuditEvent({
+       await logAuditEvent({
         schoolId,
+        action: 'FEE_STRUCTURE_ITEM_ADDED',
         actionType: 'Finance',
-        description: 'Fee Structure Item Added',
-        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-        details: `Item "${category}" for ${formatCurrency(parsedAmount)} added to class ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
+        details: `Fee item "${category}" for ${formatCurrency(parsedAmount)} added to class ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
       });
 
       toast({ title: 'New Fee Item Added', description: `${category} added successfully.` });
@@ -1069,10 +1064,10 @@ export default function FeesPage() {
 
        await logAuditEvent({
         schoolId,
+        action: 'FEE_STRUCTURE_ITEM_REMOVED',
         actionType: 'Finance',
-        description: 'Fee Structure Item Removed',
-        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-        details: `Item "${itemCategory}" removed from class ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
+        details: `Fee item "${itemCategory}" removed from class ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
       });
 
       toast({ title: 'Fee Item Deleted', description: 'Fee item removed successfully.' });
@@ -1131,9 +1126,9 @@ export default function FeesPage() {
 
         await logAuditEvent({
             schoolId,
+            action: 'BULK_FEES_APPLIED',
             actionType: 'Finance',
-            description: 'Bulk Fees Applied',
-            user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+            user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
             details: `Annual fee of ${formatCurrency(totalYearlyFee)} applied to ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
         });
 

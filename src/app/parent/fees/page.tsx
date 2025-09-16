@@ -208,16 +208,15 @@ export default function ParentFeesPage() {
 
         setIsProcessingPayment(true);
         const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedChild);
-        const studentSnap = await getDoc(studentRef);
-        const studentName = studentSnap.exists() ? studentSnap.data().name : 'a student';
-
-
+        
         try {
+            let studentName = 'a student';
             await runTransaction(firestore, async (transaction) => {
                 const studentDoc = await transaction.get(studentRef);
                 if (!studentDoc.exists()) throw new Error("Student not found");
 
                 const currentData = studentDoc.data();
+                studentName = currentData.name;
                 const newAmountPaid = (currentData.amountPaid || 0) + paymentAmount;
                 const newBalance = (currentData.totalFee || 0) - newAmountPaid;
 
@@ -239,10 +238,10 @@ export default function ParentFeesPage() {
 
             await logAuditEvent({
                 schoolId,
+                action: 'PAYMENT_RECEIVED',
                 actionType: 'Finance',
-                description: `M-Pesa Payment Received`,
-                user: { name: user.displayName || 'Parent', avatarUrl: user.photoURL || '' },
-                details: `${formatCurrency(paymentAmount)} paid for ${studentName} via Parent Portal.`,
+                user: { id: user.uid, name: user.displayName || 'Parent', role: 'Parent' },
+                details: `Recorded M-PESA payment of ${formatCurrency(paymentAmount)} for ${studentName}.`,
             });
 
             toast({
