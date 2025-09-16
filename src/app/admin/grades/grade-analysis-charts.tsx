@@ -11,6 +11,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+  DialogFooter
+} from '@/components/ui/dialog';
+import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
@@ -44,6 +53,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 const distributionChartConfig = {
@@ -74,6 +84,16 @@ interface StatusGridData {
     subjects: Record<string, 'Complete' | 'In Progress' | 'Pending' | 'Flagged'>;
 }
 
+interface DetailedGrade {
+    studentId: string;
+    studentName: string;
+    studentAvatar: string;
+    admissionNumber: string;
+    score: string | number;
+    grade: string;
+    teacherName: string;
+}
+
 
 export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) {
   const searchParams = useSearchParams();
@@ -86,6 +106,60 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
   const [statusGridData, setStatusGridData] = React.useState<StatusGridData[]>([]);
   const [allSubjects, setAllSubjects] = React.useState<string[]>([]);
   const [allClasses, setAllClasses] = React.useState<{id: string, name: string}[]>([]);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false);
+  const [selectedDrilldown, setSelectedDrilldown] = React.useState<{className: string, subject: string} | null>(null);
+  const [detailedGrades, setDetailedGrades] = React.useState<DetailedGrade[]>([]);
+
+  const getGradeFromScore = (score: number) => {
+    if (score >= 80) return 'A';
+    if (score >= 75) return 'A-';
+    if (score >= 70) return 'B+';
+    if (score >= 65) return 'B';
+    if (score >= 60) return 'B-';
+    if (score >= 55) return 'C+';
+    if (score >= 50) return 'C';
+    if (score >= 45) return 'C-';
+    if (score >= 40) return 'D+';
+    if (score >= 35) return 'D';
+    if (score >= 30) return 'D-';
+    return 'E';
+  };
+
+  const handleDrilldownClick = async (className: string, subject: string) => {
+    if (!schoolId || !exam) return;
+    setSelectedDrilldown({ className, subject });
+    setIsDetailsDialogOpen(true);
+    setDetailedGrades([]); // Clear previous data
+
+    const gradesQuery = query(
+      collection(firestore, `schools/${schoolId}/grades`),
+      where('assessmentId', '==', exam.id),
+      where('className', '==', className),
+      where('subject', '==', subject)
+    );
+    const gradesSnapshot = await getDocs(gradesQuery);
+    
+    const gradesData: DetailedGrade[] = await Promise.all(
+        gradesSnapshot.docs.map(async (gradeDoc) => {
+            const gradeData = gradeDoc.data();
+            const score = parseInt(gradeData.grade, 10);
+            
+            const studentSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, gradeData.studentId));
+            const studentData = studentSnap.data();
+
+            return {
+                studentId: gradeData.studentId,
+                studentName: studentData?.name || 'Unknown Student',
+                studentAvatar: studentData?.avatarUrl || '',
+                admissionNumber: studentData?.admissionNumber || 'N/A',
+                score: gradeData.grade,
+                grade: getGradeFromScore(score),
+                teacherName: gradeData.teacherName || 'N/A',
+            };
+        })
+    );
+    setDetailedGrades(gradesData.sort((a,b) => b.score > a.score ? 1 : -1));
+  };
 
 
   React.useEffect(() => {
@@ -210,6 +284,7 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
   }
 
   return (
+    <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
     <div className="grid gap-6">
       <Card>
         <CardHeader>
@@ -302,10 +377,14 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
                                         const status = rowData.subjects[subject] || 'Pending';
                                         return (
                                             <TableCell key={subject} className="text-center">
-                                                {status === 'Complete' && <Badge className="bg-green-500 hover:bg-green-600"><CheckCircle className="h-4 w-4" /></Badge>}
-                                                {status === 'In Progress' && <Badge className="bg-yellow-500 hover:bg-yellow-600"><Loader2 className="h-4 w-4 animate-spin" /></Badge>}
-                                                {status === 'Pending' && <Badge variant="secondary"><XCircle className="h-4 w-4" /></Badge>}
-                                                {status === 'Flagged' && <Badge variant="destructive"><AlertCircle className="h-4 w-4" /></Badge>}
+                                                <DialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDrilldownClick(rowData.className, subject)}>
+                                                        {status === 'Complete' && <Badge className="bg-green-500 hover:bg-green-600"><CheckCircle className="h-4 w-4" /></Badge>}
+                                                        {status === 'In Progress' && <Badge className="bg-yellow-500 hover:bg-yellow-600"><Loader2 className="h-4 w-4 animate-spin" /></Badge>}
+                                                        {status === 'Pending' && <Badge variant="secondary"><XCircle className="h-4 w-4" /></Badge>}
+                                                        {status === 'Flagged' && <Badge variant="destructive"><AlertCircle className="h-4 w-4" /></Badge>}
+                                                    </Button>
+                                                </DialogTrigger>
                                             </TableCell>
                                         )
                                     })}
@@ -377,5 +456,59 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         </CardContent>
       </Card>
     </div>
+    {selectedDrilldown && (
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Detailed Grades</DialogTitle>
+                <DialogDescription>
+                    Read-only view for {selectedDrilldown.subject} in {selectedDrilldown.className}.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 max-h-[60vh] overflow-y-auto">
+                {detailedGrades.length > 0 ? (
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Student</TableHead>
+                                <TableHead>Adm No.</TableHead>
+                                <TableHead className="text-center">Score</TableHead>
+                                <TableHead className="text-center">Grade</TableHead>
+                                <TableHead>Entered By</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {detailedGrades.map(grade => (
+                                <TableRow key={grade.studentId}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={grade.studentAvatar} alt={grade.studentName} />
+                                                <AvatarFallback>{grade.studentName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">{grade.studentName}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{grade.admissionNumber}</TableCell>
+                                    <TableCell className="text-center font-bold">{grade.score}</TableCell>
+                                    <TableCell className="text-center"><Badge variant="outline">{grade.grade}</Badge></TableCell>
+                                    <TableCell>{grade.teacherName}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <div className="text-center text-muted-foreground py-16">
+                        <p>No grades have been submitted for this subject and class combination.</p>
+                    </div>
+                )}
+            </div>
+             <DialogFooter>
+                <DialogClose asChild>
+                    <Button variant="outline">Close</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    )}
+    </Dialog>
   );
 }
