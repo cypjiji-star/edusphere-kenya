@@ -76,6 +76,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 
 type GradeStatus = 'Graded' | 'Pending';
@@ -87,8 +88,9 @@ export type Exam = {
   class: string;
   startDate: Timestamp;
   endDate: Timestamp;
-  status: string;
+  status: 'Draft' | 'Active' | 'Locked' | 'Published';
   classId?: string;
+  progress: number;
 };
 
 type StudentGrade = {
@@ -159,8 +161,25 @@ export default function AdminGradesPage() {
 
     const unsubExams = onSnapshot(
       query(collection(firestore, `schools/${schoolId}/assessments`), orderBy('startDate', 'desc')),
-      (snapshot) => {
-        setAllExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+      async (snapshot) => {
+        const examsWithProgress: Exam[] = await Promise.all(snapshot.docs.map(async (examDoc) => {
+          const exam = { id: examDoc.id, ...examDoc.data() } as Exam;
+
+          // Calculate progress
+          const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('assessmentId', '==', exam.id));
+          const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', exam.classId));
+          
+          const [gradesSnap, studentsSnap] = await Promise.all([getDocs(gradesQuery), getDocs(studentsQuery)]);
+          
+          const totalStudents = studentsSnap.size;
+          const enteredGrades = gradesSnap.size;
+
+          const progress = totalStudents > 0 ? Math.round((enteredGrades / totalStudents) * 100) : 0;
+
+          return { ...exam, progress };
+        }));
+
+        setAllExams(examsWithProgress);
       }
     );
 
@@ -309,7 +328,7 @@ export default function AdminGradesPage() {
         startDate: Timestamp.fromDate(date.from),
         endDate: Timestamp.fromDate(date.to || date.from),
         notes: newExamNotes,
-        status: 'Scheduled',
+        status: 'Draft',
       });
       toast({ title: 'Exam Created', description: 'The new exam has been scheduled.' });
       setNewExamTitle('');
@@ -360,6 +379,15 @@ export default function AdminGradesPage() {
       exam.term.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
       exam.className.toLowerCase().includes(examSearchTerm.toLowerCase())
   );
+  
+  const getStatusBadgeColor = (status: Exam['status']) => {
+    switch(status) {
+        case 'Draft': return 'bg-gray-500';
+        case 'Active': return 'bg-blue-500';
+        case 'Locked': return 'bg-yellow-500';
+        case 'Published': return 'bg-green-600';
+    }
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -455,7 +483,7 @@ export default function AdminGradesPage() {
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
             <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
-            <TabsTrigger value="exams">Manage Exams</TabsTrigger>
+            <TabsTrigger value="exams">Exam Dashboard & Schedules</TabsTrigger>
           </TabsList>
 
           <TabsContent value="reports">
@@ -617,7 +645,7 @@ export default function AdminGradesPage() {
           <TabsContent value="exams">
              <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Manage Exam Schedules</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Exam Dashboard & Schedules</CardTitle>
                     <CardDescription>View, edit, or clone existing examination schedules.</CardDescription>
                     <div className="relative w-full md:max-w-sm pt-4">
                         <Search className="absolute left-2.5 top-6 h-4 w-4 text-muted-foreground" />
@@ -640,6 +668,7 @@ export default function AdminGradesPage() {
                                     <TableHead>Class</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Progress</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -650,7 +679,15 @@ export default function AdminGradesPage() {
                                     <TableCell>{exam.term}</TableCell>
                                     <TableCell>{exam.className}</TableCell>
                                     <TableCell>{format(exam.startDate.toDate(), 'dd MMM')} - {format(exam.endDate.toDate(), 'dd MMM, yyyy')}</TableCell>
-                                    <TableCell><Badge variant={exam.status === 'Scheduled' ? 'default' : 'secondary'}>{exam.status}</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className={cn("text-white", getStatusBadgeColor(exam.status))}>{exam.status}</Badge>
+                                    </TableCell>
+                                     <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Progress value={exam.progress} className="w-24" />
+                                            <span className="text-xs text-muted-foreground">{exam.progress}%</span>
+                                        </div>
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" className="h-8 w-8"><Edit className="h-4 w-4"/></Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8"><Copy className="h-4 w-4"/></Button>
