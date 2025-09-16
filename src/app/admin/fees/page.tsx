@@ -275,7 +275,7 @@ export default function FeesPage() {
       const studentDebtors: any[] = [];
       let nextDeadline: Date | null = null;
       const studentProfiles: StudentFeeProfile[] = [];
-      const classSet = new Set<{id: string, name: string}>();
+      const classMap = new Map<string, string>();
 
       snapshot.forEach(doc => {
         const data = doc.data();
@@ -302,7 +302,9 @@ export default function FeesPage() {
             admissionNo: data.admissionNumber,
         });
 
-        if (data.classId) classSet.add({id: data.classId, name: data.class});
+        if (data.classId && data.class) {
+            classMap.set(data.classId, data.class);
+        }
 
         if (studentBalance <= 0) {
             clearedCount++;
@@ -338,7 +340,7 @@ export default function FeesPage() {
       setTopDebtors(studentDebtors.sort((a, b) => b.balance - a.balance).slice(0, 5));
       setAllStudents(studentProfiles);
       setFilteredStudents(studentProfiles); // Initially show all
-      const classList = Array.from(classSet);
+      const classList = Array.from(classMap.entries()).map(([id, name]) => ({ id, name }));
       setClasses(classList);
       if (!selectedClassForStructure && classList.length > 0) {
         setSelectedClassForStructure(classList[0].id); // Default to first actual class
@@ -1155,5 +1157,6 @@ export default function FeesPage() {
     </>
   );
 }
+
 
 
