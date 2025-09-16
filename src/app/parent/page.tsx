@@ -262,6 +262,14 @@ export default function ParentDashboard() {
           const numericScores = allGradesSnapshot.docs.map(d => parseInt(d.data().grade)).filter(score => !isNaN(score));
           const overallGrade = numericScores.length > 0 ? Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length) : 0;
           
+           // Fetch transactions to calculate school fees balance
+          const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${studentId}/transactions`), where('description', '==', 'School Fees'));
+          const transactionsSnapshot = await getDocs(transactionsQuery);
+          let schoolFeeBalance = 0;
+          transactionsSnapshot.forEach(doc => {
+              schoolFeeBalance += doc.data().amount;
+          });
+
           return { 
               id: studentId, 
               name: studentData.name,
@@ -270,10 +278,10 @@ export default function ParentDashboard() {
               attendance: attendancePercentage,
               overallGrade: overallGrade,
               feeStatus: {
-                total: studentData.totalFee || 0,
-                paid: studentData.amountPaid || 0,
-                balance: studentData.balance || 0,
-                status: studentData.balance <= 0 ? 'Paid' : 'Partial',
+                total: studentData.totalFee || 0, // This is still overall total
+                paid: studentData.amountPaid || 0, // This is still overall paid
+                balance: schoolFeeBalance, // This is now specific
+                status: schoolFeeBalance <= 0 ? 'Paid' : 'Partial',
                 dueDate: (studentData.dueDate as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
               },
               recentGrades: recentGrades,
@@ -290,7 +298,7 @@ export default function ParentDashboard() {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [schoolId, parentId]);
+  }, [schoolId, parentId, selectedChild?.id]);
   
   const getFeeStatus = (feeStatus: Child['feeStatus']) => {
     if (feeStatus.balance <= 0) return 'Paid';
