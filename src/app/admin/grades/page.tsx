@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -310,7 +309,7 @@ export default function AdminGradesPage() {
 
           const gradeValue = parseInt(gradeData.grade, 10);
           if (!isNaN(gradeValue)) {
-            const gradeItem = studentGradesMap.get(studentId)?.grades.push({
+            studentGradesMap.get(studentId)?.grades.push({
                 subject: gradeData.subject,
                 grade: gradeValue
             });
@@ -339,7 +338,7 @@ export default function AdminGradesPage() {
               className: data.className,
               grade: average,
               overall: average,
-              grades: data.grades,
+              grades: data.grades as any,
               trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)] as 'up' | 'down' | 'stable',
             };
           })
@@ -768,10 +767,10 @@ export default function AdminGradesPage() {
                                                                 <TooltipProvider>
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
-                                                                            <button>{deviation > 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}</button>
+                                                                            <button>{deviation >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}</button>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
-                                                                            <p>{deviation.toFixed(1)}% {deviation > 0 ? 'above' : 'below'} class average</p>
+                                                                            <p>{deviation.toFixed(1)}% {deviation >= 0 ? 'above' : 'below'} class average</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 </TooltipProvider>
@@ -969,7 +968,3 @@ export default function AdminGradesPage() {
     </div>
   );
 }
-
-
-
-
