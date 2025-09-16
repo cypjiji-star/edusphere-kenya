@@ -10,7 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -100,6 +100,8 @@ export default function AuditLogsPage() {
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
   const [autoRefresh, setAutoRefresh] = React.useState(true);
   const { toast } = useToast();
+  const [page, setPage] = React.useState(1);
+  const logsPerPage = 20;
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -134,7 +136,7 @@ export default function AuditLogsPage() {
     if (autoRefresh) {
         fetchData();
     } else {
-        setIsLoading(false); // No initial fetch if auto-refresh is off
+        setIsLoading(false);
     }
 
     return () => {
@@ -155,6 +157,13 @@ export default function AuditLogsPage() {
 
       return isDateInRange && matchesSearch && matchesUser && matchesAction;
   }), [logs, date, searchTerm, userFilter, actionFilter]);
+
+  const paginatedLogs = React.useMemo(() => {
+    const startIndex = (page - 1) * logsPerPage;
+    return filteredLogs.slice(startIndex, startIndex + logsPerPage);
+  }, [filteredLogs, page, logsPerPage]);
+
+  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
 
   const analytics = React.useMemo(() => {
     const today = new Date();
@@ -391,16 +400,16 @@ export default function AuditLogsPage() {
                                     <TableRow>
                                         <TableHead className="w-[250px]">Action</TableHead>
                                         <TableHead>User</TableHead>
-                                        <TableHead>Date</TableHead>
+                                        <TableHead>Date & Time</TableHead>
                                         <TableHead>Details</TableHead>
                                         <TableHead className="text-right">View</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredLogs.length > 0 ? (
-                                        filteredLogs.map((log) => {
+                                    {paginatedLogs.length > 0 ? (
+                                        paginatedLogs.map((log) => {
                                             const config = actionTypeConfig[log.actionType];
-                                            const Icon = config.icon;
+                                            const Icon = config?.icon || FileClock;
                                             return (
                                                 <DialogTrigger key={log.id} asChild>
                                                     <TableRow 
@@ -412,7 +421,7 @@ export default function AuditLogsPage() {
                                                     >
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
-                                                                <Icon className={cn("h-5 w-5", config.color)} />
+                                                                <Icon className={cn("h-5 w-5", config?.color || 'text-gray-500')} />
                                                                 <span className="font-mono text-xs">{log.action}</span>
                                                             </div>
                                                         </TableCell>
@@ -428,10 +437,10 @@ export default function AuditLogsPage() {
                                                                 </div>
                                                             </div>
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell className="font-mono text-xs">
                                                             {log.timestamp?.toDate().toLocaleString()}
                                                         </TableCell>
-                                                        <TableCell className="text-muted-foreground max-w-xs truncate">
+                                                        <TableCell className="text-muted-foreground max-w-xs truncate italic">
                                                             {log.details}
                                                         </TableCell>
                                                         <TableCell className="text-right">
@@ -457,7 +466,28 @@ export default function AuditLogsPage() {
                 </CardContent>
                 <CardFooter>
                     <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredLogs.length}</strong> of <strong>{logs.length}</strong> total records.
+                        Showing <strong>{paginatedLogs.length}</strong> of <strong>{filteredLogs.length}</strong> records.
+                    </div>
+                    <div className="ml-auto flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                        >
+                            Previous
+                        </Button>
+                        <span className="text-sm">
+                            Page {page} of {totalPages}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                        >
+                            Next
+                        </Button>
                     </div>
                 </CardFooter>
             </Card>
