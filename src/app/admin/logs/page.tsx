@@ -50,7 +50,7 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -58,11 +58,14 @@ type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Se
 
 type AuditLog = {
   id: string;
+  action: string;
   actionType: ActionType;
   description: string;
   user: {
+    id: string;
     name: string;
-    avatarUrl: string;
+    role: string;
+    avatarUrl?: string;
   };
   timestamp: Timestamp;
   details: string | { oldValue: string | null; newValue: string };
@@ -110,40 +113,41 @@ export default function AuditLogsPage() {
         setUsers(Array.from(userNames));
     });
 
-    let q = query(collection(firestore, `schools/${schoolId}/audit_logs`), orderBy('timestamp', 'desc'));
+    const logsQuery = query(collection(firestore, `schools/${schoolId}/audit_logs`), orderBy('timestamp', 'desc'));
     
-    let unsubscribe: () => void;
+    let unsubscribeLogs = () => {};
+
+    const fetchData = () => {
+      unsubscribeLogs = onSnapshot(logsQuery, (snapshot) => {
+          const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
+          setLogs(fetchedLogs);
+          setIsLoading(false);
+      }, (error) => {
+          console.error("Error fetching audit logs: ", error);
+          setIsLoading(false);
+      });
+    };
 
     if (autoRefresh) {
-        unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
-            setLogs(fetchedLogs);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching audit logs: ", error);
-            setIsLoading(false);
-        });
+        fetchData();
     } else {
-        const fetchOnce = async () => {
-            const snapshot = await getDocs(q);
-            const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
-            setLogs(fetchedLogs);
-            setIsLoading(false);
-        }
-        fetchOnce();
-        unsubscribe = () => {};
+        setIsLoading(false); // No initial fetch if auto-refresh is off
     }
 
     return () => {
       unsubUsers();
-      unsubscribe();
+      unsubscribeLogs();
     };
   }, [schoolId, autoRefresh]);
 
   const filteredLogs = logs.filter(log => {
-      const recordDate = log.timestamp.toDate();
+      const recordDate = log.timestamp?.toDate();
+      if (!recordDate) return false;
+
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
-      const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof log.details === 'string' && log.details.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (typeof log.details === 'string' && log.details.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesUser = userFilter === 'All Users' || log.user.name === userFilter;
       const matchesAction = actionFilter === 'All Types' || log.actionType === actionFilter;
 
@@ -209,10 +213,6 @@ export default function AuditLogsPage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="flex items-center space-x-2 pt-2">
-                                            <Switch id="include-archived" disabled />
-                                            <Label htmlFor="include-archived" className="text-sm font-normal">Include archived logs</Label>
-                                        </div>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
@@ -235,7 +235,7 @@ export default function AuditLogsPage() {
                                 </Popover>
                                 <Separator orientation="vertical" className="h-10 hidden md:block" />
                                  <div className="flex items-center gap-2">
-                                     <Button variant="outline" size="icon" disabled>
+                                     <Button variant="outline" size="icon" onClick={() => setIsLoading(true)}>
                                         <RefreshCw className="h-4 w-4" />
                                      </Button>
                                      <div className="flex items-center space-x-2">
@@ -243,27 +243,7 @@ export default function AuditLogsPage() {
                                         <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground">Auto-refresh</Label>
                                     </div>
                                 </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="secondary" className="w-full md:w-auto" disabled>
-                                            Export
-                                            <ChevronDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem disabled>
-                                            <FileDown className="mr-2" />Export as PDF
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem disabled>
-                                            <FileDown className="mr-2" />Export as CSV
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
                             </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {userFilter !== 'All Users' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setUserFilter('All Users')}>User: {userFilter} &times;</Badge>}
-                            {actionFilter !== 'All Types' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setActionFilter('All Types')}>Type: {actionFilter} &times;</Badge>}
                         </div>
                     </div>
                 </CardHeader>
@@ -278,7 +258,7 @@ export default function AuditLogsPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="w-[250px]">Action</TableHead>
-                                        <TableHead>Performed By</TableHead>
+                                        <TableHead>User</TableHead>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Details</TableHead>
                                         <TableHead className="text-right">View</TableHead>
@@ -301,23 +281,26 @@ export default function AuditLogsPage() {
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <Icon className={cn("h-5 w-5", config.color)} />
-                                                                <span className="font-medium">{log.description}</span>
+                                                                <span className="font-mono text-xs">{log.action}</span>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <Avatar className="h-8 w-8">
                                                                     <AvatarImage src={log.user.avatarUrl} alt={log.user.name} />
-                                                                    <AvatarFallback>{log.user.name.charAt(0)}</AvatarFallback>
+                                                                    <AvatarFallback>{log.user.name?.charAt(0)}</AvatarFallback>
                                                                 </Avatar>
-                                                                <span>{log.user.name}</span>
+                                                                <div>
+                                                                    <p className="font-medium">{log.user.name}</p>
+                                                                    <p className="text-xs text-muted-foreground">{log.user.role}</p>
+                                                                </div>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
                                                             {log.timestamp?.toDate().toLocaleString()}
                                                         </TableCell>
                                                         <TableCell className="text-muted-foreground max-w-xs truncate">
-                                                            {typeof log.details === 'string' ? log.details : `Value changed`}
+                                                            {log.description}
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <Button variant="ghost" size="sm">
@@ -361,7 +344,7 @@ export default function AuditLogsPage() {
                 <div className="py-4 space-y-6">
                     <div className="space-y-1">
                         <h4 className="font-semibold">{selectedLog.description}</h4>
-                        <div className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.actionType}</Badge></div>
+                        <div className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.action}</Badge></div>
                     </div>
 
                     <Separator />
@@ -399,7 +382,7 @@ export default function AuditLogsPage() {
                                 </Avatar>
                                 <div>
                                     <p className="text-muted-foreground">Performed By</p>
-                                    <p className="font-medium">{selectedLog.user.name}</p>
+                                    <p className="font-medium">{selectedLog.user.name} ({selectedLog.user.role})</p>
                                 </div>
                             </div>
                              <div className="flex items-start gap-2">

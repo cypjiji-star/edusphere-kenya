@@ -56,10 +56,10 @@ export function LoginForm() {
       if (userDocSnap.exists() && userDocSnap.data().role?.toLowerCase() === role) {
         await logAuditEvent({
             schoolId: schoolCode,
+            action: 'USER_LOGIN_SUCCESS',
             actionType: 'Security',
-            description: `Successful Login: ${user.email}`,
-            user: { name: user.email || 'Unknown', avatarUrl: '' },
-            details: `Role: ${role}`,
+            description: `User ${user.email} successfully logged in.`,
+            user: { id: user.uid, name: user.email || 'Unknown', role: userDocSnap.data().role },
         });
         router.push(`/${role}?schoolId=${schoolCode}`);
       } else {
@@ -70,10 +70,10 @@ export function LoginForm() {
              if (generalUserDocSnap.exists() && generalUserDocSnap.data().role?.toLowerCase() === role) {
                  await logAuditEvent({
                     schoolId: schoolCode,
+                    action: 'USER_LOGIN_SUCCESS',
                     actionType: 'Security',
-                    description: `Successful Login: ${user.email}`,
-                    user: { name: user.email || 'Unknown', avatarUrl: '' },
-                    details: `Role: ${role}`,
+                    description: `User ${user.email} successfully logged in.`,
+                    user: { id: user.uid, name: user.email || 'Unknown', role: generalUserDocSnap.data().role },
                 });
                  router.push(`/${role}?schoolId=${schoolCode}`);
                  return;
@@ -105,9 +105,10 @@ export function LoginForm() {
 
       await logAuditEvent({
           schoolId: schoolCode || 'unknown',
+          action: 'USER_LOGIN_FAILURE',
           actionType: 'Security',
-          description: `Failed Login Attempt: ${email}`,
-          user: { name: email, avatarUrl: '' },
+          description: `Failed login attempt for ${email}.`,
+          user: { id: 'unknown', name: email, role: 'unknown' },
           details: `Reason: ${description}`,
       });
 

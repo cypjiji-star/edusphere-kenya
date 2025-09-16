@@ -89,6 +89,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { logAuditEvent } from '@/lib/audit-log.service';
+import { useAuth } from '@/context/auth-context';
 
 const enrolmentSchema = z.object({
   studentFirstName: z.string().min(2, 'First name is required.'),
@@ -135,7 +136,7 @@ export default function StudentEnrolmentPage() {
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const adminUser = auth.currentUser;
+    const { user: adminUser } = useAuth();
 
     const [bulkEnrolmentFile, setBulkEnrolmentFile] = React.useState<File | null>(null);
     const [profilePhotoFile, setProfilePhotoFile] = React.useState<File | null>(null);
@@ -261,8 +262,8 @@ export default function StudentEnrolmentPage() {
     };
 
     async function onSubmit(values: EnrolmentFormValues) {
-        if (!schoolId) {
-            toast({ title: 'Error', description: 'School ID is missing.', variant: 'destructive'});
+        if (!schoolId || !adminUser) {
+            toast({ title: 'Error', description: 'School ID or Admin user is missing.', variant: 'destructive'});
             return;
         }
         setIsSubmitting(true);
@@ -341,24 +342,22 @@ export default function StudentEnrolmentPage() {
                 href: `/admin/enrolment?schoolId=${schoolId}`,
             });
 
-            // Log audit event for both student and parent creation
-            if (adminUser) {
-                await logAuditEvent({
-                    schoolId,
-                    actionType: 'User Management',
-                    description: `New Student Enrolled: ${studentName}`,
-                    user: { name: adminUser.displayName || 'Admin', avatarUrl: adminUser.photoURL || '' },
-                    details: `Class: ${studentData.class}, Parent: ${parentName}`,
-                });
-                await logAuditEvent({
-                    schoolId,
-                    actionType: 'User Management',
-                    description: `New Parent Account Created: ${parentName}`,
-                    user: { name: adminUser.displayName || 'Admin', avatarUrl: adminUser.photoURL || '' },
-                    details: `Email: ${parentData.email}, Linked Student: ${studentName}`,
-                });
-            }
-
+            await logAuditEvent({
+                schoolId,
+                action: 'STUDENT_ENROLLED',
+                actionType: 'User Management',
+                description: `New student ${studentName} enrolled.`,
+                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                details: `Class: ${studentData.class}, Parent: ${parentName}`,
+            });
+            await logAuditEvent({
+                schoolId,
+                action: 'PARENT_ACCOUNT_CREATED',
+                actionType: 'User Management',
+                description: `New parent account created for ${parentName}.`,
+                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                details: `Email: ${parentData.email}, Linked Student: ${studentName}`,
+            });
 
             toast({
                 title: 'Enrolment Submitted & Parent Account Created',

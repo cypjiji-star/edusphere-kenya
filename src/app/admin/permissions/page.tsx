@@ -97,7 +97,7 @@ const permissionStructure: PermissionCategory[] = [
 export default function PermissionsPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const { user } = useAuth();
+  const { user: adminUser } = useAuth();
   const [rolePermissions, setRolePermissions] = React.useState<Record<string, Role>>({});
   const [isLoading, setIsLoading] = React.useState(true);
   const [newRoleName, setNewRoleName] = React.useState('');
@@ -172,16 +172,17 @@ export default function PermissionsPage() {
   };
 
   const handleSave = async (role: string) => {
-    if (!schoolId || !user) return;
+    if (!schoolId || !adminUser) return;
     try {
         const roleRef = doc(firestore, `schools/${schoolId}/roles`, role);
         await updateDoc(roleRef, { permissions: rolePermissions[role].permissions });
 
         await logAuditEvent({
             schoolId,
+            action: 'ROLE_PERMISSIONS_UPDATED',
             actionType: 'Security',
-            description: `Permissions Updated for ${role}`,
-            user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+            description: `Permissions updated for the "${role}" role.`,
+            user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
         });
 
         toast({

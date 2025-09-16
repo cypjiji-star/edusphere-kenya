@@ -58,6 +58,8 @@ import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serve
 import { useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { useAuth } from '@/context/auth-context';
+import { logAuditEvent } from '@/lib/audit-log.service';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -102,6 +104,7 @@ const getStatusBadge = (status: UserStatus) => {
 export default function UserManagementPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const { user: adminUser } = useAuth();
     const [adminUsers, setAdminUsers] = React.useState<User[]>([]);
     const [teacherUsers, setTeacherUsers] = React.useState<User[]>([]);
     const [studentUsers, setStudentUsers] = React.useState<User[]>([]);
@@ -216,8 +219,8 @@ export default function UserManagementPage() {
     };
 
     const handleCreateUser = async () => {
-        if (!schoolId || !newUserRole || !newUserEmail || !newUserPassword || !newUserName) {
-            toast({ title: 'Missing Information', variant: 'destructive' });
+        if (!schoolId || !newUserRole || !newUserEmail || !newUserPassword || !newUserName || !adminUser) {
+            toast({ title: 'Missing Information or Not Authenticated', variant: 'destructive' });
             return;
         }
 
@@ -225,7 +228,6 @@ export default function UserManagementPage() {
         const secondaryAuth = getAuth(secondaryApp);
 
         try {
-            // Create user in Firebase Auth using the secondary instance
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
             const user = userCredential.user;
             
@@ -234,7 +236,6 @@ export default function UserManagementPage() {
             
             const batch = writeBatch(firestore);
             
-            // Create user document in Firestore
             const userDocRef = doc(firestore, 'schools', schoolId, collectionName, user.uid);
             
             const userData: any = {
@@ -249,31 +250,34 @@ export default function UserManagementPage() {
                 avatarUrl: `https://picsum.photos/seed/${newUserEmail}/100`
             };
 
-            if (newUserRole === 'Teacher') {
-                userData.classes = newUserClasses;
-            }
-            if (newUserRole === 'Parent') {
-                userData.children = newUserStudents;
-            }
+            if (newUserRole === 'Teacher') userData.classes = newUserClasses;
+            if (newUserRole === 'Parent') userData.children = newUserStudents;
 
             batch.set(userDocRef, userData);
 
-            // If a parent is created, update the student documents as well
             if (newUserRole === 'Parent' && newUserStudents.length > 0) {
                 newUserStudents.forEach(studentId => {
                     const studentRef = doc(firestore, 'schools', schoolId, 'students', studentId);
-                    // This will overwrite other parents, which might need more complex logic in a real app
                     batch.update(studentRef, { parentId: user.uid });
                 });
             }
 
             await batch.commit();
             
+            await logAuditEvent({
+                schoolId,
+                action: 'USER_CREATED',
+                actionType: 'User Management',
+                description: `New user account created for ${newUserName}.`,
+                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                details: `Role: ${newUserRole}, Email: ${newUserEmail}`
+            });
+
             toast({
                 title: 'User Created',
                 description: 'A new user account has been created successfully.',
             });
-            // Reset form
+
             setNewUserName('');
             setNewUserEmail('');
             setNewUserPassword('');
@@ -283,11 +287,8 @@ export default function UserManagementPage() {
 
         } catch(e: any) {
              let errorMessage = 'Could not create user. Please try again.';
-            if (e.code === 'auth/email-already-in-use') {
-                errorMessage = 'This email is already in use by another account.';
-            } else if (e.code === 'auth/weak-password') {
-                errorMessage = 'Password is too weak. It must be at least 6 characters long.';
-            }
+            if (e.code === 'auth/email-already-in-use') errorMessage = 'This email is already in use by another account.';
+            else if (e.code === 'auth/weak-password') errorMessage = 'Password is too weak. It must be at least 6 characters long.';
             toast({ title: 'Error', description: errorMessage, variant: 'destructive'});
         } finally {
             await deleteApp(secondaryApp);
@@ -316,11 +317,22 @@ export default function UserManagementPage() {
         toast({ title: 'Password Reset Sent', description: 'A password reset link has been sent to the user\'s email.' });
     };
 
-    const handleDeleteUser = async (userId: string) => {
-        if (!schoolId) return;
+    const handleDeleteUser = async (userId: string, userName: string, userRole: string) => {
+        if (!schoolId || !adminUser) return;
         if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
             try {
-                await deleteDoc(doc(firestore, 'schools', schoolId, 'users', userId));
+                const collectionName = userRole === 'Student' ? 'students' : userRole === 'Parent' ? 'parents' : 'users';
+                await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userId));
+                
+                await logAuditEvent({
+                    schoolId,
+                    action: 'USER_DELETED',
+                    actionType: 'User Management',
+                    description: `User account for ${userName} deleted.`,
+                    user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                    details: `Deleted User ID: ${userId}, Role: ${userRole}`
+                });
+
                 toast({ title: 'User Deleted', description: 'The user account has been deleted.', variant: 'destructive' });
             } catch(e) {
                 toast({ title: 'Error', description: 'Could not delete user.', variant: 'destructive'});
@@ -521,7 +533,7 @@ export default function UserManagementPage() {
                                                                     Send Password Reset
                                                                 </Button>
                                                                 <DialogClose asChild>
-                                                                    <Button variant="destructive" onClick={() => handleDeleteUser(user.id)}>
+                                                                    <Button variant="destructive" onClick={() => handleDeleteUser(user.id, user.name, user.role)}>
                                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                                         Delete User
                                                                     </Button>

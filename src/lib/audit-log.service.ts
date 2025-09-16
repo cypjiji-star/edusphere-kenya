@@ -8,11 +8,13 @@ type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Se
 
 type AuditLogPayload = {
     schoolId: string;
+    action: string; // e.g., USER_LOGIN_SUCCESS, GRADE_UPDATED
     actionType: ActionType;
-    description: string;
+    description: string; // e.g., "Brian Njoroge logged in."
     user: {
+        id: string;
         name: string;
-        avatarUrl: string;
+        role: string;
     };
     details?: string | { oldValue: any; newValue: any };
     ipAddress?: string;
