@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -21,7 +22,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield, CalendarIcon, Printer, Mail, FileDown, ChevronDown } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs, setDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs, setDoc, runTransaction } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { format, isPast, differenceInDays, formatDistanceToNow, startOfMonth, endOfMonth, eachMonthOfInterval, getMonth, sub } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -124,7 +125,6 @@ type FeeStructureItem = {
     id: string;
     category: string;
     amount: number;
-    appliesTo: string;
 };
 
 function ReceiptDialog({ transaction, student, schoolName, open, onOpenChange }: { transaction: Transaction | null, student: StudentFeeProfile | null, schoolName: string, open: boolean, onOpenChange: (open: boolean) => void }) {
@@ -345,11 +345,16 @@ export default function FeesPage() {
       }
     });
 
-    const feeStructureQuery = query(collection(firestore, `schools/${schoolId}/feeStructure`));
-    const unsubFeeStructure = onSnapshot(feeStructureQuery, (snapshot) => {
-        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeeStructureItem));
-        setFeeStructure(items);
-    });
+    const unsubFeeStructure = selectedClassForStructure
+      ? onSnapshot(doc(firestore, `schools/${schoolId}/fee-structures`, selectedClassForStructure), (docSnap) => {
+          if (docSnap.exists()) {
+              setFeeStructure(docSnap.data().items || []);
+          } else {
+              setFeeStructure([]);
+          }
+        })
+      : () => {};
+
 
     const today = new Date();
     const startOfToday = new Date(today.setHours(0, 0, 0, 0));
@@ -428,10 +433,9 @@ export default function FeesPage() {
   }, [filteredStudents, classFilter]);
   
   React.useEffect(() => {
-    const classFees = feeStructure.filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students');
-    const totalFee = classFees.reduce((total, item) => total + item.amount, 0);
+    const totalFee = feeStructure.reduce((total, item) => total + item.amount, 0);
     setTotalYearlyFee(totalFee);
-  }, [selectedClassForStructure, feeStructure]);
+  }, [feeStructure]);
 
   const openStudentDialog = async (student: StudentFeeProfile) => {
     const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
@@ -450,46 +454,49 @@ export default function FeesPage() {
     const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedStudentForPayment);
     
     try {
-        const studentDoc = await getDoc(studentRef);
-        if (!studentDoc.exists()) throw new Error("Student not found");
-        
-        const currentData = studentDoc.data();
-        const amount = Number(paymentAmount);
-        
-        const newPaid = (currentData.amountPaid || 0) + amount;
-        
-        const batch = writeBatch(firestore);
-        
-        batch.update(studentRef, { amountPaid: newPaid });
+        await runTransaction(firestore, async (transaction) => {
+            const studentDoc = await transaction.get(studentRef);
+            if (!studentDoc.exists()) throw new Error("Student not found");
 
-        // Record in student's subcollection
-        const studentTransactionRef = doc(collection(studentRef, 'transactions'));
-        batch.set(studentTransactionRef, {
-            date: Timestamp.fromDate(paymentDate),
-            description: `Payment via ${paymentMethod}`,
-            type: 'Payment',
-            amount: -amount,
-            notes: paymentNotes
+            const currentData = studentDoc.data();
+            const amount = Number(paymentAmount);
+
+            const newPaid = (currentData.amountPaid || 0) + amount;
+            const newBalance = (currentData.balance || 0) - amount;
+
+            transaction.update(studentRef, { 
+                amountPaid: newPaid,
+                balance: newBalance
+            });
+
+            // Record in student's subcollection
+            const studentTransactionRef = doc(collection(studentRef, 'transactions'));
+            transaction.set(studentTransactionRef, {
+                date: Timestamp.fromDate(paymentDate),
+                description: `Payment via ${paymentMethod}`,
+                type: 'Payment',
+                amount: -amount,
+                balance: newBalance,
+                notes: paymentNotes
+            });
+
+            // Record in top-level transactions collection for reporting
+            const schoolTransactionRef = doc(collection(firestore, `schools/${schoolId}/transactions`));
+            transaction.set(schoolTransactionRef, {
+                studentId: selectedStudentForPayment,
+                studentName: currentData.name,
+                class: currentData.class,
+                date: Timestamp.fromDate(paymentDate),
+                description: `Payment via ${paymentMethod}`,
+                type: 'Payment',
+                amount: -amount,
+                method: paymentMethod,
+            });
         });
-
-        // Record in top-level transactions collection for reporting
-        const schoolTransactionRef = doc(collection(firestore, `schools/${schoolId}/transactions`));
-        batch.set(schoolTransactionRef, {
-            studentId: selectedStudentForPayment,
-            studentName: currentData.name,
-            class: currentData.class,
-            date: Timestamp.fromDate(paymentDate),
-            description: `Payment via ${paymentMethod}`,
-            type: 'Payment',
-            amount: -amount,
-            method: paymentMethod,
-        });
-
-        await batch.commit();
 
         toast({
             title: "Payment Recorded",
-            description: `A ${paymentMethod} payment of ${formatCurrency(amount)} has been recorded and a confirmation has been sent.`
+            description: `A ${paymentMethod} payment of ${formatCurrency(Number(paymentAmount))} has been recorded and a confirmation has been sent.`
         });
         
         setSelectedStudentForPayment('');
@@ -507,19 +514,22 @@ export default function FeesPage() {
 
   const handleSaveFeeItem = async () => {
     const { category, amount } = newFeeItem;
-    if (!category || !amount || !schoolId) {
+    if (!category || !amount || !schoolId || !selectedClassForStructure) {
         toast({ title: "Missing Information", variant: "destructive" });
         return;
     }
     
-    const itemData = {
+    const newItem = {
+        id: new Date().toISOString(), // simple unique id
         category,
         amount: Number(amount),
-        appliesTo: selectedClassForStructure,
     };
+    
+    const updatedStructure = [...feeStructure, newItem];
 
     try {
-        await addDoc(collection(firestore, `schools/${schoolId}/feeStructure`), itemData);
+        const structureRef = doc(firestore, 'schools', schoolId, 'fee-structures', selectedClassForStructure);
+        await setDoc(structureRef, { items: updatedStructure }, { merge: true });
         toast({ title: "New Fee Item Added" });
         setNewFeeItem({ category: '', amount: '' });
     } catch (e) {
@@ -530,9 +540,13 @@ export default function FeesPage() {
 
   const handleDeleteFeeItem = async (itemId: string) => {
     if (!window.confirm("Are you sure you want to delete this fee item?")) return;
-    if (!schoolId) return;
+    if (!schoolId || !selectedClassForStructure) return;
+
+    const updatedStructure = feeStructure.filter(item => item.id !== itemId);
+    
     try {
-        await deleteDoc(doc(firestore, `schools/${schoolId}/feeStructure`, itemId));
+        const structureRef = doc(firestore, 'schools', schoolId, 'fee-structures', selectedClassForStructure);
+        await setDoc(structureRef, { items: updatedStructure });
         toast({ title: "Fee Item Deleted" });
     } catch (e) {
         console.error(e);
@@ -542,45 +556,51 @@ export default function FeesPage() {
   
   const handleSaveClassFees = async () => {
     if (!selectedClassForStructure || !schoolId) return;
-    const batch = writeBatch(firestore);
-    const studentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('class', '==', selectedClassForStructure));
-    const studentsSnapshot = await getDocs(studentsInClassQuery);
-    
-    const fee = totalYearlyFee;
-    const dueDate = yearlyDueDate;
-    
-    for (const studentDoc of studentsSnapshot.docs) {
-        const studentRef = doc(firestore, 'schools', schoolId, 'students', studentDoc.id);
-        const studentData = studentDoc.data();
-        
-        // Correctly calculate new balance before creating transaction
-        const existingBalance = (studentData.totalFee || 0) - (studentData.amountPaid || 0);
-        const newBalance = existingBalance + fee;
-
-        batch.update(studentRef, { 
-            totalFee: (studentData.totalFee || 0) + fee,
-            dueDate: Timestamp.fromDate(dueDate) 
-        });
-        
-        const transactionRef = doc(collection(studentRef, 'transactions'));
-        batch.set(transactionRef, {
-            date: Timestamp.now(),
-            description: `Annual School Fees`,
-            type: 'Charge',
-            amount: fee,
-            balance: newBalance,
-        });
-    }
 
     try {
-        await batch.commit();
-        toast({
-            title: 'Fees Applied',
-            description: `Annual fee of ${formatCurrency(fee)} has been applied to all students in ${selectedClassForStructure}.`,
-        });
+      await runTransaction(firestore, async (transaction) => {
+        // 1. Save the current fee structure
+        const structureRef = doc(firestore, 'schools', schoolId, 'fee-structures', selectedClassForStructure);
+        transaction.set(structureRef, { items: feeStructure }, { merge: true });
+
+        // 2. Apply fees to all students in the class
+        const studentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('class', '==', selectedClassForStructure));
+        const studentsSnapshot = await getDocs(studentsInClassQuery);
+        
+        const fee = totalYearlyFee;
+        const dueDate = yearlyDueDate;
+        
+        for (const studentDoc of studentsSnapshot.docs) {
+          const studentRef = doc(firestore, 'schools', schoolId, 'students', studentDoc.id);
+          const studentData = studentDoc.data();
+          
+          const existingBalance = (studentData.balance || 0);
+          const newBalance = existingBalance + fee;
+
+          transaction.update(studentRef, { 
+              totalFee: (studentData.totalFee || 0) + fee,
+              balance: newBalance,
+              dueDate: Timestamp.fromDate(dueDate) 
+          });
+          
+          const transactionRef = doc(collection(studentRef, 'transactions'));
+          transaction.set(transactionRef, {
+              date: Timestamp.now(),
+              description: `Annual School Fees`,
+              type: 'Charge',
+              amount: fee,
+              balance: newBalance,
+          });
+        }
+      });
+
+      toast({
+          title: 'Fees Applied',
+          description: `Annual fee of ${formatCurrency(totalYearlyFee)} has been applied to all students in ${selectedClassForStructure}.`,
+      });
     } catch (e) {
-        console.error(e);
-        toast({title: 'Failed to Apply Fees', variant: 'destructive'});
+      console.error(e);
+      toast({title: 'Failed to Apply Fees', variant: 'destructive'});
     }
   };
 
@@ -892,9 +912,7 @@ export default function FeesPage() {
                                     <Table>
                                         <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount (KES)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                         <TableBody>
-                                            {feeStructure
-                                                .filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students')
-                                                .map(item => (
+                                            {feeStructure.map(item => (
                                                 <TableRow key={item.id}>
                                                     <TableCell className="font-medium">{item.category}</TableCell>
                                                     <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
@@ -1134,3 +1152,4 @@ export default function FeesPage() {
     </>
   );
 }
+
