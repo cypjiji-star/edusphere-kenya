@@ -4,6 +4,7 @@ import './globals.css';
 import { ClientPageLoader } from '@/components/ui/client-page-loader';
 import { Suspense } from 'react';
 import { AuthProvider } from '@/context/auth-context';
+import { SplashScreen } from '@/components/layout/splash-screen';
 
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
@@ -26,6 +27,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
+            <SplashScreen />
             <ClientPageLoader />
             <Suspense>{children}</Suspense>
             <Toaster />
