@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -46,18 +46,43 @@ export function FinanceSnapshot() {
 
   React.useEffect(() => {
     if (!schoolId) return;
-    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
-    const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
-        let totalBilled = 0;
-        let totalPaid = 0;
-        snapshot.forEach(doc => {
-            totalBilled += doc.data().totalFee || 0;
-            totalPaid += doc.data().amountPaid || 0;
-        });
-        setFinanceData({ totalCollected: totalPaid, totalBilled });
+
+    const fetchData = async () => {
+        setIsLoading(true);
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
+        const studentsSnapshot = await getDocs(studentsQuery);
+
+        let totalSchoolFeesBilled = 0;
+        let totalPaidOverall = 0;
+
+        for (const studentDoc of studentsSnapshot.docs) {
+            totalPaidOverall += studentDoc.data().amountPaid || 0;
+
+            const transactionsQuery = query(collection(studentDoc.ref, 'transactions'));
+            const transactionsSnapshot = await getDocs(transactionsQuery);
+
+            transactionsSnapshot.forEach(transDoc => {
+                const transaction = transDoc.data();
+                if (transaction.description === 'School Fees' && transaction.type === 'Charge') {
+                    totalSchoolFeesBilled += transaction.amount > 0 ? transaction.amount : 0;
+                }
+            });
+        }
+        
+        // As we are filtering by 'School Fees', the collected amount should also be contextualized.
+        // A simple approach is to show all payments against the school fee billing.
+        // A more complex (and accurate) model would allocate payments, but for this snapshot,
+        // we'll cap collected at billed amount if it exceeds it.
+        const totalCollectedForSchoolFees = Math.min(totalPaidOverall, totalSchoolFeesBilled);
+
+        setFinanceData({ totalCollected: totalCollectedForSchoolFees, totalBilled: totalSchoolFeesBilled });
         setIsLoading(false);
-    });
-    return () => unsubscribe();
+    };
+
+    fetchData();
+    
+    // Note: This won't be real-time for transactions. For real-time, we'd need to set up listeners on all transaction subcollections.
+    // This is a more performant approach for a dashboard snapshot.
   }, [schoolId]);
 
   const totalOutstanding = financeData.totalBilled - financeData.totalCollected;
@@ -73,9 +98,9 @@ export function FinanceSnapshot() {
         <CardHeader>
             <CardTitle className="flex items-center gap-2">
                 <CircleDollarSign className="h-6 w-6 text-primary"/>
-                Finance Snapshot
+                School Fees Snapshot
             </CardTitle>
-            <CardDescription>Term 2 Collection Overview</CardDescription>
+            <CardDescription>Term 2 School Fee Collection Overview</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row items-center gap-6">
           {isLoading ? (
@@ -112,16 +137,16 @@ export function FinanceSnapshot() {
             </div>
             <div className="flex-1 space-y-4 w-full">
                 <div className="flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground">Total Billed</p>
+                    <p className="text-sm text-muted-foreground">Total School Fees Billed</p>
                     <p className="text-lg font-bold">KES {financeData.totalBilled.toLocaleString()}</p>
                 </div>
                 <div className="flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground">Total Collected</p>
+                    <p className="text-sm text-muted-foreground">Total Collected (towards School Fees)</p>
                     <p className="text-lg font-bold text-green-600">+ KES {financeData.totalCollected.toLocaleString()}</p>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center">
-                    <p className="text-sm font-semibold">Outstanding</p>
+                    <p className="text-sm font-semibold">Outstanding School Fees</p>
                     <p className={`text-xl font-bold text-destructive`}>
                         KES {totalOutstanding.toLocaleString()}
                     </p>
@@ -144,7 +169,7 @@ export function PerformanceSnapshot() {
     if (!schoolId) return;
 
     // Listen to changes in submissions across all assessments
-    const submissionsQuery = query(collection(firestore, `schools/${schoolId}/submissions`));
+    const submissionsQuery = query(collection(firestore, `schools/${schoolId}/grades`));
     const unsubscribe = onSnapshot(submissionsQuery, (snapshot) => {
         const subjectScores: Record<string, { total: number, count: number }> = {};
         
