@@ -107,11 +107,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Calendar } from '@/components/ui/calendar';
 
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-KE', {
     style: 'currency',
     currency: 'KES',
@@ -172,6 +173,13 @@ type Class = {
   name: string;
 };
 
+interface Toast {
+  title: string;
+  description?: string;
+  variant?: 'default' | 'destructive' | 'success' | 'info';
+  duration?: number;
+}
+
 function ReceiptDialog({
   transaction,
   student,
@@ -185,34 +193,46 @@ function ReceiptDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { toast } = useToast();
+
   if (!transaction || !student) return null;
 
   const printReceipt = () => {
-    const printWindow = window.open('', 'PRINT', 'height=600,width=800');
-    const receiptContent = document.getElementById('receipt-content');
-    if (printWindow && receiptContent) {
-      printWindow.document.write('<html><head><title>Receipt</title>');
-      printWindow.document.write(
-        '<style>body { font-family: sans-serif; } .receipt-container { width: 100%; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ccc; } h2, h3 { color: #333; } .paid-stamp { border: 3px solid #008000; color: #008000; padding: 10px; font-weight: bold; text-align: center; transform: rotate(-15deg); width: 100px; margin: 20px auto; } </style>'
-      );
-      printWindow.document.write('</head><body>');
-      printWindow.document.write(receiptContent.innerHTML);
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
+    try {
+      const printWindow = window.open('', 'PRINT', 'height=600,width=800');
+      const receiptContent = document.getElementById('receipt-content');
+      if (printWindow && receiptContent) {
+        printWindow.document.write('<html><head><title>Receipt</title>');
+        printWindow.document.write(
+          '<style>body { font-family: sans-serif; } .receipt-container { width: 100%; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ccc; } h2, h3 { color: #333; } .paid-stamp { border: 3px solid #008000; color: #008000; padding: 10px; font-weight: bold; text-align: center; transform: rotate(-15deg); width: 100px; margin: 20px auto; } </style>'
+        );
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(receiptContent.innerHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      } else {
+        throw new Error('Unable to access receipt content or open print window');
+      }
+    } catch (e: unknown) {
+      console.error('Error printing receipt:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Could not print receipt: ${errorMessage}`, variant: 'destructive' });
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl" aria-describedby="receipt-description">
+         <DialogHeader>
+            <DialogTitle>{schoolName} - Payment Receipt</DialogTitle>
+             <VisuallyHidden>
+                <DialogDescription id="receipt-description">Official payment receipt for {student.name}</DialogDescription>
+            </VisuallyHidden>
+         </DialogHeader>
         <div id="receipt-content">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">{schoolName}</DialogTitle>
-            <DialogDescription>Official Payment Receipt</DialogDescription>
-          </DialogHeader>
           <div className="py-6 space-y-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -256,9 +276,11 @@ function ReceiptDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <DialogClose asChild>
+            <Button variant="outline" aria-label="Close receipt dialog">
+              Close
+            </Button>
+          </DialogClose>
           <Button onClick={printReceipt} aria-label="Print receipt">
             <Printer className="mr-2 h-4 w-4" />
             Print Receipt
@@ -266,6 +288,269 @@ function ReceiptDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function StudentProfileDialog({
+  selectedStudent,
+  schoolName,
+  feeStructure,
+  totalYearlyFee,
+  handleSendStatement,
+  selectedTransaction,
+  setSelectedTransaction,
+}: {
+  selectedStudent: StudentFeeProfile | null;
+  schoolName: string;
+  feeStructure: FeeStructureItem[];
+  totalYearlyFee: number;
+  handleSendStatement: () => void;
+  selectedTransaction: Transaction | null;
+  setSelectedTransaction: React.Dispatch<React.SetStateAction<Transaction | null>>;
+}) {
+  if (!selectedStudent) return null;
+
+  return (
+    <DialogContent className="sm:max-w-3xl" aria-describedby="student-profile-description">
+      <DialogHeader>
+        <DialogTitle>{selectedStudent.name} - Fee Profile</DialogTitle>
+        <VisuallyHidden>
+            <DialogDescription id="student-profile-description">
+            Fee profile and transaction history for {selectedStudent.name}
+            </DialogDescription>
+        </VisuallyHidden>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={selectedStudent.avatarUrl} />
+              <AvatarFallback>{selectedStudent.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="text-2xl font-bold">{selectedStudent.name}</h2>
+              <p className="text-muted-foreground">
+                {selectedStudent.class} | Admission No: {selectedStudent.admissionNo}
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={handleSendStatement} aria-label="Send fee statement">
+            <Mail className="mr-2 h-4 w-4" />
+            Send Statement
+          </Button>
+        </div>
+      </DialogHeader>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center border-t border-b py-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Arrears B/F</p>
+          <p className="font-semibold">{formatCurrency(0)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Total Payable</p>
+          <p className="font-semibold">{formatCurrency(selectedStudent.totalBilled)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Total Paid</p>
+          <p className="font-semibold text-green-600">{formatCurrency(selectedStudent.totalPaid)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Current Balance</p>
+          <p className={`font-semibold text-lg ${selectedStudent.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>
+            {formatCurrency(selectedStudent.balance)}
+          </p>
+        </div>
+      </div>
+
+      <Accordion type="single" defaultValue="fee-structure" collapsible className="w-full">
+        <AccordionItem value="fee-structure">
+          <AccordionTrigger className="text-lg font-semibold">Fee Structure</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-primary">Yearly Fees</h4>
+                <div className="text-sm mt-2 space-y-1">
+                  {feeStructure
+                    .filter((item) => item.id === selectedStudent.classId)
+                    .map((item) => (
+                      <div key={item.id} className="flex justify-between">
+                        <span>{item.category}</span>
+                        <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-bold text-lg p-2 bg-muted rounded-md">
+                <span>Total Yearly Fees:</span>
+                <span>{formatCurrency(totalYearlyFee)}</span>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="transaction-ledger">
+          <AccordionTrigger className="text-lg font-semibold">Transaction Ledger</AccordionTrigger>
+          <AccordionContent>
+            <div className="max-h-[30vh] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                    <TableHead className="text-right">Receipt</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedStudent.transactions?.map((tx) => (
+                    <TableRow key={tx.id}>
+                      <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
+                      <TableCell>{tx.description}</TableCell>
+                      <TableCell className={`text-right ${tx.amount > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                        {formatCurrency(tx.amount)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(tx.balance)}</TableCell>
+                      <TableCell className="text-right">
+                        {tx.type === 'Payment' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedTransaction(tx)}
+                            aria-label={`View receipt for ${tx.description}`}
+                          >
+                            View Receipt
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="adjustments">
+          <AccordionTrigger className="text-lg font-semibold">Adjustments</AccordionTrigger>
+          <AccordionContent className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Add Charge / Credit</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="charge-desc">Description</Label>
+                  <Input id="charge-desc" placeholder="e.g., Lost Textbook Fee" aria-label="Charge description" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="space-y-2 flex-1">
+                    <Label htmlFor="charge-amount">Amount</Label>
+                    <Input
+                      id="charge-amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="2500"
+                      aria-label="Charge amount"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select defaultValue="charge">
+                      <SelectTrigger className="w-[120px]" aria-label="Select transaction type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="charge">Charge</SelectItem>
+                        <SelectItem value="credit">Credit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button size="sm" disabled aria-label="Add transaction">
+                  Add Transaction
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Apply Discount</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="discount-desc">Description</Label>
+                  <Input id="discount-desc" placeholder="e.g., Sibling Discount" aria-label="Discount description" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="space-y-2 flex-1">
+                    <Label htmlFor="discount-amount">Value</Label>
+                    <Input
+                      id="discount-amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="10"
+                      aria-label="Discount value"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select defaultValue="percent">
+                      <SelectTrigger className="w-[120px]" aria-label="Select discount type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percent">% (Percentage)</SelectItem>
+                        <SelectItem value="fixed">KES (Fixed)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button size="sm" disabled aria-label="Apply discount">
+                  Apply Discount
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Apply Waiver</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="waiver-amount">Waiver Amount (KES)</Label>
+                  <Input
+                    id="waiver-amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="5000"
+                    aria-label="Waiver amount"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="waiver-reason">Reason</Label>
+                  <Textarea
+                    id="waiver-reason"
+                    placeholder="e.g., Staff Dependent, Charity Case"
+                    aria-label="Waiver reason"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="waiver-approver">Approved By</Label>
+                  <Input
+                    id="waiver-approver"
+                    placeholder="e.g., Principal Jane Doe"
+                    aria-label="Waiver approver"
+                  />
+                </div>
+                <Button size="sm" disabled aria-label="Apply waiver">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Apply Waiver
+                </Button>
+              </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </DialogContent>
   );
 }
 
@@ -313,6 +598,15 @@ export default function FeesPage() {
   const [paymentDate, setPaymentDate] = React.useState<Date | undefined>(new Date());
   const [paymentNotes, setPaymentNotes] = React.useState('');
   const [isSavingPayment, setIsSavingPayment] = React.useState(false);
+  
+  // State for new invoice dialog
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = React.useState(false);
+  const [newInvoiceStudentId, setNewInvoiceStudentId] = React.useState('');
+  const [newInvoiceAmount, setNewInvoiceAmount] = React.useState('');
+  const [newInvoiceDescription, setNewInvoiceDescription] = React.useState('');
+  const [newInvoiceDueDate, setNewInvoiceDueDate] = React.useState<Date | undefined>(new Date());
+  const [isSavingInvoice, setIsSavingInvoice] = React.useState(false);
+
 
   // State for Fee Structure tab
   const [feeStructure, setFeeStructure] = React.useState<FeeStructureItem[]>([]);
@@ -334,9 +628,10 @@ export default function FeesPage() {
       if (doc.exists()) {
         setSchoolName(doc.data().name || 'School');
       }
-    }).catch((e) => {
+    }).catch((e: unknown) => {
       console.error('Error fetching school name:', e);
-      toast({ title: 'Error', description: 'Failed to fetch school details.', variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Failed to fetch school details: ${errorMessage}`, variant: 'destructive' });
     });
 
     const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
@@ -378,9 +673,7 @@ export default function FeesPage() {
         });
 
         if (data.classId && data.class) {
-          if (!classMap.has(data.classId)) {
-            classMap.set(data.classId, data.class);
-          }
+          classMap.set(data.classId, data.class);
         }
 
         if (studentBalance <= 0) {
@@ -423,9 +716,10 @@ export default function FeesPage() {
       if (!selectedClassForStructure && classList.length > 0) {
         setSelectedClassForStructure(classList[0].id);
       }
-    }, (error) => {
+    }, (error: unknown) => {
       console.error('Error fetching students:', error);
-      toast({ title: 'Error', description: 'Failed to load student data.', variant: 'destructive' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast({ title: 'Error', description: `Failed to load student data: ${errorMessage}`, variant: 'destructive' });
     });
 
     const today = new Date();
@@ -441,9 +735,10 @@ export default function FeesPage() {
         todaysTotal += Math.abs(doc.data().amount);
       });
       setFinancials((prev) => ({ ...prev, todaysCollections: todaysTotal }));
-    }, (error) => {
+    }, (error: unknown) => {
       console.error('Error fetching payments:', error);
-      toast({ title: 'Error', description: 'Failed to load payment data.', variant: 'destructive' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast({ title: 'Error', description: `Failed to load payment data: ${errorMessage}`, variant: 'destructive' });
     });
 
     const transactionsQuery = query(
@@ -472,9 +767,10 @@ export default function FeesPage() {
       });
 
       setCollectionTrend(Object.entries(monthlyCollections).map(([month, collected]) => ({ month, collected })));
-    }, (error) => {
+    }, (error: unknown) => {
       console.error('Error fetching transactions:', error);
-      toast({ title: 'Error', description: 'Failed to load transaction data.', variant: 'destructive' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast({ title: 'Error', description: `Failed to load transaction data: ${errorMessage}`, variant: 'destructive' });
     });
 
     setIsLoading(false);
@@ -499,15 +795,17 @@ export default function FeesPage() {
         setFeeStructure(docSnap.data().items || []);
       } else {
         setFeeStructure([]);
-        setDoc(structureRef, { items: [] }, { merge: true }).catch((e) => {
+        setDoc(structureRef, { items: [] }, { merge: true }).catch((e: unknown) => {
           console.error('Error initializing fee structure:', e);
-          toast({ title: 'Error', description: 'Failed to initialize fee structure.', variant: 'destructive' });
+          const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+          toast({ title: 'Error', description: `Failed to initialize fee structure: ${errorMessage}`, variant: 'destructive' });
         });
       }
       setIsFeeStructureLoading(false);
-    }, (error) => {
+    }, (error: unknown) => {
       console.error('Error fetching fee structure:', error);
-      toast({ title: 'Error', description: 'Failed to load fee structure.', variant: 'destructive' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast({ title: 'Error', description: `Failed to load fee structure: ${errorMessage}`, variant: 'destructive' });
       setIsFeeStructureLoading(false);
     });
 
@@ -556,9 +854,10 @@ export default function FeesPage() {
       const transactionsSnapshot = await getDocs(transactionsQuery);
       const transactions = transactionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Transaction));
       setSelectedStudent({ ...student, transactions });
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('Error fetching transactions:', e);
-      toast({ title: 'Error', description: 'Failed to load transaction history.', variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Failed to load transaction history: ${errorMessage}`, variant: 'destructive' });
     }
   };
 
@@ -622,11 +921,69 @@ export default function FeesPage() {
       setPaymentAmount('');
       setPaymentNotes('');
       setIsPaymentDialogOpen(false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Error recording payment:', e);
-      toast({ title: 'Error', description: `Could not record payment: ${e.message}`, variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Could not record payment: ${errorMessage}`, variant: 'destructive' });
     } finally {
       setIsSavingPayment(false);
+    }
+  };
+  
+    const handleCreateInvoice = async () => {
+    if (!schoolId || !newInvoiceStudentId || !newInvoiceAmount || !newInvoiceDescription || !newInvoiceDueDate) {
+      toast({ title: 'Missing Fields', description: 'Please fill out all invoice details.', variant: 'destructive' });
+      return;
+    }
+    const amount = Number(newInvoiceAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: 'Invalid Amount', description: 'Please enter a positive number for the invoice amount.', variant: 'destructive' });
+      return;
+    }
+    setIsSavingInvoice(true);
+
+    const studentRef = doc(firestore, `schools/${schoolId}/students`, newInvoiceStudentId);
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const studentDoc = await transaction.get(studentRef);
+        if (!studentDoc.exists()) throw new Error('Student not found');
+
+        const currentData = studentDoc.data();
+        const newTotalFee = (currentData.totalFee || 0) + amount;
+        const newBalance = (currentData.balance || 0) + amount;
+
+        transaction.update(studentRef, {
+          totalFee: newTotalFee,
+          balance: newBalance,
+        });
+
+        const studentTransactionRef = doc(collection(studentRef, 'transactions'));
+        transaction.set(studentTransactionRef, {
+          date: Timestamp.now(),
+          description: newInvoiceDescription,
+          type: 'Charge',
+          amount: amount,
+          balance: newBalance,
+          dueDate: Timestamp.fromDate(newInvoiceDueDate),
+        });
+      });
+
+      toast({
+        title: 'Invoice Created',
+        description: `An invoice for ${formatCurrency(amount)} has been added to the student's account.`,
+      });
+
+      setNewInvoiceStudentId('');
+      setNewInvoiceAmount('');
+      setNewInvoiceDescription('');
+      setIsInvoiceDialogOpen(false);
+    } catch (e: unknown) {
+      console.error('Error creating invoice:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Could not create invoice: ${errorMessage}`, variant: 'destructive' });
+    } finally {
+      setIsSavingInvoice(false);
     }
   };
 
@@ -655,9 +1012,10 @@ export default function FeesPage() {
       await setDoc(structureRef, { items: updatedStructure }, { merge: true });
       toast({ title: 'New Fee Item Added', description: `${category} added successfully.` });
       setNewFeeItem({ category: '', amount: '' });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Error saving fee item:', e);
-      toast({ title: 'Save Failed', description: `Could not save fee item: ${e.message}`, variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Could not save fee item: ${errorMessage}`, variant: 'destructive' });
     }
   };
 
@@ -670,9 +1028,10 @@ export default function FeesPage() {
       const updatedStructure = feeStructure.filter((item) => item.id !== itemId);
       await setDoc(structureRef, { items: updatedStructure });
       toast({ title: 'Fee Item Deleted', description: 'Fee item removed successfully.' });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Error deleting fee item:', e);
-      toast({ title: 'Delete Failed', description: `Could not delete fee item: ${e.message}`, variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Could not delete fee item: ${errorMessage}`, variant: 'destructive' });
     }
   };
 
@@ -698,8 +1057,10 @@ export default function FeesPage() {
 
         for (const studentDoc of studentsSnapshot.docs) {
           const studentRef = doc(firestore, `schools/${schoolId}/students`, studentDoc.id);
-          const studentData = studentDoc.data();
-
+          const currentStudentData = await transaction.get(studentRef);
+          if (!currentStudentData.exists()) continue;
+          
+          const studentData = currentStudentData.data();
           const existingBalance = (studentData.balance || 0);
           const newBalance = existingBalance + fee;
 
@@ -726,9 +1087,10 @@ export default function FeesPage() {
           classes.find((c) => c.id === selectedClassForStructure)?.name
         }.`,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Error applying fees:', e);
-      toast({ title: 'Failed to Apply Fees', description: `Error: ${e.message}`, variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Failed to apply fees: ${errorMessage}`, variant: 'destructive' });
     }
   };
 
@@ -789,9 +1151,52 @@ export default function FeesPage() {
         document.body.removeChild(link);
       }
       toast({ title: 'Export Successful', description: `Student fee data has been exported as a ${format} file.` });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Error exporting data:', e);
-      toast({ title: 'Export Failed', description: `Could not export data: ${e.message}`, variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Could not export data: ${errorMessage}`, variant: 'destructive' });
+    }
+  };
+  
+  const handleExportSummary = (format: 'PDF' | 'CSV') => {
+     try {
+      if (format === 'PDF') {
+        const doc = new jsPDF();
+        doc.text(`${schoolName} - Financial Summary`, 14, 16);
+        (doc as any).autoTable({
+          startY: 22,
+          body: [
+            ['Total Expected Fees (Annual)', formatCurrency(financials.totalBilled)],
+            ['Total Collected (To Date)', formatCurrency(financials.totalCollected)],
+            ['Total Outstanding Balance', formatCurrency(financials.outstanding)],
+            ["Today's Collections", formatCurrency(financials.todaysCollections)],
+          ],
+        });
+        doc.save('financial_summary.pdf');
+      } else {
+        const headers = ['Metric', 'Amount'];
+        const csvContent = [
+          headers.join(','),
+          `"Total Expected Fees (Annual)",${financials.totalBilled}`,
+          `"Total Collected (To Date)",${financials.totalCollected}`,
+          `"Total Outstanding Balance",${financials.outstanding}`,
+          `"Today's Collections",${financials.todaysCollections}`,
+        ].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'financial_summary.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      toast({ title: 'Export Successful', description: `Financial summary has been exported as a ${format} file.` });
+    } catch (e: unknown) {
+      console.error('Error exporting data:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Error', description: `Could not export data: ${errorMessage}`, variant: 'destructive' });
     }
   };
 
@@ -921,10 +1326,15 @@ export default function FeesPage() {
                         Record Payment
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-lg" aria-describedby="payment-dialog-description">
                       <DialogHeader>
                         <DialogTitle>Record Manual Payment</DialogTitle>
-                        <DialogDescription>Record a cash, cheque, or bank deposit payment.</DialogDescription>
+                        <VisuallyHidden>
+                            <DialogDescription id="payment-dialog-description">
+                            Record a cash, cheque, or bank deposit payment for a student
+                            </DialogDescription>
+                        </VisuallyHidden>
+                        <p className="text-muted-foreground">Record a cash, cheque, or bank deposit payment.</p>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -1016,14 +1426,74 @@ export default function FeesPage() {
                     <Send className="mr-2 h-4 w-4" />
                     Send Reminders
                   </Button>
-                  <Button disabled aria-label="Generate report">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Generate Report
-                  </Button>
-                  <Button disabled aria-label="Create new invoice">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    New Invoice
-                  </Button>
+                   <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" aria-label="Generate report">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Generate Report
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleExportSummary('PDF')}>Export Summary (PDF)</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportSummary('CSV')}>Export Summary (CSV)</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                  <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
+                    <DialogTrigger asChild>
+                         <Button aria-label="Create new invoice">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            New Invoice
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Create New Invoice</DialogTitle>
+                            <DialogDescription>Create a one-off charge for a specific student.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="invoice-student">Student</Label>
+                                <Select value={newInvoiceStudentId} onValueChange={setNewInvoiceStudentId}>
+                                    <SelectTrigger id="invoice-student"><SelectValue placeholder="Select a student..." /></SelectTrigger>
+                                    <SelectContent>
+                                    {allStudents.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="invoice-desc">Description</Label>
+                                <Input id="invoice-desc" placeholder="e.g., Replacement ID Card" value={newInvoiceDescription} onChange={(e) => setNewInvoiceDescription(e.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="invoice-amount">Amount (KES)</Label>
+                                    <Input id="invoice-amount" type="number" min="0" placeholder="500" value={newInvoiceAmount} onChange={(e) => setNewInvoiceAmount(e.target.value)} />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label>Due Date</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <Button variant="outline" className={cn('w-full font-normal', !newInvoiceDueDate && 'text-muted-foreground')}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {newInvoiceDueDate ? format(newInvoiceDueDate, 'PPP') : 'Pick a date'}
+                                        </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent><Calendar mode="single" selected={newInvoiceDueDate} onSelect={setNewInvoiceDueDate} /></PopoverContent>
+                                    </Popover>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                            <Button onClick={handleCreateInvoice} disabled={isSavingInvoice}>
+                                {isSavingInvoice && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Add Charge to Account
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -1381,16 +1851,11 @@ export default function FeesPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent>
-                              <Calendar
-                                mode="single"
-                                selected={yearlyDueDate}
-                                onSelect={(date) => date && setYearlyDueDate(date)}
-                                initialFocus
-                              />
+                              <Calendar mode="single" selected={yearlyDueDate} onSelect={setYearlyDueDate} />
                             </PopoverContent>
                           </Popover>
-                          <Button onClick={handleSaveClassFees} aria-label="Save and apply fees">
-                            Save & Apply
+                          <Button onClick={handleSaveClassFees} aria-label="Apply fees to class">
+                            Apply Fees
                           </Button>
                         </div>
                       </CardFooter>
@@ -1400,253 +1865,24 @@ export default function FeesPage() {
               </Card>
             </TabsContent>
           </Tabs>
+          <StudentProfileDialog
+            selectedStudent={selectedStudent}
+            schoolName={schoolName}
+            feeStructure={feeStructure}
+            totalYearlyFee={totalYearlyFee}
+            handleSendStatement={handleSendStatement}
+            selectedTransaction={selectedTransaction}
+            setSelectedTransaction={setSelectedTransaction}
+          />
+          <ReceiptDialog
+            transaction={selectedTransaction}
+            student={selectedStudent}
+            schoolName={schoolName}
+            open={!!selectedTransaction}
+            onOpenChange={(open) => !open && setSelectedTransaction(null)}
+          />
         </div>
-        <DialogContent className="sm:max-w-3xl">
-          {selectedStudent && (
-            <>
-              <DialogHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src={selectedStudent.avatarUrl} />
-                      <AvatarFallback>{selectedStudent.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <DialogTitle className="text-2xl font-bold">{selectedStudent.name}</DialogTitle>
-                      <DialogDescription>
-                        {selectedStudent.class} | Admission No: {selectedStudent.admissionNo}
-                      </DialogDescription>
-                    </div>
-                  </div>
-                  <Button variant="outline" onClick={handleSendStatement} aria-label="Send fee statement">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Send Statement
-                  </Button>
-                </div>
-              </DialogHeader>
-
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center border-t border-b py-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Arrears B/F</p>
-                  <p className="font-semibold">{formatCurrency(0)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Payable</p>
-                  <p className="font-semibold">{formatCurrency(selectedStudent.totalBilled)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Paid</p>
-                  <p className="font-semibold text-green-600">{formatCurrency(selectedStudent.totalPaid)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Current Balance</p>
-                  <p className={`font-semibold text-lg ${selectedStudent.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>
-                    {formatCurrency(selectedStudent.balance)}
-                  </p>
-                </div>
-              </div>
-
-              <Accordion type="single" defaultValue="fee-structure" collapsible className="w-full">
-                <AccordionItem value="fee-structure">
-                  <AccordionTrigger className="text-lg font-semibold">Fee Structure</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-semibold text-primary">Yearly Fees</h4>
-                        <div className="text-sm mt-2 space-y-1">
-                          {feeStructure
-                            .filter((item) => item.id === selectedStudent.classId)
-                            .map((item) => (
-                              <div key={item.id} className="flex justify-between">
-                                <span>{item.category}</span>
-                                <span className="font-medium">{formatCurrency(item.amount)}</span>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                      <Separator />
-                      <div className="flex justify-between font-bold text-lg p-2 bg-muted rounded-md">
-                        <span>Total Yearly Fees:</span>
-                        <span>{formatCurrency(totalYearlyFee)}</span>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="transaction-ledger">
-                  <AccordionTrigger className="text-lg font-semibold">Transaction Ledger</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="max-h-[30vh] overflow-y-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                            <TableHead className="text-right">Balance</TableHead>
-                            <TableHead className="text-right">Receipt</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedStudent.transactions?.map((tx) => (
-                            <TableRow key={tx.id}>
-                              <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
-                              <TableCell>{tx.description}</TableCell>
-                              <TableCell className={`text-right ${tx.amount > 0 ? 'text-destructive' : 'text-green-600'}`}>
-                                {formatCurrency(tx.amount)}
-                              </TableCell>
-                              <TableCell className="text-right font-medium">{formatCurrency(tx.balance)}</TableCell>
-                              <TableCell className="text-right">
-                                {tx.type === 'Payment' && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSelectedTransaction(tx)}
-                                    aria-label={`View receipt for ${tx.description}`}
-                                  >
-                                    View Receipt
-                                  </Button>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="adjustments">
-                  <AccordionTrigger className="text-lg font-semibold">Adjustments</AccordionTrigger>
-                  <AccordionContent className="space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Add Charge / Credit</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="charge-desc">Description</Label>
-                          <Input id="charge-desc" placeholder="e.g., Lost Textbook Fee" aria-label="Charge description" />
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="space-y-2 flex-1">
-                            <Label htmlFor="charge-amount">Amount</Label>
-                            <Input
-                              id="charge-amount"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="2500"
-                              aria-label="Charge amount"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Type</Label>
-                            <Select defaultValue="charge">
-                              <SelectTrigger className="w-[120px]" aria-label="Select transaction type">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="charge">Charge</SelectItem>
-                                <SelectItem value="credit">Credit</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <Button size="sm" disabled aria-label="Add transaction">
-                          Add Transaction
-                        </Button>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Apply Discount</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="discount-desc">Description</Label>
-                          <Input id="discount-desc" placeholder="e.g., Sibling Discount" aria-label="Discount description" />
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="space-y-2 flex-1">
-                            <Label htmlFor="discount-amount">Value</Label>
-                            <Input
-                              id="discount-amount"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="10"
-                              aria-label="Discount value"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Type</Label>
-                            <Select defaultValue="percent">
-                              <SelectTrigger className="w-[120px]" aria-label="Select discount type">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="percent">% (Percentage)</SelectItem>
-                                <SelectItem value="fixed">KES (Fixed)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <Button size="sm" disabled aria-label="Apply discount">
-                          Apply Discount
-                        </Button>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Apply Waiver</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="waiver-amount">Waiver Amount (KES)</Label>
-                          <Input
-                            id="waiver-amount"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="5000"
-                            aria-label="Waiver amount"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="waiver-reason">Reason</Label>
-                          <Textarea
-                            id="waiver-reason"
-                            placeholder="e.g., Staff Dependent, Charity Case"
-                            aria-label="Waiver reason"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="waiver-approver">Approved By</Label>
-                          <Input
-                            id="waiver-approver"
-                            placeholder="e.g., Principal Jane Doe"
-                            aria-label="Waiver approver"
-                          />
-                        </div>
-                        <Button size="sm" disabled aria-label="Apply waiver">
-                          <Shield className="mr-2 h-4 w-4" />
-                          Apply Waiver
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </>
-          )}
-        </DialogContent>
       </Dialog>
-      <ReceiptDialog
-        transaction={selectedTransaction}
-        student={selectedStudent}
-        schoolName={schoolName}
-        open={!!selectedTransaction}
-        onOpenChange={(open) => !open && setSelectedTransaction(null)}
-      />
     </>
   );
 }
