@@ -44,6 +44,7 @@ import {
   TrendingDown,
   Minus,
   PlusCircle,
+  ClipboardList,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -72,6 +73,7 @@ import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/fire
 import { useSearchParams } from 'next/navigation';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
 import { BulkGradeEntry } from './new/bulk-grade-entry';
+import { Progress } from '@/components/ui/progress';
 
 
 // --- Data Types ---
@@ -97,6 +99,10 @@ export type Assessment = {
   type: 'Exam' | 'Assignment' | 'Quiz';
   date: Timestamp;
   subject?: string;
+  className: string;
+  totalStudents?: number;
+  submissions?: number;
+  dueDate?: Timestamp;
 };
 
 type TeacherClass = {
@@ -118,6 +124,8 @@ export default function GradesPage() {
     const [activeTab, setActiveTab] = React.useState('ranking');
     const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
     const [user, setUser] = React.useState(auth.currentUser);
+    const [gradingTasks, setGradingTasks] = React.useState<Assessment[]>([]);
+
 
     const [currentAssessments, setCurrentAssessments] = React.useState<Assessment[]>([]);
     const [currentStudents, setCurrentStudents] = React.useState<StudentGrades[]>([]);
@@ -148,10 +156,21 @@ export default function GradesPage() {
             setTeacherSubjects(['All Subjects', ...subjects]);
         });
 
+        const tasksQuery = query(
+            collection(firestore, 'schools', schoolId, 'assessments'),
+            where('teacherId', '==', teacherId),
+            where('status', '==', 'Active')
+        );
+        const unsubTasks = onSnapshot(tasksQuery, (snapshot) => {
+            const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data()} as Assessment));
+            setGradingTasks(tasks);
+        });
+
 
         return () => {
             unsubClasses();
             unsubSubjects();
+            unsubTasks();
         };
     }, [schoolId, selectedClass, user]);
 
@@ -275,7 +294,6 @@ export default function GradesPage() {
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
-                document.body.removeChild(link);
             }
         } else {
              doc.text(`${className} Grades`, 14, 16);
@@ -306,7 +324,7 @@ export default function GradesPage() {
               <p className="text-muted-foreground">View, manage, and export student grades for your classes.</p>
             </div>
             <TabsList className="grid w-full grid-cols-4 mt-4 md:mt-0 md:w-auto">
-                <TabsTrigger value="ranking">Ranking</TabsTrigger>
+                <TabsTrigger value="ranking">Dashboard</TabsTrigger>
                 <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
                 <TabsTrigger value="entry">Enter Grades</TabsTrigger>
                 <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -314,145 +332,77 @@ export default function GradesPage() {
         </div>
 
         <TabsContent value="ranking">
-             <Card>
-              <CardHeader>
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                      <div>
-                          <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
-                          <CardDescription>Student ranking based on performance in a specific subject.</CardDescription>
-                      </div>
-                      <div className="flex w-full flex-col md:flex-row md:items-center gap-2">
-                           <Select value={selectedClass} onValueChange={setSelectedClass}>
-                              <SelectTrigger className="w-full md:w-[240px]">
-                                  <SelectValue placeholder="Select a class" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
-                          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                              <SelectTrigger className="w-full md:w-[240px]">
-                                  <SelectValue placeholder="Select a subject" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {teacherSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    Export / Actions
-                                    <ChevronDown className="ml-2 h-4 w-4"/>
-                                </Button>
-                            </DropdownMenuTrigger>
-                             <DropdownMenuContent>
-                                <DropdownMenuItem onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print Ranking</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                      </div>
-                  </div>
-              </CardHeader>
-              <CardContent>
-                {isGradebookLoading ? (
-                  <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Loading ranking data...</span></div>
-                ) : (
-                  <>
-                  <GradeSummaryWidget students={filteredStudents} />
-                  <div className="w-full overflow-auto rounded-lg border mt-6">
-                  <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Rank</TableHead>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Overall Grade</TableHead>
-                            <TableHead>Trend</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                     <TableBody>
-                        {filteredStudents.length > 0 ? (
-                            filteredStudents.map((student, index) => (
-                                <TableRow key={student.studentId}>
-                                    <TableCell className="font-bold">{index + 1}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar className="h-9 w-9">
-                                                <AvatarImage src={student.studentAvatar} alt={student.studentName} />
-                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <span className="font-medium">{student.studentName}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">{student.overall}%</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                         {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
-                                         {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
-                                         {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
-                                            <DialogTrigger asChild>
-                                                <Button variant="ghost" size="sm" onClick={() => setSelectedStudentForDetails(student)}>
-                                                    View Details
-                                                </Button>
-                                            </DialogTrigger>
-                                             {selectedStudentForDetails?.studentId === student.studentId && (
-                                                <DialogContent className="sm:max-w-md">
-                                                    <DialogHeader>
-                                                        <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
-                                                        <DialogDescription>
-                                                        Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span>
-                                                        </DialogDescription>
-                                                    </DialogHeader>
-                                                    <div className="py-4">
-                                                        <h4 className="mb-4 font-semibold">Scores by Subject</h4>
-                                                        <div className="w-full overflow-auto rounded-lg border">
-                                                        <Table>
-                                                            <TableHeader>
-                                                                <TableRow>
-                                                                    <TableHead>Subject</TableHead>
-                                                                    <TableHead className="text-right">Score</TableHead>
-                                                                </TableRow>
-                                                            </TableHeader>
-                                                            <TableBody>
-                                                                {selectedStudentForDetails.grades?.map((gradeInfo, index) => {
-                                                                    return (
-                                                                    <TableRow key={index}>
-                                                                        <TableCell className="font-medium">{gradeInfo.subject || 'Unknown'}</TableCell>
-                                                                        <TableCell className="text-right">{gradeInfo.grade}%</TableCell>
-                                                                    </TableRow>
-                                                                    )
-                                                                })}
-                                                            </TableBody>
-                                                        </Table>
-                                                        </div>
-                                                    </div>
-                                                </DialogContent>
-                                            )}
-                                        </Dialog>
-                                    </TableCell>
-                                </TableRow>
-                            ))
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                     <Card>
+                        <CardHeader>
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
+                                    <CardDescription>Student ranking based on performance in a specific subject.</CardDescription>
+                                </div>
+                                <div className="flex w-full flex-col md:flex-row md:items-center gap-2">
+                                    <Select value={selectedClass} onValueChange={setSelectedClass}>
+                                        <SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Select a class" /></SelectTrigger>
+                                        <SelectContent>{teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                                        <SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Select a subject" /></SelectTrigger>
+                                        <SelectContent>{teacherSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                        {isGradebookLoading ? (
+                            <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Loading ranking data...</span></div>
                         ) : (
-                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
-                                    No students found for the selected filters.
-                                </TableCell>
-                            </TableRow>
+                            <div className="w-full overflow-auto rounded-lg border mt-6">
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Rank</TableHead><TableHead>Student</TableHead><TableHead>Overall Grade</TableHead><TableHead>Trend</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {filteredStudents.length > 0 ? (
+                                            filteredStudents.map((student, index) => (
+                                                <TableRow key={student.studentId}><TableCell className="font-bold">{index + 1}</TableCell><TableCell><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarImage src={student.studentAvatar} alt={student.studentName} /><AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback></Avatar><span className="font-medium">{student.studentName}</span></div></TableCell><TableCell><Badge variant="outline">{student.overall}%</Badge></TableCell><TableCell>{student.trend === 'up' ? <TrendingUp className="h-4 w-4 text-green-500" /> : student.trend === 'down' ? <TrendingDown className="h-4 w-4 text-red-500" /> : <Minus className="h-4 w-4 text-gray-500" />}</TableCell></TableRow>
+                                            ))
+                                        ) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">No students found.</TableCell></TableRow>)}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         )}
-                    </TableBody>
-                  </Table>
-                  </div>
-                  </>
-                )}
-              </CardContent>
-          </Card>
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg"><ClipboardList className="h-5 w-5 text-primary"/>My Grading Tasks</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {gradingTasks.length > 0 ? (
+                                gradingTasks.map(task => (
+                                    <div key={task.id} className="space-y-2">
+                                        <div className="font-semibold">{task.title}</div>
+                                        <p className="text-xs text-muted-foreground">{task.className} - {task.subject}</p>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-muted-foreground">Progress</span>
+                                            <span>{task.submissions || 0} / {task.totalStudents || 0} Graded</span>
+                                        </div>
+                                        <Progress value={((task.submissions || 0) / (task.totalStudents || 1)) * 100} />
+                                        <Button size="sm" variant="secondary" className="w-full" onClick={() => setActiveTab('entry')}>Grade Now</Button>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center text-muted-foreground py-8">
+                                    <p>No active grading tasks.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </TabsContent>
+        
         <TabsContent value="gradebook">
           <Card>
             <CardHeader>
