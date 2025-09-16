@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -55,9 +54,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { auth, firestore, firebaseConfig } from '@/lib/firebase';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -118,7 +118,7 @@ export default function UserManagementPage() {
     }, [adminUsers, teacherUsers, studentUsers, parentUsers]);
 
     const [roles, setRoles] = React.useState<string[]>([]);
-    const [classes, setClasses] = React.useState<string[]>(['All Classes']);
+    const [classes, setClasses] = React.useState<{ id: string; name: string }[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'All Statuses'>('All Statuses');
     const [classFilter, setClassFilter] = React.useState('All Classes');
@@ -130,6 +130,15 @@ export default function UserManagementPage() {
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = React.useState(false);
     
+    // State for the create user dialog
+    const [newUserRole, setNewUserRole] = React.useState<string>('');
+    const [newUserName, setNewUserName] = React.useState('');
+    const [newUserEmail, setNewUserEmail] = React.useState('');
+    const [newUserPassword, setNewUserPassword] = React.useState('');
+    const [newUserClasses, setNewUserClasses] = React.useState<string[]>([]);
+    const [newUserStudents, setNewUserStudents] = React.useState<string[]>([]);
+
+
     React.useEffect(() => {
         if (!schoolId) return;
         setClientReady(true);
@@ -155,8 +164,8 @@ export default function UserManagementPage() {
         });
 
         const unsubClasses = onSnapshot(collection(firestore, 'schools', schoolId, 'classes'), (snapshot) => {
-            const classNames = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
-            setClasses(['All Classes', ...new Set(classNames)]);
+            const classData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+            setClasses(classData);
         });
 
         return () => {
@@ -206,36 +215,72 @@ export default function UserManagementPage() {
         }, 300);
     };
 
-    const handleCreateUser = async (values: any) => {
-        if (!schoolId) return;
+    const handleCreateUser = async () => {
+        if (!schoolId || !newUserRole || !newUserEmail || !newUserPassword || !newUserName) {
+            toast({ title: 'Missing Information', variant: 'destructive' });
+            return;
+        }
 
         const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
         const secondaryAuth = getAuth(secondaryApp);
 
         try {
             // Create user in Firebase Auth using the secondary instance
-            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, values.email, values.password);
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
             const user = userCredential.user;
             
-            const collectionName = 'users';
-
+            const isParent = newUserRole === 'Parent';
+            const collectionName = isParent ? 'parents' : 'users';
+            
+            const batch = writeBatch(firestore);
+            
             // Create user document in Firestore
-            await setDoc(doc(firestore, 'schools', schoolId, collectionName, user.uid), {
+            const userDocRef = doc(firestore, 'schools', schoolId, collectionName, user.uid);
+            
+            const userData: any = {
                 id: user.uid,
                 schoolId: schoolId,
-                name: values.name,
-                email: values.email,
-                role: values.role,
+                name: newUserName,
+                email: newUserEmail,
+                role: newUserRole,
                 status: 'Active',
                 createdAt: serverTimestamp(),
                 lastLogin: 'Never',
-                avatarUrl: `https://picsum.photos/seed/${values.email}/100`
-            });
+                avatarUrl: `https://picsum.photos/seed/${newUserEmail}/100`
+            };
+
+            if (newUserRole === 'Teacher') {
+                userData.classes = newUserClasses;
+            }
+            if (newUserRole === 'Parent') {
+                userData.children = newUserStudents;
+            }
+
+            batch.set(userDocRef, userData);
+
+            // If a parent is created, update the student documents as well
+            if (newUserRole === 'Parent' && newUserStudents.length > 0) {
+                newUserStudents.forEach(studentId => {
+                    const studentRef = doc(firestore, 'schools', schoolId, 'students', studentId);
+                    // This will overwrite other parents, which might need more complex logic in a real app
+                    batch.update(studentRef, { parentId: user.uid });
+                });
+            }
+
+            await batch.commit();
             
             toast({
                 title: 'User Created',
                 description: 'A new user account has been created successfully.',
             });
+            // Reset form
+            setNewUserName('');
+            setNewUserEmail('');
+            setNewUserPassword('');
+            setNewUserRole('');
+            setNewUserClasses([]);
+            setNewUserStudents([]);
+
         } catch(e: any) {
              let errorMessage = 'Could not create user. Please try again.';
             if (e.code === 'auth/email-already-in-use') {
@@ -393,7 +438,7 @@ export default function UserManagementPage() {
                                                                             <SelectValue />
                                                                         </SelectTrigger>
                                                                         <SelectContent>
-                                                                            {classes.filter(c => c !== 'All Classes').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                                                            {classes.filter(c => c.name !== 'All Classes').map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                                                                         </SelectContent>
                                                                     </Select>
                                                                 </div>
@@ -549,39 +594,63 @@ export default function UserManagementPage() {
                                             Fill in the details below to create a new user account.
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <form onSubmit={(e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); handleCreateUser(Object.fromEntries(formData.entries())); }}>
-                                        <div className="grid gap-6 py-4">
+                                    <div className="grid gap-6 py-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="role-create">User Role</Label>
+                                            <Select name="role" onValueChange={setNewUserRole}>
+                                                <SelectTrigger id="role-create">
+                                                    <SelectValue placeholder="Select a role" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="role-create">User Role</Label>
-                                                <Select name="role">
-                                                    <SelectTrigger id="role-create">
-                                                        <SelectValue placeholder="Select a role" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="name-create">Full Name</Label>
-                                                    <Input name="name" id="name-create" placeholder="e.g., John Doe" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="email-create">Email Address</Label>
-                                                    <Input name="email" id="email-create" type="email" placeholder="user@example.com" />
-                                                </div>
+                                                <Label htmlFor="name-create">Full Name</Label>
+                                                <Input name="name" id="name-create" placeholder="e.g., John Doe" value={newUserName} onChange={e => setNewUserName(e.target.value)} />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="password-create">Set Initial Password</Label>
-                                                <Input name="password" id="password-create" type="password" />
+                                                <Label htmlFor="email-create">Email Address</Label>
+                                                <Input name="email" id="email-create" type="email" placeholder="user@example.com" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} />
                                             </div>
                                         </div>
-                                        <DialogFooter>
-                                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                                            <Button type="submit">Create User Account</Button>
-                                        </DialogFooter>
-                                    </form>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="password-create">Set Initial Password</Label>
+                                            <Input name="password" id="password-create" type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} />
+                                        </div>
+
+                                        {newUserRole === 'Teacher' && (
+                                            <div className="space-y-2">
+                                                <Label>Assign Classes</Label>
+                                                <MultiSelect
+                                                    options={classes.map(c => ({ value: c.id, label: c.name }))}
+                                                    selected={newUserClasses}
+                                                    onChange={setNewUserClasses}
+                                                    placeholder="Select classes..."
+                                                />
+                                            </div>
+                                        )}
+
+                                        {newUserRole === 'Parent' && (
+                                            <div className="space-y-2">
+                                                <Label>Link Students</Label>
+                                                <MultiSelect
+                                                    options={studentUsers.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
+                                                    selected={newUserStudents}
+                                                    onChange={setNewUserStudents}
+                                                    placeholder="Select students..."
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                                        <DialogClose asChild>
+                                            <Button onClick={handleCreateUser}>Create User Account</Button>
+                                        </DialogClose>
+                                    </DialogFooter>
                                 </DialogContent>
                             </Dialog>
                              <Dialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen}>
@@ -708,7 +777,8 @@ export default function UserManagementPage() {
                                     <SelectValue placeholder="Filter by class" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                    <SelectItem value="All Classes">All Classes</SelectItem>
+                                    {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                                 </SelectContent>
                              </Select>
                              <Select value={yearFilter} onValueChange={setYearFilter}>
@@ -752,5 +822,6 @@ export default function UserManagementPage() {
              </Card>
         </div>
     );
-}
 
+
+    
