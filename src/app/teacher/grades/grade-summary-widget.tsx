@@ -9,17 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-
-// Define the student grade type locally to avoid import issues
-export type StudentGrades = {
-  id: string;
-  studentName: string;
-  avatarUrl: string;
-  grade: string;
-  overall: number;
-  rollNumber?: string;
-  grades?: { subject: string, grade: string | number }[];
-};
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import type { StudentGrades } from './page';
 
 const gradeDistributionRanges = [
   { range: 'A (80-100)', min: 80, max: 100, count: 0 },
@@ -35,40 +30,6 @@ const performanceChartConfig = {
     color: 'hsl(var(--primary))',
   },
 };
-
-// Simple chart container component if the original is missing
-const ChartContainer = ({ 
-  children, 
-  className,
-  config 
-}: { 
-  children: React.ReactNode; 
-  className?: string;
-  config: any;
-}) => (
-  <div className={className}>{children}</div>
-);
-
-// Simple tooltip components if the original is missing
-const ChartTooltip = ({ 
-  children,
-  content 
-}: { 
-  children: React.ReactNode;
-  content?: React.ReactNode;
-}) => (
-  <>{children}</>
-);
-
-const ChartTooltipContent = ({ 
-  hideLabel 
-}: { 
-  hideLabel?: boolean;
-}) => (
-  <div className="bg-background border rounded-md p-2 text-sm">
-    Tooltip content
-  </div>
-);
 
 export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) {
     
@@ -158,17 +119,17 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
                     <ChartContainer config={performanceChartConfig} className="h-[200px] w-full">
                         <BarChart
                           data={summary.distribution}
-                          layout="horizontal"
+                          layout="vertical"
                           margin={{ left: 10, right: 30, top: 10, bottom: 10 }}
                         >
-                          <CartesianGrid vertical={false} />
+                          <CartesianGrid horizontal={false} />
                           <YAxis 
                             dataKey="name" 
                             type="category" 
                             tickLine={false} 
                             tickMargin={10} 
                             axisLine={false} 
-                            width={60} 
+                            width={20} 
                             fontSize={12}
                           />
                           <XAxis type="number" hide />
