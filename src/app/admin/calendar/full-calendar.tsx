@@ -23,7 +23,7 @@ import { ChevronLeft, ChevronRight, PlusCircle, Bell, Clock, Users, Printer, Fil
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -45,7 +45,6 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTrigger,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
@@ -409,34 +408,35 @@ export function FullCalendar() {
           ))}
         </div>
         <div className="grid grid-cols-7">
-          {weeks.map((weekStart) =>
-            eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day) => {
+          {weeks.map((weekStart, weekIndex) =>
+            eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day, dayIndex) => {
               const eventsForDay = events.filter(e => isSameDay(e.date, day));
               return (
-                <div
-                  key={day.toString()}
-                  className={cn(
-                    'h-24 md:h-32 p-1 md:p-2 border-t border-l flex flex-col',
-                    !isSameMonth(day, monthStart) && 'bg-muted/50 text-muted-foreground',
-                     isToday(day) && 'bg-accent/20 relative'
-                  )}
-                >
-                    {isToday(day) && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
-                  <span className={cn('font-medium text-xs md:text-sm', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
-                   <div className="mt-1 space-y-1 overflow-y-auto">
-                        {eventsForDay.map(event => (
-                            <DialogTrigger key={event.id} asChild>
+                <DialogTrigger key={day.toString()} asChild>
+                    <div
+                      onClick={() => eventsForDay.length > 0 && setSelectedEvent(eventsForDay[0])}
+                      className={cn(
+                        'h-24 md:h-32 p-1 md:p-2 border-t border-l flex flex-col',
+                        !isSameMonth(day, monthStart) && 'bg-muted/50 text-muted-foreground',
+                        isToday(day) && 'bg-accent/20 relative',
+                        eventsForDay.length > 0 && 'cursor-pointer hover:bg-muted/50'
+                      )}
+                    >
+                        {isToday(day) && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
+                      <span className={cn('font-medium text-xs md:text-sm', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
+                       <div className="mt-1 space-y-1 overflow-y-auto">
+                            {eventsForDay.map(event => (
                                 <Badge 
-                                    onClick={() => setSelectedEvent(event)}
-                                    className={cn('w-full truncate text-white text-[10px] md:text-xs cursor-pointer', eventColors[event.type])}
+                                    key={event.id}
+                                    className={cn('w-full truncate text-white text-[10px] md:text-xs', eventColors[event.type])}
                                     title={event.title}
                                 >
                                     {event.title}
                                 </Badge>
-                            </DialogTrigger>
-                        ))}
-                   </div>
-                </div>
+                            ))}
+                       </div>
+                    </div>
+                </DialogTrigger>
               );
             })
           )}
@@ -577,5 +577,6 @@ export function FullCalendar() {
     </Dialog>
   );
 }
+    
 
     
