@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -113,6 +114,7 @@ export type Exam = {
 type Grade = {
   assessmentId: string;
   grade: number | string;
+  subject?: string;
 };
 
 export type StudentGrade = {
@@ -131,6 +133,21 @@ type GradingScaleItem = {
   min: number;
   max: number;
 }
+
+const getGradeFromScore = (score: number) => {
+    if (score >= 80) return 'A';
+    if (score >= 75) return 'A-';
+    if (score >= 70) return 'B+';
+    if (score >= 65) return 'B';
+    if (score >= 60) return 'B-';
+    if (score >= 55) return 'C+';
+    if (score >= 50) return 'C';
+    if (score >= 45) return 'C-';
+    if (score >= 40) return 'D+';
+    if (score >= 35) return 'D';
+    if (score >= 30) return 'D-';
+    return 'E';
+};
 
 const initialGradingScale: GradingScaleItem[] = [
   { grade: 'A', min: 80, max: 100 },
@@ -479,6 +496,8 @@ export default function AdminGradesPage() {
             return null;
     }
   };
+  
+    const topStudents = studentsForRanking.slice(0, 3);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -642,28 +661,50 @@ export default function AdminGradesPage() {
                 ) : (
                   <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
                     {studentsForRanking.length > 0 ? (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {studentsForRanking.map((student, index) => (
-                                <DialogTrigger key={student.id} asChild>
-                                    <Card className="flex items-center p-4 gap-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedStudentForDetails(student)}>
-                                        <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
-                                        <Avatar className="h-12 w-12">
-                                            <AvatarImage src={student.avatarUrl} />
-                                            <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
+                        <>
+                            <Card className="mb-6 border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-amber-500"><Trophy/> Top Performers</CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                                    {topStudents.map((student, index) => (
+                                        <div key={student.id} className={cn("p-4 rounded-lg", index === 0 && "bg-amber-100 dark:bg-amber-900/20")}>
+                                            <Avatar className="h-16 w-16 mx-auto mb-2">
+                                                <AvatarImage src={student.avatarUrl} />
+                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <p className="font-bold text-lg">{index + 1}{index === 0 ? 'st' : index === 1 ? 'nd' : 'rd'}</p>
                                             <p className="font-semibold">{student.studentName}</p>
-                                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                                Score: <span className="font-bold text-foreground">{student.overall}%</span>
-                                                {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
-                                                {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
-                                                {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
-                                            </p>
+                                            <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
+                                            <Badge className="mt-2">{student.overall}% ({getGradeFromScore(student.overall)})</Badge>
                                         </div>
-                                    </Card>
-                                </DialogTrigger>
-                            ))}
-                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                            <Separator/>
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
+                                {studentsForRanking.map((student, index) => (
+                                    <DialogTrigger key={student.id} asChild>
+                                        <Card className="flex items-center p-4 gap-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedStudentForDetails(student)}>
+                                            <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
+                                            <Avatar className="h-12 w-12">
+                                                <AvatarImage src={student.avatarUrl} />
+                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                                <p className="font-semibold">{student.studentName}</p>
+                                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                                    Score: <span className="font-bold text-foreground">{student.overall}%</span>
+                                                    {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                                                    {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                                                    {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
+                                                </p>
+                                            </div>
+                                        </Card>
+                                    </DialogTrigger>
+                                ))}
+                            </div>
+                        </>
                     ) : (
                         <div className="text-center text-muted-foreground py-16">
                             <p>No ranking data available for this class and subject yet.</p>
@@ -678,7 +719,7 @@ export default function AdminGradesPage() {
                                     <DialogDescription>
                                       Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span>
                                       {selectedStudentForDetails.rollNumber && (
-                                        <span> | Roll No: {selectedStudentForDetails.rollNumber}</span>
+                                        <span> | Adm No: {selectedStudentForDetails.rollNumber}</span>
                                       )}
                                     </DialogDescription>
                                 </DialogHeader>
