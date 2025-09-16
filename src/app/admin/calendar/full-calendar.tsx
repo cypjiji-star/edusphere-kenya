@@ -302,7 +302,7 @@ export function FullCalendar() {
             <PopoverTrigger asChild>
                 <Button><PlusCircle className="mr-2"/> Add Event</Button>
             </PopoverTrigger>
-             <PopoverContent className="w-96">
+             <PopoverContent className="w-[90vw] md:w-96">
                 <div className="grid gap-4">
                     <div className="space-y-1">
                         <h4 className="font-medium leading-none">{editingEvent ? 'Edit Event' : 'Add New Event'}</h4>
@@ -580,4 +580,3 @@ export function FullCalendar() {
     
 
     
-
