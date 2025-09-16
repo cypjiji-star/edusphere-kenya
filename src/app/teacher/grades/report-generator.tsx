@@ -40,11 +40,13 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import type { DocumentData, Timestamp } from 'firebase/firestore';
 
 // --- Data Types (could be shared in a types file) ---
 type Grade = {
   assessmentId: string;
-  score: number | string;
+  grade: number;
+  subject: string;
 };
 
 export type StudentGrades = {
@@ -60,7 +62,7 @@ export type Assessment = {
   id: string;
   title: string;
   type: 'Exam' | 'Assignment' | 'Quiz';
-  date: string;
+  date: Timestamp;
 };
 
 // --- Report Specific Types ---
@@ -99,6 +101,7 @@ type TeacherClass = {
 export function ReportGenerator() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+
   const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
   const [selectedClass, setSelectedClass] = React.useState<string | undefined>();
   const [selectedStudent, setSelectedStudent] = React.useState<string | null>(null);
@@ -128,35 +131,52 @@ export function ReportGenerator() {
     return () => unsubClasses();
   }, [schoolId, selectedClass]);
 
-  React.useEffect(() => {
+   React.useEffect(() => {
     if (!schoolId || !selectedClass) return;
 
-    // Listener for students in the selected class
-    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
-    const unsubStudents = onSnapshot(studentsQuery, async (snapshot) => {
-        const studentsData = await Promise.all(snapshot.docs.map(async (studentDoc) => {
-            const student = { studentId: studentDoc.id, ...studentDoc.data() } as any;
-            const gradesQuery = query(collection(firestore, 'schools', schoolId, 'students', student.studentId, 'grades'));
-            const gradesSnapshot = await getDocs(gradesQuery);
-            const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, score: gdoc.data().grade }));
-            const numericScores = grades.map(g => parseInt(String(g.score))).filter(s => !isNaN(s));
-            const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a,b) => a+b, 0) / numericScores.length) : 0;
-            return { ...student, grades, overall };
-        }));
-        setStudentsInClass(studentsData);
-    });
+    const fetchClassData = async () => {
+      // Fetch students for the selected class
+      const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
+      const studentsSnapshot = await getDocs(studentsQuery);
+      
+      const studentsData = await Promise.all(studentsSnapshot.docs.map(async (studentDoc) => {
+        const student = studentDoc.data() as DocumentData;
+        
+        // Fetch grades for the student
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', studentDoc.id), where('classId', '==', selectedClass));
+        const gradesSnapshot = await getDocs(gradesQuery);
+        const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, grade: gdoc.data().grade, subject: gdoc.data().subject }));
+        
+        const numericScores = grades.map(g => parseInt(String(g.grade), 10)).filter(s => !isNaN(s));
+        const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length) : 0;
+        
+        return { 
+            studentId: studentDoc.id, 
+            studentName: student.name, 
+            studentAvatar: student.avatarUrl,
+            rollNumber: student.admissionNumber,
+            grades, 
+            overall 
+        };
+      }));
 
-    // Listener for assessments for the selected class
-    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
-    const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
+      setStudentsInClass(studentsData);
+
+      // Fetch assessments for the selected class
+      const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
+      const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
         const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
         setAssessmentsForClass(assessments);
-    });
+      });
+      
+      return unsubAssessments;
+    };
+    
+    const unsubPromise = fetchClassData();
 
     return () => {
-        unsubStudents();
-        unsubAssessments();
-    }
+      unsubPromise.then(unsub => unsub && unsub());
+    };
   }, [selectedClass, schoolId]);
 
 
@@ -207,7 +227,7 @@ export function ReportGenerator() {
   
   const getGradeForStudent = (student: StudentGrades, assessmentId: string) => {
     const grade = student.grades.find(g => g.assessmentId === assessmentId);
-    return grade ? grade.score : '—';
+    return grade ? grade.grade : '—';
   };
 
   const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
@@ -418,7 +438,7 @@ export function ReportGenerator() {
                                   <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                                       <div className="flex gap-2"><span className="font-medium text-muted-foreground">Name:</span> <p>{individualReport.student.studentName}</p></div>
                                       <div className="flex gap-2"><span className="font-medium text-muted-foreground">Class:</span> <p>{teacherClasses.find(c => c.id === selectedClass)?.name}</p></div>
-                                      <div className="flex gap-2"><span className="font-medium text-muted-foreground">Roll No:</span> <p>{individualReport.student.rollNumber}</p></div>
+                                      <div className="flex gap-2"><span className="font-medium text-muted-foreground">Admission No:</span> <p>{individualReport.student.rollNumber}</p></div>
                                       <div className="flex gap-2"><span className="font-medium text-muted-foreground">Overall:</span> <Badge>{individualReport.student.overall}%</Badge></div>
                                   </div>
                               </div>
