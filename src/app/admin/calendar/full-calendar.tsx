@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -15,7 +14,6 @@ import {
   add,
   sub,
   eachWeekOfInterval,
-  getDay,
   isToday,
   parse,
 } from 'date-fns';
@@ -580,6 +578,4 @@ export function FullCalendar() {
     </Dialog>
   );
 }
-    
-
     
