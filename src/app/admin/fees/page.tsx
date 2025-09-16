@@ -427,7 +427,7 @@ export default function FeesPage() {
   }, [searchTerm, classFilter, statusFilter, allStudents]);
   
   const classPerformance = React.useMemo(() => {
-    if (classFilter === 'All Classes') return null;
+    if (classFilter === 'All Classes' || filteredStudents.length === 0) return null;
     const billed = filteredStudents.reduce((acc, s) => acc + s.totalBilled, 0);
     const collected = filteredStudents.reduce((acc, s) => acc + s.totalPaid, 0);
     return {
@@ -1150,5 +1150,3 @@ export default function FeesPage() {
     </>
   );
 }
-
-
