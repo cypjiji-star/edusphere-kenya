@@ -43,12 +43,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc, Timestamp, setDoc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { Resource, ResourceType, ResourceStatus } from '@/app/teacher/library/types';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const resourceTypes: ResourceType[] = ['Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 const statuses: ResourceStatus[] = ['Available', 'Out', 'Digital'];
@@ -56,6 +57,7 @@ const statuses: ResourceStatus[] = ['Available', 'Out', 'Digital'];
 type StudentAssignment = {
     id: string;
     bookTitle: string;
+    studentId: string;
     studentName: string;
     teacherName: string;
     assignedDate: Timestamp;
@@ -255,6 +257,7 @@ export default function AdminLibraryPage() {
 
     // State for student assignments tab
     const [studentAssignments, setStudentAssignments] = React.useState<StudentAssignment[]>([]);
+    const [studentMap, setStudentMap] = React.useState<Record<string, { className: string }>>({});
 
 
     React.useEffect(() => {
@@ -290,12 +293,25 @@ export default function AdminLibraryPage() {
             const userNames = snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
             setAllUsers(userNames);
         });
+        
+        const fetchStudentsAndAssignments = async () => {
+          const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
+          const studentsSnap = await getDocs(studentsQuery);
+          const studentData: Record<string, { className: string }> = {};
+          studentsSnap.forEach(doc => {
+            studentData[doc.id] = { className: doc.data().class };
+          });
+          setStudentMap(studentData);
 
-        const studentAssignmentsQuery = query(collection(firestore, `schools/${schoolId}/student-assignments`));
-        const unsubStudentAssignments = onSnapshot(studentAssignmentsQuery, (snapshot) => {
-            const assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentAssignment));
-            setStudentAssignments(assignments);
-        });
+          const studentAssignmentsQuery = query(collection(firestore, `schools/${schoolId}/student-assignments`));
+          const unsubStudentAssignments = onSnapshot(studentAssignmentsQuery, (snapshot) => {
+              const assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentAssignment));
+              setStudentAssignments(assignments);
+          });
+           return unsubStudentAssignments;
+        }
+
+        const unsubAssignmentsPromise = fetchStudentsAndAssignments();
 
 
         return () => {
@@ -303,9 +319,26 @@ export default function AdminLibraryPage() {
             unsubSubjects();
             unsubClasses();
             unsubUsers();
-            unsubStudentAssignments();
+            unsubAssignmentsPromise.then(unsub => unsub());
         };
     }, [schoolId]);
+
+    const groupedAssignments = React.useMemo(() => {
+        const byClass: Record<string, Record<string, StudentAssignment[]>> = {};
+        studentAssignments.forEach(assignment => {
+            const studentInfo = studentMap[assignment.studentId];
+            const className = studentInfo ? studentInfo.className : 'Unknown Class';
+            
+            if (!byClass[className]) {
+                byClass[className] = {};
+            }
+            if (!byClass[className][assignment.bookTitle]) {
+                byClass[className][assignment.bookTitle] = [];
+            }
+            byClass[className][assignment.bookTitle].push(assignment);
+        });
+        return byClass;
+    }, [studentAssignments, studentMap]);
 
     // Fetch borrowed books for the selected user
     React.useEffect(() => {
@@ -629,51 +662,55 @@ export default function AdminLibraryPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Student Book Assignments</CardTitle>
-                        <CardDescription>Track books assigned to individual students by teachers.</CardDescription>
+                        <CardDescription>Track books assigned to individual students by teachers, grouped by class.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Student</TableHead>
-                                        <TableHead>Book Title</TableHead>
-                                        <TableHead>Assigned By</TableHead>
-                                        <TableHead>Date Assigned</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {studentAssignments.length > 0 ? studentAssignments.map(assignment => (
-                                        <TableRow key={assignment.id}>
-                                            <TableCell className="font-medium">{assignment.studentName}</TableCell>
-                                            <TableCell>{assignment.bookTitle}</TableCell>
-                                            <TableCell>{assignment.teacherName}</TableCell>
-                                            <TableCell>{assignment.assignedDate.toDate().toLocaleDateString()}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={assignment.status === 'Returned' ? 'default' : 'secondary'} className={assignment.status === 'Returned' ? 'bg-green-600' : ''}>
-                                                    {assignment.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {assignment.status === 'Assigned' && (
-                                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsReturned(assignment.id)}>
-                                                        Mark as Returned
-                                                    </Button>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    )) : (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center">
-                                                No books have been assigned to students.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                         </div>
+                       <Accordion type="single" collapsible className="w-full">
+                           {Object.entries(groupedAssignments).map(([className, books]) => (
+                                <AccordionItem key={className} value={className}>
+                                    <AccordionTrigger className="text-lg font-semibold">{className}</AccordionTrigger>
+                                    <AccordionContent>
+                                        <Accordion type="single" collapsible className="w-full pl-4">
+                                             {Object.entries(books).map(([bookTitle, assignments]) => (
+                                                 <AccordionItem key={bookTitle} value={bookTitle}>
+                                                    <AccordionTrigger>{bookTitle} ({assignments.length} copies)</AccordionTrigger>
+                                                    <AccordionContent>
+                                                         <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>Student</TableHead>
+                                                                    <TableHead>Assigned By</TableHead>
+                                                                    <TableHead>Date</TableHead>
+                                                                    <TableHead className="text-right">Status</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {assignments.map(assignment => (
+                                                                    <TableRow key={assignment.id}>
+                                                                        <TableCell>{assignment.studentName}</TableCell>
+                                                                        <TableCell>{assignment.teacherName}</TableCell>
+                                                                        <TableCell>{assignment.assignedDate.toDate().toLocaleDateString()}</TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            {assignment.status === 'Assigned' ? (
+                                                                                <Button variant="outline" size="sm" onClick={() => handleMarkAsReturned(assignment.id)}>
+                                                                                    Mark as Returned
+                                                                                </Button>
+                                                                            ) : (
+                                                                                <Badge variant="default" className="bg-green-600">Returned</Badge>
+                                                                            )}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </AccordionContent>
+                                                 </AccordionItem>
+                                             ))}
+                                        </Accordion>
+                                    </AccordionContent>
+                                </AccordionItem>
+                           ))}
+                       </Accordion>
                     </CardContent>
                 </Card>
             </TabsContent>
