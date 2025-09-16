@@ -346,36 +346,57 @@ function StudentLedgerDialog({ student, transactions, open, onOpenChange }: { st
     )
 }
 
-function EditCategoryDialog({ category, open, onOpenChange, onSave }: { category: FeeStructureItem | null, open: boolean, onOpenChange: (open: boolean) => void, onSave: (data: Partial<FeeStructureItem>) => void }) {
+function ManageFeeItemDialog({ item, open, onOpenChange, onSave, allClassNames }: { item: FeeStructureItem | null, open: boolean, onOpenChange: (open: boolean) => void, onSave: (item: Partial<FeeStructureItem>) => void, allClassNames: string[] }) {
+    const [category, setCategory] = React.useState('');
     const [amount, setAmount] = React.useState(0);
-
+    const [appliesTo, setAppliesTo] = React.useState('All Students');
+    
     React.useEffect(() => {
-        if (category) {
-            setAmount(category.amount);
+        if (item) {
+            setCategory(item.category);
+            setAmount(item.amount);
+            setAppliesTo(item.appliesTo);
+        } else {
+            // Reset for new item
+            setCategory('');
+            setAmount(0);
+            setAppliesTo('All Students');
         }
-    }, [category]);
-
-    if (!category) return null;
+    }, [item]);
 
     const handleSave = () => {
-        onSave({ amount });
+        onSave({ id: item?.id, category, amount, appliesTo });
     };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Edit Fee Category: {category.category}</DialogTitle>
+                    <DialogTitle>{item ? 'Edit' : 'Add'} Fee Item</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="category">Category Name</Label>
+                        <Input id="category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Tuition Fee, Transport Fee" />
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="amount">Amount (KES)</Label>
                         <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
                     </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="appliesTo">Applies To</Label>
+                        <Select value={appliesTo} onValueChange={setAppliesTo}>
+                            <SelectTrigger id="appliesTo"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All Students">All Students</SelectItem>
+                                {allClassNames.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={() => { handleSave(); onOpenChange(false); }}>Save Changes</Button>
+                    <Button onClick={handleSave}>Save Changes</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -433,6 +454,7 @@ export default function FeesPage() {
     const [invoiceTerm, setInvoiceTerm] = React.useState('term2-2024');
     const [invoiceClass, setInvoiceClass] = React.useState('all');
     const [editingCategory, setEditingCategory] = React.useState<FeeStructureItem | null>(null);
+    const [isFeeItemDialogOpen, setIsFeeItemDialogOpen] = React.useState(false);
     const [editingDiscount, setEditingDiscount] = React.useState<DiscountItem | null>(null);
     const [isAddTransactionOpen, setIsAddTransactionOpen] = React.useState(false);
     const [classes, setClasses] = React.useState<string[]>(['All Classes']);
@@ -533,13 +555,23 @@ export default function FeesPage() {
         }
     };
 
-    const handleSaveCategory = async (categoryData: Partial<FeeStructureItem>) => {
+    const handleSaveFeeItem = async (itemData: Partial<FeeStructureItem>) => {
         if (!schoolId) return;
         try {
-            await addDoc(collection(firestore, 'schools', schoolId, 'feeStructure'), categoryData);
-            toast({ title: 'Fee Category Saved', description: 'The new fee category has been added.' });
+            if (itemData.id) {
+                // Update
+                const docRef = doc(firestore, 'schools', schoolId, 'feeStructure', itemData.id);
+                await updateDoc(docRef, itemData);
+                toast({ title: 'Fee Item Updated' });
+            } else {
+                // Create
+                await addDoc(collection(firestore, 'schools', schoolId, 'feeStructure'), itemData);
+                toast({ title: 'Fee Item Added' });
+            }
+            setIsFeeItemDialogOpen(false);
+            setEditingCategory(null);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to save new category.", variant: "destructive" });
+            toast({ title: "Error saving fee item.", variant: "destructive" });
         }
     };
 
@@ -550,17 +582,6 @@ export default function FeesPage() {
             toast({ title: 'Discount Saved', description: 'The new discount has been added.' });
         } catch (error) {
             toast({ title: "Error", description: "Failed to save new discount.", variant: "destructive" });
-        }
-    };
-
-    const handleUpdateCategory = async (data: Partial<FeeStructureItem>) => {
-        if (!editingCategory || !schoolId) return;
-        try {
-            await updateDoc(doc(firestore, `schools/${schoolId}/feeStructure`, editingCategory.id), data);
-            toast({ title: "Category Updated" });
-            setEditingCategory(null);
-        } catch (error) {
-            toast({ title: "Error updating category.", variant: "destructive" });
         }
     };
 
@@ -673,8 +694,39 @@ export default function FeesPage() {
                 <TabsContent value="structure">
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
-                            <CardHeader><CardTitle>Fee Structure Management</CardTitle><CardDescription>Define and manage fee categories.</CardDescription></CardHeader>
-                            <CardContent><div className="w-full overflow-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Category Name</TableHead><TableHead>Applies To</TableHead><TableHead className="text-right">Amount (KES)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{feeStructure.map(item => (<TableRow key={item.id}><TableCell className="font-medium">{item.category}</TableCell><TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell><TableCell className="text-right">{formatCurrency(item.amount)}</TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => setEditingCategory(item)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem('feeStructure', item.id, item.category)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody></Table></div></CardContent>
+                             <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle>Fee Structure Management</CardTitle>
+                                    <CardDescription>Define and manage fee categories.</CardDescription>
+                                </div>
+                                <Button onClick={() => { setEditingCategory(null); setIsFeeItemDialogOpen(true); }}>
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="w-full overflow-auto rounded-lg border">
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Category Name</TableHead><TableHead>Applies To</TableHead><TableHead className="text-right">Amount (KES)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {feeStructure.map(item => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell className="font-medium">{item.category}</TableCell>
+                                                    <TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button variant="ghost" size="icon" onClick={() => { setEditingCategory(item); setIsFeeItemDialogOpen(true); }}>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem('feeStructure', item.id, item.category)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
                         </Card>
                         <Card>
                             <CardHeader><CardTitle className="flex items-center gap-2"><HandHelping className="h-5 w-5 text-primary"/>Discounts &amp; Scholarships</CardTitle><CardDescription>Manage financial aid and discounts.</CardDescription></CardHeader>
@@ -708,7 +760,13 @@ export default function FeesPage() {
 
             <NewTransactionDialog students={students} open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen} schoolId={schoolId} />
             <StudentLedgerDialog student={selectedStudent} transactions={allTransactions[selectedStudent?.id ?? ''] || []} open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)} />
-            <EditCategoryDialog category={editingCategory} open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)} onSave={handleUpdateCategory} />
+            <ManageFeeItemDialog 
+                item={editingCategory} 
+                open={isFeeItemDialogOpen} 
+                onOpenChange={setIsFeeItemDialogOpen} 
+                onSave={handleSaveFeeItem}
+                allClassNames={classes.filter(c => c !== 'All Classes')}
+            />
             <EditDiscountDialog discount={editingDiscount} open={!!editingDiscount} onOpenChange={(open) => !open && setEditingDiscount(null)} onSave={handleUpdateDiscount} />
             <Dialog><DialogContent><DialogHeader><DialogTitle>Generate Bulk Invoices</DialogTitle><DialogDescription>This will create new invoices for all students based on their class and the current fee structure for the selected term.</DialogDescription></DialogHeader><div className="py-4 grid gap-4"><div className="space-y-2"><Label htmlFor="invoice-term">Select Term</Label><Select value={invoiceTerm} onValueChange={setInvoiceTerm}><SelectTrigger id="invoice-term"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="term2-2024">Term 2, 2024</SelectItem><SelectItem value="term3-2024">Term 3, 2024 (Upcoming)</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label htmlFor="invoice-classes">Select Classes</Label><Select value={invoiceClass} onValueChange={setInvoiceClass}><SelectTrigger id="invoice-classes"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Classes</SelectItem><SelectItem value="Form 4">Form 4 Only</SelectItem><SelectItem value="Form 3">Form 3 Only</SelectItem></SelectContent></Select></div></div><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><DialogClose asChild><Button onClick={generateInvoices}>Generate Invoices</Button></DialogClose></DialogFooter></DialogContent></Dialog>
             <Dialog><DialogContent><DialogHeader><DialogTitle>Send Fee Reminders</DialogTitle><DialogDescription>This will send a fee reminder notification to the parents/guardians of students with outstanding balances.</DialogDescription></DialogHeader><div className="py-4 grid gap-4"><div className="space-y-2"><Label>Target Audience</Label><p className="text-sm text-muted-foreground">Reminders will be sent based on the current filters set on the student records table.</p><div className="grid grid-cols-2 gap-4 pt-2"><Card className="p-3"><p className="font-bold text-lg">{filteredStudents.filter(s => s.balance > 0).length}</p><p className="text-sm text-muted-foreground">Students with any balance</p></Card><Card className="p-3"><p className="font-bold text-lg">{filteredStudents.filter(s => s.feeStatus === 'Overdue').length}</p><p className="text-sm text-muted-foreground">Students with overdue balance</p></Card></div></div></div><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><div className="flex gap-2"><DialogClose asChild><Button onClick={() => sendReminders('overdue')} variant="secondary">Send to Overdue ({filteredStudents.filter(s => s.feeStatus === 'Overdue').length})</Button></DialogClose><DialogClose asChild><Button onClick={() => sendReminders('all')}>Send to All ({filteredStudents.filter(s => s.balance > 0).length})</Button></DialogClose></div></DialogFooter></DialogContent></Dialog>
