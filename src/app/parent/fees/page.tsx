@@ -38,7 +38,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { differenceInDays, isPast } from 'date-fns';
+import { isPast } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -52,9 +52,10 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc, Timestamp, writeBatch, addDoc, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDoc, Timestamp, writeBatch, addDoc, orderBy, runTransaction } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 type Child = {
     id: string;
@@ -77,7 +78,7 @@ type Transaction = {
     type: 'Charge' | 'Payment' | 'Waiver' | 'Refund';
     amount: number;
     balance: number;
-    recordedBy: string;
+    recordedBy?: string;
 };
 
 type PaymentHistory = {
@@ -103,6 +104,8 @@ const getFeeStatusBadge = (status: 'Paid' | 'Partial' | 'Overdue') => {
 export default function ParentFeesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const { user } = useAuth();
+    const parentId = user?.uid;
     const [childrenData, setChildrenData] = React.useState<Child[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [feeSummary, setFeeSummary] = React.useState<FeeSummary | null>(null);
@@ -114,12 +117,11 @@ export default function ParentFeesPage() {
     const [mpesaPhoneNumber, setMpesaPhoneNumber] = React.useState('0722123456');
     const [paymentAmount, setPaymentAmount] = React.useState(0);
     const { toast } = useToast();
-    const parentId = 'parent-user-id'; // This should be dynamic based on logged-in user
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !parentId) return;
         setClientReady(true);
-        // In a real app, filter by parent ID. For now, we fetch a few students.
+        
         const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
@@ -138,15 +140,20 @@ export default function ParentFeesPage() {
         const unsubStudent = onSnapshot(studentDocRef, (studentSnap) => {
             if (studentSnap.exists()) {
                 const studentData = studentSnap.data() as DocumentData;
+                const balance = (studentData.totalFee || 0) - (studentData.amountPaid || 0);
+                const dueDate = studentData.dueDate instanceof Timestamp ? studentData.dueDate.toDate() : (studentData.dueDate ? new Date(studentData.dueDate) : new Date());
+
                  const summary: FeeSummary = {
                     totalBilled: studentData.totalFee || 0,
                     totalPaid: studentData.amountPaid || 0,
-                    balance: studentData.balance || 0,
-                    dueDate: studentData.dueDate || new Date().toISOString(),
-                    status: studentData.balance <= 0 ? 'Paid' : 'Partial',
+                    balance,
+                    dueDate: dueDate.toISOString(),
+                    status: balance <= 0 ? 'Paid' : (isPast(dueDate) ? 'Overdue' : 'Partial'),
                 };
                 setFeeSummary(summary);
-                setPaymentAmount(summary.balance);
+                if (balance > 0) {
+                    setPaymentAmount(balance);
+                }
             }
         });
         
@@ -159,10 +166,10 @@ export default function ParentFeesPage() {
                 .filter(t => t.type === 'Payment')
                 .map(t => ({
                     id: t.id,
-                    term: 'Term 2, 2024', // This would be dynamic in a real app
+                    term: 'Term 2, 2024',
                     date: t.date.toDate().toLocaleDateString('en-GB'),
                     amount: Math.abs(t.amount),
-                    method: 'M-PESA', // This would also be dynamic
+                    method: 'M-PESA',
                 }));
             setPaymentHistory(fetchedHistory);
         });
@@ -182,7 +189,7 @@ export default function ParentFeesPage() {
         );
     }
     
-    const isOverdue = isPast(new Date(feeSummary.dueDate)) && feeSummary.balance > 0;
+    const isOverdue = feeSummary.status === 'Overdue';
 
     const handleCardPayment = () => {
         toast({
@@ -198,51 +205,47 @@ export default function ParentFeesPage() {
         }
 
         setIsProcessingPayment(true);
-        
         const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedChild);
 
         try {
-            const studentDoc = await getDoc(studentRef);
-            if (!studentDoc.exists()) throw new Error("Student not found");
-            const studentData = studentDoc.data();
-            
-            const newAmountPaid = (studentData.amountPaid || 0) + paymentAmount;
-            const newBalance = (studentData.balance || 0) - paymentAmount;
+            await runTransaction(firestore, async (transaction) => {
+                const studentDoc = await transaction.get(studentRef);
+                if (!studentDoc.exists()) throw new Error("Student not found");
 
-            const batch = writeBatch(firestore);
-            
-            batch.update(studentRef, {
-                amountPaid: newAmountPaid,
-                balance: newBalance,
-                feeStatus: newBalance <= 0 ? 'Paid' : 'Partial'
+                const currentData = studentDoc.data();
+                const newAmountPaid = (currentData.amountPaid || 0) + paymentAmount;
+                const newBalance = (currentData.totalFee || 0) - newAmountPaid;
+
+                transaction.update(studentRef, {
+                    amountPaid: newAmountPaid,
+                    balance: newBalance,
+                });
+
+                const studentTransactionRef = doc(collection(studentRef, 'transactions'));
+                transaction.set(studentTransactionRef, {
+                    date: Timestamp.now(),
+                    description: `M-PESA Payment via Parent Portal`,
+                    type: 'Payment',
+                    amount: -paymentAmount,
+                    balance: newBalance,
+                    recordedBy: 'Parent Portal',
+                });
             });
-
-            const transactionRef = doc(collection(firestore, `schools/${schoolId}/students`, selectedChild, 'transactions'));
-            batch.set(transactionRef, {
-                date: Timestamp.now(),
-                description: 'M-PESA Payment via Parent Portal',
-                type: 'Payment',
-                amount: -paymentAmount,
-                balance: newBalance,
-                recordedBy: 'Parent Portal',
-            });
-
-            await batch.commit();
 
             toast({
                 title: 'Payment Successful',
                 description: `A payment of ${formatCurrency(paymentAmount)} has been processed. A receipt has been sent to your registered email.`,
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error processing payment:", error);
-            toast({ variant: 'destructive', title: 'Payment Failed', description: 'Could not process payment. Please try again.' });
+            toast({ variant: 'destructive', title: 'Payment Failed', description: error.message });
         } finally {
             setIsProcessingPayment(false);
             setIsMpesaDialogOpen(false);
         }
     };
     
-    const finalStatus = isOverdue ? 'Overdue' : feeSummary.status;
+    const finalStatus = feeSummary.status;
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -274,7 +277,7 @@ export default function ParentFeesPage() {
                 </CardHeader>
             </Card>
 
-            {feeSummary.balance > 0 && isOverdue && (
+            {isOverdue && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Fee Balance Overdue</AlertTitle>
@@ -303,7 +306,7 @@ export default function ParentFeesPage() {
                                     <Table>
                                         <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Charges (KES)</TableHead><TableHead className="text-right">Payments (KES)</TableHead><TableHead className="text-right">Balance (KES)</TableHead></TableRow></TableHeader>
                                         <TableBody>
-                                            {ledger.map(item => (<TableRow key={item.id}><TableCell>{item.date.toDate().toLocaleDateString('en-GB')}</TableCell><TableCell className="font-medium">{item.description}</TableCell><TableCell className="text-right text-destructive">{item.amount > 0 ? formatCurrency(item.amount) : '—'}</TableCell><TableCell className="text-right text-green-600">{item.amount < 0 ? formatCurrency(Math.abs(item.amount)) : '—'}</TableCell><TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell></TableRow>))}
+                                            {ledger.map(item => (<TableRow key={item.id}><TableCell>{item.date.toDate().toLocaleDateString('en-GB')}</TableCell><TableCell className="font-medium">{item.description}</TableCell><TableCell className={`text-right ${item.amount > 0 ? 'text-destructive' : ''}`}>{item.amount > 0 ? formatCurrency(item.amount) : '—'}</TableCell><TableCell className={`text-right ${item.amount < 0 ? 'text-green-600' : ''}`}>{item.amount < 0 ? formatCurrency(Math.abs(item.amount)) : '—'}</TableCell><TableCell className="text-right font-semibold">{formatCurrency(item.balance)}</TableCell></TableRow>))}
                                             {ledger.length === 0 && (<TableRow><TableCell colSpan={5} className="h-24 text-center">No transactions for this term yet.</TableCell></TableRow>)}
                                         </TableBody>
                                     </Table>
