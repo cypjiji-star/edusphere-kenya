@@ -25,6 +25,7 @@ import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc,
 import { useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 
 
 type BorrowedItem = {
@@ -388,7 +389,7 @@ export default function MyLibraryPage() {
                                 {historyItems.map(item => (
                                      <Card key={item.id} className="bg-muted/50">
                                         <CardContent className="p-4">
-                                            <p className="font-semibold">{item.title}</p>
+                                            <div className="font-semibold">{item.title}</div>
                                             {clientReady && <p className="text-sm text-muted-foreground">Borrowed: {item.borrowedDate.toDate().toLocaleDateString()} | Returned: {item.returnedDate.toDate().toLocaleDateString()}</p>}
                                         </CardContent>
                                     </Card>
