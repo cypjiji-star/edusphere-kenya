@@ -256,13 +256,13 @@ export default function FeesPage() {
             <p className="text-xs text-muted-foreground">students have a zero or positive balance.</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-red-500/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2"><UserX className="h-4 w-4 text-destructive"/>Students with Overdue Payments</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2 text-destructive"><UserX className="h-4 w-4"/>Students with Overdue Payments</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-destructive">{studentsWithFees.overdue}</div>
-            <p className="text-xs text-muted-foreground">{studentsWithFees.arrears} students have some arrears.</p>
+            <p className="text-xs text-muted-foreground">{studentsWithFees.arrears} total students have some arrears.</p>
           </CardContent>
         </Card>
         <Card className="lg:col-span-1 md:col-span-2">
