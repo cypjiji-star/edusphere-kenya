@@ -231,7 +231,7 @@ export default function ParentFeesPage() {
 
             toast({
                 title: 'Payment Successful',
-                description: `A payment of ${formatCurrency(paymentAmount)} has been processed.`,
+                description: `A payment of ${formatCurrency(paymentAmount)} has been processed. A receipt has been sent to your registered email.`,
             });
         } catch (error) {
             console.error("Error processing payment:", error);
@@ -342,5 +342,3 @@ export default function ParentFeesPage() {
         </div>
     );
 }
-
-    

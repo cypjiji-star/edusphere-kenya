@@ -172,6 +172,10 @@ export default function SettingsPage() {
 
     const handleSaveSettings = async () => {
        await handleSettingChange('notifications', 'reminderMessage', reminderMessage);
+       toast({
+           title: 'Communication Settings Saved',
+           description: 'Your changes to the automated communication have been saved.',
+       });
     };
 
     const handleCreateBackup = () => {

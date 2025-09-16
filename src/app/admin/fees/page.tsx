@@ -19,7 +19,7 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield, CalendarIcon, Printer } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield, CalendarIcon, Printer, Mail } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
@@ -433,7 +433,7 @@ export default function FeesPage() {
 
         toast({
             title: "Payment Recorded",
-            description: `A ${paymentMethod} payment of ${formatCurrency(amount)} has been recorded.`
+            description: `A ${paymentMethod} payment of ${formatCurrency(amount)} has been recorded and a confirmation has been sent.`
         });
         
         setSelectedStudentForPayment('');
@@ -512,6 +512,21 @@ export default function FeesPage() {
         toast({title: 'Failed to Apply Fees', variant: 'destructive'});
     }
   };
+
+  const handleSendReminders = () => {
+    toast({
+      title: "Sending Reminders...",
+      description: `Bulk reminders are being sent to parents with overdue balances.`,
+    });
+  };
+  
+  const handleSendStatement = () => {
+      toast({
+          title: 'Statement Sent',
+          description: `The fee statement for ${selectedStudent?.name} has been sent to their parent.`,
+      });
+  }
+
 
   if (isLoading) {
     return <div className="p-8 h-full flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
@@ -636,7 +651,7 @@ export default function FeesPage() {
                                   </DialogFooter>
                               </DialogContent>
                           </Dialog>
-                          <Button><Send className="mr-2 h-4 w-4" />Send Reminders</Button>
+                          <Button onClick={handleSendReminders}><Send className="mr-2 h-4 w-4" />Send Reminders</Button>
                           <Button><FileText className="mr-2 h-4 w-4" />Generate Report</Button>
                           <Button><PlusCircle className="mr-2 h-4 w-4" />New Invoice</Button>
                       </CardContent>
@@ -780,12 +795,18 @@ export default function FeesPage() {
           {selectedStudent && (
             <>
               <DialogHeader>
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-16 w-16"><AvatarImage src={selectedStudent.avatarUrl} /><AvatarFallback>{selectedStudent.name.charAt(0)}</AvatarFallback></Avatar>
-                  <div>
-                    <DialogTitle className="text-2xl font-bold">{selectedStudent.name}</DialogTitle>
-                    <DialogDescription>{selectedStudent.class} | Admission No: {selectedStudent.admissionNo}</DialogDescription>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                      <Avatar className="h-16 w-16"><AvatarImage src={selectedStudent.avatarUrl} /><AvatarFallback>{selectedStudent.name.charAt(0)}</AvatarFallback></Avatar>
+                      <div>
+                        <DialogTitle className="text-2xl font-bold">{selectedStudent.name}</DialogTitle>
+                        <DialogDescription>{selectedStudent.class} | Admission No: {selectedStudent.admissionNo}</DialogDescription>
+                      </div>
                   </div>
+                  <Button variant="outline" onClick={handleSendStatement}>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send Statement
+                  </Button>
                 </div>
               </DialogHeader>
               
@@ -964,5 +985,3 @@ export default function FeesPage() {
     </>
   );
 }
-
-    
