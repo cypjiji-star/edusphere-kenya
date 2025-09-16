@@ -16,12 +16,22 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
-import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, orderBy, limit } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Link from 'next/link';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-KE', {
@@ -61,6 +71,9 @@ export default function FeesPage() {
   const [collectionTrend, setCollectionTrend] = React.useState<any[]>([]);
   const [arrearsData, setArrearsData] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [studentsWithFees, setStudentsWithFees] = React.useState<{cleared: number, arrears: number}>({ cleared: 0, arrears: 0 });
+  const [topDebtors, setTopDebtors] = React.useState<any[]>([]);
+
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -73,10 +86,29 @@ export default function FeesPage() {
     const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
       let totalBilled = 0;
       let totalCollected = 0;
+      let clearedCount = 0;
+      let arrearsCount = 0;
+      const studentDebtors: any[] = [];
+
       snapshot.forEach(doc => {
         const data = doc.data();
+        const studentBalance = (data.totalFee || 0) - (data.amountPaid || 0);
+
         totalBilled += data.totalFee || 0;
         totalCollected += data.amountPaid || 0;
+
+        if (studentBalance <= 0) {
+            clearedCount++;
+        } else {
+            arrearsCount++;
+            studentDebtors.push({
+                id: doc.id,
+                name: data.name,
+                class: data.class,
+                avatarUrl: data.avatarUrl,
+                balance: studentBalance,
+            });
+        }
       });
       const outstanding = totalBilled - totalCollected;
       setFinancials(prev => ({...prev, totalBilled, totalCollected, outstanding }));
@@ -86,6 +118,9 @@ export default function FeesPage() {
           { name: 'Collected', value: collectedPercentage, fill: 'hsl(var(--chart-1))' },
           { name: 'Outstanding', value: 100 - collectedPercentage, fill: 'hsl(var(--chart-2))'},
       ]);
+
+      setStudentsWithFees({ cleared: clearedCount, arrears: arrearsCount });
+      setTopDebtors(studentDebtors.sort((a, b) => b.balance - a.balance).slice(0, 5));
     });
 
     const today = new Date();
@@ -205,6 +240,60 @@ export default function FeesPage() {
           </Button>
         </CardContent>
       </Card>
+       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2"><UserCheck className="h-4 w-4 text-green-600"/>Students with Cleared Balances</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-green-600">{studentsWithFees.cleared}</div>
+            <p className="text-xs text-muted-foreground">students have a zero or positive balance.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2"><UserX className="h-4 w-4 text-destructive"/>Students with Arrears</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-destructive">{studentsWithFees.arrears}</div>
+            <p className="text-xs text-muted-foreground">students have an outstanding balance.</p>
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-1 md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Trophy className="h-4 w-4 text-yellow-500"/>Top 5 Highest Balances</CardTitle>
+          </CardHeader>
+          <CardContent>
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead className="text-right">Balance</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {topDebtors.map(student => (
+                         <TableRow key={student.id}>
+                            <TableCell>
+                                 <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={student.avatarUrl} />
+                                        <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <div className="font-medium">{student.name}</div>
+                                        <div className="text-xs text-muted-foreground">{student.class}</div>
+                                    </div>
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-destructive">{formatCurrency(student.balance)}</TableCell>
+                         </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
 
        <div className="grid gap-6 md:grid-cols-2">
           <Card>
