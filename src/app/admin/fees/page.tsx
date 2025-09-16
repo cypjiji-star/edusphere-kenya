@@ -125,6 +125,12 @@ type FeeStructureItem = {
     category: string;
     amount: number;
     appliesTo: string;
+    term: 'Term 1' | 'Term 2' | 'Term 3' | 'Annual';
+}
+
+type TermFeeData = {
+    fee: number;
+    dueDate: Date;
 }
 
 function ReceiptDialog({ transaction, student, schoolName, open, onOpenChange }: { transaction: Transaction | null, student: StudentFeeProfile | null, schoolName: string, open: boolean, onOpenChange: (open: boolean) => void }) {
@@ -246,9 +252,14 @@ export default function FeesPage() {
   // State for Fee Structure tab
   const [feeStructure, setFeeStructure] = React.useState<FeeStructureItem[]>([]);
   const [selectedClassForStructure, setSelectedClassForStructure] = React.useState('');
-  const [classYearlyFee, setClassYearlyFee] = React.useState<number>(0);
+  const [termFees, setTermFees] = React.useState<Record<string, TermFeeData>>({
+    "Term 1": { fee: 0, dueDate: new Date() },
+    "Term 2": { fee: 0, dueDate: new Date() },
+    "Term 3": { fee: 0, dueDate: new Date() },
+  });
   const [newFeeItemCategory, setNewFeeItemCategory] = React.useState('');
   const [newFeeItemAmount, setNewFeeItemAmount] = React.useState('');
+  const [newFeeItemTerm, setNewFeeItemTerm] = React.useState<'Term 1' | 'Term 2' | 'Term 3' | 'Annual'>('Term 1');
 
 
   React.useEffect(() => {
@@ -406,9 +417,18 @@ export default function FeesPage() {
   
   React.useEffect(() => {
     const classFees = feeStructure
-        .filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students')
-        .reduce((total, item) => total + item.amount, 0);
-    setClassYearlyFee(classFees);
+        .filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students');
+    
+    const term1Fee = classFees.filter(i => i.term === 'Term 1' || i.term === 'Annual').reduce((total, item) => total + item.amount, 0);
+    const term2Fee = classFees.filter(i => i.term === 'Term 2' || i.term === 'Annual').reduce((total, item) => total + item.amount, 0);
+    const term3Fee = classFees.filter(i => i.term === 'Term 3' || i.term === 'Annual').reduce((total, item) => total + item.amount, 0);
+    
+    setTermFees(prev => ({
+        "Term 1": {...prev["Term 1"], fee: term1Fee},
+        "Term 2": {...prev["Term 2"], fee: term2Fee},
+        "Term 3": {...prev["Term 3"], fee: term3Fee},
+    }));
+
   }, [selectedClassForStructure, feeStructure]);
 
   const openStudentDialog = async (student: StudentFeeProfile) => {
@@ -471,7 +491,7 @@ export default function FeesPage() {
 
 
   const handleSaveFeeItem = async (itemId?: string) => {
-    if (!newFeeItemCategory || !newFeeItemAmount || !schoolId) {
+    if (!newFeeItemCategory || !newFeeItemAmount || !schoolId || !newFeeItemTerm) {
         toast({ title: "Missing Information", variant: "destructive" });
         return;
     }
@@ -479,7 +499,8 @@ export default function FeesPage() {
     const itemData = {
         category: newFeeItemCategory,
         amount: Number(newFeeItemAmount),
-        appliesTo: selectedClassForStructure
+        appliesTo: selectedClassForStructure,
+        term: newFeeItemTerm
     };
 
     try {
@@ -510,22 +531,36 @@ export default function FeesPage() {
     }
   }
   
-  const handleSaveClassFees = async () => {
+  const handleSaveClassFees = async (term: 'Term 1' | 'Term 2' | 'Term 3') => {
     if (!selectedClassForStructure || !schoolId) return;
     const batch = writeBatch(firestore);
     const studentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('class', '==', selectedClassForStructure));
     const studentsSnapshot = await getDocs(studentsInClassQuery);
     
+    const { fee, dueDate } = termFees[term];
+    
     studentsSnapshot.forEach(studentDoc => {
         const studentRef = doc(firestore, 'schools', schoolId, 'students', studentDoc.id);
-        batch.update(studentRef, { totalFee: classYearlyFee });
+        batch.update(studentRef, { 
+            totalFee: fee, 
+            dueDate: Timestamp.fromDate(dueDate) 
+        });
+        
+        // Add a charge transaction
+        const transactionRef = doc(collection(studentRef, 'transactions'));
+        batch.set(transactionRef, {
+            date: Timestamp.now(),
+            description: `${term} School Fees`,
+            type: 'Charge',
+            amount: fee,
+        });
     });
 
     try {
         await batch.commit();
         toast({
             title: 'Fees Applied',
-            description: `Yearly fee of ${formatCurrency(classYearlyFee)} has been applied to all students in ${selectedClassForStructure}.`,
+            description: `${term} fee of ${formatCurrency(fee)} has been applied to all students in ${selectedClassForStructure}.`,
         });
     } catch (e) {
         console.error(e);
@@ -602,7 +637,61 @@ export default function FeesPage() {
     }
   };
 
-  const currentClassFeeItems = feeStructure.filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students');
+  const renderTermStructure = (term: 'Term 1' | 'Term 2' | 'Term 3') => {
+    const termFeeItems = feeStructure.filter(item => (item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students') && (item.term === term || item.term === 'Annual'));
+    
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-lg">{term} Structure</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount (KES)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {termFeeItems.map(item => (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium">{item.category}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                                <TableCell className="text-right space-x-2">
+                                    <Button variant="ghost" size="icon" disabled><Edit2 className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteFeeItem(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                         <TableRow>
+                            <TableCell><Input placeholder="New Item" value={newFeeItemCategory} onChange={e => setNewFeeItemCategory(e.target.value)} /></TableCell>
+                            <TableCell className="text-right"><Input type="number" placeholder="Amount" className="ml-auto text-right w-32" value={newFeeItemAmount} onChange={e => setNewFeeItemAmount(e.target.value)} /></TableCell>
+                            <TableCell className="text-right"><Button size="sm" onClick={() => { setNewFeeItemTerm(term); handleSaveFeeItem(); }}>Add</Button></TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </CardContent>
+            <CardFooter className="bg-muted/50 p-4 flex justify-between items-center rounded-b-lg">
+                <div className="font-semibold">Total for {term}: {formatCurrency(termFees[term].fee)}</div>
+                 <div className="flex items-center gap-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="font-normal w-48 justify-start">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {format(termFees[term].dueDate, 'PPP')}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent>
+                            <Calendar
+                                mode="single"
+                                selected={termFees[term].dueDate}
+                                onSelect={(date) => date && setTermFees(prev => ({...prev, [term]: {...prev[term], dueDate: date}}))}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                     <Button onClick={() => handleSaveClassFees(term)}>Save &amp; Apply</Button>
+                </div>
+            </CardFooter>
+        </Card>
+    )
+  }
 
 
   return (
@@ -835,40 +924,10 @@ export default function FeesPage() {
                               </Select>
                            </div>
                       </CardHeader>
-                      <CardContent>
-                           <Card>
-                              <CardHeader>
-                                  <CardTitle className="text-lg">Fee Items for {selectedClassForStructure}</CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                  <Table>
-                                      <TableHeader><TableRow><TableHead>Category</TableHead><TableHead>Applies To</TableHead><TableHead className="text-right">Amount (KES)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                                      <TableBody>
-                                          {currentClassFeeItems.map(item => (
-                                              <TableRow key={item.id}>
-                                                  <TableCell className="font-medium">{item.category}</TableCell>
-                                                  <TableCell><Badge variant="outline">{item.appliesTo}</Badge></TableCell>
-                                                  <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
-                                                  <TableCell className="text-right space-x-2">
-                                                      <Button variant="ghost" size="icon" disabled><Edit2 className="h-4 w-4" /></Button>
-                                                      <Button variant="ghost" size="icon" onClick={() => handleDeleteFeeItem(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                                  </TableCell>
-                                              </TableRow>
-                                          ))}
-                                          <TableRow>
-                                              <TableCell><Input placeholder="New Item Category" value={newFeeItemCategory} onChange={e => setNewFeeItemCategory(e.target.value)}/></TableCell>
-                                              <TableCell>{selectedClassForStructure}</TableCell>
-                                              <TableCell className="text-right"><Input type="number" placeholder="Amount" className="ml-auto text-right w-32" value={newFeeItemAmount} onChange={e => setNewFeeItemAmount(e.target.value)} /></TableCell>
-                                              <TableCell className="text-right"><Button size="sm" onClick={() => handleSaveFeeItem()}>Add Item</Button></TableCell>
-                                          </TableRow>
-                                      </TableBody>
-                                  </Table>
-                              </CardContent>
-                              <CardFooter className="bg-muted/50 p-4 flex justify-between items-center rounded-b-lg">
-                                  <div className="font-semibold">Total Yearly Fee for {selectedClassForStructure}: {formatCurrency(classYearlyFee)}</div>
-                                  <Button onClick={handleSaveClassFees}>Save &amp; Apply to Class</Button>
-                              </CardFooter>
-                           </Card>
+                      <CardContent className="space-y-6">
+                           {renderTermStructure('Term 1')}
+                           {renderTermStructure('Term 2')}
+                           {renderTermStructure('Term 3')}
                       </CardContent>
                   </Card>
               </TabsContent>
