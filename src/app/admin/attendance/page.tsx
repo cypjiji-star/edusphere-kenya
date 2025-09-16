@@ -230,6 +230,29 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
     )
 }
 
+const getCurrentTerm = (): string => {
+  const today = new Date();
+  const month = today.getMonth(); // 0-11
+  const year = today.getFullYear();
+
+  if (month >= 0 && month <= 3) { // Jan - Apr
+    return `term1-${year}`;
+  } else if (month >= 4 && month <= 7) { // May - Aug
+    return `term2-${year}`;
+  } else { // Sep - Dec
+    return `term3-${year}`;
+  }
+};
+
+const academicTerms = [
+    { value: 'term1-2024', label: 'Term 1, 2024' },
+    { value: 'term2-2024', label: 'Term 2, 2024' },
+    { value: 'term3-2024', label: 'Term 3, 2024' },
+    { value: 'term1-2025', label: 'Term 1, 2025' },
+    { value: 'term2-2025', label: 'Term 2, 2025' },
+    { value: 'term3-2025', label: 'Term 3, 2025' },
+];
+
 export default function AdminAttendancePage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId')!;
@@ -238,7 +261,7 @@ export default function AdminAttendancePage() {
   const [classFilter, setClassFilter] = React.useState('All Classes');
   const [teacherFilter, setTeacherFilter] = React.useState('All Teachers');
   const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'All Statuses'>('All Statuses');
-  const [selectedTerm, setSelectedTerm] = React.useState('term2-2024');
+  const [selectedTerm, setSelectedTerm] = React.useState(getCurrentTerm());
   const { toast } = useToast();
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
   const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
@@ -332,8 +355,14 @@ export default function AdminAttendancePage() {
     const termDates: Record<string, { start: Date, end: Date }> = {
       'term1-2024': { start: new Date('2024-01-01'), end: new Date('2024-04-30') },
       'term2-2024': { start: new Date('2024-05-01'), end: new Date('2024-08-31') },
+      'term3-2024': { start: new Date('2024-09-01'), end: new Date('2024-12-31') },
+      'term1-2025': { start: new Date('2025-01-01'), end: new Date('2025-04-30') },
+      'term2-2025': { start: new Date('2025-05-01'), end: new Date('2025-08-31') },
+      'term3-2025': { start: new Date('2025-09-01'), end: new Date('2025-12-31') },
     };
     const currentTermRange = termDates[selectedTerm];
+
+    if (!currentTermRange) return [];
 
     const termRecords = allRecords.filter(record => {
       const recordDate = record.date.toDate();
@@ -528,8 +557,9 @@ export default function AdminAttendancePage() {
                                     <SelectValue placeholder="Select term" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                    <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                    {academicTerms.map(term => (
+                                        <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                             <TooltipProvider>
@@ -711,4 +741,3 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
-
