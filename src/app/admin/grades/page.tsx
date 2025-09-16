@@ -95,6 +95,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { GradeAnalysisCharts } from './grade-analysis-charts';
+import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 
 type GradeStatus = 'Graded' | 'Pending';
@@ -126,6 +127,7 @@ export type StudentGrade = {
   rollNumber?: string;
   grades?: Grade[];
   trend: 'up' | 'down' | 'stable';
+  className?: string;
 };
 
 type GradingScaleItem = {
@@ -270,7 +272,7 @@ export default function AdminGradesPage() {
           return;
         }
 
-        const studentGradesMap = new Map<string, {name: string, avatarUrl: string, rollNumber: string, grades: {subject: string, grade: number}[]}>();
+        const studentGradesMap = new Map<string, {name: string, avatarUrl: string, rollNumber: string, className: string, grades: {subject: string, grade: number}[]}>();
         const availableSubjects = new Set<string>();
 
         for (const gradeDoc of gradesSnapshot.docs) {
@@ -284,7 +286,8 @@ export default function AdminGradesPage() {
                studentGradesMap.set(studentId, {
                   name: studentSnap.data().name || 'Unknown',
                   avatarUrl: studentSnap.data().avatarUrl || '',
-                  rollNumber: studentSnap.data().rollNumber || '',
+                  rollNumber: studentSnap.data().admissionNumber || 'N/A',
+                  className: studentSnap.data().class || 'N/A',
                   grades: [],
                });
             }
@@ -318,6 +321,7 @@ export default function AdminGradesPage() {
               studentName: data.name,
               avatarUrl: data.avatarUrl,
               rollNumber: data.rollNumber,
+              className: data.className,
               grade: average,
               overall: average,
               grades: data.grades,
@@ -498,6 +502,12 @@ export default function AdminGradesPage() {
   };
   
     const topStudents = studentsForRanking.slice(0, 3);
+    
+    const classAverage = React.useMemo(() => {
+      if (studentsForRanking.length === 0) return 0;
+      const total = studentsForRanking.reduce((acc, student) => acc + student.overall, 0);
+      return Math.round(total / studentsForRanking.length);
+  }, [studentsForRanking]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -609,9 +619,9 @@ export default function AdminGradesPage() {
                           <CardDescription>Student ranking based on performance in a specific subject or overall.</CardDescription>
                       </div>
                       <div className="flex w-full flex-col md:flex-row flex-wrap md:items-center gap-2">
-                           <Select value={'2024'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="2024">2024</SelectItem><SelectItem value="2023">2023</SelectItem></SelectContent></Select>
-                           <Select value={'Term 2'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Term 2">Term 2</SelectItem><SelectItem value="Term 1">Term 1</SelectItem></SelectContent></Select>
-                           <Select value={'Mid-Term'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Mid-Term">Mid-Term</SelectItem><SelectItem value="End of Term">End of Term</SelectItem></SelectContent></Select>
+                           <Select defaultValue={'2024'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="2024">2024</SelectItem><SelectItem value="2023">2023</SelectItem></SelectContent></Select>
+                           <Select defaultValue={'Term 2'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Term 2">Term 2</SelectItem><SelectItem value="Term 1">Term 1</SelectItem></SelectContent></Select>
+                           <Select defaultValue={'Mid-Term'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Mid-Term">Mid-Term</SelectItem><SelectItem value="End of Term">End of Term</SelectItem></SelectContent></Select>
                            <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
                               <SelectTrigger className="w-full md:w-auto">
                                   <SelectValue placeholder="Select a class" />
@@ -685,28 +695,57 @@ export default function AdminGradesPage() {
                                 </CardContent>
                             </Card>
                             <Separator/>
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                                {studentsForRanking.map((student, index) => (
-                                    <DialogTrigger key={student.id} asChild>
-                                        <Card className="flex items-center p-4 gap-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setSelectedStudentForDetails(student)}>
-                                            <div className="flex items-center justify-center font-bold text-lg h-10 w-10 rounded-full bg-muted">{index + 1}</div>
-                                            <Avatar className="h-12 w-12">
-                                                <AvatarImage src={student.avatarUrl} />
-                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                                <p className="font-semibold">{student.studentName}</p>
-                                                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                                    Score: <span className="font-bold text-foreground">{student.overall}%</span>
-                                                    {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
-                                                    {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
-                                                    {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
-                                                </p>
-                                            </div>
-                                        </Card>
-                                    </DialogTrigger>
-                                ))}
-                            </div>
+                             <div className="w-full overflow-auto rounded-lg border mt-6">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>POS.</TableHead>
+                                            <TableHead>ADM. NO.</TableHead>
+                                            <TableHead>STUDENT NAME</TableHead>
+                                            <TableHead>CLASS/STREAM</TableHead>
+                                            <TableHead>TOTAL MARKS</TableHead>
+                                            <TableHead>AVERAGE (%)</TableHead>
+                                            <TableHead>GRADE</TableHead>
+                                            <TableHead>DEVIATION</TableHead>
+                                            <TableHead>TREND</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {studentsForRanking.map((student, index) => {
+                                            const deviation = student.overall - classAverage;
+                                            return (
+                                            <DialogTrigger asChild key={student.id}>
+                                                <TableRow className="cursor-pointer" onClick={() => setSelectedStudentForDetails(student)}>
+                                                    <TableCell className="font-bold">{index + 1}</TableCell>
+                                                    <TableCell>{student.rollNumber}</TableCell>
+                                                    <TableCell className="font-medium">{student.studentName}</TableCell>
+                                                    <TableCell>{student.className}</TableCell>
+                                                    <TableCell>N/A</TableCell>
+                                                    <TableCell>{student.overall}%</TableCell>
+                                                    <TableCell><Badge>{getGradeFromScore(student.overall)}</Badge></TableCell>
+                                                    <TableCell>
+                                                         <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger>
+                                                                    {deviation > 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>{deviation.toFixed(1)}% {deviation > 0 ? 'above' : 'below'} class average</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                         </TooltipProvider>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                         {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                                                         {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                                                         {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
+                                                    </TableCell>
+                                                </TableRow>
+                                            </DialogTrigger>
+                                        )})}
+                                    </TableBody>
+                                </Table>
+                             </div>
                         </>
                     ) : (
                         <div className="text-center text-muted-foreground py-16">
