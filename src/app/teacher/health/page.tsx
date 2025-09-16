@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -40,11 +39,10 @@ import {
   } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { HeartPulse, Search, Filter, ShieldAlert, Stethoscope, User, Phone, FileText, CalendarIcon, Siren, Send, Paperclip, Loader2, X } from 'lucide-react';
+import { HeartPulse, Search, ShieldAlert, Stethoscope, User, Phone, FileText, CalendarIcon, Siren, Send, Paperclip, Loader2, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -99,12 +97,6 @@ const incidentSchema = z.object({
 
 type IncidentFormValues = z.infer<typeof incidentSchema>;
 
-type HealthRecord = {
-    allergies: string[];
-    conditions: string[];
-    emergencyContact: { name: string; relationship: string; phone: string };
-};
-
 const getStatusBadge = (status: IncidentStatus) => {
     switch (status) {
         case 'Reported': return <Badge variant="secondary">Reported</Badge>;
@@ -132,8 +124,6 @@ export default function TeacherHealthPage() {
     
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
     const [teacherStudents, setTeacherStudents] = React.useState<TeacherStudent[]>([]);
-    const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<string | null>(null);
-    const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
     const [incidents, setIncidents] = React.useState<Incident[]>([]);
     
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
@@ -186,30 +176,6 @@ export default function TeacherHealthPage() {
         return () => unsubscribe();
     }, [schoolId, user]);
 
-
-    React.useEffect(() => {
-        if (selectedHealthStudent && schoolId) {
-            const studentRef = doc(firestore, 'schools', schoolId, 'students', selectedHealthStudent);
-            const unsubscribe = onSnapshot(studentRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    setCurrentHealthRecord({
-                        allergies: data.allergies || ['None known'],
-                        conditions: data.medicalConditions ? [data.medicalConditions] : ['None known'],
-                        emergencyContact: {
-                            name: data.emergencyContactName || 'N/A',
-                            relationship: data.parentRelationship || 'Guardian',
-                            phone: data.parentPhone || 'N/A',
-                        }
-                    });
-                }
-            });
-            return () => unsubscribe();
-        } else {
-            setCurrentHealthRecord(null);
-        }
-    }, [selectedHealthStudent, schoolId]);
-
     async function onSubmit(values: IncidentFormValues) {
         if (!schoolId || !user) return;
         setIsSubmitting(true);
@@ -261,10 +227,9 @@ export default function TeacherHealthPage() {
                 </div>
                 
                 <Tabs defaultValue="report">
-                    <TabsList className="mb-4 grid w-full grid-cols-3 md:w-auto md:inline-flex">
+                    <TabsList className="mb-4 grid w-full grid-cols-2 md:w-auto md:inline-flex">
                         <TabsTrigger value="report">New Incident</TabsTrigger>
                         <TabsTrigger value="log">My Incident Log</TabsTrigger>
-                        <TabsTrigger value="records">Health Records</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="report">
@@ -489,43 +454,6 @@ export default function TeacherHealthPage() {
                         </Card>
                     </TabsContent>
                     
-                    <TabsContent value="records">
-                         <Card className="mt-4">
-                            <CardHeader>
-                                <CardTitle>Student Health Records</CardTitle>
-                                <CardDescription>Look up important health information for students in your classes.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="max-w-md mb-6">
-                                    <Label htmlFor="student-health-select">Select a Student</Label>
-                                    <Select onValueChange={(value: string) => setSelectedHealthStudent(value)}>
-                                        <SelectTrigger id="student-health-select"><SelectValue placeholder="Search and select a student..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {teacherStudents.map((s) => (
-                                                <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                {currentHealthRecord ? (
-                                    <Card>
-                                        <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-5 w-5 text-primary" />{teacherStudents.find(s => s.id === selectedHealthStudent)?.name}</CardTitle></CardHeader>
-                                        <CardContent className="space-y-6">
-                                            <div><h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /> Known Allergies</h4><div className="space-x-2">{currentHealthRecord.allergies.map(allergy => (<Badge key={allergy} variant={allergy !== "None" && allergy !== "None known" ? "destructive" : "secondary"}>{allergy}</Badge>))}</div></div>
-                                            <Separator />
-                                            <div><h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Stethoscope className="h-4 w-4" /> Ongoing Conditions</h4><div className="space-x-2">{currentHealthRecord.conditions.map(condition => (<Badge key={condition} variant="secondary">{condition}</Badge>))}</div></div>
-                                            <Separator />
-                                            <div><h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Phone className="h-4 w-4" /> Emergency Contact</h4><div className="text-sm"><p><span className="font-medium">{currentHealthRecord.emergencyContact.name}</span> ({currentHealthRecord.emergencyContact.relationship})</p><p className="text-muted-foreground">{currentHealthRecord.emergencyContact.phone}</p></div></div>
-                                        </CardContent>
-                                    </Card>
-                                ) : (
-                                    <div className="flex min-h-[300px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                                        <div className="text-center text-muted-foreground"><Stethoscope className="mx-auto h-12 w-12" /><h3 className="mt-4 text-lg font-semibold">Select a student to view their record.</h3></div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
                 </Tabs>
 
                 {selectedIncident && (
