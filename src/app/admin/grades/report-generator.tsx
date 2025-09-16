@@ -157,7 +157,7 @@ export function ReportGenerator() {
             studentId: studentDoc.id, 
             studentName: student.name, 
             studentAvatar: student.avatarUrl,
-            rollNumber: student.rollNumber,
+            rollNumber: student.admissionNumber,
             grades, 
             overall 
         };
@@ -233,7 +233,7 @@ export function ReportGenerator() {
   
   const getGradeForStudent = (student: StudentGrades, assessmentId: string) => {
     const grade = student.grades.find(g => g.assessmentId === assessmentId);
-    return grade ? grade.score : '—';
+    return grade ? grade.grade : '—';
   };
 
   const isGenerateDisabled = (reportType === 'individual' && !selectedStudent) || isGenerating;
@@ -477,15 +477,9 @@ export function ReportGenerator() {
                               </div>
 
                               <div className="mt-6">
-                                  <h3 className="font-semibold mb-2">Principal's Remarks</h3>
-                                  <Textarea placeholder="Principal's remarks will be shown here..."/>
+                                  <h3 className="font-semibold mb-2">Teacher's Comments</h3>
+                                  <Textarea readOnly value="An excellent term for this student, showing great improvement in all areas. Keep up the fantastic work and continue to participate actively in class discussions." className="bg-muted/50" />
                               </div>
-                              <div className="mt-6 flex justify-end">
-                                <div className="w-48 h-16 border-b border-dashed flex items-end justify-center text-sm text-muted-foreground">
-                                    Principal's Signature
-                                </div>
-                              </div>
-                              
 
                               <Separator className="my-6"/>
                               
