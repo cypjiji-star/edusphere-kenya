@@ -290,15 +290,15 @@ export default function ParentDashboard() {
       
       setChildrenData(fetchedChildren);
       if (fetchedChildren.length > 0) {
-        // If a child is already selected, update their data, otherwise select the first one
+        // If a child is already selected, find the updated version, otherwise select the first one
         const currentSelectedId = selectedChild?.id;
-        const updatedSelectedChild = fetchedChildren.find(c => c.id === currentSelectedId);
+        const updatedSelectedChild = currentSelectedId ? fetchedChildren.find(c => c.id === currentSelectedId) : undefined;
         setSelectedChild(updatedSelectedChild || fetchedChildren[0]);
       }
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [schoolId, parentId, selectedChild?.id]);
+  }, [schoolId, parentId]);
   
   const getFeeStatus = (feeStatus: Child['feeStatus']) => {
     if (feeStatus.balance <= 0) return 'Paid';
