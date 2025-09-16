@@ -125,13 +125,7 @@ type FeeStructureItem = {
     category: string;
     amount: number;
     appliesTo: string;
-    term: 'Term 1' | 'Term 2' | 'Term 3' | 'Annual';
-}
-
-type TermFeeData = {
-    fee: number;
-    dueDate: Date;
-}
+};
 
 function ReceiptDialog({ transaction, student, schoolName, open, onOpenChange }: { transaction: Transaction | null, student: StudentFeeProfile | null, schoolName: string, open: boolean, onOpenChange: (open: boolean) => void }) {
     if (!transaction || !student) return null;
@@ -252,16 +246,9 @@ export default function FeesPage() {
   // State for Fee Structure tab
   const [feeStructure, setFeeStructure] = React.useState<FeeStructureItem[]>([]);
   const [selectedClassForStructure, setSelectedClassForStructure] = React.useState('');
-  const [termFees, setTermFees] = React.useState<Record<string, TermFeeData>>({
-    "Term 1": { fee: 0, dueDate: new Date() },
-    "Term 2": { fee: 0, dueDate: new Date() },
-    "Term 3": { fee: 0, dueDate: new Date() },
-  });
-  const [newFeeItems, setNewFeeItems] = React.useState<Record<string, { category: string; amount: string }>>({
-    "Term 1": { category: "", amount: "" },
-    "Term 2": { category: "", amount: "" },
-    "Term 3": { category: "", amount: "" },
-  });
+  const [yearlyDueDate, setYearlyDueDate] = React.useState<Date>(new Date());
+  const [newFeeItem, setNewFeeItem] = React.useState<{ category: string, amount: string }>({ category: "", amount: "" });
+  const [totalYearlyFee, setTotalYearlyFee] = React.useState(0);
 
 
   React.useEffect(() => {
@@ -441,19 +428,9 @@ export default function FeesPage() {
   }, [filteredStudents, classFilter]);
   
   React.useEffect(() => {
-    const classFees = feeStructure
-        .filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students');
-    
-    const term1Fee = classFees.filter(i => i.term === 'Term 1' || i.term === 'Annual').reduce((total, item) => total + item.amount, 0);
-    const term2Fee = classFees.filter(i => i.term === 'Term 2' || i.term === 'Annual').reduce((total, item) => total + item.amount, 0);
-    const term3Fee = classFees.filter(i => i.term === 'Term 3' || i.term === 'Annual').reduce((total, item) => total + item.amount, 0);
-    
-    setTermFees(prev => ({
-        "Term 1": {...prev["Term 1"], fee: term1Fee},
-        "Term 2": {...prev["Term 2"], fee: term2Fee},
-        "Term 3": {...prev["Term 3"], fee: term3Fee},
-    }));
-
+    const classFees = feeStructure.filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students');
+    const totalFee = classFees.reduce((total, item) => total + item.amount, 0);
+    setTotalYearlyFee(totalFee);
   }, [selectedClassForStructure, feeStructure]);
 
   const openStudentDialog = async (student: StudentFeeProfile) => {
@@ -528,8 +505,8 @@ export default function FeesPage() {
     }
   }
 
-  const handleSaveFeeItem = async (term: 'Term 1' | 'Term 2' | 'Term 3', itemId?: string) => {
-    const { category, amount } = newFeeItems[term];
+  const handleSaveFeeItem = async () => {
+    const { category, amount } = newFeeItem;
     if (!category || !amount || !schoolId) {
         toast({ title: "Missing Information", variant: "destructive" });
         return;
@@ -539,25 +516,17 @@ export default function FeesPage() {
         category,
         amount: Number(amount),
         appliesTo: selectedClassForStructure,
-        term: term
     };
 
     try {
-        if (itemId) {
-            await updateDoc(doc(firestore, `schools/${schoolId}/feeStructure`, itemId), itemData);
-            toast({ title: "Fee Item Updated" });
-        } else {
-            await addDoc(collection(firestore, `schools/${schoolId}/feeStructure`), itemData);
-            toast({ title: "New Fee Item Added" });
-        }
-        setNewFeeItems(prev => ({ ...prev, [term]: { category: '', amount: '' } }));
-
+        await addDoc(collection(firestore, `schools/${schoolId}/feeStructure`), itemData);
+        toast({ title: "New Fee Item Added" });
+        setNewFeeItem({ category: '', amount: '' });
     } catch (e) {
         console.error(e);
         toast({ title: "Save Failed", variant: "destructive" });
     }
   }
-
 
   const handleDeleteFeeItem = async (itemId: string) => {
     if (!window.confirm("Are you sure you want to delete this fee item?")) return;
@@ -571,13 +540,14 @@ export default function FeesPage() {
     }
   }
   
-  const handleSaveClassFees = async (term: 'Term 1' | 'Term 2' | 'Term 3') => {
+  const handleSaveClassFees = async () => {
     if (!selectedClassForStructure || !schoolId) return;
     const batch = writeBatch(firestore);
     const studentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('class', '==', selectedClassForStructure));
     const studentsSnapshot = await getDocs(studentsInClassQuery);
     
-    const { fee, dueDate } = termFees[term];
+    const fee = totalYearlyFee;
+    const dueDate = yearlyDueDate;
     
     for (const studentDoc of studentsSnapshot.docs) {
         const studentRef = doc(firestore, 'schools', schoolId, 'students', studentDoc.id);
@@ -595,7 +565,7 @@ export default function FeesPage() {
         const transactionRef = doc(collection(studentRef, 'transactions'));
         batch.set(transactionRef, {
             date: Timestamp.now(),
-            description: `${term} School Fees`,
+            description: `Annual School Fees`,
             type: 'Charge',
             amount: fee,
             balance: newBalance,
@@ -606,7 +576,7 @@ export default function FeesPage() {
         await batch.commit();
         toast({
             title: 'Fees Applied',
-            description: `${term} fee of ${formatCurrency(fee)} has been applied to all students in ${selectedClassForStructure}.`,
+            description: `Annual fee of ${formatCurrency(fee)} has been applied to all students in ${selectedClassForStructure}.`,
         });
     } catch (e) {
         console.error(e);
@@ -683,64 +653,6 @@ export default function FeesPage() {
     }
   };
 
-  const renderTermStructure = (term: 'Term 1' | 'Term 2' | 'Term 3') => {
-    const termFeeItems = feeStructure.filter(item => (item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students') && (item.term === term || item.term === 'Annual'));
-    const { category, amount } = newFeeItems[term];
-    
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-lg">{term} Structure</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount (KES)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {termFeeItems.map(item => (
-                            <TableRow key={item.id}>
-                                <TableCell className="font-medium">{item.category}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
-                                <TableCell className="text-right space-x-2">
-                                    <Button variant="ghost" size="icon" disabled><Edit2 className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteFeeItem(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                         <TableRow>
-                            <TableCell><Input placeholder="New Item" value={category} onChange={e => setNewFeeItems(prev => ({ ...prev, [term]: { ...prev[term], category: e.target.value } }))} /></TableCell>
-                            <TableCell className="text-right"><Input type="number" placeholder="Amount" className="ml-auto text-right w-32" value={amount} onChange={e => setNewFeeItems(prev => ({ ...prev, [term]: { ...prev[term], amount: e.target.value } }))} /></TableCell>
-                            <TableCell className="text-right"><Button size="sm" onClick={() => handleSaveFeeItem(term)}>Add</Button></TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </CardContent>
-            <CardFooter className="bg-muted/50 p-4 flex justify-between items-center rounded-b-lg">
-                <div className="font-semibold">Total for {term}: {formatCurrency(termFees[term].fee)}</div>
-                 <div className="flex items-center gap-2">
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" className="font-normal w-48 justify-start">
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {format(termFees[term].dueDate, 'PPP')}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent>
-                            <Calendar
-                                mode="single"
-                                selected={termFees[term].dueDate}
-                                onSelect={(date) => date && setTermFees(prev => ({...prev, [term]: {...prev[term], dueDate: date}}))}
-                                initialFocus
-                            />
-                        </PopoverContent>
-                    </Popover>
-                     <Button onClick={() => handleSaveClassFees(term)}>Save &amp; Apply</Button>
-                </div>
-            </CardFooter>
-        </Card>
-    )
-  }
-
-
   return (
     <>
       <Dialog onOpenChange={(open) => !open && setSelectedStudent(null)}>
@@ -771,7 +683,7 @@ export default function FeesPage() {
                   )}
 
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Expected Fees (Term)</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(financials.totalBilled)}</div><p className="text-xs text-muted-foreground">Based on current enrollment</p></CardContent></Card>
+                      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Expected Fees (Annual)</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(financials.totalBilled)}</div><p className="text-xs text-muted-foreground">Based on current enrollment</p></CardContent></Card>
                       <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Collected (To Date)</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(financials.totalCollected)}</div><p className="text-xs text-muted-foreground">Across all terms and sessions</p></CardContent></Card>
                       <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Outstanding Balance</CardTitle><TrendingDown className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{formatCurrency(financials.outstanding)}</div><p className="text-xs text-muted-foreground">Aggregate of all student arrears</p></CardContent></Card>
                       <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Today's Collections</CardTitle><Hourglass className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(financials.todaysCollections)}</div><p className="text-xs text-muted-foreground">{format(new Date(), 'PPP')}</p></CardContent></Card>
@@ -972,9 +884,57 @@ export default function FeesPage() {
                            </div>
                       </CardHeader>
                       <CardContent className="space-y-6">
-                           {renderTermStructure('Term 1')}
-                           {renderTermStructure('Term 2')}
-                           {renderTermStructure('Term 3')}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Yearly Fee Structure</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount (KES)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {feeStructure
+                                                .filter(item => item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students')
+                                                .map(item => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell className="font-medium">{item.category}</TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                                                    <TableCell className="text-right space-x-2">
+                                                        <Button variant="ghost" size="icon" disabled><Edit2 className="h-4 w-4" /></Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteFeeItem(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            <TableRow>
+                                                <TableCell><Input placeholder="New Item" value={newFeeItem.category} onChange={e => setNewFeeItem(prev => ({ ...prev, category: e.target.value }))} /></TableCell>
+                                                <TableCell className="text-right"><Input type="number" placeholder="Amount" className="ml-auto text-right w-32" value={newFeeItem.amount} onChange={e => setNewFeeItem(prev => ({ ...prev, amount: e.target.value }))} /></TableCell>
+                                                <TableCell className="text-right"><Button size="sm" onClick={handleSaveFeeItem}>Add</Button></TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                                <CardFooter className="bg-muted/50 p-4 flex justify-between items-center rounded-b-lg">
+                                    <div className="font-semibold">Total Yearly Fee: {formatCurrency(totalYearlyFee)}</div>
+                                    <div className="flex items-center gap-2">
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className="font-normal w-48 justify-start">
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {format(yearlyDueDate, 'PPP')}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent>
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={yearlyDueDate}
+                                                    onSelect={(date) => date && setYearlyDueDate(date)}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <Button onClick={handleSaveClassFees}>Save &amp; Apply</Button>
+                                    </div>
+                                </CardFooter>
+                            </Card>
                       </CardContent>
                   </Card>
               </TabsContent>
