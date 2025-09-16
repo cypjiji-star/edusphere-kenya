@@ -60,6 +60,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
@@ -94,13 +95,18 @@ export default function ParentAttendancePage() {
   const [childrenData, setChildrenData] = React.useState<Child[]>([]);
   const [attendanceRecords, setAttendanceRecords] = React.useState<AttendanceRecord[]>([]);
   const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
-  const [date, setDate] = React.useState<DateRange | undefined>();
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(new Date().setDate(new Date().getDate() - 30)),
+    to: new Date(),
+  });
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
-  const parentId = 'parent-user-id'; // This would be the actual logged-in parent's ID.
-
+  const { user } = useAuth();
+  
+  // Fetch children associated with the logged-in parent
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
+    const parentId = user.uid;
 
     const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -109,14 +115,14 @@ export default function ParentAttendancePage() {
         if (!selectedChild && fetchedChildren.length > 0) {
             setSelectedChild(fetchedChildren[0].id);
         }
-    });
-     setDate({
-      from: new Date(new Date().setDate(new Date().getDate() - 30)),
-      to: new Date(),
+        if (fetchedChildren.length === 0) {
+            setIsLoading(false);
+        }
     });
     return () => unsubscribe();
-  }, [schoolId, selectedChild, parentId]);
+  }, [schoolId, user, selectedChild]);
 
+  // Fetch attendance records for the selected child
   React.useEffect(() => {
     if (!selectedChild || !schoolId) return;
     
@@ -126,25 +132,36 @@ export default function ParentAttendancePage() {
       const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
       setAttendanceRecords(records);
       setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching attendance: ", error);
+        toast({ title: 'Error', description: 'Could not fetch attendance records.', variant: 'destructive'});
+        setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [selectedChild, schoolId]);
+  }, [selectedChild, schoolId, toast]);
 
 
-  const filteredRecords = attendanceRecords.filter(record => {
-      const recordDate = record.date.toDate();
-      const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
-      return isDateInRange;
-  });
+  const filteredRecords = React.useMemo(() => {
+    if (!date?.from) return [];
+    return attendanceRecords.filter(record => {
+        const recordDate = record.date.toDate();
+        const fromDate = new Date(date.from!);
+        fromDate.setHours(0,0,0,0);
+        const toDate = date.to ? new Date(date.to) : new Date(date.from!);
+        toDate.setHours(23,59,59,999);
+        return recordDate >= fromDate && recordDate <= toDate;
+    });
+  }, [attendanceRecords, date]);
   
-  const summaryStats = {
+  const summaryStats = React.useMemo(() => ({
       present: filteredRecords.filter(r => r.status === 'Present').length,
       absent: filteredRecords.filter(r => r.status === 'Absent').length,
       late: filteredRecords.filter(r => r.status === 'Late').length,
-  }
+  }), [filteredRecords]);
+
   const totalRecords = filteredRecords.length;
-  const attendanceRate = totalRecords > 0 ? Math.round(((summaryStats.present + summaryStats.late) / totalRecords) * 100) : 0;
+  const attendanceRate = totalRecords > 0 ? Math.round(((summaryStats.present + summaryStats.late) / totalRecords) * 100) : 100;
   
   const wasAbsentRecently = summaryStats.absent > 0;
 
@@ -244,7 +261,7 @@ export default function ParentAttendancePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{attendanceRate}%</div>
-                        <p className="text-xs text-muted-foreground">{totalRecords} days recorded</p>
+                        <p className="text-xs text-muted-foreground">{totalRecords} days recorded in period</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -254,7 +271,7 @@ export default function ParentAttendancePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{summaryStats.absent}</div>
-                        <p className="text-xs text-muted-foreground">Days marked absent</p>
+                        <p className="text-xs text-muted-foreground">Days marked absent in period</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -264,7 +281,7 @@ export default function ParentAttendancePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{summaryStats.late}</div>
-                        <p className="text-xs text-muted-foreground">Days marked late</p>
+                        <p className="text-xs text-muted-foreground">Days marked late in period</p>
                     </CardContent>
                 </Card>
             </div>
@@ -283,7 +300,7 @@ export default function ParentAttendancePage() {
                         <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Notes</TableHead>
+                        <TableHead>Notes from Teacher</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
