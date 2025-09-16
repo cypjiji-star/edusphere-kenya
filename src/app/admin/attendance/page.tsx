@@ -256,7 +256,10 @@ const academicTerms = [
 export default function AdminAttendancePage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId')!;
-  const [date, setDate] = React.useState<DateRange | undefined>();
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date(),
+  });
   const [searchTerm, setSearchTerm] = React.useState('');
   const [classFilter, setClassFilter] = React.useState('All Classes');
   const [teacherFilter, setTeacherFilter] = React.useState('All Teachers');
