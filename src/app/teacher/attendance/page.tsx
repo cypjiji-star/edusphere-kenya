@@ -45,6 +45,7 @@ import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save } from "lucide
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/context/auth-context";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
 
@@ -78,7 +79,7 @@ export default function AttendancePage() {
   const { toast } = useToast();
 
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string | undefined>();
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,18 +108,18 @@ export default function AttendancePage() {
     const unsub = onSnapshot(q, (snap) => {
       const classesData: TeacherClass[] = snap.docs.map(d => ({ id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim() }));
       setTeacherClasses(classesData);
-      if (!selectedClassId && classesData.length > 0) {
-        setSelectedClassId(classesData[0].id);
+      if (!activeTab && classesData.length > 0) {
+        setActiveTab(classesData[0].id);
       } else if (classesData.length === 0) {
         setIsLoading(false);
       }
     });
     return () => unsub();
-  }, [user, schoolId, selectedClassId]);
+  }, [user, schoolId, activeTab]);
 
   // Main data fetching effect with REAL-TIME LISTENERS
   useEffect(() => {
-    if (!schoolId || !selectedClassId || !selectedDate) {
+    if (!schoolId || !activeTab || !selectedDate) {
         setIsLoading(false);
         setStudents([]);
         return;
@@ -128,7 +129,7 @@ export default function AttendancePage() {
 
     const studentsQuery = query(
       collection(firestore, "schools", schoolId, "students"),
-      where("classId", "==", selectedClassId),
+      where("classId", "==", activeTab),
       orderBy("name")
     );
 
@@ -151,7 +152,7 @@ export default function AttendancePage() {
         
         const attendanceQuery = query(
           collection(firestore, "schools", schoolId, "attendance"),
-          where("classId", "==", selectedClassId),
+          where("classId", "==", activeTab),
           where("date", "==", attendanceDate)
         );
 
@@ -182,7 +183,7 @@ export default function AttendancePage() {
     });
     
     return () => unsubStudents();
-  }, [schoolId, selectedClassId, selectedDate, toast]);
+  }, [schoolId, activeTab, selectedDate, toast]);
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status } : s));
@@ -193,14 +194,14 @@ export default function AttendancePage() {
   };
 
   const handleSaveAttendance = useCallback(async () => {
-    if (!selectedClassId || !schoolId || !user || students.length === 0 || !selectedDate) {
+    if (!activeTab || !schoolId || !user || students.length === 0 || !selectedDate) {
       toast({ title: 'Cannot Save', description: 'Missing required information.', variant: 'destructive'});
       return;
     }
     
     setIsSaving(true);
     const batch = writeBatch(firestore);
-    const currentClass = teacherClasses.find((c) => c.id === selectedClassId);
+    const currentClass = teacherClasses.find((c) => c.id === activeTab);
     
     const startOfDay = new Date(selectedDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -215,7 +216,7 @@ export default function AttendancePage() {
       const attendanceData = {
         studentId: student.id,
         studentName: student.name,
-        classId: selectedClassId,
+        classId: activeTab,
         className: currentClass?.name || "Unknown",
         date: attendanceDate,
         status: student.status,
@@ -245,7 +246,7 @@ export default function AttendancePage() {
     } finally {
       setIsSaving(false);
     }
-  }, [schoolId, selectedClassId, selectedDate, students, teacherClasses, teacherName, toast, user]);
+  }, [schoolId, activeTab, selectedDate, students, teacherClasses, teacherName, toast, user]);
 
   const markAll = () => handleBulkUpdate('present');
   const clearAll = () => handleBulkUpdate('unmarked');
@@ -289,108 +290,115 @@ export default function AttendancePage() {
         </div>
       </div>
       
-      <div>
-        <Select onValueChange={setSelectedClassId} value={selectedClassId ?? ""}>
-          <SelectTrigger className="w-[180px] mb-4">
-            <SelectValue placeholder="Select a class" />
-          </SelectTrigger>
-          <SelectContent>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        {teacherClasses.length > 0 && (
+            <TabsList>
             {teacherClasses.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
+                <TabsTrigger key={c.id} value={c.id}>
                 {c.name}
-              </SelectItem>
+                </TabsTrigger>
             ))}
-          </SelectContent>
-        </Select>
-
-        {isLoading ? (
-            <div className="flex h-64 items-center justify-center rounded-lg border">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            </div>
-        ) : (
-        <div className="w-full overflow-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px]">Student</TableHead>
-                <TableHead className="w-[150px]">Status</TableHead>
-                <TableHead>Notes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students.length > 0 ? (
-                students.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={student.avatarUrl} alt={student.name} />
-                          <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{student.name}</span>
-                          {student.rollNumber && (
-                            <span className="text-sm text-muted-foreground">Roll: {student.rollNumber}</span>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={student.status}
-                        onValueChange={(value: AttendanceStatus) =>
-                          handleAttendanceChange(student.id, value)
-                        }
-                      >
-                        <SelectTrigger className="w-36">
-                          <SelectValue>{getAttendanceBadge(student.status)}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="present">{getAttendanceBadge('present')}</SelectItem>
-                          <SelectItem value="absent">{getAttendanceBadge('absent')}</SelectItem>
-                          <SelectItem value="late">{getAttendanceBadge('late')}</SelectItem>
-                          <SelectItem value="unmarked">{getAttendanceBadge('unmarked')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      {(student.status === "absent" || student.status === "late") && (
-                        <Input
-                          placeholder="Add note (optional)..."
-                          value={student.notes || ""}
-                          onChange={(e) =>
-                            handleNotesChange(student.id, e.target.value)
-                          }
-                          className="w-full"
-                        />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
-                    {teacherClasses.length === 0 
-                      ? "No classes assigned to you." 
-                      : "No students found in this class."}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+            </TabsList>
         )}
-      </div>
+
+        {teacherClasses.length === 0 && !isLoading && (
+            <div className="text-center py-16 text-muted-foreground">
+                <p>You are not assigned to any classes.</p>
+            </div>
+        )}
+
+        {teacherClasses.map((c) => (
+            <TabsContent key={c.id} value={c.id} className="mt-4">
+                {isLoading ? (
+                    <div className="flex h-64 items-center justify-center rounded-lg border">
+                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    </div>
+                ) : (
+                <div className="w-full overflow-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[200px]">Student</TableHead>
+                        <TableHead className="w-[150px]">Status</TableHead>
+                        <TableHead>Notes</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {students.length > 0 ? (
+                        students.map((student) => (
+                          <TableRow key={student.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                  <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                  <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{student.name}</span>
+                                  {student.rollNumber && (
+                                    <span className="text-sm text-muted-foreground">Roll: {student.rollNumber}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={student.status}
+                                onValueChange={(value: AttendanceStatus) =>
+                                  handleAttendanceChange(student.id, value)
+                                }
+                              >
+                                <SelectTrigger className="w-36">
+                                  <SelectValue>{getAttendanceBadge(student.status)}</SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="present">{getAttendanceBadge('present')}</SelectItem>
+                                  <SelectItem value="absent">{getAttendanceBadge('absent')}</SelectItem>
+                                  <SelectItem value="late">{getAttendanceBadge('late')}</SelectItem>
+                                  <SelectItem value="unmarked">{getAttendanceBadge('unmarked')}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              {(student.status === "absent" || student.status === "late") && (
+                                <Input
+                                  placeholder="Add note (optional)..."
+                                  value={student.notes || ""}
+                                  onChange={(e) =>
+                                    handleNotesChange(student.id, e.target.value)
+                                  }
+                                  className="w-full"
+                                />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="h-24 text-center">
+                            No students found in this class.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                )}
+             </TabsContent>
+        ))}
+      </Tabs>
 
       {students.length > 0 && (
-        <Button 
-          onClick={handleSaveAttendance} 
-          disabled={isSaving}
-          className="w-full sm:w-auto"
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {isSaving ? "Saving..." : "Submit Attendance"}
-        </Button>
+        <div className="mt-4 flex justify-end">
+            <Button 
+              onClick={handleSaveAttendance} 
+              disabled={isSaving}
+              className="w-full sm:w-auto"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {isSaving ? "Saving..." : "Submit Attendance"}
+            </Button>
+        </div>
       )}
     </div>
   );
