@@ -43,7 +43,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { Resource, ResourceType, ResourceStatus } from '@/app/teacher/library/types';
@@ -156,12 +156,19 @@ export default function AdminLibraryPage() {
     const [newType, setNewType] = React.useState<ResourceType | undefined>();
     const [newSubject, setNewSubject] = React.useState<string | undefined>();
     const [newGrades, setNewGrades] = React.useState<string[]>([]);
-    const [newDesc, setNewDesc] = React.useState('');
     const [newCopies, setNewCopies] = React.useState('');
+    const [newDesc, setNewDesc] = React.useState('');
 
     const [dbSubjects, setDbSubjects] = React.useState<string[]>([]);
     const [dbGrades, setDbGrades] = React.useState<string[]>([]);
     const [allUsers, setAllUsers] = React.useState<{id: string, name: string}[]>([]);
+    
+    // State for returns tab
+    const [selectedReturnUser, setSelectedReturnUser] = React.useState<string>('');
+    const [userBorrowedBooks, setUserBorrowedBooks] = React.useState<{id: string, title: string}[]>([]);
+    const [selectedBookToReturn, setSelectedBookToReturn] = React.useState<string>('');
+    const [returnQuantity, setReturnQuantity] = React.useState(1);
+
 
     React.useEffect(() => {
         if (!schoolId) {
@@ -205,6 +212,25 @@ export default function AdminLibraryPage() {
             unsubUsers();
         };
     }, [schoolId]);
+
+    // Fetch borrowed books for the selected user
+    React.useEffect(() => {
+        if (!selectedReturnUser || !schoolId) {
+            setUserBorrowedBooks([]);
+            return;
+        }
+
+        const borrowedBooksQuery = query(collection(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowed-items'));
+        const unsubscribe = onSnapshot(borrowedBooksQuery, (snapshot) => {
+            const books = snapshot.docs.map(doc => ({
+                id: doc.id,
+                title: doc.data().title,
+            }));
+            setUserBorrowedBooks(books);
+        });
+
+        return () => unsubscribe();
+    }, [selectedReturnUser, schoolId]);
 
     const filteredResources = resources.filter(res => 
         res.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -334,11 +360,36 @@ export default function AdminLibraryPage() {
                                     <DialogContent className="sm:max-w-xl">
                                         <DialogHeader><DialogTitle>Add New Library Resource</DialogTitle><DialogDescription>Fill in the details for the new resource.</DialogDescription></DialogHeader>
                                         <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                                            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-title">Title</Label><Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div><div className="space-y-2"><Label htmlFor="new-author">Author / Publisher</Label><Input id="new-author" value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} /></div></div>
-                                            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-type">Type</Label><Select value={newType} onValueChange={(v: ResourceType) => setNewType(v)}><SelectTrigger id="new-type"><SelectValue placeholder="Select type..." /></SelectTrigger><SelectContent>{resourceTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label htmlFor="new-subject">Subject</Label><Select value={newSubject} onValueChange={setNewSubject}><SelectTrigger id="new-subject"><SelectValue placeholder="Select subject..." /></SelectTrigger><SelectContent>{dbSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div></div>
-                                            <div className="space-y-2"><Label>Applicable Grades/Forms</Label><MultiSelect options={dbGrades.map(g => ({value: g, label: g}))} selected={newGrades} onChange={setNewGrades} placeholder="Select grades..." /></div>
-                                            <div className="space-y-2"><Label htmlFor="new-copies">Number of Copies</Label><Input id="new-copies" type="number" value={newCopies} onChange={(e) => setNewCopies(e.target.value)} placeholder="e.g., 10"/></div>
-                                            <div className="space-y-2"><Label htmlFor="new-desc">Description</Label><Textarea id="new-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} /></div>
+                                            <div className="space-y-2"><Label htmlFor="new-title">Title</Label><Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div>
+                                            <div className="space-y-2"><Label htmlFor="new-author">Author / Publisher</Label><Input id="new-author" value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} /></div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="new-type">Type</Label>
+                                                    <Select value={newType} onValueChange={(v: ResourceType) => setNewType(v)}>
+                                                        <SelectTrigger id="new-type"><SelectValue placeholder="Select type..." /></SelectTrigger>
+                                                        <SelectContent>{resourceTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="new-subject">Subject</Label>
+                                                    <Select value={newSubject} onValueChange={setNewSubject}>
+                                                        <SelectTrigger id="new-subject"><SelectValue placeholder="Select subject..." /></SelectTrigger>
+                                                        <SelectContent>{dbSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Applicable Grades/Forms</Label>
+                                                <MultiSelect options={dbGrades.map(g => ({value: g, label: g}))} selected={newGrades} onChange={setNewGrades} placeholder="Select grades..." />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-desc">Description</Label>
+                                                <Textarea id="new-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-copies">Number of Copies</Label>
+                                                <Input id="new-copies" type="number" value={newCopies} onChange={(e) => setNewCopies(e.target.value)} placeholder="e.g., 10"/>
+                                            </div>
                                         </div>
                                         <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Add Resource</Button></DialogFooter>
                                     </DialogContent>
@@ -389,7 +440,7 @@ export default function AdminLibraryPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Select User (Student or Teacher)</Label>
-                                <Select>
+                                <Select value={selectedReturnUser} onValueChange={setSelectedReturnUser}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Search user by name..." />
                                     </SelectTrigger>
@@ -402,21 +453,23 @@ export default function AdminLibraryPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Select Book</Label>
-                                <Select disabled>
+                                <Select value={selectedBookToReturn} onValueChange={setSelectedBookToReturn} disabled={!selectedReturnUser || userBorrowedBooks.length === 0}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select a book to return..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="book-1">Sapiens</SelectItem>
+                                        {userBorrowedBooks.map(book => (
+                                            <SelectItem key={book.id} value={book.id}>{book.title}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="return-quantity">Quantity to Return</Label>
-                            <Input id="return-quantity" type="number" placeholder="1" />
+                            <Input id="return-quantity" type="number" placeholder="1" value={returnQuantity} onChange={e => setReturnQuantity(Number(e.target.value))} />
                         </div>
-                         <Button disabled>Process Return</Button>
+                         <Button disabled={!selectedBookToReturn || returnQuantity <= 0}>Process Return</Button>
                     </CardContent>
                  </Card>
             </TabsContent>
