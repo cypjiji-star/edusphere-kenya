@@ -84,6 +84,7 @@ import {
   X,
   Loader2,
   KeyRound,
+  CircleDollarSign,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -96,6 +97,7 @@ const enrolmentSchema = z.object({
   admissionNumber: z.string().optional(),
   classId: z.string({ required_error: 'Please assign a class.' }),
   admissionYear: z.string({ required_error: 'Please select an admission year.'}),
+  amountPaid: z.string().optional(),
   parentFirstName: z.string().min(2, 'Parent\'s first name is required.'),
   parentLastName: z.string().min(2, 'Parent\'s last name is required.'),
   parentRelationship: z.string({ required_error: 'Relationship is required.' }),
@@ -154,6 +156,7 @@ export default function StudentEnrolmentPage() {
             admissionNumber: '',
             classId: '',
             admissionYear: '',
+            amountPaid: '0',
             parentFirstName: '',
             parentLastName: '',
             parentRelationship: '',
@@ -297,6 +300,7 @@ export default function StudentEnrolmentPage() {
 
             // Create student document in `students` collection
             const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
+            const amountPaid = Number(values.amountPaid) || 0;
             const studentData = {
                 id: studentDocRef.id,
                 schoolId: schoolId,
@@ -322,7 +326,8 @@ export default function StudentEnrolmentPage() {
                 createdAt: serverTimestamp(),
                 avatarUrl: photoUrl,
                 documents: admissionDocUrls,
-                role: 'Student'
+                role: 'Student',
+                amountPaid: amountPaid,
             };
             await setDoc(studentDocRef, studentData);
 
@@ -548,7 +553,9 @@ export default function StudentEnrolmentPage() {
                         <CardContent className="space-y-6">
                              <FormField control={form.control} name="classId" render={({ field }) => ( <FormItem><FormLabel>Assign to Class</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a class" /></SelectTrigger></FormControl><SelectContent>{classOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )}/>
                              <FormField control={form.control} name="admissionYear" render={({ field }) => ( <FormItem><FormLabel>Year of Admission</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a year" /></SelectTrigger></FormControl><SelectContent>{years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )}/>
-                            <Separator />
+                             <Separator />
+                             <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Initial Fee Payment (KES)</FormLabel><div className="relative"><CircleDollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><FormControl><Input type="number" placeholder="0" className="pl-10" {...field} /></FormControl></div><FormMessage /></FormItem> )}/>
+                             <Separator />
                             <div className="space-y-2">
                                 <Label>Student Profile Photo</Label>
                                 <div className="flex items-center gap-4">
