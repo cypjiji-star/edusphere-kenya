@@ -7,6 +7,7 @@ import { firestore } from '@/lib/firebase';
 import { collection, writeBatch, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { gradeEntrySchema, type GradeEntryFormValues } from './types';
+import { logAuditEvent } from '@/lib/audit-log.service';
 
 
 // In a real app, this would save to a database.
@@ -28,8 +29,10 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
     // 2. Create grade records for each student in the top-level grades collection
     const batch = writeBatch(firestore);
     
+    let validGradesCount = 0;
     for (const studentGrade of data.grades) {
         if (studentGrade.grade) { // Only save if a grade was entered
+            validGradesCount++;
             const gradeRef = doc(collection(firestore, 'schools', schoolId, 'grades'));
             batch.set(gradeRef, {
                 studentId: studentGrade.studentId,
@@ -46,6 +49,15 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
     }
 
     await batch.commit();
+
+    // 3. Log this bulk action as a single audit event
+    await logAuditEvent({
+        schoolId,
+        actionType: 'Academics',
+        description: `Bulk Grades Submitted`,
+        user: { name: teacherName, avatarUrl: '' },
+        details: `${validGradesCount} grades for "${assessmentData.title}" (${data.subject}) were submitted for class ID ${data.classId}.`,
+    });
   
     revalidatePath(`/teacher/grades?schoolId=${schoolId}`);
 
@@ -60,5 +72,3 @@ export async function saveGradesAction(schoolId: string, teacherId: string, teac
       return { success: false, message: `An unexpected error occurred: ${error.message}` };
   }
 }
-
-

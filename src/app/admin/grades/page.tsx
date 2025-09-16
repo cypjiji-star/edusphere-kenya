@@ -67,7 +67,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
+import { firestore, auth } from '@/lib/firebase';
 import { 
   collection, 
   query, 
@@ -82,6 +82,7 @@ import {
   getDoc,
   updateDoc,
   setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
@@ -104,6 +105,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { logAuditEvent } from '@/lib/audit-log.service';
+import { useAuth } from '@/context/auth-context';
 
 
 type GradeStatus = 'Graded' | 'Pending';
@@ -200,6 +203,7 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
     const [requests, setRequests] = React.useState<EditRequest[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const { toast } = useToast();
+    const { user } = useAuth();
 
     React.useEffect(() => {
         const q = query(collection(firestore, `schools/${schoolId}/grade-edit-requests`), orderBy('requestedAt', 'desc'));
@@ -210,7 +214,12 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
         return () => unsubscribe();
     }, [schoolId]);
 
-    const handleRequestUpdate = async (requestId: string, assessmentId: string, newStatus: 'approved' | 'denied') => {
+    const handleRequestUpdate = async (requestId: string, assessmentId: string, newStatus: 'approved' | 'denied', requestDetails: EditRequest) => {
+        if (!user) {
+            toast({ title: 'Authentication Error', variant: 'destructive'});
+            return;
+        }
+
         const batch = writeBatch(firestore);
 
         const requestRef = doc(firestore, `schools/${schoolId}/grade-edit-requests`, requestId);
@@ -223,6 +232,13 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
 
         try {
             await batch.commit();
+            await logAuditEvent({
+                schoolId,
+                actionType: 'Academics',
+                description: `Grade Edit Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+                user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+                details: `Request from ${requestDetails.teacherName} for ${requestDetails.assessmentTitle} (${requestDetails.className}) was ${newStatus}.`,
+            });
             toast({ title: `Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`, description: `The teacher has been notified.`});
         } catch (e) {
             console.error(e);
@@ -269,8 +285,8 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
                                     <TableCell className="text-right">
                                         {req.status === 'pending' && (
                                             <div className="flex gap-2 justify-end">
-                                                <Button size="sm" variant="destructive" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'denied')}>Deny</Button>
-                                                <Button size="sm" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'approved')}>Approve</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'denied', req)}>Deny</Button>
+                                                <Button size="sm" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'approved', req)}>Approve</Button>
                                             </div>
                                         )}
                                     </TableCell>
@@ -291,6 +307,7 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
 export default function AdminGradesPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>(initialGradingScale);
   const { toast } = useToast();
@@ -550,7 +567,7 @@ export default function AdminGradesPage() {
   }
   
   const handleCreateOrUpdateExam = async () => {
-    if (!schoolId || !newExamTitle || !newExamClass || !date?.from) {
+    if (!schoolId || !newExamTitle || !newExamClass || !date?.from || !user) {
       toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out the title, class, and date range.' });
       return;
     }
@@ -568,14 +585,27 @@ export default function AdminGradesPage() {
       };
       
     try {
+      let action = 'Created';
+      let description = `New Exam Scheduled: ${examData.title} for ${examData.className}`;
+
       if (editingExam) {
           const examRef = doc(firestore, `schools/${schoolId}/assessments`, editingExam.id);
           await updateDoc(examRef, examData);
           toast({ title: 'Exam Updated', description: 'The exam schedule has been updated.' });
+          action = 'Updated';
+          description = `Exam Details Updated: ${examData.title}`;
       } else {
           await addDoc(collection(firestore, `schools/${schoolId}/assessments`), examData);
           toast({ title: 'Exam Created', description: 'The new exam has been scheduled.' });
       }
+
+      await logAuditEvent({
+        schoolId,
+        actionType: 'Academics',
+        description,
+        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        details: `Term: ${examData.term}, Dates: ${format(date.from, 'PPP')} - ${format(date.to || date.from, 'PPP')}`,
+      });
 
       setEditingExam(null);
       setIsExamDialogOpen(false);
@@ -643,11 +673,20 @@ export default function AdminGradesPage() {
     }
   }
   
-  const handleUpdateExamStatus = async (examId: string, newStatus: Exam['status']) => {
-    if (!schoolId) return;
+  const handleUpdateExamStatus = async (exam: Exam, newStatus: Exam['status']) => {
+    if (!schoolId || !user) return;
     try {
-        const examRef = doc(firestore, `schools/${schoolId}/assessments`, examId);
+        const examRef = doc(firestore, `schools/${schoolId}/assessments`, exam.id);
         await updateDoc(examRef, { status: newStatus });
+
+        await logAuditEvent({
+            schoolId,
+            actionType: 'Academics',
+            description: `Exam Status Changed to ${newStatus}`,
+            user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+            details: `Exam: ${exam.title} (${exam.className})`,
+        });
+
         toast({
             title: `Exam Status Updated`,
             description: `The exam is now ${newStatus}.`,
@@ -664,7 +703,7 @@ export default function AdminGradesPage() {
 
   const handleArchiveExam = (exam: Exam) => {
     if (window.confirm(`Are you sure you want to archive the exam "${exam.title}"?`)) {
-      handleUpdateExamStatus(exam.id, 'Archived');
+      handleUpdateExamStatus(exam, 'Archived');
     }
   };
 
@@ -672,11 +711,11 @@ export default function AdminGradesPage() {
   const renderExamActions = (exam: Exam) => {
     switch (exam.status) {
         case 'Draft':
-            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam.id, 'Active')}><Unlock className="mr-2 h-4 w-4" /> Activate Grading</DropdownMenuItem>;
+            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Active')}><Unlock className="mr-2 h-4 w-4" /> Activate Grading</DropdownMenuItem>;
         case 'Active':
-            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam.id, 'Locked')}><Lock className="mr-2 h-4 w-4" /> Lock Grading</DropdownMenuItem>;
+            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Locked')}><Lock className="mr-2 h-4 w-4" /> Lock Grading</DropdownMenuItem>;
         case 'Locked':
-            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam.id, 'Published')}><Send className="mr-2 h-4 w-4" /> Publish Results</DropdownMenuItem>;
+            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Published')}><Send className="mr-2 h-4 w-4" /> Publish Results</DropdownMenuItem>;
         case 'Published':
              return <DropdownMenuItem disabled><CheckCircle className="mr-2 h-4 w-4" /> Published</DropdownMenuItem>;
         default:
