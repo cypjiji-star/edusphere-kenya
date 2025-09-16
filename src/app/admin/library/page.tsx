@@ -433,26 +433,35 @@ export default function AdminLibraryPage() {
 
         try {
             await runTransaction(firestore, async (transaction) => {
+                // --- READS FIRST ---
                 const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignment.id);
                 const resourceQuery = query(collection(firestore, `schools/${schoolId}/library-resources`), where('title', '==', assignment.bookTitle));
-                const resourceSnapshot = await getDocs(resourceQuery);
+                const resourceSnapshot = await getDocs(resourceQuery); // This is a non-transactional read, which is fine before the transaction starts.
 
                 if (resourceSnapshot.empty) {
                     throw new Error(`Book "${assignment.bookTitle}" not found in library.`);
                 }
                 const resourceDoc = resourceSnapshot.docs[0];
                 const resourceRef = resourceDoc.ref;
-                const resourceData = resourceDoc.data() as Resource;
+                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/users/${assignment.teacherId}/borrowed-items`, resourceDoc.id);
+
+                const resourceSnap = await transaction.get(resourceRef);
+                const teacherItemSnap = await transaction.get(teacherBorrowedItemRef);
                 
+                if (!resourceSnap.exists()) {
+                    throw new Error(`Book "${assignment.bookTitle}" not found in library inventory.`);
+                }
+
+                // --- WRITES SECOND ---
+                const resourceData = resourceSnap.data() as Resource;
+
                 // Update assignment status
                 transaction.update(assignmentRef, { status: 'Returned' });
 
                 // Update inventory
                 transaction.update(resourceRef, { availableCopies: (resourceData.availableCopies || 0) + 1 });
 
-                // Update teacher's borrowed count (optional, but good for consistency)
-                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/users/${assignment.teacherId}/borrowed-items`, resourceDoc.id);
-                const teacherItemSnap = await transaction.get(teacherBorrowedItemRef);
+                // Update teacher's borrowed count
                 if (teacherItemSnap.exists()) {
                     const currentQuantity = teacherItemSnap.data().quantity;
                     if (currentQuantity > 1) {
