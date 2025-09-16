@@ -13,6 +13,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { logAuditEvent } from '@/lib/audit-log.service';
 
 export function LoginForm() {
   const router = useRouter();
@@ -53,6 +54,13 @@ export function LoginForm() {
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists() && userDocSnap.data().role?.toLowerCase() === role) {
+        await logAuditEvent({
+            schoolId: schoolCode,
+            actionType: 'Security',
+            description: `Successful Login: ${user.email}`,
+            user: { name: user.email || 'Unknown', avatarUrl: '' },
+            details: `Role: ${role}`,
+        });
         router.push(`/${role}?schoolId=${schoolCode}`);
       } else {
         // If not found, a teacher might be in the general 'users' collection
@@ -60,6 +68,13 @@ export function LoginForm() {
              userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
              const generalUserDocSnap = await getDoc(userDocRef);
              if (generalUserDocSnap.exists() && generalUserDocSnap.data().role?.toLowerCase() === role) {
+                 await logAuditEvent({
+                    schoolId: schoolCode,
+                    actionType: 'Security',
+                    description: `Successful Login: ${user.email}`,
+                    user: { name: user.email || 'Unknown', avatarUrl: '' },
+                    details: `Role: ${role}`,
+                });
                  router.push(`/${role}?schoolId=${schoolCode}`);
                  return;
              }
@@ -87,6 +102,14 @@ export function LoginForm() {
           description = 'Please check your credentials and school code.';
           break;
       }
+
+      await logAuditEvent({
+          schoolId: schoolCode || 'unknown',
+          actionType: 'Security',
+          description: `Failed Login Attempt: ${email}`,
+          user: { name: email, avatarUrl: '' },
+          details: `Reason: ${description}`,
+      });
 
       toast({
         title,

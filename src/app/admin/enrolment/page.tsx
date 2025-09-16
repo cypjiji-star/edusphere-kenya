@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { firestore, storage } from '@/lib/firebase';
+import { firestore, storage, auth } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
@@ -88,6 +88,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import { logAuditEvent } from '@/lib/audit-log.service';
 
 const enrolmentSchema = z.object({
   studentFirstName: z.string().min(2, 'First name is required.'),
@@ -134,6 +135,7 @@ export default function StudentEnrolmentPage() {
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const adminUser = auth.currentUser;
 
     const [bulkEnrolmentFile, setBulkEnrolmentFile] = React.useState<File | null>(null);
     const [profilePhotoFile, setProfilePhotoFile] = React.useState<File | null>(null);
@@ -338,6 +340,25 @@ export default function StudentEnrolmentPage() {
                 read: false,
                 href: `/admin/enrolment?schoolId=${schoolId}`,
             });
+
+            // Log audit event for both student and parent creation
+            if (adminUser) {
+                await logAuditEvent({
+                    schoolId,
+                    actionType: 'User Management',
+                    description: `New Student Enrolled: ${studentName}`,
+                    user: { name: adminUser.displayName || 'Admin', avatarUrl: adminUser.photoURL || '' },
+                    details: `Class: ${studentData.class}, Parent: ${parentName}`,
+                });
+                await logAuditEvent({
+                    schoolId,
+                    actionType: 'User Management',
+                    description: `New Parent Account Created: ${parentName}`,
+                    user: { name: adminUser.displayName || 'Admin', avatarUrl: adminUser.photoURL || '' },
+                    details: `Email: ${parentData.email}, Linked Student: ${studentName}`,
+                });
+            }
+
 
             toast({
                 title: 'Enrolment Submitted & Parent Account Created',
