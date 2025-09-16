@@ -257,9 +257,11 @@ export default function FeesPage() {
     "Term 2": { fee: 0, dueDate: new Date() },
     "Term 3": { fee: 0, dueDate: new Date() },
   });
-  const [newFeeItemCategory, setNewFeeItemCategory] = React.useState('');
-  const [newFeeItemAmount, setNewFeeItemAmount] = React.useState('');
-  const [newFeeItemTerm, setNewFeeItemTerm] = React.useState<'Term 1' | 'Term 2' | 'Term 3' | 'Annual'>('Term 1');
+  const [newFeeItems, setNewFeeItems] = React.useState<Record<string, { category: string; amount: string }>>({
+    "Term 1": { category: "", amount: "" },
+    "Term 2": { category: "", amount: "" },
+    "Term 3": { category: "", amount: "" },
+  });
 
 
   React.useEffect(() => {
@@ -526,18 +528,18 @@ export default function FeesPage() {
     }
   }
 
-
-  const handleSaveFeeItem = async (itemId?: string) => {
-    if (!newFeeItemCategory || !newFeeItemAmount || !schoolId || !newFeeItemTerm) {
+  const handleSaveFeeItem = async (term: 'Term 1' | 'Term 2' | 'Term 3', itemId?: string) => {
+    const { category, amount } = newFeeItems[term];
+    if (!category || !amount || !schoolId) {
         toast({ title: "Missing Information", variant: "destructive" });
         return;
     }
     
     const itemData = {
-        category: newFeeItemCategory,
-        amount: Number(newFeeItemAmount),
+        category,
+        amount: Number(amount),
         appliesTo: selectedClassForStructure,
-        term: newFeeItemTerm
+        term: term
     };
 
     try {
@@ -548,13 +550,14 @@ export default function FeesPage() {
             await addDoc(collection(firestore, `schools/${schoolId}/feeStructure`), itemData);
             toast({ title: "New Fee Item Added" });
         }
-        setNewFeeItemCategory('');
-        setNewFeeItemAmount('');
+        setNewFeeItems(prev => ({ ...prev, [term]: { category: '', amount: '' } }));
+
     } catch (e) {
         console.error(e);
         toast({ title: "Save Failed", variant: "destructive" });
     }
   }
+
 
   const handleDeleteFeeItem = async (itemId: string) => {
     if (!window.confirm("Are you sure you want to delete this fee item?")) return;
@@ -579,8 +582,10 @@ export default function FeesPage() {
     for (const studentDoc of studentsSnapshot.docs) {
         const studentRef = doc(firestore, 'schools', schoolId, 'students', studentDoc.id);
         const studentData = studentDoc.data();
-        const currentBalance = (studentData.totalFee || 0) - (studentData.amountPaid || 0);
-        const newBalance = currentBalance + fee;
+        
+        // Correctly calculate new balance before creating transaction
+        const existingBalance = (studentData.totalFee || 0) - (studentData.amountPaid || 0);
+        const newBalance = existingBalance + fee;
 
         batch.update(studentRef, { 
             totalFee: (studentData.totalFee || 0) + fee,
@@ -680,6 +685,7 @@ export default function FeesPage() {
 
   const renderTermStructure = (term: 'Term 1' | 'Term 2' | 'Term 3') => {
     const termFeeItems = feeStructure.filter(item => (item.appliesTo === selectedClassForStructure || item.appliesTo === 'All Students') && (item.term === term || item.term === 'Annual'));
+    const { category, amount } = newFeeItems[term];
     
     return (
         <Card>
@@ -701,9 +707,9 @@ export default function FeesPage() {
                             </TableRow>
                         ))}
                          <TableRow>
-                            <TableCell><Input placeholder="New Item" value={newFeeItemCategory} onChange={e => setNewFeeItemCategory(e.target.value)} /></TableCell>
-                            <TableCell className="text-right"><Input type="number" placeholder="Amount" className="ml-auto text-right w-32" value={newFeeItemAmount} onChange={e => setNewFeeItemAmount(e.target.value)} /></TableCell>
-                            <TableCell className="text-right"><Button size="sm" onClick={() => { setNewFeeItemTerm(term); handleSaveFeeItem(); }}>Add</Button></TableCell>
+                            <TableCell><Input placeholder="New Item" value={category} onChange={e => setNewFeeItems(prev => ({ ...prev, [term]: { ...prev[term], category: e.target.value } }))} /></TableCell>
+                            <TableCell className="text-right"><Input type="number" placeholder="Amount" className="ml-auto text-right w-32" value={amount} onChange={e => setNewFeeItems(prev => ({ ...prev, [term]: { ...prev[term], amount: e.target.value } }))} /></TableCell>
+                            <TableCell className="text-right"><Button size="sm" onClick={() => handleSaveFeeItem(term)}>Add</Button></TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
@@ -1168,3 +1174,4 @@ export default function FeesPage() {
     </>
   );
 }
+
