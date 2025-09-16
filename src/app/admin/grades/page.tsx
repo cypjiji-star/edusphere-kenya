@@ -95,7 +95,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { GradeAnalysisCharts } from './grade-analysis-charts';
-import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 type GradeStatus = 'Graded' | 'Pending';
