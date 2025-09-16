@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, onSnapshot, orderBy, where, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { differenceInHours, formatDistanceStrict } from 'date-fns';
 
 
 const faqs = [
@@ -88,9 +89,16 @@ type Ticket = {
     category: TicketCategory; 
     priority: TicketPriority; 
     status: TicketStatus; 
+    createdAt: Timestamp;
     lastUpdate: Timestamp; 
     user: { name: string; avatarUrl: string; };
 };
+
+type Feedback = {
+    id: string;
+    rating: number;
+    comment: string;
+}
 
 const mockConversation = [
     { user: 'Admin User', text: 'I am unable to export the student list for Form 4 to PDF. The button is disabled.', time: 'Jul 28, 10:00 AM' },
@@ -142,6 +150,7 @@ export default function SupportPage() {
     const [feedbackText, setFeedbackText] = React.useState('');
     const [isAnonymous, setIsAnonymous] = React.useState(false);
     const [allTickets, setAllTickets] = React.useState<Ticket[]>([]);
+    const [allFeedback, setAllFeedback] = React.useState<Feedback[]>([]);
     
     // State for new ticket form
     const [category, setCategory] = React.useState<TicketCategory | undefined>();
@@ -160,13 +169,60 @@ export default function SupportPage() {
     React.useEffect(() => {
         if (!schoolId) return;
 
-        const q = query(collection(firestore, 'schools', schoolId, 'support-tickets'), orderBy('lastUpdate', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const ticketsQuery = query(collection(firestore, 'schools', schoolId, 'support-tickets'), orderBy('lastUpdate', 'desc'));
+        const unsubTickets = onSnapshot(ticketsQuery, (snapshot) => {
             const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket));
             setAllTickets(tickets);
         });
-        return () => unsubscribe();
+
+        const feedbackQuery = query(collection(firestore, 'schools', schoolId, 'feedback'));
+        const unsubFeedback = onSnapshot(feedbackQuery, (snapshot) => {
+            const feedback = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Feedback));
+            setAllFeedback(feedback);
+        });
+
+        return () => {
+            unsubTickets();
+            unsubFeedback();
+        };
     }, [schoolId]);
+    
+    const analytics = React.useMemo(() => {
+        // Top Issue Category
+        const categoryCounts = allTickets.reduce((acc, ticket) => {
+            acc[ticket.category] = (acc[ticket.category] || 0) + 1;
+            return acc;
+        }, {} as Record<TicketCategory, number>);
+        const topCategory = Object.entries(categoryCounts).sort(([,a], [,b]) => b-a)[0]?.[0] || 'N/A';
+
+        // Average Resolution Time
+        const resolvedTickets = allTickets.filter(t => (t.status === 'Resolved' || t.status === 'Closed') && t.createdAt);
+        let avgResolutionTime = 'N/A';
+        if (resolvedTickets.length > 0) {
+            const totalHours = resolvedTickets.reduce((sum, ticket) => {
+                const created = ticket.createdAt.toDate();
+                const resolved = ticket.lastUpdate.toDate();
+                return sum + differenceInHours(resolved, created);
+            }, 0);
+            const avgHours = totalHours / resolvedTickets.length;
+            avgResolutionTime = formatDistanceStrict(0, avgHours * 60 * 60 * 1000, { unit: avgHours > 24 ? 'day' : 'hour' });
+        }
+        
+        // Satisfaction Score
+        let satisfactionScore = 0;
+        if (allFeedback.length > 0) {
+            const totalRating = allFeedback.reduce((sum, f) => sum + f.rating, 0);
+            satisfactionScore = totalRating / allFeedback.length;
+        }
+
+        return {
+            topCategory,
+            avgResolutionTime,
+            satisfactionScore: satisfactionScore > 0 ? satisfactionScore.toFixed(1) : 'N/A',
+        }
+
+    }, [allTickets, allFeedback]);
+
 
     const filteredFaqs = React.useMemo(() => {
         if (!faqSearchTerm) return faqs;
@@ -216,12 +272,13 @@ export default function SupportPage() {
         }
 
         try {
-            await addDoc(collection(firestore, 'schools', schoolId, 'support-tickets'), {
+            await addDoc(collection(firestore, `schools/${schoolId}/support-tickets`), {
                 subject,
                 description,
                 category,
                 priority,
                 status: 'Open',
+                createdAt: serverTimestamp(),
                 lastUpdate: serverTimestamp(),
                 user: {
                     name: 'Admin User',
@@ -318,7 +375,7 @@ export default function SupportPage() {
                             <Ticket className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">Technical</div>
+                            <div className="text-2xl font-bold">{analytics.topCategory}</div>
                             <p className="text-xs text-muted-foreground">Most reported issue type this month</p>
                         </CardContent>
                     </Card>
@@ -328,7 +385,7 @@ export default function SupportPage() {
                             <Clock className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">3.2 hours</div>
+                            <div className="text-2xl font-bold">{analytics.avgResolutionTime}</div>
                             <p className="text-xs text-muted-foreground">Across all resolved tickets</p>
                         </CardContent>
                     </Card>
@@ -338,7 +395,7 @@ export default function SupportPage() {
                             <Smile className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">4.6 / 5</div>
+                            <div className="text-2xl font-bold">{analytics.satisfactionScore} / 5</div>
                             <p className="text-xs text-muted-foreground">Based on user feedback ratings</p>
                         </CardContent>
                     </Card>
@@ -494,8 +551,8 @@ export default function SupportPage() {
                                         {filteredTickets.map(ticket => (
                                             <DialogTrigger asChild key={ticket.id}>
                                                 <TableRow className="cursor-pointer" onClick={() => setSelectedTicket(ticket)}>
-                                                    <TableCell className="font-medium">{ticket.id.substring(0, 8)}...</TableCell>
-                                                    <TableCell>{ticket.subject}</TableCell>
+                                                    <TableCell className="font-mono text-xs">{ticket.id.substring(0, 8)}...</TableCell>
+                                                    <TableCell className="font-medium">{ticket.subject}</TableCell>
                                                     <TableCell><Badge variant="outline">{ticket.category}</Badge></TableCell>
                                                     <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
                                                     <TableCell>{getStatusBadge(ticket.status)}</TableCell>
