@@ -191,7 +191,7 @@ export default function AdminGradesPage() {
   const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>(initialGradingScale);
   const { toast } = useToast();
   const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
-  const [activeTab, setActiveTab] = React.useState('ranking');
+  const [activeTab, setActiveTab] = React.useState('exams');
   const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
   const [selectedClassForRanking, setSelectedClassForRanking] = React.useState<string>('');
   const [selectedSubjectForRanking, setSelectedSubjectForRanking] = React.useState<string>('All Subjects');
@@ -1070,3 +1070,4 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
