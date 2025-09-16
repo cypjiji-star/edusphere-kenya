@@ -44,13 +44,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
-import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw, HeartPulse, Loader2, AlertTriangle, Activity } from 'lucide-react';
+import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw, HeartPulse, Loader2, AlertTriangle, Activity, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, Timestamp, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -99,6 +99,7 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = React.useState<ActionType | 'All Types'>('All Types');
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
   const [autoRefresh, setAutoRefresh] = React.useState(true);
+  const [manualRefresh, setManualRefresh] = React.useState(0);
   const { toast } = useToast();
   const [page, setPage] = React.useState(1);
   const logsPerPage = 20;
@@ -122,28 +123,45 @@ export default function AuditLogsPage() {
     
     let unsubscribeLogs = () => {};
 
-    const fetchData = () => {
-      unsubscribeLogs = onSnapshot(logsQuery, (snapshot) => {
-          const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
-          setLogs(fetchedLogs);
-          setIsLoading(false);
-      }, (error) => {
-          console.error("Error fetching audit logs: ", error);
-          setIsLoading(false);
-      });
+    const fetchData = async () => {
+        setIsLoading(true);
+        const querySnapshot = await getDocs(logsQuery);
+        const fetchedLogs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
+        setLogs(fetchedLogs);
+        setIsLoading(false);
     };
 
     if (autoRefresh) {
-        fetchData();
+        unsubscribeLogs = onSnapshot(logsQuery, (snapshot) => {
+            const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
+            setLogs(fetchedLogs);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching audit logs: ", error);
+            setIsLoading(false);
+        });
     } else {
-        setIsLoading(false);
+        fetchData();
     }
 
     return () => {
       unsubUsers();
       unsubscribeLogs();
     };
-  }, [schoolId, autoRefresh]);
+  }, [schoolId, autoRefresh, manualRefresh]);
+  
+  const handleRefresh = () => {
+    if (!autoRefresh) {
+      setManualRefresh(count => count + 1);
+    }
+  }
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setDate(undefined);
+    setUserFilter('All Users');
+    setActionFilter('All Types');
+  }
 
   const filteredLogs = React.useMemo(() => logs.filter(log => {
       const recordDate = log.timestamp?.toDate();
@@ -324,8 +342,7 @@ export default function AuditLogsPage() {
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full md:w-auto">
                                             <Filter className="mr-2 h-4 w-4" />
-                                            Advanced Filters
-                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                            Filters
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent align="end" className="w-[300px] p-4 space-y-4">
@@ -367,6 +384,9 @@ export default function AuditLogsPage() {
                                                 </PopoverContent>
                                             </Popover>
                                         </div>
+                                         <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
+                                            <X className="mr-2 h-4 w-4" /> Clear All Filters
+                                        </Button>
                                     </PopoverContent>
                                 </Popover>
 
@@ -384,22 +404,19 @@ export default function AuditLogsPage() {
                                 </DropdownMenu>
                                 <Separator orientation="vertical" className="h-10 hidden md:block" />
                                  <div className="flex items-center gap-2">
-                                     <Button variant="outline" size="icon" onClick={() => setIsLoading(true)}>
+                                     <Button variant="outline" size="icon" onClick={handleRefresh}>
                                         <RefreshCw className="h-4 w-4" />
                                      </Button>
                                      <div className="flex items-center space-x-2">
                                         <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh}/>
-                                        <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground">Auto-refresh</Label>
+                                        <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground">Auto</Label>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 pt-2">
-                             <Button size="sm" variant={actionFilter === 'All Types' ? 'default' : 'outline'} onClick={() => setActionFilter('All Types')}>All Types</Button>
-                             <Button size="sm" variant={actionFilter === 'Academics' ? 'default' : 'outline'} onClick={() => setActionFilter('Academics')}>Grade Changes</Button>
-                             <Button size="sm" variant={actionFilter === 'Security' ? 'default' : 'outline'} onClick={() => setActionFilter('Security')}>Failed Logins</Button>
-                             <Button size="sm" variant={actionFilter === 'Finance' ? 'default' : 'outline'} onClick={() => setActionFilter('Finance')}>Financial Actions</Button>
-                             <Button size="sm" variant={actionFilter === 'User Management' ? 'default' : 'outline'} onClick={() => setActionFilter('User Management')}>User Management</Button>
+                            {actionFilter !== 'All Types' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setActionFilter('All Types')}>Type: {actionFilter} &times;</Badge>}
+                            {userFilter !== 'All Users' && <Badge variant="secondary" className="cursor-pointer" onClick={() => setUserFilter('All Users')}>User: {userFilter} &times;</Badge>}
                         </div>
                     </div>
                 </CardHeader>
