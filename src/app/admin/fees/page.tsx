@@ -18,6 +18,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
+import { Badge } from '@/components/ui/badge';
 import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc } from 'firebase/firestore';
