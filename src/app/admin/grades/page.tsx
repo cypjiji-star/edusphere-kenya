@@ -28,6 +28,7 @@ import {
   Lock,
   Unlock,
   Send,
+  CheckCircle,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -88,6 +89,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { GradeAnalysisCharts } from './grade-analysis-charts';
 
 
 type GradeStatus = 'Graded' | 'Pending';
@@ -152,6 +154,8 @@ export default function AdminGradesPage() {
   const [isLoadingRanking, setIsLoadingRanking] = React.useState(true);
   const [examSearchTerm, setExamSearchTerm] = React.useState('');
   
+  const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
+
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
     const year = currentYear - 1 + i;
@@ -688,9 +692,12 @@ export default function AdminGradesPage() {
           </TabsContent>
 
           <TabsContent value="exams">
+            {selectedExam ? (
+                <GradeAnalysisCharts exam={selectedExam} onBack={() => setSelectedExam(null)} />
+            ) : (
              <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Exam Dashboard & Schedules</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Exam Dashboard &amp; Schedules</CardTitle>
                     <CardDescription>View, edit, or clone existing examination schedules.</CardDescription>
                     <div className="relative w-full md:max-w-sm pt-4">
                         <Search className="absolute left-2.5 top-6 h-4 w-4 text-muted-foreground" />
@@ -719,7 +726,7 @@ export default function AdminGradesPage() {
                             </TableHeader>
                             <TableBody>
                             {filteredExams.map(exam => (
-                                <TableRow key={exam.id}>
+                                <TableRow key={exam.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedExam(exam)}>
                                     <TableCell className="font-medium">{exam.title}</TableCell>
                                     <TableCell>{exam.term}</TableCell>
                                     <TableCell>{exam.className}</TableCell>
@@ -736,7 +743,7 @@ export default function AdminGradesPage() {
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                                                     <ChevronDown className="h-4 w-4"/>
                                                 </Button>
                                             </DropdownMenuTrigger>
@@ -757,6 +764,7 @@ export default function AdminGradesPage() {
                     </div>
                 </CardContent>
              </Card>
+             )}
           </TabsContent>
         </Tabs>
     </div>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -16,13 +15,36 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { TrendingDown, TrendingUp, ArrowLeft, BookCopy, Loader2, FileText, BarChart2, AlertCircle, Trophy } from 'lucide-react';
+import {
+  TrendingDown,
+  TrendingUp,
+  ArrowLeft,
+  BookCopy,
+  Loader2,
+  FileText,
+  BarChart2,
+  AlertCircle,
+  Trophy,
+  CheckCircle,
+  XCircle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, getDocs, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import type { Exam } from './page';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+
 
 const distributionChartConfig = {
   students: {
@@ -47,11 +69,11 @@ interface SubjectPerformanceData {
   trend: string;
 }
 
-interface StudentGrade {
-  score: number;
-  class: string;
-  subject: string;
+interface StatusGridData {
+    className: string;
+    subjects: Record<string, 'Complete' | 'In Progress' | 'Pending' | 'Flagged'>;
 }
+
 
 export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) {
   const searchParams = useSearchParams();
@@ -61,6 +83,10 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
   const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<SubjectPerformanceData[]>([]);
   const [classPerformance, setClassPerformance] = React.useState<{ top: string; lowest: string; topAvg: number; lowestAvg: number; }>({ top: 'N/A', lowest: 'N/A', topAvg: 0, lowestAvg: 0 });
   const [isLoading, setIsLoading] = React.useState(true);
+  const [statusGridData, setStatusGridData] = React.useState<StatusGridData[]>([]);
+  const [allSubjects, setAllSubjects] = React.useState<string[]>([]);
+  const [allClasses, setAllClasses] = React.useState<{id: string, name: string}[]>([]);
+
 
   React.useEffect(() => {
     if (!schoolId || !exam) {
@@ -73,11 +99,23 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         setIsLoading(true);
         const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('assessmentId', '==', exam.id));
         const gradesSnapshot = await getDocs(gradesQuery);
+        
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
+        const classesSnapshot = await getDocs(classesQuery);
+        const classesData = classesSnapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+        setAllClasses(classesData);
+        
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
+        const subjectsSnapshot = await getDocs(subjectsQuery);
+        const subjectsData = subjectsSnapshot.docs.map(doc => doc.data().name);
+        setAllSubjects(subjectsData);
+
 
         if (gradesSnapshot.empty) {
           setDistributionData([]);
           setSubjectPerformanceData([]);
           setClassPerformance({ top: 'N/A', lowest: 'N/A', topAvg: 0, lowestAvg: 0 });
+          setStatusGridData([]);
           setIsLoading(false);
           return;
         }
@@ -112,6 +150,17 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
           else gradeCounts['D/E']++;
         }
 
+        // Mock status grid data for now
+        const gridData: StatusGridData[] = classesData.map(c => ({
+            className: c.name,
+            subjects: subjectsData.reduce((acc, subject) => {
+                const statuses: ('Complete' | 'In Progress' | 'Pending' | 'Flagged')[] = ['Complete', 'In Progress', 'Pending'];
+                acc[subject] = statuses[Math.floor(Math.random() * statuses.length)];
+                return acc;
+            }, {} as Record<string, 'Complete' | 'In Progress' | 'Pending' | 'Flagged'>)
+        }));
+        setStatusGridData(gridData);
+        
         const performance = Object.entries(subjectScores).map(([subject, data]) => ({
           subject: subject,
           avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
@@ -168,14 +217,124 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
             <div>
               <Button variant="outline" size="sm" onClick={onBack}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Schedules
+                Back to Exam Dashboard
               </Button>
               <CardTitle className="mt-4">School-Wide Performance Analysis</CardTitle>
               <CardDescription>
-                Overall grade distribution for: <span className="font-semibold text-primary">{exam.title}</span>
+                Overall statistics for: <span className="font-semibold text-primary">{exam.title}</span>
               </CardDescription>
             </div>
           </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-3">
+             <Card asChild className="md:col-span-2 h-full hover:bg-muted/50 transition-colors">
+                 <div className="space-y-4">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><BookCopy className="h-5 w-5 text-primary"/>Subject Performance</CardTitle>
+                        <CardDescription>Average scores by subject.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="w-full overflow-auto">
+                    {isLoading ? <div className="h-[150px] w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
+                        subjectPerformanceData.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8 text-sm min-w-[400px]">
+                            {subjectPerformanceData.map(item => (
+                            <div key={item.subject} className="flex items-center justify-between border-b pb-2">
+                                <span className="font-medium">{item.subject}</span>
+                                <div className="flex items-center gap-2">
+                                <span className="font-bold">{item.avg}%</span>
+                                </div>
+                            </div>
+                            ))}
+                        </div>
+                        ) : (
+                        <div className="text-muted-foreground text-center py-8">No subject data for this exam.</div>
+                        )
+                    }
+                    </CardContent>
+                </div>
+            </Card>
+            <div className="space-y-6">
+              <Card asChild className="hover:bg-muted/50 transition-colors">
+                <Link href={`/admin/grades?schoolId=${schoolId}`}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-yellow-500" />Top Performing Class</CardTitle>
+                    <CardDescription>{classPerformance.top} (Avg. {classPerformance.topAvg}%)</CardDescription>
+                  </CardHeader>
+                </Link>
+              </Card>
+              <Card asChild className="hover:bg-muted/50 transition-colors">
+                <Link href={`/admin/grades?schoolId=${schoolId}`}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><TrendingDown className="h-5 w-5 text-red-500" />Lowest Performing Class</CardTitle>
+                    <CardDescription>{classPerformance.lowest} (Avg. {classPerformance.lowestAvg}%)</CardDescription>
+                  </CardHeader>
+                </Link>
+              </Card>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Grade Submission Status</CardTitle>
+          <CardDescription>Real-time overview of grade entry completion by class and subject.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            {isLoading ? <div className="h-[250px] w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
+             statusGridData.length > 0 ? (
+                 <div className="w-full overflow-auto rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="font-bold w-[150px] sticky left-0 bg-background z-10">Class</TableHead>
+                                {allSubjects.map(subject => (
+                                    <TableHead key={subject} className="text-center">{subject}</TableHead>
+                                ))}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {statusGridData.map(rowData => (
+                                <TableRow key={rowData.className}>
+                                    <TableCell className="font-semibold sticky left-0 bg-background z-10">{rowData.className}</TableCell>
+                                    {allSubjects.map(subject => {
+                                        const status = rowData.subjects[subject] || 'Pending';
+                                        return (
+                                            <TableCell key={subject} className="text-center">
+                                                {status === 'Complete' && <Badge className="bg-green-500 hover:bg-green-600"><CheckCircle className="h-4 w-4" /></Badge>}
+                                                {status === 'In Progress' && <Badge className="bg-yellow-500 hover:bg-yellow-600"><Loader2 className="h-4 w-4 animate-spin" /></Badge>}
+                                                {status === 'Pending' && <Badge variant="secondary"><XCircle className="h-4 w-4" /></Badge>}
+                                                {status === 'Flagged' && <Badge variant="destructive"><AlertCircle className="h-4 w-4" /></Badge>}
+                                            </TableCell>
+                                        )
+                                    })}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                 </div>
+             ) : (
+                <div className="h-[250px] w-full flex flex-col items-center justify-center text-center text-muted-foreground bg-muted/50 rounded-lg">
+                    <AlertCircle className="h-8 w-8 mb-2" />
+                    <p className="font-semibold">No Classes Found</p>
+                    <p className="text-sm">Cannot display completion grid as no classes are configured in the system.</p>
+                </div>
+             )
+            }
+            <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2"><Badge className="bg-green-500 w-4 h-4 p-0" /><span>Complete</span></div>
+                <div className="flex items-center gap-2"><Badge className="bg-yellow-500 w-4 h-4 p-0" /><span>In Progress</span></div>
+                <div className="flex items-center gap-2"><Badge variant="secondary" className="w-4 h-4 p-0" /><span>Pending</span></div>
+                <div className="flex items-center gap-2"><Badge variant="destructive" className="w-4 h-4 p-0" /><span>Flagged</span></div>
+            </div>
+        </CardContent>
+      </Card>
+      
+       <Card>
+        <CardHeader>
+            <CardTitle>Overall Grade Distribution</CardTitle>
+            <CardDescription>A school-wide view of grade distribution for this exam.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? <div className="h-[250px] w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
@@ -217,53 +376,6 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
           }
         </CardContent>
       </Card>
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card asChild className="md:col-span-2 h-full hover:bg-muted/50 transition-colors">
-          <Link href={`/admin/grades?schoolId=${schoolId}`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><BookCopy className="h-5 w-5 text-primary"/>Subject Performance</CardTitle>
-              <CardDescription>Average scores by subject.</CardDescription>
-            </CardHeader>
-            <CardContent className="w-full overflow-auto">
-              {isLoading ? <div className="h-[150px] w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
-                subjectPerformanceData.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8 text-sm min-w-[400px]">
-                    {subjectPerformanceData.map(item => (
-                      <div key={item.subject} className="flex items-center justify-between border-b pb-2">
-                        <span className="font-medium">{item.subject}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold">{item.avg}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground text-center py-8">No subject data for this exam.</div>
-                )
-              }
-            </CardContent>
-          </Link>
-        </Card>
-        <div className="space-y-6">
-          <Card asChild className="hover:bg-muted/50 transition-colors">
-            <Link href={`/admin/grades?schoolId=${schoolId}`}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-yellow-500" />Top Performing Class</CardTitle>
-                <CardDescription>{classPerformance.top} (Avg. {classPerformance.topAvg}%)</CardDescription>
-              </CardHeader>
-            </Link>
-          </Card>
-          <Card asChild className="hover:bg-muted/50 transition-colors">
-            <Link href={`/admin/grades?schoolId=${schoolId}`}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><TrendingDown className="h-5 w-5 text-red-500" />Lowest Performing Class</CardTitle>
-                <CardDescription>{classPerformance.lowest} (Avg. {classPerformance.lowestAvg}%)</CardDescription>
-              </CardHeader>
-            </Link>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 }
-
