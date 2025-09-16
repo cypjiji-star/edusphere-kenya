@@ -250,28 +250,16 @@ export function ReportGenerator() {
                                   <SelectLabel>Academic Reports</SelectLabel>
                                   <SelectItem value="individual">Individual Student Report</SelectItem>
                                   <SelectItem value="summary">Class Performance Summary</SelectItem>
-                                  <SelectItem value="ranking">Student Ranking &amp; Percentiles</SelectItem>
+                                  <SelectItem value="ranking" disabled>Student Ranking &amp; Percentiles</SelectItem>
                               </SelectGroup>
                               <SelectGroup>
                                   <SelectLabel>Assignment Reports</SelectLabel>
-                                  <SelectItem value="assignment-completion">Assignment Completion Report</SelectItem>
+                                  <SelectItem value="assignment-completion" disabled>Assignment Completion Report</SelectItem>
                               </SelectGroup>
                               <SelectGroup>
                                   <SelectLabel>Attendance Reports</SelectLabel>
-                                  <SelectItem value="daily-log">Daily/Weekly Attendance Log</SelectItem>
-                                  <SelectItem value="absentee-patterns">Absentee Pattern Analysis</SelectItem>
-                              </SelectGroup>
-                              <SelectGroup>
-                                  <SelectLabel>Sports &amp; Activities Reports</SelectLabel>
-                                  <SelectItem value="participation-records">Participation Records</SelectItem>
-                                  <SelectItem value="performance-stats">Performance Stats &amp; Awards</SelectItem>
-                                  <SelectItem value="team-rosters">Event Attendance &amp; Rosters</SelectItem>
-                              </SelectGroup>
-                              <SelectGroup>
-                                  <SelectLabel>Communication Reports</SelectLabel>
-                                  <SelectItem value="message-delivery">Message Delivery &amp; Read Receipts</SelectItem>
-                                  <SelectItem value="interaction-logs">Parent-Teacher Interaction Logs</SelectItem>
-                                  <SelectItem value="notification-history">Notification History</SelectItem>
+                                  <SelectItem value="daily-log" disabled>Daily/Weekly Attendance Log</SelectItem>
+                                  <SelectItem value="absentee-patterns" disabled>Absentee Pattern Analysis</SelectItem>
                               </SelectGroup>
                           </SelectContent>
                       </Select>
