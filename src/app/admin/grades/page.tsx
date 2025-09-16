@@ -608,9 +608,12 @@ export default function AdminGradesPage() {
                           <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
                           <CardDescription>Student ranking based on performance in a specific subject or overall.</CardDescription>
                       </div>
-                      <div className="flex w-full flex-col md:flex-row md:items-center gap-2">
+                      <div className="flex w-full flex-col md:flex-row flex-wrap md:items-center gap-2">
+                           <Select value={'2024'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="2024">2024</SelectItem><SelectItem value="2023">2023</SelectItem></SelectContent></Select>
+                           <Select value={'Term 2'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Term 2">Term 2</SelectItem><SelectItem value="Term 1">Term 1</SelectItem></SelectContent></Select>
+                           <Select value={'Mid-Term'}><SelectTrigger className="w-full md:w-auto"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Mid-Term">Mid-Term</SelectItem><SelectItem value="End of Term">End of Term</SelectItem></SelectContent></Select>
                            <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
-                              <SelectTrigger className="w-full md:w-[240px]">
+                              <SelectTrigger className="w-full md:w-auto">
                                   <SelectValue placeholder="Select a class" />
                               </SelectTrigger>
                               <SelectContent>
@@ -618,7 +621,7 @@ export default function AdminGradesPage() {
                               </SelectContent>
                           </Select>
                           <Select value={selectedSubjectForRanking} onValueChange={setSelectedSubjectForRanking}>
-                              <SelectTrigger className="w-full md:w-[240px]">
+                              <SelectTrigger className="w-full md:w-auto">
                                   <SelectValue placeholder="Select a subject" />
                               </SelectTrigger>
                               <SelectContent>
@@ -884,3 +887,4 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
