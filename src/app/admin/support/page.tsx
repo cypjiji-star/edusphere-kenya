@@ -494,7 +494,7 @@ export default function SupportPage() {
                                         {filteredTickets.map(ticket => (
                                             <DialogTrigger asChild key={ticket.id}>
                                                 <TableRow className="cursor-pointer" onClick={() => setSelectedTicket(ticket)}>
-                                                    <TableCell className="font-medium">{ticket.id}</TableCell>
+                                                    <TableCell className="font-medium">{ticket.id.substring(0, 8)}...</TableCell>
                                                     <TableCell>{ticket.subject}</TableCell>
                                                     <TableCell><Badge variant="outline">{ticket.category}</Badge></TableCell>
                                                     <TableCell>{getPriorityBadge(ticket.priority)}</TableCell>
@@ -600,7 +600,7 @@ export default function SupportPage() {
                 <DialogHeader>
                     <div className="flex items-start justify-between">
                         <div>
-                            <DialogTitle className="text-xl">Ticket: {selectedTicket.id}</DialogTitle>
+                            <DialogTitle className="text-xl">Ticket: {selectedTicket.id.substring(0, 8)}...</DialogTitle>
                             <DialogDescription>{selectedTicket.subject}</DialogDescription>
                         </div>
                         <div className="flex items-center gap-2">
@@ -649,5 +649,5 @@ export default function SupportPage() {
         )}
         </div>
     </Dialog>
-    );
+  );
 }
