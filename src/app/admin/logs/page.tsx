@@ -52,6 +52,9 @@ import { Switch } from '@/components/ui/switch';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { useToast } from '@/hooks/use-toast';
 
 
 type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health' | 'General';
@@ -97,6 +100,7 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = React.useState<ActionType | 'All Types'>('All Types');
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
   const [autoRefresh, setAutoRefresh] = React.useState(true);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -153,6 +157,62 @@ export default function AuditLogsPage() {
 
       return isDateInRange && matchesSearch && matchesUser && matchesAction;
   });
+
+  const handleExport = (type: 'PDF' | 'CSV') => {
+    if (filteredLogs.length === 0) {
+      toast({
+        title: 'No Data to Export',
+        description: 'There are no log entries matching the current filters.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const headers = ['Timestamp', 'User', 'Role', 'Action', 'Description', 'Details'];
+    const data = filteredLogs.map(log => [
+      log.timestamp?.toDate().toLocaleString() || 'N/A',
+      log.user.name,
+      log.user.role,
+      log.action,
+      log.description,
+      typeof log.details === 'string' ? log.details : `Old: ${log.details.oldValue}, New: ${log.details.newValue}`
+    ]);
+
+    if (type === 'CSV') {
+      const csvContent = [
+        headers.join(','),
+        ...data.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "audit_log.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } else { // PDF
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.text("Audit Log Report", 14, 16);
+      (doc as any).autoTable({
+        startY: 22,
+        head: [headers],
+        body: data,
+        theme: 'striped',
+        headStyles: { fillColor: [22, 163, 74] },
+      });
+      doc.save("audit_log.pdf");
+    }
+
+    toast({
+      title: 'Export Successful',
+      description: `The audit log has been exported as a ${type} file.`,
+    });
+  };
 
   if (!schoolId) {
     return <div className="p-8">Error: School ID is missing.</div>
@@ -233,6 +293,18 @@ export default function AuditLogsPage() {
                                     <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
                                     </PopoverContent>
                                 </Popover>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="secondary" className="w-full md:w-auto">
+                                            Export
+                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2 h-4 w-4" /> Export as CSV</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                                 <Separator orientation="vertical" className="h-10 hidden md:block" />
                                  <div className="flex items-center gap-2">
                                      <Button variant="outline" size="icon" onClick={() => setIsLoading(true)}>
@@ -344,7 +416,7 @@ export default function AuditLogsPage() {
                 <div className="py-4 space-y-6">
                     <div className="space-y-1">
                         <h4 className="font-semibold">{selectedLog.description}</h4>
-                        <div className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.action}</Badge></div>
+                        <div className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.actionType}</Badge></div>
                     </div>
 
                     <Separator />
