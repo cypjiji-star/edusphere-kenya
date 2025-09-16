@@ -22,10 +22,12 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { FileDown, Upload, FileCheck2, Loader2, AlertCircle, CheckCircle, Columns, X, FileText } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { firestore, auth } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
+import { saveGradesAction } from '../actions';
+import type { GradeEntryFormValues } from '../types';
 
 
 type TeacherClass = {
@@ -36,6 +38,7 @@ type TeacherClass = {
 type Assessment = {
   id: string;
   title: string;
+  subject: string;
 };
 
 type StudentData = {
@@ -44,12 +47,14 @@ type StudentData = {
     admissionNumber: string;
 };
 
-const validationResults = [
-  { student: 'Jane Doe', admissionNumber: 'ADM123', status: 'Success' as const, message: 'Grade 85 successfully validated.' },
-  { student: 'John Smith', admissionNumber: 'ADM124', status: 'Error' as const, message: 'Invalid grade "B+". Must be a number.' },
-  { student: 'Peter Jones', admissionNumber: 'ADM125', status: 'Success' as const, message: 'Grade 92 successfully validated.' },
-  { student: 'Mary Anne', admissionNumber: 'ADM126', status: 'Error' as const, message: 'Grade "105" exceeds maximum possible score of 100.' },
-];
+type ValidationResult = {
+  student: string;
+  admissionNumber: string;
+  grade: string;
+  status: 'Success' | 'Error';
+  message: string;
+  studentId?: string;
+};
 
 export function BulkGradeEntry() {
   const { toast } = useToast();
@@ -64,6 +69,8 @@ export function BulkGradeEntry() {
   const [bulkGradeFile, setBulkGradeFile] = React.useState<File | null>(null);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isFileProcessed, setIsFileProcessed] = React.useState(false);
+  const [validationResults, setValidationResults] = React.useState<ValidationResult[]>([]);
+  const [isImporting, setIsImporting] = React.useState(false);
 
   React.useEffect(() => {
     if (!schoolId || !user) return;
@@ -85,7 +92,7 @@ export function BulkGradeEntry() {
     };
     const assessmentsQuery = query(collection(firestore, `schools/${schoolId}/assessments`), where('classId', '==', selectedClassId));
     const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
-        const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, title: doc.data().title }));
+        const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, title: doc.data().title, subject: doc.data().subject }));
         setAssessments(assessmentData);
     });
     return () => unsubAssessments();
@@ -140,28 +147,101 @@ export function BulkGradeEntry() {
     if (event.target.files && event.target.files[0]) {
       setBulkGradeFile(event.target.files[0]);
       setIsFileProcessed(false);
+      setValidationResults([]);
     }
   };
 
-  const handleProcessFile = () => {
+  const handleProcessFile = async () => {
+    if (!bulkGradeFile) return;
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+
+    const studentsQuery = query(
+      collection(firestore, `schools/${schoolId}/students`),
+      where('classId', '==', selectedClassId)
+    );
+    const studentsSnapshot = await getDocs(studentsQuery);
+    const classStudents: StudentData[] = studentsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      name: doc.data().name,
+      admissionNumber: doc.data().admissionNumber,
+    }));
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const csvData = event.target?.result as string;
+      const lines = csvData.split('\n').slice(1); // Skip header
+      const results: ValidationResult[] = [];
+      
+      lines.forEach(line => {
+        if (!line.trim()) return;
+        const [studentId, admNo, name, grade] = line.split(',');
+        const student = classStudents.find(s => s.id === studentId.trim() || s.admissionNumber === admNo.trim());
+
+        if (!student) {
+            results.push({ student: name, admissionNumber: admNo, grade, status: 'Error', message: 'Student not found in this class.' });
+        } else {
+            const score = Number(grade);
+            if (isNaN(score)) {
+                results.push({ student: student.name, admissionNumber: student.admissionNumber, grade, status: 'Error', message: 'Grade is not a valid number.' });
+            } else if (score < 0 || score > 100) {
+                results.push({ student: student.name, admissionNumber: student.admissionNumber, grade, status: 'Error', message: `Grade ${score} is out of range (0-100).` });
+            } else {
+                results.push({ student: student.name, admissionNumber: student.admissionNumber, grade, status: 'Success', message: 'Ready for import.', studentId: student.id });
+            }
+        }
+      });
+      
+      setValidationResults(results);
       setIsFileProcessed(true);
       toast({
         title: 'File Processed & Validated',
         description: 'Review the validation results before importing.',
       });
-    }, 2000);
+      setIsProcessing(false);
+    };
+    reader.readAsText(bulkGradeFile);
   };
   
-  const handleImportGrades = () => {
-    toast({
-      title: 'Import Complete',
-      description: 'The grades have been successfully imported and saved.',
-    });
-    setBulkGradeFile(null);
-    setIsFileProcessed(false);
+  const handleImportGrades = async () => {
+    if (!user) {
+        toast({variant: 'destructive', title: 'Authentication Error'});
+        return;
+    }
+    const validGrades = validationResults.filter(r => r.status === 'Success');
+    if (validGrades.length === 0) {
+        toast({ title: 'No Valid Grades to Import', variant: 'destructive'});
+        return;
+    }
+
+    const assessment = assessments.find(a => a.id === selectedAssessmentId);
+    if (!assessment) {
+        toast({ title: 'Assessment not found!', variant: 'destructive'});
+        return;
+    }
+
+    setIsImporting(true);
+
+    const gradeData: GradeEntryFormValues = {
+        classId: selectedClassId,
+        subject: assessment.subject,
+        assessmentId: selectedAssessmentId,
+        grades: validGrades.map(g => ({ studentId: g.studentId!, grade: g.grade })),
+    };
+
+    const result = await saveGradesAction(schoolId!, user.uid, user.displayName || 'Teacher', gradeData);
+
+    if (result.success) {
+        toast({
+            title: 'Import Complete',
+            description: `${validGrades.length} grades have been successfully imported.`,
+        });
+        setBulkGradeFile(null);
+        setIsFileProcessed(false);
+        setValidationResults([]);
+    } else {
+        toast({ title: 'Import Failed', description: result.message, variant: 'destructive' });
+    }
+    setIsImporting(false);
   };
 
   return (
@@ -226,11 +306,12 @@ export function BulkGradeEntry() {
             </h3>
             <Card>
                 <CardContent className="p-0">
-                    <div className="w-full overflow-auto rounded-lg border">
+                    <div className="w-full overflow-auto rounded-lg border max-h-60">
                         <table className="w-full">
-                            <thead className="bg-muted/50">
+                            <thead className="bg-muted/50 sticky top-0">
                                 <tr>
                                     <th className="px-4 py-2 text-left text-sm font-medium">Student</th>
+                                    <th className="px-4 py-2 text-left text-sm font-medium">Grade</th>
                                     <th className="px-4 py-2 text-left text-sm font-medium">Status</th>
                                     <th className="px-4 py-2 text-left text-sm font-medium">Message</th>
                                 </tr>
@@ -239,6 +320,7 @@ export function BulkGradeEntry() {
                                 {validationResults.map((result, index) => (
                                     <tr key={index} className="border-b">
                                         <td className="p-2 text-sm font-medium">{result.student}</td>
+                                        <td className="p-2 text-sm">{result.grade}</td>
                                         <td className="p-2 text-sm">
                                             {result.status === 'Success' ? 
                                                 <Badge className="bg-green-100 text-green-800"><CheckCircle className="mr-1 h-3 w-3"/>Success</Badge> : 
@@ -253,8 +335,8 @@ export function BulkGradeEntry() {
                     </div>
                 </CardContent>
             </Card>
-            <Button onClick={handleImportGrades}>
-                <Upload className="mr-2 h-4 w-4"/>
+            <Button onClick={handleImportGrades} disabled={isImporting || validationResults.filter(r => r.status === 'Success').length === 0}>
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4"/>}
                 Import Validated Grades
             </Button>
         </div>
