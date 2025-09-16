@@ -21,7 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { format, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -631,6 +631,63 @@ export default function FeesPage() {
                                 </TableBody>
                             </Table>
                         </div>
+                    </AccordionContent>
+                </AccordionItem>
+                 <AccordionItem value="adjustments">
+                    <AccordionTrigger className="text-lg font-semibold">Adjustments</AccordionTrigger>
+                    <AccordionContent className="space-y-6">
+                        <Card>
+                            <CardHeader><CardTitle className="text-base">Add Charge / Credit</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="charge-desc">Description</Label>
+                                    <Input id="charge-desc" placeholder="e.g., Lost Textbook Fee" />
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="space-y-2 flex-1">
+                                        <Label htmlFor="charge-amount">Amount</Label>
+                                        <Input id="charge-amount" type="number" placeholder="2500" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Type</Label>
+                                        <Select defaultValue="charge">
+                                            <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="charge">Charge</SelectItem>
+                                                <SelectItem value="credit">Credit</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <Button size="sm">Add Transaction</Button>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader><CardTitle className="text-base">Apply Discount</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="discount-desc">Description</Label>
+                                    <Input id="discount-desc" placeholder="e.g., Sibling Discount" />
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="space-y-2 flex-1">
+                                        <Label htmlFor="discount-amount">Value</Label>
+                                        <Input id="discount-amount" type="number" placeholder="10" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Type</Label>
+                                        <Select defaultValue="percent">
+                                            <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="percent">% (Percentage)</SelectItem>
+                                                <SelectItem value="fixed">KES (Fixed)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <Button size="sm">Apply Discount</Button>
+                            </CardContent>
+                        </Card>
                     </AccordionContent>
                 </AccordionItem>
              </Accordion>
