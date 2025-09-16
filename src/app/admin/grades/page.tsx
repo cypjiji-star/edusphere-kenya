@@ -106,14 +106,19 @@ export type Exam = {
   progress: number;
 };
 
-type StudentGrade = {
+type Grade = {
+  assessmentId: string;
+  grade: number | string;
+};
+
+export type StudentGrade = {
   id: string;
   studentName: string;
   avatarUrl: string;
   grade: string | number;
   overall: number;
   rollNumber?: string;
-  grades?: { subject: string, grade: string | number }[];
+  grades?: Grade[];
 };
 
 type GradingScaleItem = {
@@ -155,6 +160,9 @@ export default function AdminGradesPage() {
   const [examSearchTerm, setExamSearchTerm] = React.useState('');
   
   const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
+  
+  const [currentAssessments, setCurrentAssessments] = React.useState<Exam[]>([]);
+  const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
 
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -311,6 +319,24 @@ export default function AdminGradesPage() {
     fetchStudentGradesForRanking();
   }, [selectedClassForRanking, selectedSubjectForRanking, schoolId, toast]);
 
+    React.useEffect(() => {
+        if (!schoolId || !selectedClassForRanking) {
+            setIsGradebookLoading(false);
+            return;
+        }
+
+        const fetchGradebookData = async () => {
+            setIsGradebookLoading(true);
+            const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClassForRanking));
+            const assessmentsSnap = await getDocs(assessmentsQuery);
+            setCurrentAssessments(assessmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+            setIsGradebookLoading(false);
+        };
+
+        fetchGradebookData();
+    }, [schoolId, selectedClassForRanking]);
+
+
   const handleGradingScaleChange = (index: number, field: 'min' | 'max', value: number) => {
     const newScale = [...gradingScale];
     newScale[index][field] = value;
@@ -385,7 +411,7 @@ export default function AdminGradesPage() {
   }
   
   const getGradeForStudent = (student: StudentGrade, assessmentId: string) => {
-    const grade = student.grades?.find(g => (g as any).assessmentId === assessmentId);
+    const grade = student.grades?.find(g => g.assessmentId === assessmentId);
     return grade ? grade.grade : '—';
   };
 
@@ -532,7 +558,7 @@ export default function AdminGradesPage() {
             <TabsTrigger value="exams">Exam Dashboard</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
-            <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+            <TabsTrigger value="gradebook">Broad Sheet</TabsTrigger>
           </TabsList>
 
           <TabsContent value="reports">
@@ -648,11 +674,11 @@ export default function AdminGradesPage() {
           <TabsContent value="gradebook">
              <Card>
                 <CardHeader>
-                    <CardTitle>Overall Gradebook</CardTitle>
-                    <CardDescription>A complete overview of all students' overall average scores for the selected class.</CardDescription>
+                    <CardTitle>Broad Sheet / Gradebook</CardTitle>
+                    <CardDescription>A single-sheet overview of the entire class's results for all assessments.</CardDescription>
                 </CardHeader>
                  <CardContent>
-                 {isLoadingRanking ? (
+                 {isGradebookLoading ? (
                   <div className="flex justify-center items-center py-16">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <span className="ml-2">Loading gradebook...</span>
@@ -662,14 +688,15 @@ export default function AdminGradesPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Student</TableHead>
-                                    <TableHead className="text-center font-bold">Overall Average</TableHead>
+                                    <TableHead className="sticky left-0 bg-card z-10">Student Name</TableHead>
+                                    {currentAssessments.map(assessment => <TableHead key={assessment.id} className="text-center">{assessment.title}</TableHead>)}
+                                    <TableHead className="text-center font-bold sticky right-0 bg-card z-10 w-[150px]">Overall Average</TableHead>
                                 </TableRow>
                             </TableHeader>
                              <TableBody>
                                 {studentsForRanking.map(student => (
                                     <TableRow key={student.id}>
-                                        <TableCell>
+                                        <TableCell className="sticky left-0 bg-card z-10">
                                           <div className="flex items-center gap-3">
                                             <Avatar className="h-9 w-9">
                                                 <AvatarImage src={student.avatarUrl} alt={student.studentName} />
@@ -678,7 +705,12 @@ export default function AdminGradesPage() {
                                             <span className="font-medium">{student.studentName}</span>
                                           </div>
                                         </TableCell>
-                                        <TableCell className="text-center font-bold">
+                                         {currentAssessments.map(assessment => (
+                                            <TableCell key={assessment.id} className="text-center">
+                                                {getGradeForStudent(student, assessment.id)}
+                                            </TableCell>
+                                        ))}
+                                        <TableCell className="text-center font-bold sticky right-0 bg-card z-10">
                                             <Badge>{student.overall}%</Badge>
                                         </TableCell>
                                     </TableRow>
