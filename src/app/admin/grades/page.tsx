@@ -37,6 +37,7 @@ import {
   FileDown,
   Mail,
   Save,
+  HelpCircle,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -154,6 +155,17 @@ type SubjectPerformance = {
     numEs: number;
 };
 
+type EditRequest = {
+    id: string;
+    teacherName: string;
+    assessmentTitle: string;
+    className: string;
+    reason: string;
+    status: 'pending' | 'approved' | 'denied';
+    requestedAt: Timestamp;
+    assessmentId: string;
+};
+
 const getGradeFromScore = (score: number) => {
     if (score >= 80) return 'A';
     if (score >= 75) return 'A-';
@@ -183,6 +195,98 @@ const initialGradingScale: GradingScaleItem[] = [
   { grade: 'D-', min: 30, max: 34 },
   { grade: 'E', min: 0, max: 29 },
 ]
+
+function EditRequestsTab({ schoolId }: { schoolId: string }) {
+    const [requests, setRequests] = React.useState<EditRequest[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const { toast } = useToast();
+
+    React.useEffect(() => {
+        const q = query(collection(firestore, `schools/${schoolId}/grade-edit-requests`), orderBy('requestedAt', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setRequests(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as EditRequest)));
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [schoolId]);
+
+    const handleRequestUpdate = async (requestId: string, assessmentId: string, newStatus: 'approved' | 'denied') => {
+        const batch = writeBatch(firestore);
+
+        const requestRef = doc(firestore, `schools/${schoolId}/grade-edit-requests`, requestId);
+        batch.update(requestRef, { status: newStatus });
+        
+        if (newStatus === 'approved') {
+            const assessmentRef = doc(firestore, `schools/${schoolId}/assessments`, assessmentId);
+            batch.update(assessmentRef, { status: 'Active' });
+        }
+
+        try {
+            await batch.commit();
+            toast({ title: `Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`, description: `The teacher has been notified.`});
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Action Failed', variant: 'destructive'});
+        }
+    };
+    
+    const getStatusBadge = (status: EditRequest['status']) => {
+        switch(status) {
+            case 'pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending</Badge>;
+            case 'approved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Approved</Badge>;
+            case 'denied': return <Badge variant="destructive">Denied</Badge>;
+        }
+    }
+
+
+    if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Grade Edit Requests</CardTitle>
+                <CardDescription>Review and approve or deny requests from teachers to edit submitted grades.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="w-full overflow-auto rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Teacher</TableHead>
+                                <TableHead>Assessment</TableHead>
+                                <TableHead>Reason</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                         <TableBody>
+                            {requests.length > 0 ? requests.map(req => (
+                                <TableRow key={req.id}>
+                                    <TableCell className="font-medium">{req.teacherName}</TableCell>
+                                    <TableCell>{req.assessmentTitle}<br/><span className="text-xs text-muted-foreground">{req.className}</span></TableCell>
+                                    <TableCell className="text-muted-foreground italic max-w-sm">"{req.reason}"</TableCell>
+                                    <TableCell>{getStatusBadge(req.status)}</TableCell>
+                                    <TableCell className="text-right">
+                                        {req.status === 'pending' && (
+                                            <div className="flex gap-2 justify-end">
+                                                <Button size="sm" variant="destructive" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'denied')}>Deny</Button>
+                                                <Button size="sm" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'approved')}>Approve</Button>
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center">No pending edit requests.</TableCell>
+                                </TableRow>
+                            )}
+                         </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function AdminGradesPage() {
   const searchParams = useSearchParams();
@@ -246,7 +350,7 @@ export default function AdminGradesPage() {
     if (!schoolId) return;
 
     const unsubExams = onSnapshot(
-      query(collection(firestore, `schools/${schoolId}/assessments`), where('status', '!=', 'Archived'), orderBy('startDate', 'desc')),
+      query(collection(firestore, `schools/${schoolId}/assessments`), where('status', '!=', 'Archived'), orderBy('status'), orderBy('startDate', 'desc')),
       async (snapshot) => {
         const examsWithProgress: Exam[] = await Promise.all(snapshot.docs.map(async (examDoc) => {
           const exam = { id: examDoc.id, ...examDoc.data() } as Exam;
@@ -738,8 +842,7 @@ export default function AdminGradesPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex mb-6">
             <TabsTrigger value="exams">Exam Dashboard</TabsTrigger>
-            <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
-            <TabsTrigger value="gradebook">Broad Sheet</TabsTrigger>
+            <TabsTrigger value="requests">Edit Requests</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -982,6 +1085,10 @@ export default function AdminGradesPage() {
           <TabsContent value="reports">
             <ReportGenerator />
           </TabsContent>
+          
+          <TabsContent value="requests">
+             <EditRequestsTab schoolId={schoolId!} />
+          </TabsContent>
 
           <TabsContent value="exams">
             {selectedExam ? (
@@ -1070,4 +1177,3 @@ export default function AdminGradesPage() {
     </div>
   );
 }
-

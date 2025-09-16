@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -47,15 +48,16 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Save, FileText, AlertCircle, Edit, ShieldCheck } from 'lucide-react';
+import { Loader2, Save, FileText, AlertCircle, Edit, ShieldCheck, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, addDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 
 type Student = {
     id: string;
@@ -124,6 +126,9 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
   const [students, setStudents] = React.useState<Student[]>([]);
   const [submittedGrades, setSubmittedGrades] = React.useState<SubmittedGrade[] | null>(null);
   const { user } = useAuth();
+  
+  const [isRequestingEdit, setIsRequestingEdit] = React.useState(false);
+  const [editReason, setEditReason] = React.useState("");
 
   const form = useForm<GradeEntryFormValues>({
     resolver: zodResolver(gradeEntrySchema),
@@ -272,12 +277,41 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
     }
   }
 
-  const handleRequestEdit = () => {
-    toast({
-        title: 'Edit Request Sent',
-        description: 'An administrator has been notified of your request to edit these grades.',
-    });
-  }
+  const handleRequestEdit = async () => {
+    if (!schoolId || !user || !selectedAssessment || !watchedClassId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Missing required information for the request.' });
+        return;
+    }
+    if (!editReason.trim()) {
+        toast({ variant: 'destructive', title: 'Reason Required', description: 'Please provide a reason for the edit request.' });
+        return;
+    }
+
+    setIsRequestingEdit(true);
+    try {
+        await addDoc(collection(firestore, `schools/${schoolId}/grade-edit-requests`), {
+            teacherId: user.uid,
+            teacherName: user.displayName || 'Teacher',
+            assessmentId: selectedAssessment.id,
+            assessmentTitle: selectedAssessment.title,
+            classId: watchedClassId,
+            className: teacherClasses.find(c => c.id === watchedClassId)?.name || '',
+            reason: editReason,
+            status: 'pending',
+            requestedAt: serverTimestamp(),
+        });
+        toast({
+            title: 'Edit Request Sent',
+            description: 'An administrator has been notified. You will receive a notification once it is reviewed.',
+        });
+        setEditReason('');
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Failed to send request.'});
+    } finally {
+        setIsRequestingEdit(false);
+    }
+  };
 
   const selectedAssessment = assessments.find(a => a.id === form.getValues('assessmentId'));
 
@@ -491,10 +525,33 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                         <ShieldCheck className="h-5 w-5 text-green-600" />
                         <span>Grades for this assessment have been submitted and are read-only.</span>
                     </div>
-                    <Button type="button" variant="outline" onClick={handleRequestEdit}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Request Edit Access
-                    </Button>
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline">
+                                <Edit className="mr-2 h-4 w-4" />
+                                Request Edit Access
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Request to Edit Grades</DialogTitle>
+                                <DialogDescription>
+                                    Please provide a brief reason for your request. This will be sent to the school administration for approval.
+                                </DialogDescription>
+                            </DialogHeader>
+                             <div className="py-4 space-y-2">
+                                <Label htmlFor="edit-reason">Reason for Editing</Label>
+                                <Textarea id="edit-reason" placeholder="e.g., Correction of data entry error for two students." value={editReason} onChange={(e) => setEditReason(e.target.value)} />
+                             </div>
+                            <DialogFooter>
+                                <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                                <Button type="button" onClick={handleRequestEdit} disabled={isRequestingEdit}>
+                                    {isRequestingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                    Send Request
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             ) : (
                 <>
