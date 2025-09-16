@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { differenceInDays, parseISO } from 'date-fns';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -49,7 +49,7 @@ export function PendingTasksWidget() {
                         type: 'assignment',
                         id: doc.id,
                         title: data.title,
-                        dueDate: data.dueDate,
+                        dueDate: (data.dueDate as Timestamp).toDate().toISOString(),
                         status: 'Ungraded',
                         count: data.totalStudents - data.submissions,
                         href: `/teacher/assignments/${doc.id}?schoolId=${schoolId}`,
@@ -84,8 +84,8 @@ export function PendingTasksWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-             <div className="flex items-center justify-center h-24">
+         {isLoading ? (
+            <div className="flex items-center justify-center h-24">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         ) : (

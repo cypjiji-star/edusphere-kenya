@@ -5,15 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { firestore } from '@/lib/firebase';
 import { doc, updateDoc, setDoc, query, where, getDocs, collection } from 'firebase/firestore';
-
-export const gradingSchema = z.object({
-  grade: z.string().min(1, 'Grade is required.'),
-  feedback: z.string().optional(),
-});
-
-
-export type GradingFormValues = z.infer<typeof gradingSchema>;
-
+import type { GradingFormValues } from './grading-dialog';
 
 export async function saveGradeAction(
   schoolId: string,
