@@ -19,7 +19,7 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
-import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2 } from 'lucide-react';
+import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search, Edit2, Trash2, Shield } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
@@ -59,6 +59,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-KE', {
@@ -686,6 +687,27 @@ export default function FeesPage() {
                                     </div>
                                 </div>
                                 <Button size="sm">Apply Discount</Button>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader><CardTitle className="text-base">Apply Waiver</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="waiver-amount">Waiver Amount (KES)</Label>
+                                    <Input id="waiver-amount" type="number" placeholder="5000" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="waiver-reason">Reason</Label>
+                                    <Textarea id="waiver-reason" placeholder="e.g., Staff Dependent, Charity Case" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="waiver-approver">Approved By</Label>
+                                    <Input id="waiver-approver" placeholder="e.g., Principal Jane Doe" />
+                                </div>
+                                <Button size="sm">
+                                    <Shield className="mr-2 h-4 w-4"/>
+                                    Apply Waiver
+                                </Button>
                             </CardContent>
                         </Card>
                     </AccordionContent>
