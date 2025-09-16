@@ -593,17 +593,17 @@ export default function SupportPage() {
                             <CardDescription>For urgent issues, please contact us directly.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <a href="tel:+254201234567" className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
+                            <a href="tel:0748132692" className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
                                 <Phone className="h-5 w-5 text-muted-foreground"/>
                                 <div className="text-sm">
-                                    <p className="font-semibold">+254 20 123 4567</p>
+                                    <p className="font-semibold">0748132692</p>
                                     <p className="text-xs text-muted-foreground">Mon-Fri, 8am-5pm</p>
                                 </div>
                             </a>
-                            <a href="mailto:support@edusphere.co.ke" className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
+                            <a href="mailto:kiseroderick4@gmail.com" className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
                                 <Mail className="h-5 w-5 text-muted-foreground"/>
                                 <div className="text-sm">
-                                    <p className="font-semibold">support@edusphere.co.ke</p>
+                                    <p className="font-semibold">kiseroderick4@gmail.com</p>
                                     <p className="text-xs text-muted-foreground">24/7 Email Support</p>
                                 </div>
                             </a>
@@ -744,5 +744,3 @@ export default function SupportPage() {
     </Dialog>
   );
 }
-
-    
