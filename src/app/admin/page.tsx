@@ -19,6 +19,7 @@ import { CalendarWidget } from './calendar-widget';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDoc, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { SecurityAlertsWidget } from './security-alerts-widget';
 
 const overviewLinks: Record<string, string> = {
     "Total Students": "/admin/users",
@@ -40,6 +41,7 @@ const activityCategoryLinks: Record<string, string> = {
     Attendance: '/admin/attendance',
     Academics: '/admin/lesson-plans',
     Comms: '/admin/announcements',
+    Security: '/admin/logs',
 };
 
 const activityIconMap: Record<string, React.ElementType> = {
@@ -49,6 +51,7 @@ const activityIconMap: Record<string, React.ElementType> = {
     Attendance: AlertTriangle,
     Academics: BookOpen,
     Comms: Megaphone,
+    Security: ShieldAlert,
 };
 
 type RecentActivity = {
@@ -149,7 +152,13 @@ export default function AdminDashboard() {
     const unsubActivities = onSnapshot(notificationsQuery, (snapshot) => {
       const fetchedActivities = snapshot.docs.map(doc => {
         const data = doc.data();
-        const category = data.href.split('/')[2]?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()).split(' ')[0] || 'General';
+        let category;
+        if(data.href) {
+            category = data.href.split('/')[2]?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()).split(' ')[0] || 'General';
+        } else {
+            category = data.actionType || 'General';
+        }
+        
         return {
           id: doc.id,
           icon: activityIconMap[category] || BookOpen,
@@ -273,6 +282,7 @@ export default function AdminDashboard() {
 
        <div className="mt-8 grid gap-8 lg:grid-cols-3">
          <div className="lg:col-span-1 space-y-8">
+            <SecurityAlertsWidget schoolId={schoolId} />
             <Card>
                 <CardHeader>
                     <CardTitle>Recent Activity</CardTitle>
