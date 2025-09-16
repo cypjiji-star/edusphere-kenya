@@ -399,7 +399,7 @@ export default function AdminAttendancePage() {
     });
   }
 
-  const filteredRecords = allRecords.filter(record => {
+  const filteredRecords = React.useMemo(() => allRecords.filter(record => {
       const recordDate = record.date.toDate();
       
       let isDateInRange = true;
@@ -419,7 +419,7 @@ export default function AdminAttendancePage() {
       const matchesStatus = statusFilter === 'All Statuses' || record.status === statusFilter;
 
       return isDateInRange && matchesSearch && matchesClass && matchesTeacher && matchesStatus;
-  });
+  }), [allRecords, date, searchTerm, classFilter, teacherFilter, statusFilter]);
   
   const handleExport = (type: 'PDF' | 'CSV') => {
     const doc = new jsPDF();
