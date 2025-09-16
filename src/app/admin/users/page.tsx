@@ -106,7 +106,16 @@ export default function UserManagementPage() {
     const [teacherUsers, setTeacherUsers] = React.useState<User[]>([]);
     const [studentUsers, setStudentUsers] = React.useState<User[]>([]);
     const [parentUsers, setParentUsers] = React.useState<User[]>([]);
-    const allUsers = React.useMemo(() => [...adminUsers, ...teacherUsers, ...studentUsers, ...parentUsers], [adminUsers, teacherUsers, studentUsers, parentUsers]);
+    
+    const allUsers = React.useMemo(() => {
+        const userMap = new Map<string, User>();
+        [...adminUsers, ...teacherUsers, ...studentUsers, ...parentUsers].forEach(user => {
+            if (user && user.id) {
+                userMap.set(user.id, user);
+            }
+        });
+        return Array.from(userMap.values());
+    }, [adminUsers, teacherUsers, studentUsers, parentUsers]);
 
     const [roles, setRoles] = React.useState<string[]>([]);
     const [classes, setClasses] = React.useState<string[]>(['All Classes']);
