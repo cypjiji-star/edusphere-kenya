@@ -59,7 +59,14 @@ type StudentAssignment = {
 type TeacherStudent = {
     id: string;
     name: string;
-}
+    classId: string;
+};
+
+type TeacherClass = {
+  id: string;
+  name: string;
+};
+
 
 export default function MyLibraryPage() {
     const searchParams = useSearchParams();
@@ -73,7 +80,10 @@ export default function MyLibraryPage() {
     const { toast } = useToast();
     const user = auth.currentUser;
 
-    const [teacherStudents, setTeacherStudents] = React.useState<TeacherStudent[]>([]);
+    const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+    const [allTeacherStudents, setAllTeacherStudents] = React.useState<TeacherStudent[]>([]);
+    const [selectedClassForAssignment, setSelectedClassForAssignment] = React.useState<string>('');
+    const [filteredStudentsForAssignment, setFilteredStudentsForAssignment] = React.useState<TeacherStudent[]>([]);
     const [selectedBookForAssignment, setSelectedBookForAssignment] = React.useState('');
     const [selectedStudentForAssignment, setSelectedStudentForAssignment] = React.useState('');
 
@@ -107,20 +117,57 @@ export default function MyLibraryPage() {
             setStudentAssignments(assignments);
         });
 
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId));
-        const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
-            const students = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as TeacherStudent));
-            setTeacherStudents(students);
+        // Fetch classes taught by the teacher
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+            const classesData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                name: `${doc.data().name} ${doc.data().stream || ''}`.trim()
+            }));
+            setTeacherClasses(classesData);
+            if (classesData.length > 0 && !selectedClassForAssignment) {
+                setSelectedClassForAssignment(classesData[0].id);
+            }
         });
-
+        
         return () => {
             unsubBorrowed();
             unsubHistory();
             unsubRequests();
             unsubAssignments();
-            unsubStudents();
+            unsubClasses();
         }
     }, [schoolId, user]);
+    
+     // Fetch all students from the teacher's classes
+    React.useEffect(() => {
+        if (teacherClasses.length === 0 || !schoolId) return;
+        const classIds = teacherClasses.map(c => c.id);
+        if(classIds.length === 0) return;
+
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+        const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+            const students = snapshot.docs.map(doc => ({
+                id: doc.id,
+                name: doc.data().name,
+                classId: doc.data().classId
+            } as TeacherStudent));
+            setAllTeacherStudents(students);
+        });
+        return () => unsubStudents();
+    }, [teacherClasses, schoolId]);
+
+    // Filter students when class selection changes
+    React.useEffect(() => {
+        if (selectedClassForAssignment) {
+            setFilteredStudentsForAssignment(
+                allTeacherStudents.filter(s => s.classId === selectedClassForAssignment)
+            );
+            setSelectedStudentForAssignment(''); // Reset student selection
+        } else {
+            setFilteredStudentsForAssignment([]);
+        }
+    }, [selectedClassForAssignment, allTeacherStudents]);
 
     const handleRenew = async (item: BorrowedItem) => {
         if (!schoolId || !user) return;
@@ -299,7 +346,31 @@ export default function MyLibraryPage() {
                         <CardDescription>Distribute the books you have borrowed to students in your class.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg">
+                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
+                            <div className="space-y-2">
+                                <Label>Select Class</Label>
+                                <Select value={selectedClassForAssignment} onValueChange={setSelectedClassForAssignment}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a class..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Select Student</Label>
+                                <Select value={selectedStudentForAssignment} onValueChange={setSelectedStudentForAssignment} disabled={filteredStudentsForAssignment.length === 0}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a student..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {filteredStudentsForAssignment.map(student => (
+                                            <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="space-y-2">
                                 <Label>Select Book</Label>
                                 <Select value={selectedBookForAssignment} onValueChange={setSelectedBookForAssignment}>
@@ -309,19 +380,6 @@ export default function MyLibraryPage() {
                                     <SelectContent>
                                         {borrowedItems.map(item => (
                                             <SelectItem key={item.id} value={item.id}>{item.title} ({item.quantity} copies)</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Select Student</Label>
-                                <Select value={selectedStudentForAssignment} onValueChange={setSelectedStudentForAssignment}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a student..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {teacherStudents.map(student => (
-                                            <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
