@@ -24,7 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { translateText } from '@/ai/flows/translate-text';
 import { firestore, storage, auth } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where, Timestamp, limit, startAfter, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where, Timestamp, limit, startAfter, getDocs, doc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
@@ -241,12 +241,16 @@ export default function AnnouncementsPage() {
         attachmentName = attachedFile.name;
       }
       
+      const userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      const teacherName = userDoc.exists() ? userDoc.data().name : 'Teacher';
+
       const newAnnouncement = {
           title: values.title,
           content: values.message,
           audience: values.audience,
           category: values.category,
-          sender: { id: user.uid, name: user.displayName || 'Teacher', avatarUrl: user.photoURL || 'https://picsum.photos/seed/teacher-avatar/100' },
+          sender: { id: user.uid, name: teacherName, avatarUrl: user.photoURL || 'https://picsum.photos/seed/teacher-avatar/100' },
           sentAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
           readBy: [],
           readCount: 0,
