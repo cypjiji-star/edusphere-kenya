@@ -2,13 +2,11 @@
 'use client';
 
 import * as React from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import {
-  saveGradesAction,
-} from '../actions';
+import { saveGradesAction } from '../actions';
 import { gradeEntrySchema, type GradeEntryFormValues } from '../types';
 
 import { Button } from '@/components/ui/button';
@@ -38,16 +36,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Save, FileText, BookOpen, ClipboardCheck } from 'lucide-react';
+import { Loader2, Save, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/context/auth-context';
 
 type Student = {
     id: string;
     name: string;
     avatarUrl: string;
+    admissionNumber: string;
 }
 
 type TeacherClass = {
@@ -80,13 +81,8 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
   const [assessments, setAssessments] = React.useState<Assessment[]>([]);
   const [students, setStudents] = React.useState<Student[]>([]);
   const [selectedClass, setSelectedClass] = React.useState<string | undefined>(preselectedTask?.classId);
-  const [user, setUser] = React.useState(auth.currentUser);
+  const { user } = useAuth();
 
-  React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe();
-  }, []);
-  
   const form = useForm<GradeEntryFormValues>({
     resolver: zodResolver(gradeEntrySchema),
     defaultValues: {
@@ -138,7 +134,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
         // Fetch students
         const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', selectedClass));
         const studentsSnapshot = await getDocs(studentsQuery);
-        const studentData = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl }));
+        const studentData = studentsSnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, avatarUrl: doc.data().avatarUrl, admissionNumber: doc.data().admissionNumber }));
         setStudents(studentData);
         replace(studentData.map(s => ({ studentId: s.id, grade: '' })));
         form.setValue('classId', selectedClass);
@@ -284,7 +280,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                            Grading: {selectedAssessment.title}
                         </CardTitle>
                         <CardDescription>
-                            Enter scores for <span className="font-semibold">{teacherClasses.find(c => c.id === selectedClass)?.name}</span> - <span className="font-semibold">{selectedAssessment.subject}</span>. Max Marks: 100
+                            Enter scores for <span className="font-semibold">{teacherClasses.find(c => c.id === selectedClass)?.name}</span> - <span className="font-semibold">{form.getValues('subject')}</span>. Max Marks: 100
                         </CardDescription>
                         </>
                     ) : (
@@ -297,6 +293,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                         <TableHeader className="sticky top-0 bg-muted z-10">
                         <TableRow>
                             <TableHead className="w-full md:w-[250px]">Student Name</TableHead>
+                            <TableHead className="hidden md:table-cell">Admission No.</TableHead>
                             <TableHead className="text-right">Grade/Score</TableHead>
                         </TableRow>
                         </TableHeader>
@@ -315,6 +312,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                                     <span className="font-medium">{student.name}</span>
                                 </div>
                                 </TableCell>
+                                 <TableCell className="hidden md:table-cell text-muted-foreground">{student.admissionNumber}</TableCell>
                                 <TableCell className="text-right">
                                 <FormField
                                     control={form.control}
@@ -359,3 +357,4 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
     </Form>
   );
 }
+

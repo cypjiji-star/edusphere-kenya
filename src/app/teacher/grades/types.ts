@@ -4,7 +4,13 @@ import { z } from 'zod';
 
 const studentGradeSchema = z.object({
   studentId: z.string(),
-  grade: z.string().optional(),
+  grade: z.string().refine((val) => {
+    if (val === '') return true; // Allow empty string
+    const num = Number(val);
+    return !isNaN(num) && num >= 0 && num <= 100;
+  }, {
+    message: "Grade must be a number between 0 and 100, or empty.",
+  }).optional(),
 });
 
 export const gradeEntrySchema = z.object({
