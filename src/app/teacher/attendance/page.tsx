@@ -13,6 +13,7 @@ import {
   Timestamp,
   getDocs,
   orderBy,
+  setDoc,
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,7 @@ export default function AttendancePage() {
 
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>();
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -117,73 +118,65 @@ export default function AttendancePage() {
     return () => unsub();
   }, [user, schoolId, activeTab]);
 
-  // Main data fetching effect with REAL-TIME LISTENERS
+  // Main data fetching effect
   useEffect(() => {
     if (!schoolId || !activeTab || !selectedDate) {
-        setIsLoading(false);
         setStudents([]);
+        setIsLoading(false);
         return;
     }
 
     setIsLoading(true);
 
-    const studentsQuery = query(
-      collection(firestore, "schools", schoolId, "students"),
-      where("classId", "==", activeTab),
-      orderBy("name")
-    );
-
-    const unsubStudents = onSnapshot(studentsQuery, async (studentsSnapshot) => {
+    const fetchAttendanceData = async () => {
+        // 1. Get all students for the class
+        const studentsQuery = query(
+            collection(firestore, "schools", schoolId, "students"),
+            where("classId", "==", activeTab),
+            orderBy("name")
+        );
+        const studentsSnapshot = await getDocs(studentsQuery);
         const studentList: Student[] = studentsSnapshot.docs.map(d => {
-          const data = d.data();
-          return {
-            id: d.id,
-            name: data.name || "Unknown",
-            rollNumber: data.rollNumber || '',
-            avatarUrl: data.avatarUrl || '',
-            status: "unmarked",
-            notes: "",
-          } as Student;
+            const data = d.data();
+            return {
+                id: d.id,
+                name: data.name || "Unknown",
+                rollNumber: data.rollNumber || '',
+                avatarUrl: data.avatarUrl || `https://picsum.photos/seed/${d.id}/100`,
+                status: "unmarked",
+                notes: "",
+            };
         });
 
+        // 2. Get existing attendance records for the selected date
         const startOfDay = new Date(selectedDate);
         startOfDay.setHours(0, 0, 0, 0);
         const attendanceDate = Timestamp.fromDate(startOfDay);
-        
+
         const attendanceQuery = query(
-          collection(firestore, "schools", schoolId, "attendance"),
-          where("classId", "==", activeTab),
-          where("date", "==", attendanceDate)
+            collection(firestore, "schools", schoolId, "attendance"),
+            where("classId", "==", activeTab),
+            where("date", "==", attendanceDate)
         );
-
         const attendanceSnapshot = await getDocs(attendanceQuery);
-        const attendanceData: Record<string, {status: AttendanceStatus, notes: string}> = {};
-        
+        const attendanceMap = new Map<string, { status: AttendanceStatus; notes?: string }>();
         attendanceSnapshot.forEach(doc => {
-          const data = doc.data();
-          attendanceData[data.studentId] = {
-            status: data.status || "unmarked",
-            notes: data.notes || ""
-          };
+            const data = doc.data();
+            attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
         });
 
-        const studentsWithAttendance = studentList.map(student => {
-          if (attendanceData[student.id]) {
-            return {
-              ...student,
-              status: attendanceData[student.id].status,
-              notes: attendanceData[student.id].notes
-            };
-          }
-          return student;
+        // 3. Merge student list with attendance data
+        const mergedStudents = studentList.map(student => {
+            const attendanceRecord = attendanceMap.get(student.id);
+            return attendanceRecord ? { ...student, ...attendanceRecord } : student;
         });
 
-        setStudents(studentsWithAttendance);
+        setStudents(mergedStudents);
         setIsLoading(false);
-    });
-    
-    return () => unsubStudents();
-  }, [schoolId, activeTab, selectedDate, toast]);
+    };
+
+    fetchAttendanceData();
+  }, [schoolId, activeTab, selectedDate]);
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status } : s));
@@ -279,7 +272,7 @@ export default function AttendancePage() {
             <Calendar
               mode="single"
               selected={selectedDate || undefined}
-              onSelect={(d) => setSelectedDate(d || null)}
+              onSelect={(d) => setSelectedDate(d || new Date())}
               initialFocus
             />
           </PopoverContent>
@@ -395,7 +388,7 @@ export default function AttendancePage() {
               disabled={isSaving}
               className="w-full sm:w-auto"
             >
-              <Save className="mr-2 h-4 w-4" />
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {isSaving ? "Saving..." : "Submit Attendance"}
             </Button>
         </div>
