@@ -14,6 +14,8 @@ import {
   getDocs,
   orderBy,
   setDoc,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -42,13 +44,27 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save, ClipboardCheck, User } from "lucide-react";
+import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save, ClipboardCheck, User, Plane, PlusCircle, FileText, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/context/auth-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MyAttendanceHistory } from "./my-attendance-calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { DateRange } from "react-day-picker";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
 
@@ -66,6 +82,15 @@ type TeacherClass = {
   name: string;
 };
 
+type LeaveApplication = {
+    id: string;
+    leaveType: string;
+    startDate: Timestamp;
+    endDate: Timestamp;
+    reason: string;
+    status: 'Pending' | 'Approved' | 'Rejected';
+};
+
 const getAttendanceBadge = (status: AttendanceStatus) => {
     switch (status) {
         case 'present': return <Badge variant="default" className="bg-green-600 hover:bg-green-700 w-full"><CheckCircle className="mr-2 h-4 w-4"/>Present</Badge>;
@@ -73,6 +98,172 @@ const getAttendanceBadge = (status: AttendanceStatus) => {
         case 'late': return <Badge variant="secondary" className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"><Clock className="mr-2 h-4 w-4"/>Late</Badge>;
         default: return <Badge variant="outline" className="w-full">Unmarked</Badge>;
     }
+}
+
+const getLeaveStatusBadge = (status: LeaveApplication['status']) => {
+    switch(status) {
+        case 'Pending': return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600">Pending</Badge>;
+        case 'Approved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Approved</Badge>;
+        case 'Rejected': return <Badge variant="destructive">Rejected</Badge>;
+    }
+};
+
+function LeaveManagementTab({ schoolId, user }: { schoolId: string, user: any }) {
+    const { toast } = useToast();
+    const [leaveApplications, setLeaveApplications] = React.useState<LeaveApplication[]>([]);
+    const [leaveType, setLeaveType] = React.useState('');
+    const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
+    const [reason, setReason] = React.useState('');
+    const [attachment, setAttachment] = React.useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    
+    // Mock leave balances
+    const leaveBalances = [
+        { type: 'Annual Leave', allocated: 21, used: 5, remaining: 16 },
+        { type: 'Sick Leave', allocated: 10, used: 2, remaining: 8 },
+        { type: 'Compassionate Leave', allocated: 5, used: 0, remaining: 5 },
+    ];
+
+    React.useEffect(() => {
+        if (!user) return;
+        const q = query(collection(firestore, `schools/${schoolId}/leave-applications`), where('teacherId', '==', user.uid), orderBy('startDate', 'desc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setLeaveApplications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveApplication)));
+        });
+        return () => unsubscribe();
+    }, [schoolId, user]);
+
+    const handleSubmitLeave = async () => {
+        if (!leaveType || !dateRange?.from || !dateRange?.to || !reason) {
+            toast({ title: 'Missing Information', description: 'Please fill out all fields.', variant: 'destructive'});
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await addDoc(collection(firestore, `schools/${schoolId}/leave-applications`), {
+                teacherId: user.uid,
+                teacherName: user.displayName,
+                leaveType,
+                startDate: Timestamp.fromDate(dateRange.from),
+                endDate: Timestamp.fromDate(dateRange.to),
+                reason,
+                status: 'Pending',
+                submittedAt: serverTimestamp(),
+            });
+            toast({ title: 'Leave Application Submitted', description: 'Your request has been sent for approval.'});
+            setLeaveType('');
+            setDateRange(undefined);
+            setReason('');
+            setAttachment(null);
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Submission Failed', variant: 'destructive'});
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
+                <Card>
+                    <CardHeader><CardTitle>Leave Balances</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        {leaveBalances.map(balance => (
+                             <div key={balance.type} className="text-sm">
+                                <div className="font-semibold">{balance.type}</div>
+                                <div className="flex justify-between text-muted-foreground">
+                                    <span>Used: {balance.used}/{balance.allocated}</span>
+                                    <span>Remaining: {balance.remaining}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                           <Plane className="h-5 w-5 text-primary"/>
+                            Apply for Leave
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Leave Type</Label>
+                            <Select value={leaveType} onValueChange={setLeaveType}>
+                                <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Annual">Annual Leave</SelectItem>
+                                    <SelectItem value="Sick">Sick Leave</SelectItem>
+                                    <SelectItem value="Compassionate">Compassionate Leave</SelectItem>
+                                    <SelectItem value="Unpaid">Unpaid Leave</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Date Range</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? ( dateRange.to ? `${format(dateRange.from, "LLL dd, y")} - ${format(dateRange.to, "LLL dd, y")}` : format(dateRange.from, "LLL dd, y")) : <span>Pick a date range</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} /></PopoverContent>
+                            </Popover>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="leave-reason">Reason</Label>
+                            <Textarea id="leave-reason" placeholder="Provide a brief reason for your leave..." value={reason} onChange={e => setReason(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Attach Document (Optional)</Label>
+                            {attachment ? (
+                                 <div className="w-full p-2 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-sm font-medium"><FileText className="h-4 w-4" /><span className="truncate">{attachment.name}</span></div>
+                                    <Button variant="ghost" size="icon" onClick={() => setAttachment(null)} className="h-6 w-6"><X className="h-4 w-4 text-destructive" /></Button>
+                                </div>
+                            ) : (
+                                <Label htmlFor="leave-attachment" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted">
+                                    <div className="text-center text-muted-foreground text-sm"><Upload className="w-6 h-6 mx-auto mb-1" />Click to upload</div>
+                                    <Input id="leave-attachment" type="file" className="hidden" onChange={e => setAttachment(e.target.files?.[0] || null)} />
+                                </Label>
+                            )}
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button className="w-full" onClick={handleSubmitLeave} disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Submit Application
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+             <div className="lg:col-span-2">
+                <Card>
+                    <CardHeader><CardTitle>My Leave History</CardTitle></CardHeader>
+                    <CardContent>
+                         <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Reason</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {leaveApplications.map(app => (
+                                        <TableRow key={app.id}>
+                                            <TableCell className="font-semibold">{app.leaveType}</TableCell>
+                                            <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
+                                            <TableCell className="text-muted-foreground max-w-xs truncate">{app.reason}</TableCell>
+                                            <TableCell>{getLeaveStatusBadge(app.status)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {leaveApplications.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">No leave applications found.</TableCell></TableRow>}
+                                </TableBody>
+                            </Table>
+                         </div>
+                    </CardContent>
+                </Card>
+             </div>
+        </div>
+    )
 }
 
 export default function AttendancePage() {
@@ -265,9 +456,10 @@ export default function AttendancePage() {
         </div>
 
         <Tabs defaultValue="student-attendance">
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="student-attendance">Student Attendance</TabsTrigger>
                 <TabsTrigger value="my-attendance">My Attendance History</TabsTrigger>
+                <TabsTrigger value="leave-management">Leave Management</TabsTrigger>
             </TabsList>
 
             <TabsContent value="student-attendance" className="mt-4">
@@ -414,6 +606,10 @@ export default function AttendancePage() {
 
             <TabsContent value="my-attendance" className="mt-4">
                <MyAttendanceHistory />
+            </TabsContent>
+            
+             <TabsContent value="leave-management" className="mt-4">
+                <LeaveManagementTab schoolId={schoolId} user={user} />
             </TabsContent>
         </Tabs>
     </div>
