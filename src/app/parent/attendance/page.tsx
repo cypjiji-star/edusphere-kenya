@@ -6,7 +6,7 @@ import * as React from 'react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs, orderBy } from 'firebase/firestore';
 
 import { cn } from '@/lib/utils';
 import {
@@ -64,6 +64,8 @@ import { useAuth } from '@/context/auth-context';
 
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
+type AttendanceStatusLower = 'present' | 'absent' | 'late';
+
 
 type AttendanceRecord = {
   id: string;
@@ -79,6 +81,13 @@ type Child = {
     class: string;
 };
 
+const normalizeStatus = (status: string): AttendanceStatus => {
+  const lowerStatus = status.toLowerCase();
+  if (lowerStatus === 'present') return 'Present';
+  if (lowerStatus === 'absent') return 'Absent';
+  if (lowerStatus === 'late') return 'Late';
+  return 'Present'; // Fallback
+};
 
 const getStatusBadge = (status: AttendanceStatus) => {
     switch (status) {
@@ -105,31 +114,39 @@ export default function ParentAttendancePage() {
   
   // Fetch children associated with the logged-in parent
   React.useEffect(() => {
-    if (!schoolId || !user) return;
+    if (!schoolId || !user) {
+        setIsLoading(false);
+        return;
+    };
     const parentId = user.uid;
-
+    setIsLoading(true);
     const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
+        const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class } as Child));
         setChildrenData(fetchedChildren);
         if (!selectedChild && fetchedChildren.length > 0) {
             setSelectedChild(fetchedChildren[0].id);
         }
-        if (fetchedChildren.length === 0) {
-            setIsLoading(false);
-        }
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching children: ", error);
+        toast({ title: 'Error', description: 'Could not fetch your children\'s data.', variant: 'destructive'});
+        setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [schoolId, user, selectedChild]);
+  }, [schoolId, user]);
 
   // Fetch attendance records for the selected child
   React.useEffect(() => {
-    if (!selectedChild || !schoolId) return;
+    if (!selectedChild || !schoolId) {
+        setAttendanceRecords([]);
+        return;
+    }
     
     setIsLoading(true);
-    const q = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', selectedChild));
+    const q = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', selectedChild), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), status: normalizeStatus(doc.data().status) } as AttendanceRecord));
       setAttendanceRecords(records);
       setIsLoading(false);
     }, (error) => {
@@ -143,7 +160,7 @@ export default function ParentAttendancePage() {
 
 
   const filteredRecords = React.useMemo(() => {
-    if (!date?.from) return [];
+    if (!date?.from) return attendanceRecords;
     return attendanceRecords.filter(record => {
         const recordDate = record.date.toDate();
         const fromDate = new Date(date.from!);
@@ -174,6 +191,10 @@ export default function ParentAttendancePage() {
   
   if (!schoolId) {
     return <div className="p-8">Error: School ID is missing from URL.</div>
+  }
+
+  if (!user) {
+    return <div className="p-8">Please log in to view attendance.</div>
   }
 
   return (
@@ -251,6 +272,8 @@ export default function ParentAttendancePage() {
         <div className="flex items-center justify-center h-48">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
+      ) : childrenData.length === 0 ? (
+        <Card><CardContent className="p-8 text-center text-muted-foreground">No students linked to your parent account.</CardContent></Card>
       ) : (
         <>
             <div className="grid gap-6 md:grid-cols-3">
