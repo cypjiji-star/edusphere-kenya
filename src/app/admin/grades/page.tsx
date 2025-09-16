@@ -114,10 +114,11 @@ export type Exam = {
   class: string;
   startDate: Timestamp;
   endDate: Timestamp;
-  status: 'Draft' | 'Active' | 'Locked' | 'Published';
+  status: 'Draft' | 'Active' | 'Locked' | 'Published' | 'Archived';
   classId?: string;
   progress: number;
   className?: string;
+  notes?: string;
 };
 
 type Grade = {
@@ -201,6 +202,7 @@ export default function AdminGradesPage() {
   const [examSearchTerm, setExamSearchTerm] = React.useState('');
   
   const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
+  const [editingExam, setEditingExam] = React.useState<Exam | null>(null);
   
   const [currentAssessments, setCurrentAssessments] = React.useState<Exam[]>([]);
   const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
@@ -214,8 +216,8 @@ export default function AdminGradesPage() {
   }).flat();
   academicTerms.push(...[`Term 1, ${currentYear + 1}`, `Term 2, ${currentYear + 1}`, `Term 3, ${currentYear + 1}`]);
 
-  // State for the create exam dialog
-  const [isCreateExamOpen, setIsCreateExamOpen] = React.useState(false);
+  // State for the create/edit exam dialog
+  const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
   const [newExamTitle, setNewExamTitle] = React.useState('');
   const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[4]);
   const [newExamClass, setNewExamClass] = React.useState<string>('');
@@ -223,10 +225,28 @@ export default function AdminGradesPage() {
   const [isSavingExam, setIsSavingExam] = React.useState(false);
 
   React.useEffect(() => {
+    if (editingExam) {
+        setNewExamTitle(editingExam.title);
+        setNewExamTerm(editingExam.term);
+        setNewExamClass(editingExam.classId || '');
+        setDate({ from: editingExam.startDate.toDate(), to: editingExam.endDate.toDate() });
+        setNewExamNotes(editingExam.notes || '');
+        setIsExamDialogOpen(true);
+    } else {
+        // Reset form when not in edit mode
+        setNewExamTitle('');
+        setNewExamTerm(academicTerms[4]);
+        setNewExamClass('');
+        setDate(undefined);
+        setNewExamNotes('');
+    }
+}, [editingExam, academicTerms]);
+
+  React.useEffect(() => {
     if (!schoolId) return;
 
     const unsubExams = onSnapshot(
-      query(collection(firestore, `schools/${schoolId}/assessments`), orderBy('startDate', 'desc')),
+      query(collection(firestore, `schools/${schoolId}/assessments`), where('status', '!=', 'Archived'), orderBy('startDate', 'desc')),
       async (snapshot) => {
         const examsWithProgress: Exam[] = await Promise.all(snapshot.docs.map(async (examDoc) => {
           const exam = { id: examDoc.id, ...examDoc.data() } as Exam;
@@ -425,14 +445,14 @@ export default function AdminGradesPage() {
     }
   }
   
-  const handleCreateExam = async () => {
+  const handleCreateOrUpdateExam = async () => {
     if (!schoolId || !newExamTitle || !newExamClass || !date?.from) {
       toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out the title, class, and date range.' });
       return;
     }
     setIsSavingExam(true);
-    try {
-      await addDoc(collection(firestore, `schools/${schoolId}/assessments`), {
+    
+    const examData = {
         title: newExamTitle,
         term: newExamTerm,
         classId: newExamClass,
@@ -440,17 +460,25 @@ export default function AdminGradesPage() {
         startDate: Timestamp.fromDate(date.from),
         endDate: Timestamp.fromDate(date.to || date.from),
         notes: newExamNotes,
-        status: 'Draft',
-      });
-      toast({ title: 'Exam Created', description: 'The new exam has been scheduled.' });
-      setNewExamTitle('');
-      setNewExamClass('');
-      setDate(undefined);
-      setNewExamNotes('');
-      setIsCreateExamOpen(false);
+        status: editingExam ? editingExam.status : 'Draft',
+      };
+      
+    try {
+      if (editingExam) {
+          const examRef = doc(firestore, `schools/${schoolId}/assessments`, editingExam.id);
+          await updateDoc(examRef, examData);
+          toast({ title: 'Exam Updated', description: 'The exam schedule has been updated.' });
+      } else {
+          await addDoc(collection(firestore, `schools/${schoolId}/assessments`), examData);
+          toast({ title: 'Exam Created', description: 'The new exam has been scheduled.' });
+      }
+
+      setEditingExam(null);
+      setIsExamDialogOpen(false);
+
     } catch (e) {
       console.error(e);
-      toast({ variant: 'destructive', title: 'Failed to create exam.' });
+      toast({ variant: 'destructive', title: 'Failed to save exam.' });
     } finally {
       setIsSavingExam(false);
     }
@@ -529,6 +557,13 @@ export default function AdminGradesPage() {
         });
     }
   };
+
+  const handleArchiveExam = (exam: Exam) => {
+    if (window.confirm(`Are you sure you want to archive the exam "${exam.title}"?`)) {
+      handleUpdateExamStatus(exam.id, 'Archived');
+    }
+  };
+
 
   const renderExamActions = (exam: Exam) => {
     switch (exam.status) {
@@ -618,7 +653,10 @@ export default function AdminGradesPage() {
               </h1>
               <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
           </div>
-          <Dialog open={isCreateExamOpen} onOpenChange={setIsCreateExamOpen}>
+          <Dialog open={isExamDialogOpen} onOpenChange={(open) => {
+              setIsExamDialogOpen(open);
+              if (!open) setEditingExam(null); // Reset editing state on close
+          }}>
             <DialogTrigger asChild>
               <Button>
                   <PlusCircle className="mr-2 h-4 w-4"/>
@@ -627,8 +665,8 @@ export default function AdminGradesPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-xl">
               <DialogHeader>
-                  <DialogTitle>Exam Details</DialogTitle>
-                  <DialogDescription>Define a new examination schedule for a term.</DialogDescription>
+                  <DialogTitle>{editingExam ? 'Edit Exam Details' : 'Create New Exam'}</DialogTitle>
+                  <DialogDescription>{editingExam ? 'Update the details for this exam.' : 'Define a new examination schedule for a term.'}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-6 py-4">
                   <div className="space-y-2">
@@ -689,9 +727,9 @@ export default function AdminGradesPage() {
               </div>
               <DialogFooter>
                   <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                  <Button onClick={handleCreateExam} disabled={isSavingExam}>
+                  <Button onClick={handleCreateOrUpdateExam} disabled={isSavingExam}>
                     {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Save Exam
+                    {editingExam ? 'Save Changes' : 'Create Exam'}
                   </Button>
               </DialogFooter>
             </DialogContent>
@@ -797,9 +835,7 @@ export default function AdminGradesPage() {
                                                             <TableCell>
                                                                 <TooltipProvider>
                                                                     <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <button>{deviation >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}</button>
-                                                                        </TooltipTrigger>
+                                                                        <TooltipTrigger asChild><button>{deviation >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}</button></TooltipTrigger>
                                                                         <TooltipContent>
                                                                             <p>{deviation.toFixed(1)}% {deviation >= 0 ? 'above' : 'below'} class average</p>
                                                                         </TooltipContent>
@@ -979,10 +1015,10 @@ export default function AdminGradesPage() {
                                             <DropdownMenuContent align="end">
                                                 {renderExamActions(exam)}
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem><Edit className="mr-2 h-4 w-4"/> Edit Details</DropdownMenuItem>
-                                                <DropdownMenuItem><Copy className="mr-2 h-4 w-4"/> Clone Exam</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingExam(exam); }}><Edit className="mr-2 h-4 w-4"/> Edit Details</DropdownMenuItem>
+                                                <DropdownMenuItem disabled><Copy className="mr-2 h-4 w-4"/> Clone Exam</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-destructive"><Archive className="mr-2 h-4 w-4"/> Archive</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleArchiveExam(exam); }}><Archive className="mr-2 h-4 w-4"/> Archive</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -1034,3 +1070,5 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
+```
