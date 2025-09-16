@@ -149,9 +149,14 @@ export default function AuditLogsPage() {
       const recordDate = log.timestamp?.toDate();
       if (!recordDate) return false;
 
+      const searchLower = searchTerm.toLowerCase();
+
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
-      const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (log.details && log.details.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = searchTerm === '' ||
+                            log.action.toLowerCase().includes(searchLower) ||
+                            log.user.name.toLowerCase().includes(searchLower) ||
+                            (log.details && log.details.toLowerCase().includes(searchLower)) ||
+                            (log.ipAddress && log.ipAddress.toLowerCase().includes(searchLower));
       const matchesUser = userFilter === 'All Users' || log.user.name === userFilter;
       const matchesAction = actionFilter === 'All Types' || log.actionType === actionFilter;
 
@@ -308,22 +313,22 @@ export default function AuditLogsPage() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder="Search logs..."
+                                    placeholder="Search logs by keyword, user, IP..."
                                     className="w-full bg-background pl-8"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
                             <div className="flex w-full flex-wrap gap-2 md:w-auto md:flex-row md:items-center">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="w-full md:w-auto">
-                                        <Filter className="mr-2 h-4 w-4" />
-                                        Filters
-                                        <ChevronDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="p-4 space-y-4 w-64">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full md:w-auto">
+                                            <Filter className="mr-2 h-4 w-4" />
+                                            Advanced Filters
+                                            <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent align="end" className="w-[300px] p-4 space-y-4">
                                         <div>
                                             <Label className="text-sm font-medium">User</Label>
                                             <Select value={userFilter} onValueChange={setUserFilter}>
@@ -342,26 +347,29 @@ export default function AuditLogsPage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <Button
-                                        id="date"
-                                        variant="outline"
-                                        className={cn('w-full justify-start text-left font-normal md:w-auto lg:min-w-[250px]', !date && 'text-muted-foreground')}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date?.from ? (
-                                        date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
-                                        ) : <span>Pick a date range</span>}
-                                    </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="end">
-                                    <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                                        <div>
+                                            <Label className="text-sm font-medium">Date Range</Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                <Button
+                                                    id="date"
+                                                    variant="outline"
+                                                    className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {date?.from ? (
+                                                    date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
+                                                    ) : <span>Pick a date range</span>}
+                                                </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="end">
+                                                <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
                                     </PopoverContent>
                                 </Popover>
+
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="secondary" className="w-full md:w-auto">
@@ -386,6 +394,13 @@ export default function AuditLogsPage() {
                                 </div>
                             </div>
                         </div>
+                        <div className="flex flex-wrap items-center gap-2 pt-2">
+                             <Button size="sm" variant={actionFilter === 'All Types' ? 'default' : 'outline'} onClick={() => setActionFilter('All Types')}>All Types</Button>
+                             <Button size="sm" variant={actionFilter === 'Academics' ? 'default' : 'outline'} onClick={() => setActionFilter('Academics')}>Grade Changes</Button>
+                             <Button size="sm" variant={actionFilter === 'Security' ? 'default' : 'outline'} onClick={() => setActionFilter('Security')}>Failed Logins</Button>
+                             <Button size="sm" variant={actionFilter === 'Finance' ? 'default' : 'outline'} onClick={() => setActionFilter('Finance')}>Financial Actions</Button>
+                             <Button size="sm" variant={actionFilter === 'User Management' ? 'default' : 'outline'} onClick={() => setActionFilter('User Management')}>User Management</Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -398,9 +413,9 @@ export default function AuditLogsPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[250px]">Action</TableHead>
+                                        <TableHead className="w-[250px] font-mono">Action</TableHead>
                                         <TableHead>User</TableHead>
-                                        <TableHead>Date & Time</TableHead>
+                                        <TableHead className="font-mono">Date & Time</TableHead>
                                         <TableHead>Details</TableHead>
                                         <TableHead className="text-right">View</TableHead>
                                     </TableRow>
@@ -505,7 +520,7 @@ export default function AuditLogsPage() {
                 </DialogHeader>
                 <div className="py-4 space-y-6">
                     <div className="space-y-1">
-                        <h4 className="font-semibold">{selectedLog.action}</h4>
+                        <h4 className="font-semibold font-mono">{selectedLog.action}</h4>
                         <div className="text-sm text-muted-foreground">Action Type: <Badge variant="outline">{selectedLog.actionType}</Badge></div>
                     </div>
 
@@ -535,7 +550,7 @@ export default function AuditLogsPage() {
                                 <CalendarIcon className="h-5 w-5 mt-0.5 text-muted-foreground"/>
                                 <div>
                                     <p className="text-muted-foreground">Timestamp</p>
-                                    <p className="font-medium">{selectedLog.timestamp?.toDate().toLocaleString()}</p>
+                                    <p className="font-medium font-mono">{selectedLog.timestamp?.toDate().toLocaleString()}</p>
                                 </div>
                             </div>
                             {selectedLog.ipAddress && (
