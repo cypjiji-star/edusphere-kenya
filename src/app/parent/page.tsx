@@ -245,19 +245,19 @@ export default function ParentDashboard() {
           const attendancePercentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
           
           // Fetch grades
-          const gradesQuery = query(collection(firestore, `schools/${schoolId}/students/${studentId}/grades`), orderBy('date', 'desc'), limit(3));
+          const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', studentId), orderBy('date', 'desc'), limit(3));
           const gradesSnapshot = await getDocs(gradesQuery);
           const recentGrades = gradesSnapshot.docs.map(d => {
               const gradeData = d.data();
               return {
-                  subject: gradeData.assessmentTitle, // Or fetch assessment for subject name
+                  subject: gradeData.subject || 'Unknown', 
                   grade: gradeData.grade,
                   date: (gradeData.date as Timestamp).toDate().toLocaleDateString('en-GB'),
               }
           });
           
           // Calculate overall grade
-          const allGradesQuery = query(collection(firestore, `schools/${schoolId}/students/${studentId}/grades`));
+          const allGradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', studentId));
           const allGradesSnapshot = await getDocs(allGradesQuery);
           const numericScores = allGradesSnapshot.docs.map(d => parseInt(d.data().grade)).filter(score => !isNaN(score));
           const overallGrade = numericScores.length > 0 ? Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length) : 0;
@@ -273,7 +273,7 @@ export default function ParentDashboard() {
                 total: studentData.totalFee || 0,
                 paid: studentData.amountPaid || 0,
                 balance: studentData.balance || 0,
-                status: studentData.balance <= 0 ? 'Paid' : 'Partial', // Simplified
+                status: studentData.balance <= 0 ? 'Paid' : 'Partial',
                 dueDate: (studentData.dueDate as Timestamp)?.toDate().toISOString() || new Date().toISOString(),
               },
               recentGrades: recentGrades,
@@ -281,8 +281,11 @@ export default function ParentDashboard() {
       }));
       
       setChildrenData(fetchedChildren);
-      if (!selectedChild && fetchedChildren.length > 0) {
-        setSelectedChild(fetchedChildren[0]);
+      if (fetchedChildren.length > 0) {
+        // If a child is already selected, update their data, otherwise select the first one
+        const currentSelectedId = selectedChild?.id;
+        const updatedSelectedChild = fetchedChildren.find(c => c.id === currentSelectedId);
+        setSelectedChild(updatedSelectedChild || fetchedChildren[0]);
       }
       setIsLoading(false);
     });
