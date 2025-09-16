@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -65,6 +64,7 @@ import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type Child = {
@@ -156,10 +156,11 @@ export default function ParentGradesPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
   const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
-  const parentId = 'parent-user-id'; // Placeholder for logged-in user
+  const { user } = useAuth();
+  const parentId = user?.uid;
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !parentId) return;
     const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
@@ -177,7 +178,7 @@ export default function ParentGradesPage() {
 
     const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('studentId', '==', selectedChild));
     const unsubGrades = onSnapshot(gradesQuery, async (gradesSnapshot) => {
-        const gradesBySubject: Record<string, number[]> = {};
+        const gradesBySubject: Record<string, { scores: number[], teacher: string }> = {};
         
         for (const gradeDoc of gradesSnapshot.docs) {
             const grade = gradeDoc.data();
@@ -186,35 +187,43 @@ export default function ParentGradesPage() {
 
             const subjectName = grade.subject || 'Unknown Subject';
             if (!gradesBySubject[subjectName]) {
-                gradesBySubject[subjectName] = [];
+                gradesBySubject[subjectName] = { scores: [], teacher: grade.teacherName || 'N/A' };
             }
-            gradesBySubject[subjectName].push(score);
+            gradesBySubject[subjectName].scores.push(score);
         }
 
-        const subjects: SubjectData[] = Object.entries(gradesBySubject).map(([name, scores], index) => {
-            const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+        const subjects: SubjectData[] = Object.entries(gradesBySubject).map(([name, data], index) => {
+            const avg = data.scores.length > 0 ? Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length) : 0;
             return {
                 id: `${index}`,
                 name: name,
                 average: avg,
-                grade: avg >= 80 ? 'A' : avg >= 65 ? 'B' : 'C', // Simplified
-                comment: 'Good effort shown throughout the term.', // Mock
-                teacher: 'Teacher Name' // Mock
+                grade: avg >= 80 ? 'A' : avg >= 65 ? 'B' : avg >= 50 ? 'C' : avg >= 40 ? 'D' : 'E',
+                comment: 'Good effort shown throughout the term. Keep up the hard work and focus on areas that need improvement.',
+                teacher: data.teacher,
             };
         });
 
         const overallScores = subjects.map(s => s.average).filter(s => s > 0);
         const overallAvg = overallScores.length > 0 ? Math.round(overallScores.reduce((a, b) => a + b, 0) / overallScores.length) : 0;
+        
+        let highest = 'N/A';
+        let lowest = 'N/A';
+        if (subjects.length > 0) {
+          subjects.sort((a, b) => b.average - a.average);
+          highest = subjects[0].name;
+          lowest = subjects[subjects.length - 1].name;
+        }
 
         setGradeData({
             summary: {
                 overall: `${overallAvg}%`,
-                rank: '5th',
-                classSize: 32,
-                trend: 'up',
-                trendValue: '2%',
-                highest: subjects.length > 0 ? subjects.reduce((max, s) => s.average > max.average ? s : max).name : 'N/A',
-                lowest: subjects.length > 0 ? subjects.reduce((min, s) => s.average < min.average ? s : min).name : 'N/A',
+                rank: '5th', // This is a placeholder
+                classSize: 32, // This is a placeholder
+                trend: 'up', // This is a placeholder
+                trendValue: '2%', // This is a placeholder
+                highest: highest,
+                lowest: lowest,
             },
             subjects: subjects
         });
@@ -393,3 +402,5 @@ export default function ParentGradesPage() {
     </>
   );
 }
+
+    
