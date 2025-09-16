@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/chart';
 import { CircleDollarSign, TrendingUp, TrendingDown, Hourglass, Loader2, CreditCard, Send, FileText, PlusCircle, Users, UserX, UserCheck, Trophy, AlertCircle, Calendar, Search } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { format, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-KE', {
@@ -247,6 +248,15 @@ export default function FeesPage() {
     return <div className="p-8">Error: School ID is missing from URL.</div>
   }
 
+  const getFeeStatusBadge = (status: StudentFeeProfile['status']) => {
+    switch (status) {
+      case 'Paid': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
+      case 'Partial': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600">Partial</Badge>;
+      case 'Overdue': return <Badge variant="destructive">Overdue</Badge>;
+      default: return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   return (
     <Dialog onOpenChange={(open) => !open && setSelectedStudent(null)}>
       <div className="p-4 sm:p-6 lg:p-8">
@@ -376,26 +386,66 @@ export default function FeesPage() {
               </div>
             </DialogHeader>
             <Separator />
-            <div className="grid grid-cols-3 gap-4 py-4 text-center">
-                <div><p className="text-sm text-muted-foreground">Total Billed</p><p className="font-bold text-lg">{formatCurrency(selectedStudent.totalBilled)}</p></div>
-                <div><p className="text-sm text-muted-foreground">Total Paid</p><p className="font-bold text-lg text-green-600">{formatCurrency(selectedStudent.totalPaid)}</p></div>
-                <div><p className="text-sm text-muted-foreground">Balance</p><p className="font-bold text-lg text-destructive">{formatCurrency(selectedStudent.balance)}</p></div>
-            </div>
-            <div className="max-h-[40vh] overflow-y-auto">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Balance</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {selectedStudent.transactions?.map(tx => (
-                            <TableRow key={tx.id}>
-                                <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
-                                <TableCell>{tx.description}</TableCell>
-                                <TableCell className={`text-right ${tx.amount > 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(tx.amount)}</TableCell>
-                                <TableCell className="text-right font-medium">{formatCurrency(tx.balance)}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
+
+             <Accordion type="single" defaultValue="fee-structure" collapsible className="w-full">
+                <AccordionItem value="fee-structure">
+                    <AccordionTrigger className="text-lg font-semibold">Fee Structure</AccordionTrigger>
+                    <AccordionContent>
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold text-primary">Termly Tuition Fees</h4>
+                                <div className="grid grid-cols-3 gap-4 text-center mt-2">
+                                    <Card className="p-3"><CardDescription>Term 1</CardDescription><CardTitle className="text-base">{formatCurrency(50000)}</CardTitle></Card>
+                                    <Card className="p-3"><CardDescription>Term 2</CardDescription><CardTitle className="text-base">{formatCurrency(50000)}</CardTitle></Card>
+                                    <Card className="p-3"><CardDescription>Term 3</CardDescription><CardTitle className="text-base">{formatCurrency(50000)}</CardTitle></Card>
+                                </div>
+                            </div>
+                            <Separator />
+                            <div>
+                                <h4 className="font-semibold text-primary">Compulsory Charges</h4>
+                                <div className="text-sm mt-2 space-y-1">
+                                    <div className="flex justify-between"><span>Activity Fee</span><span className="font-medium">{formatCurrency(2000)}</span></div>
+                                    <div className="flex justify-between"><span>Medical Fee</span><span className="font-medium">{formatCurrency(1500)}</span></div>
+                                    <div className="flex justify-between"><span>Exam Fee</span><span className="font-medium">{formatCurrency(1000)}</span></div>
+                                </div>
+                            </div>
+                            <Separator />
+                            <div>
+                                <h4 className="font-semibold text-primary">Optional Charges</h4>
+                                 <div className="text-sm mt-2 space-y-1">
+                                    <div className="flex justify-between"><span>Lunch Program</span><span className="font-medium">{formatCurrency(8000)}</span></div>
+                                    <div className="flex justify-between"><span>Music Club</span><span className="font-medium">{formatCurrency(3000)}</span></div>
+                                </div>
+                            </div>
+                            <Separator />
+                             <div className="flex justify-between font-bold text-lg p-2 bg-muted rounded-md">
+                                <span>Total Yearly Fees:</span>
+                                <span>{formatCurrency(164500)}</span>
+                            </div>
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="transaction-ledger">
+                    <AccordionTrigger className="text-lg font-semibold">Transaction Ledger</AccordionTrigger>
+                    <AccordionContent>
+                         <div className="max-h-[30vh] overflow-y-auto">
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Balance</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {selectedStudent.transactions?.map(tx => (
+                                        <TableRow key={tx.id}>
+                                            <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
+                                            <TableCell>{tx.description}</TableCell>
+                                            <TableCell className={`text-right ${tx.amount > 0 ? 'text-destructive' : 'text-green-600'}`}>{formatCurrency(tx.amount)}</TableCell>
+                                            <TableCell className="text-right font-medium">{formatCurrency(tx.balance)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+             </Accordion>
           </>
         )}
       </DialogContent>
