@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
-import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw, HeartPulse, Loader2 } from 'lucide-react';
+import { FileClock, UserPlus, ShieldCheck, CircleDollarSign, Settings, Search, Filter, CalendarIcon, ChevronDown, FileDown, ArrowRight, Fingerprint, Laptop, FileText, RefreshCw, HeartPulse, Loader2, AlertTriangle, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
@@ -144,7 +144,7 @@ export default function AuditLogsPage() {
     };
   }, [schoolId, autoRefresh]);
 
-  const filteredLogs = logs.filter(log => {
+  const filteredLogs = React.useMemo(() => logs.filter(log => {
       const recordDate = log.timestamp?.toDate();
       if (!recordDate) return false;
 
@@ -156,7 +156,34 @@ export default function AuditLogsPage() {
       const matchesAction = actionFilter === 'All Types' || log.actionType === actionFilter;
 
       return isDateInRange && matchesSearch && matchesUser && matchesAction;
-  });
+  }), [logs, date, searchTerm, userFilter, actionFilter]);
+
+  const analytics = React.useMemo(() => {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    
+    const failedLoginsToday = logs.filter(log =>
+      log.action === 'USER_LOGIN_FAILURE' &&
+      log.timestamp?.toDate() >= startOfToday
+    ).length;
+
+    const sensitiveActivitiesLastWeek = logs.filter(log =>
+        log.timestamp?.toDate() >= sevenDaysAgo &&
+        (log.actionType === 'Security' || log.action.includes('GRADE'))
+    );
+    
+    const permissionChanges = sensitiveActivitiesLastWeek.filter(log => log.actionType === 'Security').length;
+    const gradeChanges = sensitiveActivitiesLastWeek.filter(log => log.action.includes('GRADE')).length;
+
+    return {
+      totalEvents: logs.length,
+      failedLoginsToday,
+      permissionChanges,
+      gradeChanges,
+    };
+  }, [logs]);
 
   const handleExport = (type: 'PDF' | 'CSV') => {
     if (filteredLogs.length === 0) {
@@ -228,6 +255,42 @@ export default function AuditLogsPage() {
             </h1>
             <p className="text-muted-foreground">Track important activities and changes within the portal. Access is restricted to authorized personnel.</p>
         </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Logged Events</CardTitle>
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{analytics.totalEvents.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground">Across all time</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Sensitive Activities (Last 7 Days)</CardTitle>
+                    <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{analytics.gradeChanges + analytics.permissionChanges}</div>
+                    <p className="text-xs text-muted-foreground">
+                        {analytics.permissionChanges} permission changes, {analytics.gradeChanges} grade changes
+                    </p>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Failed Logins (Today)</CardTitle>
+                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className={`text-2xl font-bold ${analytics.failedLoginsToday > 0 ? 'text-destructive' : ''}`}>{analytics.failedLoginsToday}</div>
+                    <p className="text-xs text-muted-foreground">Total failed attempts today</p>
+                </CardContent>
+            </Card>
+        </div>
+
 
         <Card>
                 <CardHeader>
