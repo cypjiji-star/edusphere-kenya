@@ -42,11 +42,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save } from "lucide-react";
+import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save, ClipboardCheck, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/context/auth-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MyAttendanceCalendar } from "./my-attendance-calendar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
 
@@ -254,145 +256,177 @@ export default function AttendancePage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4">
-      <div className="flex justify-between items-center">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant={"outline"}
-              className={cn(
-                "w-[280px] justify-start text-left font-normal",
-                !selectedDate && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={selectedDate || undefined}
-              onSelect={(d) => setSelectedDate(d || new Date())}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-        <div className="flex space-x-2">
-            <Button onClick={markAll}>Mark All Present</Button>
-            <Button variant="secondary" onClick={clearAll}>Clear All</Button>
+        <div className="mb-2">
+            <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+                <ClipboardCheck className="h-8 w-8 text-primary" />
+                Attendance
+            </h1>
+            <p className="text-muted-foreground">Manage attendance for your classes and view your own record.</p>
         </div>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        {teacherClasses.length > 0 && (
+
+        <Tabs defaultValue="student-attendance">
             <TabsList>
-            {teacherClasses.map((c) => (
-                <TabsTrigger key={c.id} value={c.id}>
-                {c.name}
-                </TabsTrigger>
-            ))}
+                <TabsTrigger value="student-attendance">Student Attendance</TabsTrigger>
+                <TabsTrigger value="my-attendance">My Attendance History</TabsTrigger>
             </TabsList>
-        )}
 
-        {teacherClasses.length === 0 && !isLoading && (
-            <div className="text-center py-16 text-muted-foreground">
-                <p>You are not assigned to any classes.</p>
-            </div>
-        )}
-
-        {teacherClasses.map((c) => (
-            <TabsContent key={c.id} value={c.id} className="mt-4">
-                {isLoading ? (
-                    <div className="flex h-64 items-center justify-center rounded-lg border">
-                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <TabsContent value="student-attendance" className="mt-4">
+                <div className="flex justify-between items-center">
+                    <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                        variant={"outline"}
+                        className={cn(
+                            "w-[280px] justify-start text-left font-normal",
+                            !selectedDate && "text-muted-foreground"
+                        )}
+                        >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                        <Calendar
+                        mode="single"
+                        selected={selectedDate || undefined}
+                        onSelect={(d) => setSelectedDate(d || new Date())}
+                        initialFocus
+                        />
+                    </PopoverContent>
+                    </Popover>
+                    <div className="flex space-x-2">
+                        <Button onClick={markAll}>Mark All Present</Button>
+                        <Button variant="secondary" onClick={clearAll}>Clear All</Button>
                     </div>
-                ) : (
-                <div className="w-full overflow-auto rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[200px]">Student</TableHead>
-                        <TableHead className="w-[150px]">Status</TableHead>
-                        <TableHead>Notes</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {students.length > 0 ? (
-                        students.map((student) => (
-                          <TableRow key={student.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                  <AvatarImage src={student.avatarUrl} alt={student.name} />
-                                  <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{student.name}</span>
-                                  {student.rollNumber && (
-                                    <span className="text-sm text-muted-foreground">Roll: {student.rollNumber}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={student.status}
-                                onValueChange={(value: AttendanceStatus) =>
-                                  handleAttendanceChange(student.id, value)
-                                }
-                              >
-                                <SelectTrigger className="w-36">
-                                  <SelectValue>{getAttendanceBadge(student.status)}</SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="present">{getAttendanceBadge('present')}</SelectItem>
-                                  <SelectItem value="absent">{getAttendanceBadge('absent')}</SelectItem>
-                                  <SelectItem value="late">{getAttendanceBadge('late')}</SelectItem>
-                                  <SelectItem value="unmarked">{getAttendanceBadge('unmarked')}</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              {(student.status === "absent" || student.status === "late") && (
-                                <Input
-                                  placeholder="Add note (optional)..."
-                                  value={student.notes || ""}
-                                  onChange={(e) =>
-                                    handleNotesChange(student.id, e.target.value)
-                                  }
-                                  className="w-full"
-                                />
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="h-24 text-center">
-                            No students found in this class.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
                 </div>
-                )}
-             </TabsContent>
-        ))}
-      </Tabs>
+                
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+                    {teacherClasses.length > 0 && (
+                        <TabsList>
+                        {teacherClasses.map((c) => (
+                            <TabsTrigger key={c.id} value={c.id}>
+                            {c.name}
+                            </TabsTrigger>
+                        ))}
+                        </TabsList>
+                    )}
 
-      {students.length > 0 && (
-        <div className="mt-4 flex justify-end">
-            <Button 
-              onClick={handleSaveAttendance} 
-              disabled={isSaving}
-              className="w-full sm:w-auto"
-            >
-              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {isSaving ? "Saving..." : "Submit Attendance"}
-            </Button>
-        </div>
-      )}
+                    {teacherClasses.length === 0 && !isLoading && (
+                        <div className="text-center py-16 text-muted-foreground">
+                            <p>You are not assigned to any classes.</p>
+                        </div>
+                    )}
+
+                    {teacherClasses.map((c) => (
+                        <TabsContent key={c.id} value={c.id} className="mt-4">
+                            {isLoading ? (
+                                <div className="flex h-64 items-center justify-center rounded-lg border">
+                                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                                </div>
+                            ) : (
+                            <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[200px]">Student</TableHead>
+                                    <TableHead className="w-[150px]">Status</TableHead>
+                                    <TableHead>Notes</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                {students.length > 0 ? (
+                                    students.map((student) => (
+                                    <TableRow key={student.id}>
+                                        <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-9 w-9">
+                                            <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                            <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col">
+                                            <span className="font-medium">{student.name}</span>
+                                            {student.rollNumber && (
+                                                <span className="text-sm text-muted-foreground">Roll: {student.rollNumber}</span>
+                                            )}
+                                            </div>
+                                        </div>
+                                        </TableCell>
+                                        <TableCell>
+                                        <Select
+                                            value={student.status}
+                                            onValueChange={(value: AttendanceStatus) =>
+                                            handleAttendanceChange(student.id, value)
+                                            }
+                                        >
+                                            <SelectTrigger className="w-36">
+                                            <SelectValue>{getAttendanceBadge(student.status)}</SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                            <SelectItem value="present">{getAttendanceBadge('present')}</SelectItem>
+                                            <SelectItem value="absent">{getAttendanceBadge('absent')}</SelectItem>
+                                            <SelectItem value="late">{getAttendanceBadge('late')}</SelectItem>
+                                            <SelectItem value="unmarked">{getAttendanceBadge('unmarked')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        </TableCell>
+                                        <TableCell>
+                                        {(student.status === "absent" || student.status === "late") && (
+                                            <Input
+                                            placeholder="Add note (optional)..."
+                                            value={student.notes || ""}
+                                            onChange={(e) =>
+                                                handleNotesChange(student.id, e.target.value)
+                                            }
+                                            className="w-full"
+                                            />
+                                        )}
+                                        </TableCell>
+                                    </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                    <TableCell colSpan={3} className="h-24 text-center">
+                                        No students found in this class.
+                                    </TableCell>
+                                    </TableRow>
+                                )}
+                                </TableBody>
+                            </Table>
+                            </div>
+                            )}
+                        </TabsContent>
+                    ))}
+                </Tabs>
+
+                {students.length > 0 && (
+                    <div className="mt-4 flex justify-end">
+                        <Button 
+                        onClick={handleSaveAttendance} 
+                        disabled={isSaving}
+                        className="w-full sm:w-auto"
+                        >
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {isSaving ? "Saving..." : "Submit Attendance"}
+                        </Button>
+                    </div>
+                )}
+            </TabsContent>
+
+            <TabsContent value="my-attendance" className="mt-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                           <User className="h-5 w-5 text-primary"/>
+                           My Attendance History
+                        </CardTitle>
+                        <CardDescription>A calendar view of your attendance record for the selected month.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       <MyAttendanceCalendar />
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
     </div>
   );
 }
