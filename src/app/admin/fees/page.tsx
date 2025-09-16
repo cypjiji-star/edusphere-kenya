@@ -433,7 +433,7 @@ export default function FeesPage() {
   const getFeeStatusBadge = (status: StudentFeeProfile['status']) => {
     switch (status) {
       case 'Paid': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
-      case 'Partial': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600">Partial</Badge>;
+      case 'Partial': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-500">Partial</Badge>;
       case 'Overdue': return <Badge variant="destructive">Overdue</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
@@ -512,6 +512,8 @@ export default function FeesPage() {
                                                     <SelectItem value="Cash">Cash</SelectItem>
                                                     <SelectItem value="Bank Deposit">Bank Deposit</SelectItem>
                                                     <SelectItem value="Cheque">Cheque</SelectItem>
+                                                    <SelectItem value="Airtel Money">Airtel Money</SelectItem>
+                                                    <SelectItem value="Pesalink">Pesalink</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
