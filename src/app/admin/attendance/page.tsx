@@ -371,8 +371,12 @@ export default function AdminAttendancePage() {
       
       let isDateInRange = true;
       if (date?.from) {
-        const fromDate = new Date(date.from.setHours(0,0,0,0));
-        const toDate = date.to ? new Date(date.to.setHours(23,59,59,999)) : fromDate;
+        const fromDate = new Date(date.from);
+        fromDate.setHours(0, 0, 0, 0);
+
+        const toDate = date.to ? new Date(date.to) : new Date(date.from);
+        toDate.setHours(23, 59, 59, 999);
+        
         isDateInRange = recordDate >= fromDate && recordDate <= toDate;
       }
 
