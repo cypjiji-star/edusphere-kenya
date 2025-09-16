@@ -95,7 +95,7 @@ const formatCurrency = (amount: number) => {
 const getFeeStatusBadge = (status: 'Paid' | 'Partial' | 'Overdue') => {
     switch(status) {
         case 'Paid': return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
-        case 'Partial': return <Badge className="bg-blue-500 hover:bg-blue-600">Partial Payment</Badge>;
+        case 'Partial': return <Badge className="bg-blue-500 hover:bg-blue-500">Partial Payment</Badge>;
         case 'Overdue': return <Badge variant="destructive">Overdue</Badge>;
     }
 }
