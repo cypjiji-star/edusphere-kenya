@@ -25,6 +25,9 @@ import {
   Search,
   Filter,
   ChevronDown,
+  Lock,
+  Unlock,
+  Send,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -66,7 +69,8 @@ import {
   where, 
   DocumentData,
   doc,
-  getDoc
+  getDoc,
+  updateDoc
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
@@ -77,6 +81,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 
 type GradeStatus = 'Graded' | 'Pending';
@@ -377,7 +388,7 @@ export default function AdminGradesPage() {
   const filteredExams = allExams.filter(exam => 
       exam.title.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
       exam.term.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
-      exam.className.toLowerCase().includes(examSearchTerm.toLowerCase())
+      (exam.className && exam.className.toLowerCase().includes(examSearchTerm.toLowerCase()))
   );
   
   const getStatusBadgeColor = (status: Exam['status']) => {
@@ -388,6 +399,40 @@ export default function AdminGradesPage() {
         case 'Published': return 'bg-green-600';
     }
   }
+  
+  const handleUpdateExamStatus = async (examId: string, newStatus: Exam['status']) => {
+    if (!schoolId) return;
+    try {
+        const examRef = doc(firestore, `schools/${schoolId}/assessments`, examId);
+        await updateDoc(examRef, { status: newStatus });
+        toast({
+            title: `Exam Status Updated`,
+            description: `The exam is now ${newStatus}.`,
+        });
+    } catch(e) {
+        console.error(e);
+        toast({
+            title: 'Error',
+            description: 'Could not update the exam status.',
+            variant: 'destructive',
+        });
+    }
+  };
+
+  const renderExamActions = (exam: Exam) => {
+    switch (exam.status) {
+        case 'Draft':
+            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam.id, 'Active')}><Unlock className="mr-2 h-4 w-4" /> Activate Grading</DropdownMenuItem>;
+        case 'Active':
+            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam.id, 'Locked')}><Lock className="mr-2 h-4 w-4" /> Lock Grading</DropdownMenuItem>;
+        case 'Locked':
+            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam.id, 'Published')}><Send className="mr-2 h-4 w-4" /> Publish Results</DropdownMenuItem>;
+        case 'Published':
+             return <DropdownMenuItem disabled><CheckCircle className="mr-2 h-4 w-4" /> Published</DropdownMenuItem>;
+        default:
+            return null;
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -483,7 +528,7 @@ export default function AdminGradesPage() {
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
             <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
-            <TabsTrigger value="exams">Exam Dashboard & Schedules</TabsTrigger>
+            <TabsTrigger value="exams">Exam Dashboard</TabsTrigger>
           </TabsList>
 
           <TabsContent value="reports">
@@ -689,9 +734,21 @@ export default function AdminGradesPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8"><Edit className="h-4 w-4"/></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8"><Copy className="h-4 w-4"/></Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Archive className="h-4 w-4"/></Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <ChevronDown className="h-4 w-4"/>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {renderExamActions(exam)}
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem><Edit className="mr-2 h-4 w-4"/> Edit Details</DropdownMenuItem>
+                                                <DropdownMenuItem><Copy className="mr-2 h-4 w-4"/> Clone Exam</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-destructive"><Archive className="mr-2 h-4 w-4"/> Archive</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
                             ))}
