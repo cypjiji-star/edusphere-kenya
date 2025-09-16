@@ -80,7 +80,6 @@ const actionTypeConfig: Record<ActionType, { icon: React.ElementType, color: str
     'General': { icon: FileClock, color: 'text-gray-500' },
 }
 
-const users = ['All Users', 'Admin User', 'Finance Officer', 'Ms. Wanjiku', 'System'];
 const actionTypes: (ActionType | 'All Types')[] = ['All Types', 'User Management', 'Finance', 'Academics', 'Settings', 'Security', 'Health'];
 
 export default function AuditLogsPage() {
@@ -91,8 +90,10 @@ export default function AuditLogsPage() {
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [userFilter, setUserFilter] = React.useState('All Users');
+  const [users, setUsers] = React.useState<string[]>(['All Users', 'System']);
   const [actionFilter, setActionFilter] = React.useState<ActionType | 'All Types'>('All Types');
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
+  const [autoRefresh, setAutoRefresh] = React.useState(true);
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -101,18 +102,43 @@ export default function AuditLogsPage() {
     };
 
     setIsLoading(true);
-    const q = query(collection(firestore, `schools/${schoolId}/audit_logs`), orderBy('timestamp', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
-        setLogs(fetchedLogs);
-        setIsLoading(false);
-    }, (error) => {
-        console.error("Error fetching audit logs: ", error);
-        setIsLoading(false);
+
+    const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
+    const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
+        const userNames = new Set<string>(['All Users', 'System']);
+        snapshot.forEach(doc => userNames.add(doc.data().name));
+        setUsers(Array.from(userNames));
     });
 
-    return () => unsubscribe();
-  }, [schoolId]);
+    let q = query(collection(firestore, `schools/${schoolId}/audit_logs`), orderBy('timestamp', 'desc'));
+    
+    let unsubscribe: () => void;
+
+    if (autoRefresh) {
+        unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
+            setLogs(fetchedLogs);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching audit logs: ", error);
+            setIsLoading(false);
+        });
+    } else {
+        const fetchOnce = async () => {
+            const snapshot = await getDocs(q);
+            const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
+            setLogs(fetchedLogs);
+            setIsLoading(false);
+        }
+        fetchOnce();
+        unsubscribe = () => {};
+    }
+
+    return () => {
+      unsubUsers();
+      unsubscribe();
+    };
+  }, [schoolId, autoRefresh]);
 
   const filteredLogs = logs.filter(log => {
       const recordDate = log.timestamp.toDate();
@@ -209,17 +235,17 @@ export default function AuditLogsPage() {
                                 </Popover>
                                 <Separator orientation="vertical" className="h-10 hidden md:block" />
                                  <div className="flex items-center gap-2">
-                                     <Button variant="outline" size="icon">
+                                     <Button variant="outline" size="icon" disabled>
                                         <RefreshCw className="h-4 w-4" />
                                      </Button>
                                      <div className="flex items-center space-x-2">
-                                        <Switch id="auto-refresh" />
+                                        <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh}/>
                                         <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground">Auto-refresh</Label>
                                     </div>
                                 </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="secondary" className="w-full md:w-auto">
+                                        <Button variant="secondary" className="w-full md:w-auto" disabled>
                                             Export
                                             <ChevronDown className="ml-2 h-4 w-4" />
                                         </Button>
