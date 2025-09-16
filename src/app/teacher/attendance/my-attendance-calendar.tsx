@@ -8,7 +8,7 @@ import { firestore, auth } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { Calendar as CalendarPicker, CalendarProps } from '@/components/ui/calendar';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -141,7 +141,7 @@ export function MyAttendanceHistory() {
                                     {attendance.length === 0 && <TableRow><TableCell colSpan={5} className="h-24 text-center">No records for this month.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
-                        </div>
+                         </div>
                     </TabsContent>
                     
                     <TabsContent value="calendar-view" className="mt-4">
