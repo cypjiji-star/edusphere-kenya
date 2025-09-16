@@ -435,15 +435,17 @@ export function ReportGenerator() {
                                   <Table>
                                       <TableHeader>
                                           <TableRow>
-                                              <TableHead>Subject</TableHead>
+                                              <TableHead>Assessment</TableHead>
+                                              <TableHead>Type</TableHead>
                                               <TableHead className="text-right">Score</TableHead>
                                           </TableRow>
                                       </TableHeader>
                                       <TableBody>
-                                          {individualReport.student.grades.map(grade => (
-                                              <TableRow key={grade.assessmentId}>
-                                                  <TableCell className="font-medium">{grade.subject}</TableCell>
-                                                  <TableCell className="text-right font-medium">{getGradeForStudent(individualReport.student, grade.assessmentId)}</TableCell>
+                                          {individualReport.assessments.map(assessment => (
+                                              <TableRow key={assessment.id}>
+                                                  <TableCell className="font-medium">{assessment.title}</TableCell>
+                                                  <TableCell>{assessment.type}</TableCell>
+                                                  <TableCell className="text-right font-medium">{getGradeForStudent(individualReport.student, assessment.id)}</TableCell>
                                               </TableRow>
                                           ))}
                                       </TableBody>
