@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 const defaultProfile = {
     name: 'EduSphere Kenya',
     motto: 'Empowering Education for All',
-    logoUrl: 'https://picsum.photos/seed/default-logo/200',
+    logoUrl: 'https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png',
     coverImageUrl: 'https://i.postimg.cc/1tRnvG0P/Chat-GPT-Image-Sep-16-2025-08-14-02-PM.png',
 };
 
@@ -40,7 +40,7 @@ function LoginPageContent() {
                     href="/"
                     className="relative z-20 flex items-center text-lg font-medium"
                 >
-                    <GraduationCap className="h-6 w-6 mr-2" />
+                    <Image src={profile.logoUrl} alt="EduSphere Logo" width={24} height={24} className="mr-2"/>
                     EduSphere Kenya
                 </Link>
 

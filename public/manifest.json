@@ -8,12 +8,12 @@
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/icon-192/192/192",
+      "src": "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://picsum.photos/seed/icon-512/512/512",
+      "src": "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
