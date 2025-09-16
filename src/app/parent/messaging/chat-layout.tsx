@@ -5,16 +5,11 @@ import * as React from 'react';
 import {
   MessageCircle,
   Send,
-  Paperclip,
   Loader2,
-  X,
-  Clock,
-  Wand2,
   User,
   ShieldCheck,
+  Wand2
 } from 'lucide-react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage, firestore } from '@/lib/firebase';
 import {
   collection,
   query,
@@ -27,15 +22,17 @@ import {
   updateDoc,
   setDoc,
   where,
+  limit,
+  getDocs,
 } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
+import { firestore } from '@/lib/firebase';
 import { supportChatbot } from '@/ai/flows/support-chatbot-flow';
 
 const ADMIN_SUPPORT_ID = 'admin_support_user';
@@ -45,6 +42,7 @@ type Message = {
   role: 'user' | 'model';
   content: string;
   timestamp?: Timestamp | null;
+  senderName?: string;
 };
 
 export function ParentChatLayout() {
@@ -63,6 +61,57 @@ export function ParentChatLayout() {
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+  
+  // Find or create conversation on load
+  React.useEffect(() => {
+    if (!schoolId || !user) return;
+    
+    const findOrCreateConvo = async () => {
+      const participants = [user.uid, ADMIN_SUPPORT_ID].sort();
+      const q = query(
+        collection(firestore, `schools/${schoolId}/conversations`),
+        where('participants', '==', participants),
+        limit(1)
+      );
+
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const convoDoc = querySnapshot.docs[0];
+        setConversationId(convoDoc.id);
+        // If a conversation exists, we assume it's with a human.
+        // A more complex system might store the chat state.
+        setChatState('human');
+      }
+    };
+    findOrCreateConvo();
+  }, [schoolId, user]);
+  
+  // Real-time listener for messages
+  React.useEffect(() => {
+    if (!conversationId || !schoolId || !user) return;
+
+    const messagesQuery = query(
+      collection(firestore, `schools/${schoolId}/conversations/${conversationId}/messages`),
+      orderBy('timestamp', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+        const fetchedMessages = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                role: data.sender === user?.uid ? 'user' : 'model',
+                content: data.text,
+                timestamp: data.timestamp,
+                senderName: data.senderName,
+            } as Message
+        });
+        setMessages(fetchedMessages);
+    });
+
+    return () => unsubscribe();
+
+  }, [conversationId, schoolId, user]);
 
   const createConversation = async () => {
     if (!schoolId || !user) return null;
@@ -115,17 +164,19 @@ export function ParentChatLayout() {
         role: 'user',
         content: userInput,
         timestamp: Timestamp.now(),
+        senderName: user.displayName || 'Parent'
     };
-    setMessages(prev => [...prev, userMessage]);
     
     if (chatState === 'ai') {
+        setMessages(prev => [...prev, userMessage]);
         const historyForAI = [...messages, userMessage].map(m => ({ role: m.role, content: m.content }));
         const result = await supportChatbot({ history: historyForAI });
-
+        
         const aiResponse: Message = {
             role: 'model',
             content: result.response || 'Sorry, I am unable to respond right now.',
             timestamp: Timestamp.now(),
+            senderName: 'AI Assistant'
         };
         setMessages(prev => [...prev, aiResponse]);
     } else {
@@ -135,11 +186,17 @@ export function ParentChatLayout() {
         }
         if (currentConvoId) {
             const messagesRef = collection(firestore, `schools/${schoolId}/conversations`, currentConvoId, 'messages');
-            await addDoc(messagesRef, { sender: user.uid, text: userInput, timestamp: serverTimestamp() });
+            await addDoc(messagesRef, { 
+                sender: user.uid, 
+                text: userInput, 
+                timestamp: serverTimestamp(),
+                senderName: user.displayName || 'Parent',
+            });
             await updateDoc(doc(firestore, `schools/${schoolId}/conversations`, currentConvoId), {
                 lastMessage: userInput,
                 timestamp: serverTimestamp(),
                 unread: true,
+                lastMessageSender: user.uid,
             });
         }
     }
@@ -160,20 +217,24 @@ export function ParentChatLayout() {
             </p>
         </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg, index) => (
-          <div key={index} className={cn("flex items-end gap-2", msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-            {msg.role === 'model' && (<Avatar className="h-8 w-8"><AvatarImage /><AvatarFallback><Wand2/></AvatarFallback></Avatar>)}
-            <div className="group relative max-w-xs lg:max-w-md">
-              <div className={cn("rounded-2xl p-3 text-sm shadow-sm", msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none')}>
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-                <div className={cn("text-xs mt-2 flex items-center gap-2", msg.role === 'user' ? 'text-primary-foreground/70' : 'text-slate-400')}>
-                  <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        {messages.map((msg, index) => {
+            const isUserSender = msg.role === 'user';
+            return (
+              <div key={msg.id || index} className={cn("flex items-end gap-2", isUserSender ? 'justify-end' : 'justify-start')}>
+                {!isUserSender && (<Avatar className="h-8 w-8"><AvatarImage /><AvatarFallback><Wand2/></AvatarFallback></Avatar>)}
+                <div className="group relative max-w-xs lg:max-w-md">
+                  <div className={cn("rounded-2xl p-3 text-sm shadow-sm", isUserSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none')}>
+                    {msg.senderName && <p className="font-semibold text-xs mb-1">{msg.senderName}</p>}
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <div className={cn("text-xs mt-2 flex items-center gap-2", isUserSender ? 'text-primary-foreground/70' : 'text-slate-400')}>
+                      <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
                 </div>
+                 {isUserSender && (<Avatar className="h-8 w-8"><AvatarImage src={user?.photoURL || ''}/><AvatarFallback><User/></AvatarFallback></Avatar>)}
               </div>
-            </div>
-             {msg.role === 'user' && (<Avatar className="h-8 w-8"><AvatarImage src={user?.photoURL || ''}/><AvatarFallback><User/></AvatarFallback></Avatar>)}
-          </div>
-        ))}
+            );
+        })}
         {messages.length === 0 && (
             <div className="text-center text-slate-400 pt-16">
                 <Wand2 className="h-10 w-10 mx-auto mb-2"/>
