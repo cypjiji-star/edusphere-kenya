@@ -142,7 +142,7 @@ export function FinanceSnapshot() {
                 </div>
                 <div className="flex justify-between items-center">
                     <p className="text-sm text-muted-foreground">Total Collected (towards School Fees)</p>
-                    <p className="text-lg font-bold text-green-600">+ KES {financeData.totalCollected.toLocaleString()}</p>
+                    <p className="text-lg font-bold text-primary">+ KES {financeData.totalCollected.toLocaleString()}</p>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center">

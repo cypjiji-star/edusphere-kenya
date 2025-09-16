@@ -357,11 +357,11 @@ function StudentProfileDialog({
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Total Paid</p>
-          <p className="font-semibold text-green-600">{formatCurrency(selectedStudent.totalPaid)}</p>
+          <p className="font-semibold text-primary">{formatCurrency(selectedStudent.totalPaid)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Current Balance</p>
-          <p className={`font-semibold text-lg ${selectedStudent.balance > 0 ? 'text-destructive' : 'text-green-600'}`}>
+          <p className={`font-semibold text-lg ${selectedStudent.balance > 0 ? 'text-destructive' : 'text-primary'}`}>
             {formatCurrency(selectedStudent.balance)}
           </p>
         </div>
@@ -411,7 +411,7 @@ function StudentProfileDialog({
                     <TableRow key={tx.id}>
                       <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
                       <TableCell>{tx.description}</TableCell>
-                      <TableCell className={`text-right ${tx.amount > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                      <TableCell className={`text-right ${tx.amount > 0 ? 'text-destructive' : 'text-primary'}`}>
                         {formatCurrency(tx.amount)}
                       </TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(tx.balance)}</TableCell>
@@ -1203,7 +1203,7 @@ export default function FeesPage() {
     switch (status) {
       case 'Paid':
         return (
-          <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+          <Badge variant="default" className="bg-primary hover:bg-primary/90">
             Paid
           </Badge>
         );
@@ -1297,7 +1297,7 @@ export default function FeesPage() {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{formatCurrency(financials.totalCollected)}</div>
+                    <div className="text-2xl font-bold text-primary">{formatCurrency(financials.totalCollected)}</div>
                     <p className="text-xs text-muted-foreground">Across all terms and sessions</p>
                   </CardContent>
                 </Card>
@@ -1509,12 +1509,12 @@ export default function FeesPage() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <UserCheck className="h-4 w-4 text-green-600" />
+                      <UserCheck className="h-4 w-4 text-primary" />
                       Students with Cleared Balances
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-green-600">{studentsWithFees.cleared}</div>
+                    <div className="text-3xl font-bold text-primary">{studentsWithFees.cleared}</div>
                     <p className="text-xs text-muted-foreground">students have a zero or positive balance.</p>
                   </CardContent>
                 </Card>
@@ -1686,7 +1686,7 @@ export default function FeesPage() {
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Total Collected</p>
-                          <p className="font-bold text-lg text-green-600">{formatCurrency(classPerformance.collected)}</p>
+                          <p className="font-bold text-lg text-primary">{formatCurrency(classPerformance.collected)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Outstanding</p>
@@ -1897,3 +1897,4 @@ export default function FeesPage() {
     </>
   );
 }
+

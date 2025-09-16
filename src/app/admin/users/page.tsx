@@ -91,7 +91,7 @@ const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i
 
 const getStatusBadge = (status: UserStatus) => {
     switch (status) {
-        case 'Active': return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white"><CheckCircle className="mr-1 h-3 w-3"/>Active</Badge>;
+        case 'Active': return <Badge variant="default" className="bg-primary hover:bg-primary/90"><CheckCircle className="mr-1 h-3 w-3"/>Active</Badge>;
         case 'Pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600"><Clock className="mr-1 h-3 w-3"/>Pending</Badge>;
         case 'Suspended': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Suspended</Badge>;
         case 'Transferred': return <Badge variant="outline"><ArrowRight className="mr-1 h-3 w-3"/>Transferred</Badge>;
@@ -753,3 +753,4 @@ export default function UserManagementPage() {
         </div>
     );
 }
+

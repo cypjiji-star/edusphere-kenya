@@ -128,7 +128,7 @@ const normalizeStatus = (status: string): AttendanceStatus => {
 
 const getStatusBadge = (status: AttendanceStatus) => {
     switch (status) {
-        case 'Present': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Present</Badge>;
+        case 'Present': return <Badge variant="default" className="bg-primary hover:bg-primary/90">Present</Badge>;
         case 'Absent': return <Badge variant="destructive">Absent</Badge>;
         case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Late</Badge>;
         default: return <Badge variant="outline">Unknown</Badge>;
@@ -208,7 +208,7 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <UserCheck className="h-6 w-6 text-green-600"/>
+                        <UserCheck className="h-6 w-6 text-primary"/>
                         No Attendance Alerts
                     </CardTitle>
                     <CardDescription>Attendance is above 70% for all classes in the selected period.</CardDescription>
@@ -920,7 +920,7 @@ export default function AdminAttendancePage() {
                                         <TableCell>{log.studentName}</TableCell>
                                         <TableCell>{log.parentName} ({log.parentContact})</TableCell>
                                         <TableCell><Badge variant="secondary">{log.reason}</Badge></TableCell>
-                                        <TableCell><Badge className="bg-green-600">Sent</Badge></TableCell>
+                                        <TableCell><Badge className="bg-primary hover:bg-primary/90">Sent</Badge></TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>
@@ -941,4 +941,5 @@ export default function AdminAttendancePage() {
 }
 
     
+
 

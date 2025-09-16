@@ -79,7 +79,7 @@ const statuses: ExpenseStatus[] = ['Paid', 'Pending Approval', 'Reimbursed', 'De
 
 const getStatusBadge = (status: ExpenseStatus) => {
     switch (status) {
-        case 'Paid': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Paid</Badge>;
+        case 'Paid': return <Badge variant="default" className="bg-primary hover:bg-primary/90">Paid</Badge>;
         case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending</Badge>;
         case 'Reimbursed': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600">Reimbursed</Badge>;
         case 'Declined': return <Badge variant="destructive">Declined</Badge>;
@@ -556,12 +556,12 @@ export default function ExpensesPage() {
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Budget Variance</CardTitle>
                         {dashboardStats.budgetVariance >= 0 ? 
-                            <TrendingDown className="h-4 w-4 text-green-600" /> : 
+                            <TrendingDown className="h-4 w-4 text-primary" /> : 
                             <TrendingUp className="h-4 w-4 text-destructive" />
                         }
                     </CardHeader>
                     <CardContent>
-                        <div className={cn("text-2xl font-bold", dashboardStats.budgetVariance >= 0 ? 'text-green-600' : 'text-destructive')}>
+                        <div className={cn("text-2xl font-bold", dashboardStats.budgetVariance >= 0 ? 'text-primary' : 'text-destructive')}>
                             {formatCurrency(Math.abs(dashboardStats.budgetVariance))}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -849,7 +849,7 @@ export default function ExpensesPage() {
                                         <TableCell className="text-right space-x-2">
                                             {expense.status === 'Pending Approval' ? (
                                                 <>
-                                                    <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700" onClick={() => handleUpdateStatus(expense.id, 'Paid')}>
+                                                    <Button variant="ghost" size="sm" className="text-primary hover:text-primary/90" onClick={() => handleUpdateStatus(expense.id, 'Paid')}>
                                                         <CheckCircle className="mr-2 h-4 w-4" />
                                                         Approve
                                                     </Button>
