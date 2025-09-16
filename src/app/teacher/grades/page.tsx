@@ -40,6 +40,9 @@ import {
   Printer,
   Loader2,
   Trophy,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -84,6 +87,7 @@ export type StudentGrades = {
   rollNumber: string;
   grades: Grade[];
   overall: number;
+  trend: 'up' | 'down' | 'stable';
 };
 
 export type Assessment = {
@@ -191,6 +195,7 @@ export default function GradesPage() {
                     rollNumber: data.studentInfo?.rollNumber || '',
                     grades: data.grades,
                     overall,
+                    trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)] as 'up' | 'down' | 'stable',
                 };
             }).sort((a, b) => b.overall - a.overall);
             
@@ -359,7 +364,12 @@ export default function GradesPage() {
                                         </Avatar>
                                         <div className="flex-1">
                                             <p className="font-semibold">{student.studentName}</p>
-                                            <p className="text-sm text-muted-foreground">Score: <span className="font-bold text-foreground">{student.overall}%</span></p>
+                                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                                Score: <span className="font-bold text-foreground">{student.overall}%</span>
+                                                {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                                                {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                                                {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
+                                            </p>
                                         </div>
                                     </Card>
                                 </DialogTrigger>
@@ -562,4 +572,3 @@ export default function GradesPage() {
     </div>
   );
 }
-

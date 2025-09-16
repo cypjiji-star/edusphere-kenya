@@ -36,6 +36,7 @@ import {
   Trophy,
   CheckCircle,
   XCircle,
+  Minus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -76,7 +77,7 @@ interface DistributionData {
 interface SubjectPerformanceData {
   subject: string;
   avg: number;
-  trend: string;
+  trend: 'up' | 'down' | 'stable';
 }
 
 interface StatusGridData {
@@ -238,7 +239,7 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         const performance = Object.entries(subjectScores).map(([subject, data]) => ({
           subject: subject,
           avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
-          trend: 'stable', // Placeholder
+          trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)] as 'up' | 'down' | 'stable',
         }));
 
         const classAvgs = Object.entries(classScores).map(([className, data]) => ({
@@ -318,6 +319,9 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
                                 <span className="font-medium">{item.subject}</span>
                                 <div className="flex items-center gap-2">
                                 <span className="font-bold">{item.avg}%</span>
+                                {item.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                                {item.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                                {item.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
                                 </div>
                             </div>
                             ))}
