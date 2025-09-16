@@ -3,9 +3,9 @@
   "placeholderImages": [
     {
       "id": "hero",
-      "description": "An optimistic Kenyan student smiling and using a tablet in a modern classroom.",
-      "imageUrl": "https://picsum.photos/seed/edusphere-hero/1200/800",
-      "imageHint": "kenyan student"
+      "description": "A group of happy, diverse Kenyan primary school students in a classroom, engaged in learning.",
+      "imageUrl": "https://picsum.photos/seed/classroom-children/1200/800",
+      "imageHint": "kenyan children classroom"
     },
     {
       "id": "feature-portal",
