@@ -153,7 +153,12 @@ export default function LibraryPage() {
 
         await updateDoc(resourceRef, { 
             availableCopies: newAvailableCopies,
-            status: newStatus 
+            status: newStatus,
+            borrowedBy: [{
+                teacherId: teacherId,
+                teacherName: user?.displayName || "Unknown Teacher",
+                quantity: quantity
+            }]
         });
 
         // Add to user's borrowed items

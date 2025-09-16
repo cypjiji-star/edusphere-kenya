@@ -37,7 +37,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Library, Search, PlusCircle, Book, FileText, Newspaper, Upload, Edit, Trash2, Loader2, Filter, ChevronDown, FileDown, Printer, AlertTriangle } from 'lucide-react';
+import { Library, Search, PlusCircle, Book, FileText, Newspaper, Upload, Edit, Trash2, Loader2, Filter, ChevronDown, FileDown, Printer, AlertTriangle, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,6 +48,7 @@ import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { Resource, ResourceType, ResourceStatus } from '@/app/teacher/library/types';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const resourceTypes: ResourceType[] = ['Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 const statuses: ResourceStatus[] = ['Available', 'Out', 'Digital'];
@@ -64,7 +65,8 @@ const getStatusBadge = (resource: Resource) => {
         return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Digital</Badge>;
     }
     if (resource.availableCopies === 0) {
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Checked Out</Badge>;
+        const borrower = resource.borrowedBy?.[0]?.teacherName || 'a teacher';
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Out with {borrower}</Badge>;
     }
     return <Badge className="bg-green-100 text-green-800 border-green-200">Available ({resource.availableCopies}/{resource.totalCopies})</Badge>;
 }
@@ -159,6 +161,7 @@ export default function AdminLibraryPage() {
 
     const [dbSubjects, setDbSubjects] = React.useState<string[]>([]);
     const [dbGrades, setDbGrades] = React.useState<string[]>([]);
+    const [allUsers, setAllUsers] = React.useState<{id: string, name: string}[]>([]);
 
     React.useEffect(() => {
         if (!schoolId) {
@@ -188,11 +191,18 @@ export default function AdminLibraryPage() {
             setDbGrades([...new Set(gradeNames)]);
         });
 
+        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
+        const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
+            const userNames = snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
+            setAllUsers(userNames);
+        });
+
 
         return () => {
             unsubscribe();
             unsubSubjects();
             unsubClasses();
+            unsubUsers();
         };
     }, [schoolId]);
 
@@ -298,70 +308,119 @@ export default function AdminLibraryPage() {
             <Card className="border-destructive/50"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-destructive">Overdue</CardTitle><AlertTriangle className="h-4 w-4 text-destructive"/></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{dashboardStats.overdue}</div></CardContent></Card>
        </div>
 
-      <Card>
-        <CardHeader>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex w-full items-center gap-2 md:max-w-sm">
-                    <div className="relative w-full">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search by title, author..." className="w-full bg-background pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                    </div>
-                </div>
-                <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-                    <Select value={filteredType} onValueChange={setFilteredType}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{['All Types', ...resourceTypes].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-                    <Select value={filteredSubject} onValueChange={setFilteredSubject}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{['All Subjects', ...dbSubjects].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
-                    <Select value={filteredStatus} onValueChange={setFilteredStatus}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="All Statuses">All Statuses</SelectItem>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
-                </div>
-                 <div className="flex w-full md:w-auto items-center gap-2">
-                    <Dialog>
-                        <DialogTrigger asChild><Button><PlusCircle className="mr-2"/>Add Resource</Button></DialogTrigger>
-                        <DialogContent className="sm:max-w-xl">
-                            <DialogHeader><DialogTitle>Add New Library Resource</DialogTitle><DialogDescription>Fill in the details for the new resource.</DialogDescription></DialogHeader>
-                            <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-title">Title</Label><Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div><div className="space-y-2"><Label htmlFor="new-author">Author / Publisher</Label><Input id="new-author" value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} /></div></div>
-                                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-type">Type</Label><Select value={newType} onValueChange={(v: ResourceType) => setNewType(v)}><SelectTrigger id="new-type"><SelectValue placeholder="Select type..." /></SelectTrigger><SelectContent>{resourceTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label htmlFor="new-subject">Subject</Label><Select value={newSubject} onValueChange={setNewSubject}><SelectTrigger id="new-subject"><SelectValue placeholder="Select subject..." /></SelectTrigger><SelectContent>{dbSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div></div>
-                                <div className="space-y-2"><Label>Applicable Grades/Forms</Label><MultiSelect options={dbGrades.map(g => ({value: g, label: g}))} selected={newGrades} onChange={setNewGrades} placeholder="Select grades..." /></div>
-                                <div className="space-y-2"><Label htmlFor="new-copies">Number of Copies</Label><Input id="new-copies" type="number" value={newCopies} onChange={(e) => setNewCopies(e.target.value)} placeholder="e.g., 10"/></div>
-                                <div className="space-y-2"><Label htmlFor="new-desc">Description</Label><Textarea id="new-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} /></div>
+        <Tabs defaultValue="inventory">
+            <TabsList>
+                <TabsTrigger value="inventory">Inventory</TabsTrigger>
+                <TabsTrigger value="checkin">Check-in / Returns</TabsTrigger>
+            </TabsList>
+            <TabsContent value="inventory" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <div className="flex w-full items-center gap-2 md:max-w-sm">
+                                <div className="relative w-full">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input type="search" placeholder="Search by title, author..." className="w-full bg-background pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                </div>
                             </div>
-                            <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Add Resource</Button></DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-            </div>
-        </CardHeader>
-        <CardContent>
-            {isLoading ? (
-                <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
-            ) : filteredResources.length > 0 ? (
-                <div className="w-full overflow-auto rounded-lg border">
-                    <Table><TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Type</TableHead><TableHead>Subject</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {filteredResources.map((res) => {
-                                const Icon = typeIcons[res.type];
-                                return (
-                                <TableRow key={res.id}>
-                                    <TableCell className="font-medium"><div className="flex items-center gap-3"><Icon className="h-5 w-5 text-primary/80 hidden sm:block" />{res.title}</div></TableCell>
-                                    <TableCell>{res.type}</TableCell>
-                                    <TableCell>{res.subject}</TableCell>
-                                    <TableCell>{getStatusBadge(res)}</TableCell>
-                                    <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setEditingResource(res)}><Edit className="mr-2 h-4 w-4" />Edit</Button></TableCell>
-                                </TableRow>
-                            )})}
-                        </TableBody>
-                    </Table>
-                </div>
-            ) : (
-                <div className="flex min-h-[300px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                    <div className="text-center text-muted-foreground">
-                        <Search className="mx-auto h-12 w-12" />
-                        <h3 className="mt-4 text-lg font-semibold">No Resources Found</h3>
-                        <p className="mt-1 text-sm">Your search or filters returned no results.</p>
-                    </div>
-                </div>
-            )}
-        </CardContent>
-      </Card>
+                            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                                <Select value={filteredType} onValueChange={setFilteredType}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{['All Types', ...resourceTypes].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+                                <Select value={filteredSubject} onValueChange={setFilteredSubject}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent>{['All Subjects', ...dbSubjects].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                <Select value={filteredStatus} onValueChange={setFilteredStatus}><SelectTrigger className="w-full md:w-[150px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="All Statuses">All Statuses</SelectItem>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                            </div>
+                            <div className="flex w-full md:w-auto items-center gap-2">
+                                <Dialog>
+                                    <DialogTrigger asChild><Button><PlusCircle className="mr-2"/>Add Resource</Button></DialogTrigger>
+                                    <DialogContent className="sm:max-w-xl">
+                                        <DialogHeader><DialogTitle>Add New Library Resource</DialogTitle><DialogDescription>Fill in the details for the new resource.</DialogDescription></DialogHeader>
+                                        <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                                            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-title">Title</Label><Input id="new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div><div className="space-y-2"><Label htmlFor="new-author">Author / Publisher</Label><Input id="new-author" value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} /></div></div>
+                                            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="new-type">Type</Label><Select value={newType} onValueChange={(v: ResourceType) => setNewType(v)}><SelectTrigger id="new-type"><SelectValue placeholder="Select type..." /></SelectTrigger><SelectContent>{resourceTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label htmlFor="new-subject">Subject</Label><Select value={newSubject} onValueChange={setNewSubject}><SelectTrigger id="new-subject"><SelectValue placeholder="Select subject..." /></SelectTrigger><SelectContent>{dbSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div></div>
+                                            <div className="space-y-2"><Label>Applicable Grades/Forms</Label><MultiSelect options={dbGrades.map(g => ({value: g, label: g}))} selected={newGrades} onChange={setNewGrades} placeholder="Select grades..." /></div>
+                                            <div className="space-y-2"><Label htmlFor="new-copies">Number of Copies</Label><Input id="new-copies" type="number" value={newCopies} onChange={(e) => setNewCopies(e.target.value)} placeholder="e.g., 10"/></div>
+                                            <div className="space-y-2"><Label htmlFor="new-desc">Description</Label><Textarea id="new-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} /></div>
+                                        </div>
+                                        <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Add Resource</Button></DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+                        ) : filteredResources.length > 0 ? (
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table><TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Type</TableHead><TableHead>Subject</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {filteredResources.map((res) => {
+                                            const Icon = typeIcons[res.type];
+                                            return (
+                                            <TableRow key={res.id}>
+                                                <TableCell className="font-medium"><div className="flex items-center gap-3"><Icon className="h-5 w-5 text-primary/80 hidden sm:block" />{res.title}</div></TableCell>
+                                                <TableCell>{res.type}</TableCell>
+                                                <TableCell>{res.subject}</TableCell>
+                                                <TableCell>{getStatusBadge(res)}</TableCell>
+                                                <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setEditingResource(res)}><Edit className="mr-2 h-4 w-4" />Edit</Button></TableCell>
+                                            </TableRow>
+                                        )})}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        ) : (
+                            <div className="flex min-h-[300px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                                <div className="text-center text-muted-foreground">
+                                    <Search className="mx-auto h-12 w-12" />
+                                    <h3 className="mt-4 text-lg font-semibold">No Resources Found</h3>
+                                    <p className="mt-1 text-sm">Your search or filters returned no results.</p>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                 </Card>
+            </TabsContent>
+            <TabsContent value="checkin" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Process Book Returns</CardTitle>
+                        <CardDescription>Select a user and the book they are returning.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Select User (Student or Teacher)</Label>
+                                <Select>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Search user by name..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {allUsers.map(user => (
+                                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Select Book</Label>
+                                <Select disabled>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a book to return..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="book-1">Sapiens</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="return-quantity">Quantity to Return</Label>
+                            <Input id="return-quantity" type="number" placeholder="1" />
+                        </div>
+                         <Button disabled>Process Return</Button>
+                    </CardContent>
+                 </Card>
+            </TabsContent>
+        </Tabs>
       <EditResourceDialog resource={editingResource} open={!!editingResource} onOpenChange={(open) => !open && setEditingResource(null)} onSave={handleUpdateResource} onDelete={handleDeleteResource} />
     </div>
   );

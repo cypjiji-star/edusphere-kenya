@@ -16,4 +16,5 @@ export type Resource = {
   recommended?: boolean;
   totalCopies: number;
   availableCopies: number;
+  borrowedBy?: { teacherId: string; teacherName: string; quantity: number }[];
 };
