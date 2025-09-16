@@ -220,7 +220,7 @@ export default function FeesPage() {
   const [filteredStudents, setFilteredStudents] = React.useState<StudentFeeProfile[]>([]);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [classFilter, setClassFilter] = React.useState('All Classes');
-  const [statusFilter, setStatusFilter] = React.useState('All Statuses');
+  const [statusFilter, setStatusFilter] = React.useState<string>('All Statuses');
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [selectedStudent, setSelectedStudent] = React.useState<StudentFeeProfile | null>(null);
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
@@ -678,8 +678,8 @@ export default function FeesPage() {
               <TabsContent value="students">
                   <Card>
                       <CardHeader>
-                          <CardTitle>Student Fee Accounts</CardTitle>
-                          <CardDescription>Search for a student to view their detailed fee profile and payment history.</CardDescription>
+                          <CardTitle>Debtors & Student Accounts</CardTitle>
+                          <CardDescription>Search for a student to view their detailed fee profile and payment history. Filter by status to see a list of debtors.</CardDescription>
                           <div className="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                               <div className="relative w-full md:max-w-sm">
                                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -690,7 +690,7 @@ export default function FeesPage() {
                                       <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
                                       <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                                   </Select>
-                                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                  <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v)}>
                                       <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
                                       <SelectContent>
                                           <SelectItem value="All Statuses">All Statuses</SelectItem>
