@@ -80,7 +80,6 @@ const actionTypeConfig: Record<ActionType, { icon: React.ElementType, color: str
     'General': { icon: FileClock, color: 'text-gray-500' },
 }
 
-const users = ['All Users', 'Admin User', 'Finance Officer', 'Ms. Wanjiku', 'System'];
 const actionTypes: (ActionType | 'All Types')[] = ['All Types', 'User Management', 'Finance', 'Academics', 'Settings', 'Security', 'Health'];
 
 export default function AuditLogsPage() {
@@ -89,6 +88,7 @@ export default function AuditLogsPage() {
   const [date, setDate] = React.useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [userFilter, setUserFilter] = React.useState('All Users');
+  const [users, setUsers] = React.useState<string[]>(['All Users']);
   const [actionFilter, setActionFilter] = React.useState<ActionType | 'All Types'>('All Types');
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
 
@@ -98,6 +98,11 @@ export default function AuditLogsPage() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
         setLogs(fetchedLogs);
+        
+        // Dynamically populate users filter
+        const userNames = new Set(fetchedLogs.map(log => log.user.name));
+        setUsers(['All Users', ...Array.from(userNames)]);
+
         setIsLoading(false);
     }, (error) => {
         console.error("Error fetching audit logs: ", error);
@@ -111,7 +116,9 @@ export default function AuditLogsPage() {
       if (!log.timestamp) return false;
       const recordDate = log.timestamp.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
-      const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof log.details === 'string' && log.details.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            (typeof log.details === 'string' && log.details.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                            (log.schoolId && log.schoolId.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesUser = userFilter === 'All Users' || log.user.name === userFilter;
       const matchesAction = actionFilter === 'All Types' || log.actionType === actionFilter;
 
@@ -139,7 +146,7 @@ export default function AuditLogsPage() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder="Search logs..."
+                                    placeholder="Search logs by keyword, school ID..."
                                     className="w-full bg-background pl-8"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -264,7 +271,7 @@ export default function AuditLogsPage() {
                                                             <Badge variant="outline">{log.schoolId || 'Platform'}</Badge>
                                                         </TableCell>
                                                         <TableCell>
-                                                            {log.timestamp.toDate().toLocaleString()}
+                                                            {log.timestamp?.toDate().toLocaleString()}
                                                         </TableCell>
                                                         <TableCell className="text-muted-foreground max-w-xs truncate">
                                                             {typeof log.details === 'string' ? log.details : `Value changed`}
@@ -357,7 +364,7 @@ export default function AuditLogsPage() {
                                 <CalendarIcon className="h-5 w-5 mt-0.5 text-muted-foreground"/>
                                 <div>
                                     <p className="text-muted-foreground">Timestamp</p>
-                                    <p className="font-medium">{selectedLog.timestamp.toDate().toLocaleString()}</p>
+                                    <p className="font-medium">{selectedLog.timestamp?.toDate().toLocaleString()}</p>
                                 </div>
                             </div>
                             {selectedLog.ipAddress && (
