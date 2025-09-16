@@ -425,7 +425,7 @@ export function ReportGenerator() {
                                   <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                                       <div className="flex gap-2"><span className="font-medium text-muted-foreground">Name:</span> <p>{individualReport.student.studentName}</p></div>
                                       <div className="flex gap-2"><span className="font-medium text-muted-foreground">Class:</span> <p>{teacherClasses.find(c => c.id === selectedClass)?.name}</p></div>
-                                      <div className="flex gap-2"><span className="font-medium text-muted-foreground">Roll No:</span> <p>{individualReport.student.rollNumber}</p></div>
+                                      <div className="flex gap-2"><span className="font-medium text-muted-foreground">Admission No:</span> <p>{individualReport.student.rollNumber}</p></div>
                                       <div className="flex gap-2"><span className="font-medium text-muted-foreground">Overall:</span> <Badge>{individualReport.student.overall}%</Badge></div>
                                   </div>
                               </div>
@@ -453,9 +453,15 @@ export function ReportGenerator() {
                               </div>
 
                               <div className="mt-6">
-                                  <h3 className="font-semibold mb-2">Teacher's Comments</h3>
-                                  <Textarea readOnly value="An excellent term for this student, showing great improvement in all areas. Keep up the fantastic work and continue to participate actively in class discussions." className="bg-muted/50" />
+                                  <h3 className="font-semibold mb-2">Principal's Remarks</h3>
+                                  <Textarea placeholder="Principal's remarks will be shown here..."/>
                               </div>
+                              <div className="mt-6 flex justify-end">
+                                <div className="w-48 h-16 border-b border-dashed flex items-end justify-center text-sm text-muted-foreground">
+                                    Principal's Signature
+                                </div>
+                              </div>
+                              
 
                               <Separator className="my-6"/>
                               

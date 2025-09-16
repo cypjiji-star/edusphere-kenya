@@ -144,7 +144,7 @@ export default function AdminGradesPage() {
   const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>(initialGradingScale);
   const { toast } = useToast();
   const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
-  const [activeTab, setActiveTab] = React.useState('reports');
+  const [activeTab, setActiveTab] = React.useState('exams');
   const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
   const [selectedClassForRanking, setSelectedClassForRanking] = React.useState<string>('');
   const [selectedSubjectForRanking, setSelectedSubjectForRanking] = React.useState<string>('All Subjects');
@@ -529,10 +529,10 @@ export default function AdminGradesPage() {
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex mb-6">
+            <TabsTrigger value="exams">Exam Dashboard</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
             <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
-            <TabsTrigger value="exams">Exam Dashboard</TabsTrigger>
           </TabsList>
 
           <TabsContent value="reports">
