@@ -60,7 +60,6 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { DateRangePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { firestore, auth } from '@/lib/firebase';
 import { 
@@ -101,6 +100,8 @@ import { GradeSummaryWidget } from './grade-summary-widget';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
 
+// Import the improved DateRangePicker
+import { DateRangePicker } from '@/components/ui/date-picker';
 
 type GradeStatus = 'Graded' | 'Pending';
 
@@ -306,7 +307,10 @@ export default function AdminGradesPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const { user } = useAuth();
-  const [date, setDate] = React.useState<DateRange | undefined>();
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  });
   const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>(initialGradingScale);
   const { toast } = useToast();
   const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
@@ -326,7 +330,6 @@ export default function AdminGradesPage() {
   const [currentAssessments, setCurrentAssessments] = React.useState<Exam[]>([]);
   const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
   const [isSavingScale, setIsSavingScale] = React.useState(false);
-
 
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -348,7 +351,10 @@ export default function AdminGradesPage() {
         setNewExamTitle(editingExam.title);
         setNewExamTerm(editingExam.term);
         setNewExamClass(editingExam.classId || '');
-        setDate({ from: editingExam.startDate.toDate(), to: editingExam.endDate.toDate() });
+        setDate({ 
+          from: editingExam.startDate.toDate(), 
+          to: editingExam.endDate.toDate() 
+        });
         setNewExamNotes(editingExam.notes || '');
         setIsExamDialogOpen(true);
     } else {
@@ -356,7 +362,7 @@ export default function AdminGradesPage() {
         setNewExamTitle('');
         setNewExamTerm(academicTerms[4]);
         setNewExamClass('');
-        setDate(undefined);
+        setDate({ from: undefined, to: undefined });
         setNewExamNotes('');
     }
 }, [editingExam, academicTerms]);
@@ -580,13 +586,15 @@ export default function AdminGradesPage() {
     }
     setIsSavingExam(true);
     
+    const endDate = date.to || date.from;
+    
     const examData = {
         title: newExamTitle,
         term: newExamTerm,
         classId: newExamClass,
         className: classes.find(c => c.id === newExamClass)?.name || 'N/A',
         startDate: Timestamp.fromDate(date.from),
-        endDate: Timestamp.fromDate(date.to || date.from),
+        endDate: Timestamp.fromDate(endDate),
         notes: newExamNotes,
         status: editingExam ? editingExam.status : 'Draft',
       };
@@ -611,7 +619,7 @@ export default function AdminGradesPage() {
         actionType: 'Academics',
         description,
         user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-        details: `Term: ${examData.term}, Dates: ${date.from.toLocaleDateString()} - ${(date.to || date.from).toLocaleDateString()}`,
+        details: `Term: ${examData.term}, Dates: ${date.from.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
       });
 
       setEditingExam(null);
@@ -677,6 +685,7 @@ export default function AdminGradesPage() {
         case 'Active': return 'bg-blue-500';
         case 'Locked': return 'bg-yellow-500';
         case 'Published': return 'bg-green-600';
+        default: return 'bg-gray-500';
     }
   }
   
@@ -714,7 +723,6 @@ export default function AdminGradesPage() {
     }
   };
 
-
   const renderExamActions = (exam: Exam) => {
     switch (exam.status) {
         case 'Draft':
@@ -730,12 +738,12 @@ export default function AdminGradesPage() {
     }
   };
   
-    const topStudents = studentsForRanking.slice(0, 3);
+  const topStudents = studentsForRanking.slice(0, 3);
     
-    const classAverage = React.useMemo(() => {
-      if (studentsForRanking.length === 0) return 0;
-      const total = studentsForRanking.reduce((acc, student) => acc + student.overall, 0);
-      return Math.round(total / studentsForRanking.length);
+  const classAverage = React.useMemo(() => {
+    if (studentsForRanking.length === 0) return 0;
+    const total = studentsForRanking.reduce((acc, student) => acc + student.overall, 0);
+    return Math.round(total / studentsForRanking.length);
   }, [studentsForRanking]);
 
   const subjectPerformance: SubjectPerformance[] = React.useMemo(() => {
@@ -770,7 +778,6 @@ export default function AdminGradesPage() {
   }, [studentsForRanking]);
 
   const streamComparisonData = React.useMemo(() => {
-    // This is mock data. In a real app, you would fetch and compute this.
     return [
       { name: 'Form 3 North', avg: 72 },
       { name: 'Form 3 South', avg: 68 },
@@ -805,7 +812,7 @@ export default function AdminGradesPage() {
           </div>
           <Dialog open={isExamDialogOpen} onOpenChange={(open) => {
               setIsExamDialogOpen(open);
-              if (!open) setEditingExam(null); // Reset editing state on close
+              if (!open) setEditingExam(null);
           }}>
             <DialogTrigger asChild>
               <Button>
@@ -870,103 +877,381 @@ export default function AdminGradesPage() {
           </Dialog>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex mb-6">
-            <TabsTrigger value="exams">Exam Dashboard</TabsTrigger>
-            <TabsTrigger value="requests">Edit Requests</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="exams">Exams</TabsTrigger>
+            <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
+            <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="reports">
-            <ReportGenerator />
+          <TabsContent value="exams">
+            <Card>
+              <CardHeader>
+                <CardTitle>Exam Management</CardTitle>
+                <CardDescription>Create and manage examination schedules for different terms and classes.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search exams..."
+                      className="pl-8"
+                      value={examSearchTerm}
+                      onChange={(e) => setExamSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Exam Title</TableHead>
+                        <TableHead>Term</TableHead>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Date Range</TableHead>
+                        <TableHead>Progress</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredExams.map((exam) => (
+                        <TableRow key={exam.id}>
+                          <TableCell className="font-medium">{exam.title}</TableCell>
+                          <TableCell>{exam.term}</TableCell>
+                          <TableCell>{exam.className}</TableCell>
+                          <TableCell>
+                            {exam.startDate.toDate().toLocaleDateString()} - {exam.endDate.toDate().toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Progress value={exam.progress} className="w-16" />
+                              <span className="text-sm">{exam.progress}%</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusBadgeColor(exam.status)}>
+                              {exam.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Settings className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEditingExam(exam)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                {renderExamActions(exam)}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleArchiveExam(exam)}>
+                                  <Archive className="mr-2 h-4 w-4" />
+                                  Archive
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
           
-          <TabsContent value="requests">
-             <EditRequestsTab schoolId={schoolId!} />
-          </TabsContent>
-
-          <TabsContent value="exams">
-            {selectedExam ? (
-                <GradeAnalysisCharts exam={selectedExam} onBack={() => setSelectedExam(null)} />
-            ) : (
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5 text-primary"/>Exam Dashboard &amp; Schedules</CardTitle>
-                    <CardDescription>View, edit, or clone existing examination schedules.</CardDescription>
-                    <div className="relative w-full md:max-w-sm pt-4">
-                        <Search className="absolute left-2.5 top-6 h-4 w-4 text-muted-foreground" />
-                        <Input type="search" placeholder="Search by title, term, or class..." className="w-full bg-background pl-8" value={examSearchTerm} onChange={(e) => setExamSearchTerm(e.target.value)} />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Exam Title</TableHead><TableHead>Term</TableHead><TableHead>Class</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Progress</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                            {filteredExams.map(exam => (
-                                <TableRow key={exam.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedExam(exam)}>
-                                    <TableCell className="font-medium">{exam.title}</TableCell>
-                                    <TableCell>{exam.term}</TableCell>
-                                    <TableCell>{exam.className}</TableCell>
-                                    <TableCell>{`${exam.startDate.toDate().toLocaleDateString()} - ${exam.endDate.toDate().toLocaleDateString()}`}</TableCell>
-                                    <TableCell><Badge variant="outline" className={`text-white ${getStatusBadgeColor(exam.status)}`}>{exam.status}</Badge></TableCell>
-                                     <TableCell><div className="flex items-center gap-2"><Progress value={exam.progress} className="w-24" /><span className="text-xs text-muted-foreground">{exam.progress}%</span></div></TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}><ChevronDown className="h-4 w-4"/></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                {renderExamActions(exam)}
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingExam(exam); }}><Edit className="mr-2 h-4 w-4"/> Edit Details</DropdownMenuItem>
-                                                <DropdownMenuItem disabled><Copy className="mr-2 h-4 w-4"/> Clone Exam</DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleArchiveExam(exam); }}><Archive className="mr-2 h-4 w-4"/> Archive</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-             </Card>
-             )}
-          </TabsContent>
-          <TabsContent value="settings">
+          <TabsContent value="ranking">
             <Card>
+              <CardHeader>
+                <CardTitle>Class Ranking</CardTitle>
+                <CardDescription>View and analyze student performance across classes and subjects.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                    <SelectTrigger className="w-full sm:w-[200px]">
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={selectedSubjectForRanking} onValueChange={setSelectedSubjectForRanking}>
+                    <SelectTrigger className="w-full sm:w-[200px]">
+                      <SelectValue placeholder="Select subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjectsForRanking.map(subject => (
+                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex gap-2 ml-auto">
+                    <Button variant="outline" onClick={() => handleExportRanking('PDF')}>
+                      <FileDown className="mr-2 h-4 w-4" />
+                      PDF
+                    </Button>
+                    <Button variant="outline" onClick={() => handleExportRanking('CSV')}>
+                      <FileDown className="mr-2 h-4 w-4" />
+                      CSV
+                    </Button>
+                  </div>
+                </div>
+                
+                {isLoadingRanking ? (
+                  <div className="flex justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : studentsForRanking.length > 0 ? (
+                  <div className="space-y-6">
+                    <GradeSummaryWidget 
+                      students={studentsForRanking} 
+                    />
+                    
+                    <div className="rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Rank</TableHead>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Overall Grade</TableHead>
+                            <TableHead>Trend</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {studentsForRanking.map((student, index) => (
+                            <TableRow key={student.id}>
+                              <TableCell className="font-medium">{index + 1}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage src={student.avatarUrl} />
+                                    <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <div className="font-medium">{student.studentName}</div>
+                                    <div className="text-sm text-muted-foreground">{student.rollNumber}</div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="font-bold text-lg">{student.overall}%</div>
+                                  <Badge variant="outline">{getGradeFromScore(student.overall)}</Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {student.trend === 'up' ? (
+                                  <TrendingUp className="h-4 w-4 text-green-500" />
+                                ) : student.trend === 'down' ? (
+                                  <TrendingDown className="h-4 w-4 text-red-500" />
+                                ) : (
+                                  <Minus className="h-4 w-4 text-gray-500" />
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="outline" size="sm" onClick={() => setSelectedStudentForDetails(student)}>
+                                  View Details
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center p-8 text-muted-foreground">
+                    No grade data available for the selected class.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="gradebook">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gradebook</CardTitle>
+                <CardDescription>Manage and review grades for current assessments.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isGradebookLoading ? (
+                  <div className="flex justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Select class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">
+                        {currentAssessments.length} active assessments
+                      </span>
+                    </div>
+                    
+                    {currentAssessments.length > 0 ? (
+                      <div className="rounded-lg border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Assessment</TableHead>
+                              <TableHead>Term</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {currentAssessments.map((assessment) => (
+                              <TableRow key={assessment.id}>
+                                <TableCell className="font-medium">{assessment.title}</TableCell>
+                                <TableCell>{assessment.term}</TableCell>
+                                <TableCell>
+                                  {assessment.startDate.toDate().toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={getStatusBadgeColor(assessment.status)}>
+                                    {assessment.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="outline" size="sm">
+                                    View Grades
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-center p-8 text-muted-foreground">
+                        No active assessments for the selected class.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="settings">
+            <div className="grid gap-6">
+              <Card>
                 <CardHeader>
-                    <CardTitle>Grading Scale & Policies</CardTitle>
-                    <CardDescription>Define the grade boundaries for the entire school.</CardDescription>
+                  <CardTitle>Grading Scale</CardTitle>
+                  <CardDescription>Configure the school-wide grading scale for converting scores to grades.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                     <div className="w-full max-w-lg space-y-4">
-                        {gradingScale.map((scale, index) => (
-                            <div key={index} className="grid grid-cols-3 items-center gap-4">
-                                <Input value={scale.grade} readOnly className="font-semibold bg-muted" />
-                                <div className="flex items-center gap-2">
-                                    <Label htmlFor={`min-${index}`} className="shrink-0">Min</Label>
-                                    <Input id={`min-${index}`} type="number" value={scale.min} onChange={(e) => handleGradingScaleChange(index, 'min', Number(e.target.value))} />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Label htmlFor={`max-${index}`} className="shrink-0">Max</Label>
-                                    <Input id={`max-${index}`} type="number" value={scale.max} onChange={(e) => handleGradingScaleChange(index, 'max', Number(e.target.value))} />
-                                </div>
-                            </div>
-                        ))}
-                        <Button variant="outline" size="sm" onClick={addGradingRow} className="mt-4">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add Row
-                        </Button>
+                  <div className="space-y-4">
+                    <div className="rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Grade</TableHead>
+                            <TableHead>Minimum Score</TableHead>
+                            <TableHead>Maximum Score</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {gradingScale.map((item, index) => (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <Input
+                                  value={item.grade}
+                                  onChange={(e) => {
+                                    const newScale = [...gradingScale];
+                                    newScale[index].grade = e.target.value;
+                                    setGradingScale(newScale);
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={item.min}
+                                  onChange={(e) => handleGradingScaleChange(index, 'min', parseInt(e.target.value) || 0)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={item.max}
+                                  onChange={(e) => handleGradingScaleChange(index, 'max', parseInt(e.target.value) || 0)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {index > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      const newScale = gradingScale.filter((_, i) => i !== index);
+                                      setGradingScale(newScale);
+                                    }}
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
+                    
+                    <Button variant="outline" onClick={addGradingRow}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Grade Level
+                    </Button>
+                  </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onClick={handleSaveScale} disabled={isSavingScale}>
-                        {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                        Save Scale
-                    </Button>
+                  <Button onClick={handleSaveScale} disabled={isSavingScale}>
+                    {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Grading Scale
+                  </Button>
                 </CardFooter>
-            </Card>
+              </Card>
+              
+              <EditRequestsTab schoolId={schoolId || ''} />
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Report Generation</CardTitle>
+                  <CardDescription>Generate comprehensive reports for academic performance analysis.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ReportGenerator/>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
     </div>

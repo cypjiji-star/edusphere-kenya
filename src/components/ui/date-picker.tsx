@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -27,14 +26,6 @@ export function DateRangePicker({
   onSelect,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = React.useState(false);
-
-  const handleSelect = (range: DateRange | undefined) => {
-    onSelect(range);
-    // Close the popover once a full range is selected
-    if (range?.from && range?.to) {
-      setIsOpen(false);
-    }
-  };
 
   return (
     <div className={cn('grid gap-2', className)}>
@@ -69,9 +60,19 @@ export function DateRangePicker({
             mode="range"
             defaultMonth={selected?.from}
             selected={selected}
-            onSelect={handleSelect}
+            onSelect={onSelect}
             numberOfMonths={2}
           />
+          <div className="p-3 border-t">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full"
+              onClick={() => setIsOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
         </PopoverContent>
       </Popover>
     </div>
