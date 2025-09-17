@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
@@ -5,6 +6,7 @@ import { ClientPageLoader } from '@/components/ui/client-page-loader';
 import { Suspense } from 'react';
 import { AuthProvider } from '@/context/auth-context';
 import { SplashScreen } from '@/components/layout/splash-screen';
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
@@ -32,7 +34,7 @@ export default function RootLayout({
         />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"></link>
-        <link rel="icon" href="/icons/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
         <meta name="theme-color" content="#2563eb" />
       </head>
       <body className="font-body antialiased">
@@ -42,6 +44,19 @@ export default function RootLayout({
           <Suspense>{children}</Suspense>
           <Toaster />
         </AuthProvider>
+        <Script id="service-worker-registration">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                  console.log('SW registered: ', registration);
+                }).catch(registrationError => {
+                  console.log('SW registration failed: ', registrationError);
+                });
+              });
+            }
+          `}
+        </Script>
       </body>
     </html>
   );
