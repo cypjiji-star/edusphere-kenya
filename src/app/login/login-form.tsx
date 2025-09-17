@@ -10,7 +10,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { auth, firestore } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, DocumentData, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { logAuditEvent } from '@/lib/audit-log.service';
@@ -52,9 +52,12 @@ export function LoginForm() {
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data() as DocumentData;
           
-          // The role in the document should match the one selected in the login form
           if (userData.role?.toLowerCase() === role) {
             userFound = true;
+            
+            // Update lastLogin timestamp
+            await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
+
             await logAuditEvent({
               schoolId: schoolCode,
               action: 'USER_LOGIN_SUCCESS',

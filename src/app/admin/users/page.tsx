@@ -60,6 +60,7 @@ import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
+import { Timestamp } from 'firebase/firestore';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -80,8 +81,8 @@ type User = {
     avatarUrl: string;
     role: UserRole;
     status: UserStatus;
-    lastLogin: string;
-    createdAt: string;
+    lastLogin: Timestamp | 'Never';
+    createdAt: Timestamp;
     class?: string;
     parents?: ParentLink[];
 };
@@ -146,7 +147,7 @@ export default function UserManagementPage() {
         if (!schoolId) return;
         setClientReady(true);
         
-        const unsubAdmins = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Admin')), (snapshot) => {
+        const unsubAdmins = onSnapshot(query(collection(firestore, 'schools', schoolId, 'admins')), (snapshot) => {
             setAdminUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
         });
 
@@ -321,7 +322,12 @@ export default function UserManagementPage() {
         if (!schoolId || !adminUser) return;
         if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
             try {
-                const collectionName = userRole === 'Student' ? 'students' : userRole === 'Parent' ? 'parents' : 'users';
+                let collectionName;
+                if (userRole === 'Student') collectionName = 'students';
+                else if (userRole === 'Parent') collectionName = 'parents';
+                else if (userRole === 'Admin') collectionName = 'admins';
+                else collectionName = 'users';
+
                 await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userId));
                 
                 await logAuditEvent({
@@ -353,7 +359,8 @@ export default function UserManagementPage() {
 
             const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
             const matchesClass = classFilter === 'All Classes' || user.class === classFilter;
-            const matchesYear = yearFilter === 'All Years' || (user.createdAt && new Date(user.createdAt).getFullYear().toString() === yearFilter);
+            const creationDate = user.createdAt instanceof Timestamp ? user.createdAt.toDate() : user.createdAt ? new Date(user.createdAt) : null;
+            const matchesYear = yearFilter === 'All Years' || (creationDate && creationDate.getFullYear().toString() === yearFilter);
 
             return matchesSearch && matchesStatus && (roleFilter !== 'Student' || (matchesClass && matchesYear));
         });
@@ -391,7 +398,7 @@ export default function UserManagementPage() {
                                             {getStatusBadge(user.status)}
                                         </TableCell>
                                         <TableCell>
-                                            {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                                            {user.lastLogin === 'Never' ? 'Never' : (user.lastLogin instanceof Timestamp ? user.lastLogin.toDate().toLocaleDateString() : 'N/A')}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Dialog>
@@ -456,7 +463,7 @@ export default function UserManagementPage() {
                                                                 </div>
                                                                  <div className="space-y-2">
                                                                     <Label htmlFor="admission-year">Year of Admission</Label>
-                                                                    <Select defaultValue={user.createdAt ? new Date(user.createdAt).getFullYear().toString() : ''}>
+                                                                    <Select defaultValue={user.createdAt ? (user.createdAt as Timestamp).toDate().getFullYear().toString() : ''}>
                                                                         <SelectTrigger id="admission-year">
                                                                             <SelectValue />
                                                                         </SelectTrigger>
@@ -519,9 +526,9 @@ export default function UserManagementPage() {
                                                         <div className="space-y-4">
                                                             <h4 className="font-semibold text-base flex items-center gap-2"><History className="h-4 w-4" />User History</h4>
                                                              <div className="text-sm text-muted-foreground space-y-2">
-                                                                <div><strong>Account Created:</strong> {clientReady && user.createdAt ? new Date(user.createdAt).toLocaleString() : ''}</div>
-                                                                <div><strong>Last Login:</strong> {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleString() : 'Never'}</div>
-                                                                 <div><strong>Last Profile Update:</strong> {clientReady && user.lastLogin !== 'Never' ? new Date(user.lastLogin).toLocaleDateString() : 'Never'} by Admin</div>
+                                                                <div><strong>Account Created:</strong> {user.createdAt ? (user.createdAt as Timestamp).toDate().toLocaleString() : ''}</div>
+                                                                <div><strong>Last Login:</strong> {user.lastLogin !== 'Never' ? (user.lastLogin as Timestamp).toDate().toLocaleString() : 'Never'}</div>
+                                                                 <div><strong>Last Profile Update:</strong> {user.lastLogin !== 'Never' ? (user.lastLogin as Timestamp).toDate().toLocaleDateString() : 'Never'} by Admin</div>
                                                             </div>
                                                         </div>
                                                         <Separator />
@@ -837,3 +844,5 @@ export default function UserManagementPage() {
 
 
     
+
+}
