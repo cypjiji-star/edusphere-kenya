@@ -185,6 +185,65 @@ interface Toast {
   duration?: number;
 }
 
+function EditFeeItemDialog({
+  item,
+  open,
+  onOpenChange,
+  onSave,
+}: {
+  item: FeeStructureItem | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (item: FeeStructureItem) => void;
+}) {
+  const [category, setCategory] = React.useState('');
+  const [amount, setAmount] = React.useState('');
+
+  React.useEffect(() => {
+    if (item) {
+      setCategory(item.category);
+      setAmount(String(item.amount));
+    }
+  }, [item]);
+
+  if (!item) return null;
+
+  const handleSave = () => {
+    onSave({
+      ...item,
+      category,
+      amount: Number(amount),
+    });
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Fee Item</DialogTitle>
+          <DialogDescription>Update the category and amount for this fee item.</DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-fee-category">Category</Label>
+            <Input id="edit-fee-category" value={category} onChange={(e) => setCategory(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-fee-amount">Amount (KES)</Label>
+            <Input id="edit-fee-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave}>Save Changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 function ReceiptDialog({
   transaction,
   student,
@@ -626,6 +685,8 @@ export default function FeesPage() {
   const [newFeeItem, setNewFeeItem] = React.useState<{ category: string; amount: string }>({ category: '', amount: '' });
   const [totalYearlyFee, setTotalYearlyFee] = React.useState(0);
   const [isFeeStructureLoading, setIsFeeStructureLoading] = React.useState(false);
+  const [editingFeeItem, setEditingFeeItem] = React.useState<FeeStructureItem | null>(null);
+
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -1056,6 +1117,26 @@ export default function FeesPage() {
       console.error('Error saving fee item:', e);
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       toast({ title: 'Error', description: `Could not save fee item: ${errorMessage}`, variant: 'destructive' });
+    }
+  };
+  
+  const handleUpdateFeeItem = async (updatedItem: FeeStructureItem) => {
+    if (!schoolId || !selectedClassForStructure || !user) return;
+    try {
+      const structureRef = doc(firestore, 'schools', schoolId, 'fee-structures', selectedClassForStructure);
+      const updatedStructure = feeStructure.map((item) => (item.id === updatedItem.id ? updatedItem : item));
+      await setDoc(structureRef, { items: updatedStructure });
+      await logAuditEvent({
+        schoolId,
+        action: 'FEE_STRUCTURE_ITEM_UPDATED',
+        actionType: 'Finance',
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
+        details: `Fee item "${updatedItem.category}" for class ${classes.find(c => c.id === selectedClassForStructure)?.name} was updated.`,
+      });
+      toast({ title: 'Fee Item Updated' });
+    } catch (error) {
+      console.error('Error updating fee item:', error);
+      toast({ title: 'Error', description: 'Could not update fee item.', variant: 'destructive' });
     }
   };
 
@@ -1865,7 +1946,7 @@ export default function FeesPage() {
                                 <TableCell className="font-medium">{item.category}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
                                 <TableCell className="text-right space-x-2">
-                                  <Button variant="ghost" size="icon" disabled aria-label="Edit fee item">
+                                  <Button variant="ghost" size="icon" onClick={() => setEditingFeeItem(item)}>
                                     <Edit2 className="h-4 w-4" />
                                   </Button>
                                   <Button
@@ -1949,6 +2030,12 @@ export default function FeesPage() {
             schoolName={schoolName}
             open={!!selectedTransaction}
             onOpenChange={(open) => !open && setSelectedTransaction(null)}
+          />
+          <EditFeeItemDialog
+            item={editingFeeItem}
+            open={!!editingFeeItem}
+            onOpenChange={(open) => !open && setEditingFeeItem(null)}
+            onSave={handleUpdateFeeItem}
           />
         </div>
       </Dialog>
