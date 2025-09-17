@@ -124,7 +124,7 @@ const getAttendanceStatusBadge = (status: AttendanceRecord['status']) => {
     switch (status) {
         case 'Present': return <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Present</Badge>;
         case 'Absent': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>;
-        case 'Late': return <Badge className="bg-yellow-500 hover:bg-yellow-600">Late</Badge>;
+        case 'Late': return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600">Late</Badge>;
     }
 };
 
@@ -335,7 +335,7 @@ export default function StudentManagementPage() {
                             <TableCell>{getFeeStatusBadge(student.feeStatus)}</TableCell>
                             <TableCell>{getStatusBadge(student.status)}</TableCell>
                             <TableCell className="text-right">
-                                <Button variant="ghost" size="sm">View Details</Button>
+                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openStudentDialog(student); }}>View Details</Button>
                             </TableCell>
                         </TableRow>
                     </DialogTrigger>
