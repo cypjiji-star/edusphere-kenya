@@ -24,6 +24,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800&display=swap" rel="stylesheet" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
