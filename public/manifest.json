@@ -1,11 +1,11 @@
 {
   "name": "EduSphere Kenya",
   "short_name": "EduSphere",
-  "description": "Empowering Kenya's Future, One School at a Time.",
+  "description": "A premium, all-in-one education data system designed for Kenyan schools.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#2563eb",
+  "theme_color": "#008080",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
