@@ -8,7 +8,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -253,11 +252,14 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
         }
     }
 
-
     if (isLoading) {
-      return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
+      return (
+        <div className="flex justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
     }
-
+    
     return (
         <Card>
             <CardHeader>
@@ -299,8 +301,9 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
                             )}
                          </TableBody>
                     </Table>
-                </CardContent>
-            </Card>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -679,7 +682,6 @@ export default function AdminGradesPage() {
         case 'Active': return 'bg-blue-500';
         case 'Locked': return 'bg-yellow-500';
         case 'Published': return 'bg-green-600';
-        default: return 'bg-gray-500';
     }
   }
   
@@ -869,7 +871,7 @@ export default function AdminGradesPage() {
                       </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                      <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} />
                       </PopoverContent>
                   </Popover>
                   </div>
@@ -895,6 +897,14 @@ export default function AdminGradesPage() {
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="reports">
+            <ReportGenerator />
+          </TabsContent>
+          
+          <TabsContent value="requests">
+             <EditRequestsTab schoolId={schoolId!} />
+          </TabsContent>
 
           <TabsContent value="exams">
             {selectedExam ? (
@@ -944,14 +954,6 @@ export default function AdminGradesPage() {
              </Card>
              )}
           </TabsContent>
-          <TabsContent value="requests">
-             <EditRequestsTab schoolId={schoolId!} />
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <ReportGenerator />
-          </TabsContent>
-          
           <TabsContent value="settings">
             <Card>
                 <CardHeader>
