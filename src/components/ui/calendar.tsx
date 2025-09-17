@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -65,17 +66,15 @@ function Calendar({
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
         Caption: ({ ...props }) => {
-          const { fromMonth, fromYear, fromDate, toMonth, toYear, toDate, onMonthChange } =
+          const { fromMonth, fromYear, fromDate, toMonth, toYear, toDate } =
             (props as any).displayer || {};
           const months = [
             "January", "February", "March", "April", "May", "June",
             "July", "August", "September", "October", "November", "December",
           ];
-          const years: number[] = [];
+          
           const currentYear = new Date().getFullYear();
-          for (let i = currentYear - 100; i <= currentYear; i++) {
-            years.push(i);
-          }
+          const years: number[] = Array.from({ length: 101 }, (_, i) => currentYear - i);
           
           const handleYearChange = (year: string) => {
             const newDate = new Date(props.displayMonth);
