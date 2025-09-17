@@ -62,7 +62,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { Timestamp } from 'firebase/firestore';
-import { deleteUserAction } from '../users/actions';
+import { deleteUserAction, updateUserAuthAction } from '../users/actions';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -287,14 +287,35 @@ export default function UserManagementListPage() {
         });
     };
     
-    const handleSaveChanges = async (userId: string, updatedData: Partial<User>) => {
+    const handleSaveChanges = async (user: User, updatedData: Partial<User>) => {
         if (!schoolId) return;
-        const userRef = doc(firestore, 'schools', schoolId, 'users', userId);
+
+        let authUpdates: { email?: string } = {};
+        if (updatedData.email && updatedData.email !== user.email) {
+            authUpdates.email = updatedData.email;
+        }
+
         try {
+            // Step 1: Update Firebase Auth if email changed
+            if (Object.keys(authUpdates).length > 0) {
+                const authResult = await updateUserAuthAction(user.id, authUpdates);
+                if (!authResult.success) {
+                    throw new Error(authResult.message);
+                }
+            }
+
+            // Step 2: Update Firestore document
+            let collectionName = 'users';
+            if (user.role === 'Parent') collectionName = 'parents';
+            else if (user.role === 'Admin') collectionName = 'admins';
+
+            const userRef = doc(firestore, 'schools', schoolId, collectionName, user.id);
             await updateDoc(userRef, updatedData);
+
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
-        } catch (e) {
-            toast({ title: 'Error', description: 'Could not update user.', variant: 'destructive'});
+
+        } catch (e: any) {
+            toast({ title: 'Error', description: e.message || 'Could not update user.', variant: 'destructive'});
         }
     };
 
@@ -463,7 +484,7 @@ export default function UserManagementListPage() {
                                                     <DialogFooter>
                                                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                                                         <DialogClose asChild>
-                                                            <Button onClick={() => handleSaveChanges(user.id, {})}>Save Changes</Button>
+                                                            <Button onClick={() => handleSaveChanges(user, {})}>Save Changes</Button>
                                                         </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>

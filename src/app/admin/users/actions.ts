@@ -5,6 +5,25 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase-admin';
 
 /**
+ * Updates a user's details in Firebase Authentication.
+ * This is a privileged operation and must only be executed on the server.
+ * @param uid The user's unique ID.
+ * @param updates An object containing the fields to update (e.g., email, password).
+ */
+export async function updateUserAuthAction(uid: string, updates: { email?: string; password?: string }) {
+  try {
+    const adminApp = getFirebaseAdminApp();
+    const auth = getAuth(adminApp);
+    await auth.updateUser(uid, updates);
+    return { success: true, message: 'Authentication record updated successfully.' };
+  } catch (error: any) {
+    console.error("Error updating user in Firebase Auth:", error);
+    return { success: false, message: error.message || 'Failed to update user authentication.' };
+  }
+}
+
+
+/**
  * Deletes a user from Firebase Authentication.
  * This is a privileged operation and must only be executed on the server.
  * @param uid The user's unique ID.
