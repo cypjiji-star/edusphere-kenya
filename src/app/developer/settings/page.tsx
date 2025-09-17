@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { firestore } from '@/lib/firebase';
 import { doc, onSnapshot, setDoc, collection, query, orderBy, limit, Timestamp } from 'firebase/firestore';
-import { seedSchoolData, clearSchoolData } from '@/lib/seed-database';
+
 
 type School = {
   id: string;
@@ -66,11 +66,7 @@ export default function DeveloperSettingsPage() {
     
     const [maintenanceMode, setMaintenanceMode] = React.useState(false);
 
-    // States for seeding
     const [schools, setSchools] = React.useState<School[]>([]);
-    const [selectedSchoolToSeed, setSelectedSchoolToSeed] = React.useState<string>('');
-    const [isSeeding, setIsSeeding] = React.useState(false);
-    const [isClearing, setIsClearing] = React.useState(false);
 
 
     React.useEffect(() => {
@@ -137,51 +133,35 @@ export default function DeveloperSettingsPage() {
         toast({ title: 'Password Policy Updated' });
     }
 
-    const handleSeedDatabase = async () => {
-        if (!selectedSchoolToSeed) {
-            toast({ title: 'No School Selected', description: 'Please select a school to seed.', variant: 'destructive'});
-            return;
-        }
-        setIsSeeding(true);
-        toast({ title: 'Database Seeding Started', description: 'This may take a few moments...' });
-
-        try {
-            const result = await seedSchoolData(selectedSchoolToSeed);
-            if (result.success) {
-                toast({ title: 'Seeding Complete!', description: result.message });
-            } else {
-                throw new Error(result.message);
-            }
-        } catch (error: any) {
-            toast({ title: 'Seeding Failed', description: error.message, variant: 'destructive'});
-        } finally {
-            setIsSeeding(false);
-        }
+    const handleCreateBackup = () => {
+        toast({
+            title: 'Backup Started',
+            description: 'A manual backup of your data is being created. You will be notified upon completion.',
+        });
     };
 
-    const handleClearDatabase = async () => {
-        if (!selectedSchoolToSeed) {
-            toast({ title: 'No School Selected', description: 'Please select a school to clear.', variant: 'destructive'});
-            return;
-        }
-        setIsClearing(true);
-        toast({ title: 'Clearing Database...', description: 'This may take a few moments...' });
-
-        try {
-            const result = await clearSchoolData(selectedSchoolToSeed);
-             if (result.success) {
-                toast({ title: 'Database Cleared!', description: result.message, variant: 'destructive' });
-            } else {
-                throw new Error(result.message);
-            }
-        } catch (error: any) {
-            toast({ title: 'Clearing Failed', description: error.message, variant: 'destructive'});
-        } finally {
-            setIsClearing(false);
-        }
+    const handleRestoreBackup = () => {
+        toast({
+            title: 'Action Required',
+            description: 'Restoring from a backup is a critical action. Please contact support to proceed.',
+            variant: 'destructive',
+        });
     };
 
-
+    const handleArchive = () => {
+        toast({
+            title: 'Archiving Started',
+            description: 'Older records are being archived based on your retention policy.',
+        });
+    };
+    
+    const handleRollback = () => {
+        toast({
+            title: 'Rollback Simulated',
+            description: 'In a real application, this would revert the last profile change.'
+        });
+    };
+    
     if (isLoading) {
         return (
              <div className="flex h-[80vh] w-full items-center justify-center">
@@ -202,69 +182,6 @@ export default function DeveloperSettingsPage() {
 
        <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary"/>Database Seeding &amp; Cleanup</CardTitle>
-                    <CardDescription>Populate a selected school with sample data for demonstration or clear it out. This action is irreversible and preserves admin accounts.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Select School</Label>
-                        <Select value={selectedSchoolToSeed} onValueChange={setSelectedSchoolToSeed}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a school..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {schools.map(school => (
-                                    <SelectItem key={school.id} value={school.id}>{school.name} ({school.id})</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-                <CardFooter className="gap-2">
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="outline" disabled={!selectedSchoolToSeed || isSeeding}>
-                                {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                Seed Database
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This action will overwrite existing sample data in the selected school. This cannot be undone, but will not affect user accounts.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleSeedDatabase}>Yes, seed the database</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="destructive" disabled={!selectedSchoolToSeed || isClearing}>
-                                {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                Clear Seeded Data
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm Data Deletion</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This action will permanently delete all sample data (students, grades, attendance etc.) for the selected school, but will leave all user accounts intact. This cannot be undone.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleClearDatabase}>Yes, delete sample data</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </CardFooter>
-            </Card>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Global Communication Gateways</CardTitle>
