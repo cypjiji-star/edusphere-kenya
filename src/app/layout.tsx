@@ -9,7 +9,6 @@ import { SplashScreen } from '@/components/layout/splash-screen';
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
   description: "Empowering Kenya's Future, One School at a Time.",
-  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -20,12 +19,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <head>
-        {/* PWA Manifest & Icons */}
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="https://i.postimg.cc/1zK8R5h5/apple-touch-icon.png" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
         {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
