@@ -32,7 +32,6 @@ import { collection, query, onSnapshot, where, doc, getDoc, Timestamp } from 'fi
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
 
 
 type Child = {
@@ -60,7 +59,7 @@ type PeriodData = {
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-const subjectColors: Record<string, string> = {
+const subjectDetails: Record<string, { color: string }> = {
     'Mathematics': { color: 'bg-blue-100 text-blue-800 border-blue-200' },
     'English': { color: 'bg-green-100 text-green-800 border-green-200' },
     'Chemistry': { color: 'bg-purple-100 text-purple-800 border-purple-200' },
@@ -255,3 +254,5 @@ export default function ParentTimetablePage() {
         </div>
     )
 }
+
+    
