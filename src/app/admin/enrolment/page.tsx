@@ -90,6 +90,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const enrolmentSchema = z.object({
   studentFirstName: z.string().min(2, 'First name is required.'),
@@ -645,7 +646,7 @@ export default function StudentEnrolmentPage() {
                             <CardTitle>Recent Enrolments</CardTitle>
                         </CardHeader>
                         <CardContent>
-                             <div className="w-full overflow-auto">
+                             <ScrollArea className="h-[300px] w-full">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -665,7 +666,7 @@ export default function StudentEnrolmentPage() {
                                         ))}
                                     </TableBody>
                                 </Table>
-                             </div>
+                             </ScrollArea>
                         </CardContent>
                     </Card>
                 </div>
