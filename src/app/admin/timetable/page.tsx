@@ -34,10 +34,7 @@ import * as React from 'react';
 
 export default function TimetablePage() {
     const currentYear = new Date().getFullYear();
-    const academicTerms = Array.from({ length: 2 }, (_, i) => {
-        const year = currentYear + i;
-        return [`Term 1, ${year}`, `Term 2, ${year}`, `Term 3, ${year}`];
-    }).flat();
+    const academicYears = Array.from({ length: 5 }, (_, i) => (currentYear + i).toString());
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -60,23 +57,23 @@ export default function TimetablePage() {
                 <DialogHeader>
                     <DialogTitle>Create New Timetable</DialogTitle>
                     <DialogDescription>
-                        Define a new timetable for a specific academic term.
+                        Define a new timetable for a specific academic year.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="timetable-name">Timetable Name</Label>
-                        <Input id="timetable-name" placeholder="e.g., Term 2 Master Timetable" />
+                        <Input id="timetable-name" placeholder="e.g., 2024 Master Timetable" />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="academic-term">Academic Term</Label>
+                        <Label htmlFor="academic-year">Academic Year</Label>
                          <Select>
-                            <SelectTrigger id="academic-term">
-                                <SelectValue placeholder="Select term" />
+                            <SelectTrigger id="academic-year">
+                                <SelectValue placeholder="Select year" />
                             </SelectTrigger>
                             <SelectContent>
-                                {academicTerms.map(term => (
-                                    <SelectItem key={term} value={term.toLowerCase().replace(/[\s,]+/g, '-')}>{term}</SelectItem>
+                                {academicYears.map(year => (
+                                    <SelectItem key={year} value={year}>{year}</SelectItem>
                                 ))}
                             </SelectContent>
                          </Select>
