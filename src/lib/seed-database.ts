@@ -63,8 +63,9 @@ export async function clearSchoolData(schoolId: string) {
     }
 
     try {
+        // This list now EXCLUDES 'users', 'parents', and 'admins' to keep credentials safe.
         const collectionsToClear = [
-            'classes', 'subjects', 'users', 'students', 'parents', 'attendance', 
+            'classes', 'subjects', 'students', 'attendance', 
             'grades', 'assignments', 'incidents', 'lesson-plans', 'teams', 
             'teacher_attendance', 'support-tickets', 'mini_payments', 'leave-applications',
             'library-requests', 'library-resources', 'audit_logs', 'notifications',
@@ -75,7 +76,7 @@ export async function clearSchoolData(schoolId: string) {
             await clearCollection(`schools/${schoolId}/${coll}`);
         }
 
-        return { success: true, message: `Successfully cleared data for school ${schoolId}.` };
+        return { success: true, message: `Successfully cleared sample data for school ${schoolId}. User accounts were not affected.` };
     } catch (error: any) {
         console.error('Error clearing database:', error);
         return { success: false, message: `An error occurred while clearing data: ${error.message}` };
@@ -88,20 +89,13 @@ export async function seedSchoolData(schoolId: string) {
         return { success: false, message: 'School ID is required.' };
     }
 
-    const batch = writeBatch(firestore);
-
     try {
-        // Clear existing data (optional, but recommended for a clean seed)
-        const collectionsToClear = ['classes', 'subjects', 'users', 'students', 'parents', 'attendance', 'grades'];
-        for (const coll of collectionsToClear) {
-            const snapshot = await getDocs(collection(firestore, 'schools', schoolId, coll));
-            snapshot.docs.forEach(doc => batch.delete(doc.ref));
-        }
-        await batch.commit(); // Commit deletions first
+        // Clear only sample data collections, preserving user accounts
+        await clearSchoolData(schoolId);
         
         const newBatch = writeBatch(firestore);
         
-        // 1. Seed Teachers
+        // 1. Seed Teachers (into 'users' collection)
         const teacherIds: { [key: string]: string } = {};
         for (const teacher of teachers) {
             const teacherRef = doc(collection(firestore, 'schools', schoolId, 'users'));

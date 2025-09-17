@@ -204,8 +204,8 @@ export default function DeveloperSettingsPage() {
         <div className="lg:col-span-2 space-y-8">
              <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary"/>Database Seeding</CardTitle>
-                    <CardDescription>Populate a selected school with sample data for demonstration and testing purposes. This action is irreversible.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary"/>Database Seeding &amp; Cleanup</CardTitle>
+                    <CardDescription>Populate a selected school with sample data for demonstration or clear it out. This action is irreversible and preserves admin accounts.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -234,7 +234,7 @@ export default function DeveloperSettingsPage() {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This action will overwrite existing data in the selected school with sample data. This cannot be undone.
+                                    This action will overwrite existing sample data in the selected school. This cannot be undone, but will not affect user accounts.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -252,14 +252,14 @@ export default function DeveloperSettingsPage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                                <AlertDialogTitle>Confirm Data Deletion</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This action will permanently delete all student, teacher, academic, and financial records for the selected school. This cannot be undone.
+                                    This action will permanently delete all sample data (students, grades, attendance etc.) for the selected school, but will leave all user accounts intact. This cannot be undone.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleClearDatabase}>Yes, delete all data</AlertDialogAction>
+                                <AlertDialogAction onClick={handleClearDatabase}>Yes, delete sample data</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -405,6 +405,12 @@ export default function DeveloperSettingsPage() {
                     <Separator/>
                     <div className="space-y-4">
                         <Label className="font-semibold">Backup &amp; Restore</Label>
+                        <div className="space-y-2">
+                             <Button variant="outline" className="w-full justify-start" disabled>
+                                <Download className="mr-2"/>
+                                Create Manual Backup
+                            </Button>
+                        </div>
                         <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border">
                             <div>
                                 <Label htmlFor="auto-backup" className="font-medium">Automatic Backups</Label>
