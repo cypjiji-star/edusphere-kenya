@@ -31,6 +31,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png"></link>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
         <meta name="theme-color" content="#2563eb" />
       </head>
       <body className="font-body antialiased">
