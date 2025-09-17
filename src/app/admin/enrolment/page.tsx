@@ -335,7 +335,7 @@ export default function StudentEnrolmentPage() {
                 medicalConditions: values.medicalConditions,
                 emergencyContactName: values.emergencyContactName,
                 emergencyContactPhone: values.emergencyContactPhone,
-                status: amountPaid > 0 ? 'Approved' : 'Pending',
+                status: 'Approved',
                 createdAt: serverTimestamp(),
                 avatarUrl: photoUrl,
                 documents: admissionDocUrls,
