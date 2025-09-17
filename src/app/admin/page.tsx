@@ -22,16 +22,10 @@ import { useSearchParams } from 'next/navigation';
 import { SecurityAlertsWidget } from './security-alerts-widget';
 
 const overviewLinks: Record<string, string> = {
-    "Total Students": "/admin/users",
-    "Total Teachers": "/admin/users",
-    "Active Parents": "/admin/users",
-    "Pending Registrations": "/admin/enrolment",
-};
-
-const quickStatLinks: Record<string, string> = {
+    "Total Students": "/admin/students",
+    "Total Staff": "/admin/users-list",
+    "Overall Fee Balance": "/admin/fees",
     "Today's Attendance": "/admin/attendance",
-    "Fees Collected (Term 2)": "/admin/fees",
-    "Upcoming Events": "/admin/calendar",
 };
 
 const activityCategoryLinks: Record<string, string> = {
@@ -62,6 +56,10 @@ type RecentActivity = {
     category: string;
 };
 
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
+}
+
 function formatTimeAgo(timestamp: Timestamp | undefined) {
     if (!timestamp) return '';
     const now = new Date();
@@ -81,8 +79,7 @@ export default function AdminDashboard() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [schoolName, setSchoolName] = React.useState('');
-  const [stats, setStats] = React.useState({ totalStudents: 0, totalTeachers: 0, activeParents: 0, pendingRegistrations: 0 });
-  const [quickStatsData, setQuickStatsData] = React.useState({ attendance: 0, feesCollected: 0, upcomingEvents: 0 });
+  const [stats, setStats] = React.useState({ totalStudents: 0, totalTeachers: 0, overallFeeBalance: 0, attendanceRate: 0 });
   const [activities, setActivities] = React.useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -106,49 +103,32 @@ export default function AdminDashboard() {
     
     const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
     const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
-      setStats(prev => ({...prev, totalStudents: snapshot.size }));
-    });
-
-    const parentsQuery = query(collection(firestore, `schools/${schoolId}/parents`));
-    const unsubParents = onSnapshot(parentsQuery, (snapshot) => {
-      setStats(prev => ({ ...prev, activeParents: snapshot.size }));
-    });
-
-    const pendingRegQuery = query(collection(firestore, `schools/${schoolId}/students`), where('status', '==', 'Pending'));
-    const unsubPendingReg = onSnapshot(pendingRegQuery, (snapshot) => {
-      setStats(prev => ({ ...prev, pendingRegistrations: snapshot.size }));
-    });
-
-    // Real-time attendance
-    const today = new Date();
-    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-    const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
-    const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
-      if (stats.totalStudents > 0) {
-        const presentCount = snapshot.docs.filter(doc => ['Present', 'Late'].includes(doc.data().status)).length;
-        const attendancePercentage = Math.round((presentCount / stats.totalStudents) * 100);
-        setQuickStatsData(prev => ({...prev, attendance: attendancePercentage}));
-      }
-    });
-
-    // Real-time fees
-    const studentsFeeQuery = query(collection(firestore, `schools/${schoolId}/students`));
-    const unsubFees = onSnapshot(studentsFeeQuery, (snapshot) => {
+      const studentCount = snapshot.size;
       let totalBilled = 0;
       let totalPaid = 0;
       snapshot.forEach(doc => {
-        totalBilled += doc.data().totalFee || 0;
-        totalPaid += doc.data().amountPaid || 0;
+          totalBilled += doc.data().totalFee || 0;
+          totalPaid += doc.data().amountPaid || 0;
       });
-      const feesPercentage = totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0;
-      setQuickStatsData(prev => ({...prev, feesCollected: feesPercentage}));
+      const balance = totalBilled - totalPaid;
+
+      setStats(prev => ({...prev, totalStudents: studentCount, overallFeeBalance: balance }));
+
+       // Fetch attendance only after we have the student count
+       if (studentCount > 0) {
+        const today = new Date();
+        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+        const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
+        const unsubAttendance = onSnapshot(attendanceQuery, (attSnapshot) => {
+             const presentCount = attSnapshot.docs.filter(r => ['Present', 'Late'].includes(r.data().status)).length;
+             setStats(prev => ({...prev, attendanceRate: Math.round((presentCount / studentCount) * 100) }));
+        });
+        return () => unsubAttendance(); // Cleanup attendance listener
+      } else {
+          setStats(prev => ({...prev, attendanceRate: 100 }));
+      }
     });
 
-    // Real-time events
-    const eventsQuery = query(collection(firestore, `schools/${schoolId}/calendar-events`), where('date', '>=', Timestamp.now()));
-    const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
-      setQuickStatsData(prev => ({...prev, upcomingEvents: snapshot.size}));
-    });
 
     // Real-time recent activities
     const notificationsQuery = query(collection(firestore, `schools/${schoolId}/notifications`), orderBy('createdAt', 'desc'), limit(6));
@@ -178,26 +158,15 @@ export default function AdminDashboard() {
       unsubSchool();
       unsubTeachers();
       unsubStudents();
-      unsubParents();
-      unsubPendingReg();
-      unsubAttendance();
-      unsubFees();
-      unsubEvents();
       unsubActivities();
     };
-  }, [schoolId, stats.totalStudents]);
+  }, [schoolId]);
 
   const overviewStats = [
-    { title: "Total Students", stat: stats.totalStudents, icon: <Users className="h-6 w-6 text-muted-foreground" />, subtext: "1.2%", subtextIcon: <ArrowUp className="h-4 w-4 text-green-600" />, subtextDescription: "vs last term" },
-    { title: "Total Teachers", stat: stats.totalTeachers, icon: <UserCheck className="h-6 w-6 text-muted-foreground" /> },
-    { title: "Active Parents", stat: stats.activeParents, icon: <Users className="h-6 w-6 text-muted-foreground" /> },
-    { title: "Pending Registrations", stat: stats.pendingRegistrations, icon: <UserPlus className="h-6 w-6 text-muted-foreground" /> }
-  ];
-
-  const quickStats = [
-    { title: "Today's Attendance", stat: `${quickStatsData.attendance}%`, icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" /> },
-    { title: "Fees Collected (Term 2)", stat: `${quickStatsData.feesCollected}%`, icon: <CircleDollarSign className="h-6 w-6 text-muted-foreground" /> },
-    { title: "Upcoming Events", stat: quickStatsData.upcomingEvents, icon: <Calendar className="h-6 w-6 text-muted-foreground" /> },
+    { title: "Total Students", stat: stats.totalStudents, icon: <Users className="h-6 w-6 text-muted-foreground" /> },
+    { title: "Total Staff", stat: stats.totalTeachers, icon: <UserCheck className="h-6 w-6 text-muted-foreground" /> },
+    { title: "Overall Fee Balance", stat: formatCurrency(stats.overallFeeBalance), icon: <CircleDollarSign className="h-6 w-6 text-muted-foreground" /> },
+    { title: "Today's Attendance", stat: `${stats.attendanceRate}%`, icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" /> }
   ];
 
   if (!schoolId) {
@@ -223,7 +192,7 @@ export default function AdminDashboard() {
       
        <div className="space-y-8">
             <div>
-                <h2 className="text-xl font-semibold mb-4">School Overview</h2>
+                <h2 className="text-xl font-semibold mb-4">Key Metrics</h2>
                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {overviewStats.map((stat) => (
                         <Link href={`${overviewLinks[stat.title]}?schoolId=${schoolId}` || '#'} key={stat.title}>
@@ -234,12 +203,6 @@ export default function AdminDashboard() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold">{stat.stat}</div>
-                                    {stat.subtext && (
-                                        <div className="flex items-center text-xs text-muted-foreground">
-                                            {stat.subtextIcon}
-                                            <span>{stat.subtext} {stat.subtextDescription}</span>
-                                        </div>
-                                    )}
                                 </CardContent>
                             </Card>
                         </Link>
@@ -249,40 +212,16 @@ export default function AdminDashboard() {
 
             <Separator />
             
-            <div className="grid gap-8 lg:grid-cols-2">
-                 <div>
-                    <h2 className="text-xl font-semibold mb-4">Quick Stats</h2>
-                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {quickStats.map((stat) => (
-                            <Link href={`${quickStatLinks[stat.title]}?schoolId=${schoolId}` || '#'} key={stat.title}>
-                                <Card className="hover:bg-muted/50 transition-colors">
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                                        {stat.icon}
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-bold">{stat.stat}</div>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        ))}
-                     </div>
-                </div>
-                <div>
-                     <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-                     <Card>
-                        <CardContent className="p-4">
-                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <Button asChild><Link href={`/admin/enrolment?schoolId=${schoolId}`}><PlusCircle /> Add Student</Link></Button>
-                                <Button asChild><Link href={`/admin/users?schoolId=${schoolId}`}><Users /> Add Teacher</Link></Button>
-                                <Button asChild><Link href={`/admin/announcements?schoolId=${schoolId}`}><Megaphone /> Post Announcement</Link></Button>
-                                <Button asChild variant="secondary"><Link href={`/admin/subjects?schoolId=${schoolId}`}><Shapes/>Manage Classes</Link></Button>
-                                <Button asChild variant="secondary"><Link href={`/admin/fees?schoolId=${schoolId}`}><CircleDollarSign/>Manage Fees</Link></Button>
-                           </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <Button asChild size="lg"><Link href={`/admin/enrolment?schoolId=${schoolId}`}><UserPlus className="mr-2" /> Register New Student</Link></Button>
+                    <Button asChild size="lg"><Link href={`/admin/fees?schoolId=${schoolId}`}><CircleDollarSign className="mr-2"/> Record Bulk Payment</Link></Button>
+                    <Button asChild size="lg"><Link href={`/admin/announcements?schoolId=${schoolId}`}><Megaphone className="mr-2"/> Send Announcement</Link></Button>
+                </CardContent>
+            </Card>
        </div>
 
        <div className="mt-8 grid gap-8 lg:grid-cols-3">
