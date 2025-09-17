@@ -644,6 +644,15 @@ export default function FeesPage() {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       toast({ title: 'Error', description: `Failed to fetch school details: ${errorMessage}`, variant: 'destructive' });
     });
+    
+    const classQuery = query(collection(firestore, `schools/${schoolId}/classes`));
+    const unsubClass = onSnapshot(classQuery, (snapshot) => {
+        const classList = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+        setClasses(classList);
+        if (!selectedClassForStructure && classList.length > 0) {
+            setSelectedClassForStructure(classList[0].id);
+        }
+    });
 
     const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
     const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
@@ -655,7 +664,6 @@ export default function FeesPage() {
       const studentDebtors: any[] = [];
       let nextDeadline: Date | null = null;
       const studentProfiles: StudentFeeProfile[] = [];
-      const classMap = new Map<string, string>();
 
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -685,10 +693,6 @@ export default function FeesPage() {
           status,
           admissionNo: data.admissionNumber,
         });
-
-        if (data.classId && data.class) {
-          classMap.set(data.classId, data.class);
-        }
 
         if (studentBalance <= 0) {
           clearedCount++;
@@ -724,12 +728,6 @@ export default function FeesPage() {
       setStudentsWithFees({ cleared: clearedCount, arrears: arrearsCount, overdue: overdueCount });
       setTopDebtors(studentDebtors.sort((a, b) => b.balance - a.balance).slice(0, 5));
       setAllStudents(studentProfiles);
-      setFilteredStudents(studentProfiles.slice(0, studentsPerPage));
-      const classList = Array.from(classMap.entries()).map(([id, name]) => ({ id, name }));
-      setClasses([{ id: 'All Classes', name: 'All Classes' }, ...classList]);
-      if (!selectedClassForStructure && classList.length > 0) {
-        setSelectedClassForStructure(classList[0].id);
-      }
     }, (error: unknown) => {
       console.error('Error fetching students:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -790,12 +788,13 @@ export default function FeesPage() {
     setIsLoading(false);
 
     return () => {
+      unsubClass();
       unsubStudents();
       unsubPayments();
       unsubTransactions();
     };
-  }, [schoolId, toast]);
-
+  }, [schoolId, toast, selectedClassForStructure]);
+  
   React.useEffect(() => {
     if (!schoolId || !selectedClassForStructure || selectedClassForStructure === 'All Classes') {
       setFeeStructure([]);
@@ -843,16 +842,19 @@ export default function FeesPage() {
   }, [feeStructure]);
 
   const classPerformance = React.useMemo(() => {
-    if (classFilter === 'All Classes' || filteredStudents.length === 0) return null;
-    const billed = filteredStudents.reduce((acc, s) => acc + s.totalBilled, 0);
-    const collected = filteredStudents.reduce((acc, s) => acc + s.totalPaid, 0);
+    if (classFilter === 'All Classes') return null;
+    const studentsInClass = allStudents.filter(s => s.classId === classFilter);
+    if(studentsInClass.length === 0) return null;
+    
+    const billed = studentsInClass.reduce((acc, s) => acc + s.totalBilled, 0);
+    const collected = studentsInClass.reduce((acc, s) => acc + s.totalPaid, 0);
     return {
       billed,
       collected,
       outstanding: billed - collected,
       collectionRate: billed > 0 ? Math.round((collected / billed) * 100) : 0,
     };
-  }, [filteredStudents, classFilter]);
+  }, [allStudents, classFilter]);
 
   const openStudentDialog = async (student: StudentFeeProfile) => {
     const transactionsQuery = query(
@@ -1692,6 +1694,7 @@ export default function FeesPage() {
                           <SelectValue placeholder="All Classes" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="All Classes">All Classes</SelectItem>
                           {classes.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                               {c.name}
@@ -1828,7 +1831,7 @@ export default function FeesPage() {
                           <SelectValue placeholder="Select a class..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {classes.filter((c) => c.id !== 'All Classes').map((c) => (
+                          {classes.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                               {c.name}
                             </SelectItem>
