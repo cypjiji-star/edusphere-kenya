@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -664,10 +665,13 @@ export default function FeesPage() {
         totalBilled += data.totalFee || 0;
         totalCollected += data.amountPaid || 0;
 
-        let status: 'Paid' | 'Partial' | 'Overdue' = 'Paid';
-        if (studentBalance > 0) {
+        let status: 'Paid' | 'Partial' | 'Overdue';
+        if (studentBalance <= 0) {
+          status = 'Paid';
+        } else {
           status = isPast(dueDate) ? 'Overdue' : 'Partial';
         }
+        
 
         studentProfiles.push({
           id: doc.id,
