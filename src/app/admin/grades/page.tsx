@@ -9,7 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
+  CardFooter
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -1235,7 +1235,7 @@ export default function AdminGradesPage() {
                 <CardFooter>
                   <Button onClick={handleSaveScale} disabled={isSavingScale}>
                     {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Grading Scale
+                    Save Scale
                   </Button>
                 </CardFooter>
               </Card>
