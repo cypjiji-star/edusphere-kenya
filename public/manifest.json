@@ -1,27 +1,30 @@
 {
   "name": "EduSphere Kenya",
   "short_name": "EduSphere",
-  "description": "The All-in-One Education Data System for Kenyan Schools.",
+  "description": "Empowering Kenya's Future, One School at a Time.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#2563eb",
+  "categories": ["education", "productivity"],
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://i.postimg.cc/43v9KQtG/web-app-manifest-192x192.png",
+      "src": "/icon.svg",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "https://i.postimg.cc/ZRFxShjr/web-app-manifest-512x512.png",
+      "src": "/icon.svg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }
