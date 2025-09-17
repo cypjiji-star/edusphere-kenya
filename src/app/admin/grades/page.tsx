@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { DateRange } from 'react-day-picker';
 import {
   Card,
   CardContent,
@@ -17,7 +18,6 @@ import {
   Trophy,
   Loader2,
   Printer,
-  CalendarIcon,
   BarChart2,
   Settings,
   Edit,
@@ -60,11 +60,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { DateRange } from 'react-day-picker';
-import { cn } from '@/lib/utils';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { firestore, auth } from '@/lib/firebase';
 import { 
@@ -102,8 +98,6 @@ import {
 import { GradeAnalysisCharts } from './grade-analysis-charts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { GradeSummaryWidget } from './grade-summary-widget';
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
 
@@ -617,7 +611,7 @@ export default function AdminGradesPage() {
         actionType: 'Academics',
         description,
         user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-        details: `Term: ${examData.term}, Dates: ${format(date.from, 'PPP')} - ${format(date.to || date.from, 'PPP')}`,
+        details: `Term: ${examData.term}, Dates: ${date.from.toLocaleDateString()} - ${(date.to || date.from).toLocaleDateString()}`,
       });
 
       setEditingExam(null);
@@ -858,30 +852,11 @@ export default function AdminGradesPage() {
                   </div>
                   <div className="space-y-2">
                   <Label htmlFor="date-range">Date Range</Label>
-                  <Popover>
-                      <PopoverTrigger asChild>
-                      <Button
-                          id="date-range"
-                          variant="outline"
-                          className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}
-                      >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {date?.from ? (
-                          date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
-                          ) : <span>Pick a date range</span>}
-                      </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={date?.from}
-                            selected={date}
-                            onSelect={setDate}
-                            numberOfMonths={1}
-                        />
-                      </PopoverContent>
-                  </Popover>
+                  <DatePicker
+                    mode="range"
+                    selected={date}
+                    onSelect={setDate}
+                  />
                   </div>
                   <div className="space-y-2">
                   <Label htmlFor="exam-notes">Notes (Optional)</Label>
@@ -937,8 +912,8 @@ export default function AdminGradesPage() {
                                     <TableCell className="font-medium">{exam.title}</TableCell>
                                     <TableCell>{exam.term}</TableCell>
                                     <TableCell>{exam.className}</TableCell>
-                                    <TableCell>{format(exam.startDate.toDate(), 'dd MMM')} - {format(exam.endDate.toDate(), 'dd MMM, yyyy')}</TableCell>
-                                    <TableCell><Badge variant="outline" className={cn("text-white", getStatusBadgeColor(exam.status))}>{exam.status}</Badge></TableCell>
+                                    <TableCell>{`${exam.startDate.toDate().toLocaleDateString()} - ${exam.endDate.toDate().toLocaleDateString()}`}</TableCell>
+                                    <TableCell><Badge variant="outline" className={`text-white ${getStatusBadgeColor(exam.status)}`}>{exam.status}</Badge></TableCell>
                                      <TableCell><div className="flex items-center gap-2"><Progress value={exam.progress} className="w-24" /><span className="text-xs text-muted-foreground">{exam.progress}%</span></div></TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
@@ -1001,5 +976,3 @@ export default function AdminGradesPage() {
     </div>
   );
 }
-
-    
