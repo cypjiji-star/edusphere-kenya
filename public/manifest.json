@@ -1,21 +1,21 @@
 {
   "name": "EduSphere Kenya",
   "short_name": "EduSphere",
-  "description": "A premium, all-in-one education data system designed for Kenyan schools.",
+  "description": "A premium, all-in-one education data system designed for Kenyan schools, fostering growth, and enabling personalized learning.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#008080",
+  "theme_color": "#2563eb",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "sizes": "192x192"
     },
     {
       "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ]
 }
