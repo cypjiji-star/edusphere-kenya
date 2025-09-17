@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -464,7 +463,9 @@ export default function GradesPage() {
                             )}
                         </CardContent>
                         <CardFooter>
-                            <Button variant="link" size="sm" className="w-full p-0 h-auto">View Full Activity Log</Button>
+                            <Button asChild variant="link" size="sm" className="w-full p-0 h-auto">
+                                <Link href={`/teacher/support?schoolId=${schoolId}`}>View Full Activity Log</Link>
+                            </Button>
                         </CardFooter>
                     </Card>
                 </div>
