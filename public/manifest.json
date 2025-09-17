@@ -1,7 +1,7 @@
 {
   "name": "EduSphere Kenya",
   "short_name": "EduSphere",
-  "description": "Empowering Kenya's Future, One School at a Time.",
+  "description": "The All-in-One School Management System for Kenya.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -11,19 +11,17 @@
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "https://i.postimg.cc/tg4TVRDr/android-launchericon-192-192.png",
-      "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
-      "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }

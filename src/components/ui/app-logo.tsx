@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
@@ -5,20 +6,18 @@ export function AppLogo({ className }: { className?: string }) {
   return (
     <svg
       className={cn("h-8 w-8", className)}
-      viewBox="0 0 100 100"
+      viewBox="0 0 512 512"
+      fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
-        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style={{ stopColor: "hsl(var(--primary))", stopOpacity: 1 }} />
-          <stop offset="100%" style={{ stopColor: "hsl(var(--primary) / 0.8)", stopOpacity: 1 }} />
-        </linearGradient>
-      </defs>
-      <path d="M50 10 C 20 20, 20 60, 50 90 C 80 60, 80 20, 50 10 Z" fill="url(#grad1)" />
-      <path d="M50 25 L 20 40 L 50 55 L 80 40 L 50 25 M 20 40 L 20 60 L 50 75 L 50 55" fill="white" fillOpacity="0.9"/>
-      <path d="M50 55 L 50 75 L 80 60 L 80 40 L 50 55" fill="white" fillOpacity="0.5"/>
-      <path d="M50,25 L55,27 L55,35 L45,35 L45,27 Z" fill="white"/>
-      <rect x="52" y="18" width="6" height="10" fill="hsl(var(--accent))" transform="rotate(20 55 23)"/>
+      <path
+        d="M64 128C64 105.908 81.9081 88 104 88H408C430.092 88 448 105.908 448 128V344.821C448 354.542 444.153 363.856 437.388 370.621L285.388 522.621C270.83 537.179 247.17 537.179 232.612 522.621L80.6122 370.621C73.8473 363.856 64 354.542 64 344.821V128Z"
+        fill="hsl(var(--primary))"
+      />
+      <path
+        d="M328 200H184V248H280V296H184V344H328V392H136V152H328V200Z"
+        fill="white"
+      />
     </svg>
   );
 }
