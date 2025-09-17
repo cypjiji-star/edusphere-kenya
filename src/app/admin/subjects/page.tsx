@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck, FileDown, Printer, ChevronDown } from 'lucide-react';
+import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck, FileDown, Printer, ChevronDown, GraduationCap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -54,7 +54,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { MultiSelect } from '@/components/ui/multi-select';
 
@@ -70,6 +70,7 @@ type SchoolClass = {
     avatarUrl: string;
   };
   teacherId: string;
+  status: 'Active' | 'Graduated';
 };
 
 type Subject = {
@@ -169,7 +170,7 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
             setAssignedTeachers(subject.teachers || []);
         }
     }, [subject]);
-
+    
     if (!subject) return null;
 
     const handleSave = () => {
@@ -329,6 +330,7 @@ export default function ClassesAndSubjectsPage() {
                 teacherId: newClassTeacherId,
                 capacity: Number(newClassCapacity),
                 studentCount: 0,
+                status: 'Active',
                 schoolId: schoolId,
                 createdAt: serverTimestamp(),
             });
@@ -338,6 +340,36 @@ export default function ClassesAndSubjectsPage() {
         } catch (error) {
             console.error('Error creating class:', error);
             toast({ title: 'Creation Failed', variant: 'destructive' });
+        }
+    };
+    
+    const handleUpdateClass = async (classId: string, updates: Partial<SchoolClass>) => {
+        if (!schoolId) return;
+        
+        try {
+            const classRef = doc(firestore, 'schools', schoolId, 'classes', classId);
+            await updateDoc(classRef, updates);
+
+            // If class is marked as Graduated, update all students in that class
+            if (updates.status === 'Graduated') {
+                const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', classId));
+                const studentsSnapshot = await getDocs(studentsQuery);
+                
+                const batch = writeBatch(firestore);
+                studentsSnapshot.forEach(studentDoc => {
+                    const studentRef = doc(firestore, 'schools', schoolId, 'students', studentDoc.id);
+                    batch.update(studentRef, { status: 'Graduated' });
+                });
+                await batch.commit();
+
+                toast({ title: 'Class & Students Graduated', description: `The class and its students have been marked as graduated.` });
+            } else {
+                toast({ title: 'Class Updated', description: 'The class details have been saved.' });
+            }
+
+        } catch (error) {
+            console.error('Error updating class:', error);
+            toast({ title: 'Update Failed', variant: 'destructive' });
         }
     };
 
@@ -530,6 +562,7 @@ export default function ClassesAndSubjectsPage() {
                                     <TableHead>Stream</TableHead>
                                     <TableHead>Class Teacher</TableHead>
                                     <TableHead className="text-center">Enrollment</TableHead>
+                                    <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -554,6 +587,12 @@ export default function ClassesAndSubjectsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">{schoolClass.studentCount} / {schoolClass.capacity}</TableCell>
+                                        <TableCell>
+                                            {schoolClass.status === 'Graduated' ? 
+                                                <Badge variant="outline" className="text-purple-600 border-purple-500"><GraduationCap className="mr-1 h-3 w-3"/>Graduated</Badge> : 
+                                                <Badge>Active</Badge>
+                                            }
+                                        </TableCell>
                                         <TableCell className="text-right space-x-2">
                                             <Dialog>
                                                 <DialogTrigger asChild>
@@ -568,19 +607,31 @@ export default function ClassesAndSubjectsPage() {
                                                             Update the details for this class.
                                                         </DialogDescription>
                                                     </DialogHeader>
+                                                    <form onSubmit={(e) => {
+                                                        e.preventDefault();
+                                                        const formData = new FormData(e.currentTarget);
+                                                        const updates = {
+                                                            name: formData.get('className') as string,
+                                                            stream: formData.get('stream') as string,
+                                                            teacherId: formData.get('teacherId') as string,
+                                                            capacity: Number(formData.get('capacity')),
+                                                            status: formData.get('status') as 'Active' | 'Graduated'
+                                                        };
+                                                        handleUpdateClass(schoolClass.id, updates);
+                                                    }}>
                                                     <div className="grid gap-4 py-4">
                                                         <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="class-name-edit" className="text-right">Class Name</Label>
-                                                            <Input id="class-name-edit" defaultValue={schoolClass.name} className="col-span-3" />
+                                                            <Label htmlFor="className" className="text-right">Class Name</Label>
+                                                            <Input id="className" name="className" defaultValue={schoolClass.name} className="col-span-3" />
                                                         </div>
                                                         <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="class-stream-edit" className="text-right">Stream</Label>
-                                                            <Input id="class-stream-edit" defaultValue={schoolClass.stream} className="col-span-3" />
+                                                            <Label htmlFor="stream" className="text-right">Stream</Label>
+                                                            <Input id="stream" name="stream" defaultValue={schoolClass.stream} className="col-span-3" />
                                                         </div>
                                                         <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="class-teacher-edit" className="text-right">Class Teacher</Label>
-                                                            <Select defaultValue={schoolClass.teacherId}>
-                                                                <SelectTrigger id="class-teacher-edit" className="col-span-3">
+                                                            <Label htmlFor="teacherId" className="text-right">Class Teacher</Label>
+                                                            <Select name="teacherId" defaultValue={schoolClass.teacherId}>
+                                                                <SelectTrigger id="teacherId" className="col-span-3">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -591,24 +642,37 @@ export default function ClassesAndSubjectsPage() {
                                                             </Select>
                                                         </div>
                                                         <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="class-capacity-edit" className="text-right">Capacity</Label>
-                                                            <Input id="class-capacity-edit" type="number" defaultValue={schoolClass.capacity} className="col-span-3" />
+                                                            <Label htmlFor="capacity" className="text-right">Capacity</Label>
+                                                            <Input id="capacity" name="capacity" type="number" defaultValue={schoolClass.capacity} className="col-span-3" />
+                                                        </div>
+                                                         <div className="grid grid-cols-4 items-center gap-4">
+                                                            <Label htmlFor="status" className="text-right">Status</Label>
+                                                            <Select name="status" defaultValue={schoolClass.status || 'Active'}>
+                                                                <SelectTrigger id="status" className="col-span-3">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="Active">Active</SelectItem>
+                                                                    <SelectItem value="Graduated">Graduated</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
                                                         </div>
                                                     </div>
                                                     <DialogFooter className="justify-between">
                                                          <DialogClose asChild>
-                                                            <Button variant="destructive" onClick={() => handleDelete('classes', schoolClass.id, `${schoolClass.name} ${schoolClass.stream || ''}`)}>
+                                                            <Button type="button" variant="destructive" onClick={() => handleDelete('classes', schoolClass.id, `${schoolClass.name} ${schoolClass.stream || ''}`)}>
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 Archive Class
                                                             </Button>
                                                         </DialogClose>
                                                         <div className="flex gap-2">
-                                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                                                             <DialogClose asChild>
-                                                                <Button>Save Changes</Button>
+                                                                <Button type="submit">Save Changes</Button>
                                                             </DialogClose>
                                                         </div>
                                                     </DialogFooter>
+                                                    </form>
                                                 </DialogContent>
                                             </Dialog>
                                         </TableCell>
