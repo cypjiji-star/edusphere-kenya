@@ -82,7 +82,8 @@ const navGroups = [
     title: 'Users',
     items: [
       { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus, badge: '0', collection: 'students', field: 'status', value: 'Pending' },
-      { href: '/admin/users', label: 'User Management', icon: Users },
+      { href: '/admin/students', label: 'Student Management', icon: GraduationCap },
+      { href: '/admin/users-list', label: 'User Management', icon: Users },
       { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
   },
@@ -325,5 +326,6 @@ export function AdminSidebar() {
     </>
   );
 }
+
 
 

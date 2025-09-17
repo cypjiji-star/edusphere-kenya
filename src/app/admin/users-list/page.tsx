@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import * as React from 'react';
@@ -104,31 +105,28 @@ const getStatusBadge = (status: UserStatus) => {
     }
 }
 
-export default function UserManagementPage() {
+export default function UserManagementListPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const { user: adminUser } = useAuth();
     const [adminUsers, setAdminUsers] = React.useState<User[]>([]);
     const [teacherUsers, setTeacherUsers] = React.useState<User[]>([]);
-    const [studentUsers, setStudentUsers] = React.useState<User[]>([]);
     const [parentUsers, setParentUsers] = React.useState<User[]>([]);
     
     const allUsers = React.useMemo(() => {
         const userMap = new Map<string, User>();
-        [...adminUsers, ...teacherUsers, ...studentUsers, ...parentUsers].forEach(user => {
+        [...adminUsers, ...teacherUsers, ...parentUsers].forEach(user => {
             if (user && user.id) {
                 userMap.set(user.id, user);
             }
         });
         return Array.from(userMap.values());
-    }, [adminUsers, teacherUsers, studentUsers, parentUsers]);
+    }, [adminUsers, teacherUsers, parentUsers]);
 
     const [roles, setRoles] = React.useState<string[]>([]);
     const [classes, setClasses] = React.useState<{ id: string; name: string }[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'All Statuses'>('All Statuses');
-    const [classFilter, setClassFilter] = React.useState('All Classes');
-    const [yearFilter, setYearFilter] = React.useState('All Years');
     const [clientReady, setClientReady] = React.useState(false);
     const { toast } = useToast();
     const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
@@ -142,7 +140,6 @@ export default function UserManagementPage() {
     const [newUserEmail, setNewUserEmail] = React.useState('');
     const [newUserPassword, setNewUserPassword] = React.useState('');
     const [newUserClasses, setNewUserClasses] = React.useState<string[]>([]);
-    const [newUserStudents, setNewUserStudents] = React.useState<string[]>([]);
 
 
     React.useEffect(() => {
@@ -157,10 +154,6 @@ export default function UserManagementPage() {
             setTeacherUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
         });
         
-        const unsubStudents = onSnapshot(collection(firestore, 'schools', schoolId, 'students'), (snapshot) => {
-            setStudentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), role: 'Student' } as User)));
-        });
-
         const unsubParents = onSnapshot(collection(firestore, 'schools', schoolId, 'parents'), (snapshot) => {
             setParentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), role: 'Parent' } as User)));
         });
@@ -177,7 +170,6 @@ export default function UserManagementPage() {
         return () => {
             unsubAdmins();
             unsubTeachers();
-            unsubStudents();
             unsubParents();
             unsubRoles();
             unsubClasses();
@@ -254,16 +246,8 @@ export default function UserManagementPage() {
             };
 
             if (newUserRole === 'Teacher') userData.classes = newUserClasses;
-            if (newUserRole === 'Parent') userData.children = newUserStudents;
 
             batch.set(userDocRef, userData);
-
-            if (newUserRole === 'Parent' && newUserStudents.length > 0) {
-                newUserStudents.forEach(studentId => {
-                    const studentRef = doc(firestore, 'schools', schoolId, 'students', studentId);
-                    batch.update(studentRef, { parentId: user.uid });
-                });
-            }
 
             await batch.commit();
             
@@ -286,7 +270,6 @@ export default function UserManagementPage() {
             setNewUserPassword('');
             setNewUserRole('');
             setNewUserClasses([]);
-            setNewUserStudents([]);
 
         } catch(e: any) {
              let errorMessage = 'Could not create user. Please try again.';
@@ -333,8 +316,7 @@ export default function UserManagementPage() {
         }
     
         let collectionName;
-        if (userRole === 'Student') collectionName = 'students';
-        else if (userRole === 'Parent') collectionName = 'parents';
+        if (userRole === 'Parent') collectionName = 'parents';
         else if (userRole === 'Admin') collectionName = 'admins';
         else collectionName = 'users'; // Default for Teacher and other roles
     
@@ -376,11 +358,8 @@ export default function UserManagementPage() {
                                   user.id?.toLowerCase().includes(searchLower);
 
             const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
-            const matchesClass = classFilter === 'All Classes' || user.class === classFilter;
-            const creationDate = user.createdAt instanceof Timestamp ? user.createdAt.toDate() : user.createdAt ? new Date(user.createdAt) : null;
-            const matchesYear = yearFilter === 'All Years' || (creationDate && creationDate.getFullYear().toString() === yearFilter);
 
-            return matchesSearch && matchesStatus && (roleFilter !== 'Student' || (matchesClass && matchesYear));
+            return matchesSearch && matchesStatus;
         });
 
         return (
@@ -465,90 +444,6 @@ export default function UserManagementPage() {
                                                                 </Select>
                                                             </div>
                                                         </div>
-                                                        {user.role === 'Student' && (
-                                                            <>
-                                                            <div className="grid grid-cols-2 gap-4">
-                                                                <div className="space-y-2">
-                                                                    <Label htmlFor="class">Class</Label>
-                                                                    <Select defaultValue={user.class}>
-                                                                        <SelectTrigger id="class">
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {classes.filter(c => c.name !== 'All Classes').map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </div>
-                                                                 <div className="space-y-2">
-                                                                    <Label htmlFor="admission-year">Year of Admission</Label>
-                                                                    <Select defaultValue={user.createdAt ? (user.createdAt as Timestamp).toDate().getFullYear().toString() : ''}>
-                                                                        <SelectTrigger id="admission-year">
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </div>
-                                                            </div>
-                                                            <Separator />
-                                                            <div className="space-y-4">
-                                                                <h4 className="font-semibold text-base">Linked Parents/Guardians</h4>
-                                                                <div className="space-y-3">
-                                                                    {user.parents?.map(parent => (
-                                                                        <div key={parent.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
-                                                                            <div className="space-y-1">
-                                                                                <div className="font-medium flex items-center">{parent.name} <Badge variant="secondary" className="ml-2">{parent.relationship}</Badge></div>
-                                                                                <div className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="h-3 w-3"/>{parent.contact}</div>
-                                                                            </div>
-                                                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                                                                <Trash2 className="h-4 w-4"/>
-                                                                            </Button>
-                                                                        </div>
-                                                                    ))}
-                                                                    <Card>
-                                                                        <CardHeader>
-                                                                            <CardTitle className="text-base">Link New Parent/Guardian</CardTitle>
-                                                                        </CardHeader>
-                                                                        <CardContent className="space-y-4">
-                                                                            <div className="space-y-2">
-                                                                                <Label>Parent/Guardian Name</Label>
-                                                                                <Input placeholder="e.g., Mary Wambui" />
-                                                                            </div>
-                                                                             <div className="grid grid-cols-2 gap-4">
-                                                                                 <div className="space-y-2">
-                                                                                    <Label>Relationship</Label>
-                                                                                    <Select>
-                                                                                        <SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger>
-                                                                                        <SelectContent>
-                                                                                            {relationships.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                                                                        </SelectContent>
-                                                                                    </Select>
-                                                                                </div>
-                                                                                <div className="space-y-2">
-                                                                                    <Label>Contact Number</Label>
-                                                                                    <Input type="tel" placeholder="e.g., 0712345678" />
-                                                                                </div>
-                                                                            </div>
-                                                                             <Button variant="secondary" size="sm">
-                                                                                <PlusCircle className="mr-2 h-4 w-4"/>
-                                                                                Add Parent
-                                                                            </Button>
-                                                                        </CardContent>
-                                                                    </Card>
-                                                                </div>
-                                                            </div>
-                                                            </>
-                                                        )}
-                                                        <Separator />
-                                                        <div className="space-y-4">
-                                                            <h4 className="font-semibold text-base flex items-center gap-2"><History className="h-4 w-4" />User History</h4>
-                                                             <div className="text-sm text-muted-foreground space-y-2">
-                                                                <div><strong>Account Created:</strong> {user.createdAt ? (user.createdAt as Timestamp).toDate().toLocaleString() : ''}</div>
-                                                                <div><strong>Last Login:</strong> {user.lastLogin && user.lastLogin !== 'Never' && (user.lastLogin as Timestamp).toDate ? (user.lastLogin as Timestamp).toDate().toLocaleString() : 'Never'}</div>
-                                                                 <div><strong>Last Profile Update:</strong> {user.lastLogin && user.lastLogin !== 'Never' && (user.lastLogin as Timestamp).toDate ? (user.lastLogin as Timestamp).toDate().toLocaleDateString() : 'Never'} by Admin</div>
-                                                            </div>
-                                                        </div>
                                                         <Separator />
                                                         <div className="space-y-4">
                                                             <h4 className="font-semibold text-base">Administrative Actions</h4>
@@ -607,14 +502,14 @@ export default function UserManagementPage() {
                 <Users className="h-8 w-8 text-primary" />
                 User Management
                 </h1>
-                <p className="text-muted-foreground">Manage all users within the school portal.</p>
+                <p className="text-muted-foreground">Manage all staff and parent accounts within the school portal.</p>
             </div>
              <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <CardTitle>User Directory</CardTitle>
-                            <CardDescription>A list of all users in the system, organized by role.</CardDescription>
+                            <CardDescription>A list of all non-student users in the system, organized by role.</CardDescription>
                         </div>
                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                              <Dialog>
@@ -669,18 +564,6 @@ export default function UserManagementPage() {
                                                 />
                                             </div>
                                         )}
-
-                                        {newUserRole === 'Parent' && (
-                                            <div className="space-y-2">
-                                                <Label>Link Students</Label>
-                                                <MultiSelect
-                                                    options={studentUsers.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
-                                                    selected={newUserStudents}
-                                                    onChange={setNewUserStudents}
-                                                    placeholder="Select students..."
-                                                />
-                                            </div>
-                                        )}
                                     </div>
                                     <DialogFooter>
                                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
@@ -709,14 +592,6 @@ export default function UserManagementPage() {
                                         <DropdownMenuItem onClick={() => handleExport('CSV')}>
                                             <FileDown className="mr-2 h-4 w-4" />
                                             Export All Users (CSV)
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleExport('PDF')}>
-                                            <FileDown className="mr-2 h-4 w-4" />
-                                            Export Student List (PDF)
-                                        </DropdownMenuItem>
-                                         <DropdownMenuItem onClick={() => handleExport('PDF')}>
-                                            <FileDown className="mr-2 h-4 w-4" />
-                                            Export Teacher List (PDF)
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -809,41 +684,19 @@ export default function UserManagementPage() {
                                     {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                 </SelectContent>
                              </Select>
-                              <Select value={classFilter} onValueChange={setClassFilter}>
-                                <SelectTrigger className="w-full md:w-[150px]">
-                                    <SelectValue placeholder="Filter by class" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All Classes">All Classes</SelectItem>
-                                    {classes.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                                </SelectContent>
-                             </Select>
-                             <Select value={yearFilter} onValueChange={setYearFilter}>
-                                <SelectTrigger className="w-full md:w-[150px]">
-                                    <SelectValue placeholder="Filter by year" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                     <SelectItem value="All Years">All Years</SelectItem>
-                                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                                </SelectContent>
-                             </Select>
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent>
                    <Tabs defaultValue="all" className="w-full">
-                        <TabsList className="grid w-full grid-cols-5">
+                        <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="all">All Users</TabsTrigger>
-                            <TabsTrigger value="Student">Students</TabsTrigger>
                             <TabsTrigger value="Teacher">Teachers</TabsTrigger>
                             <TabsTrigger value="Parent">Parents</TabsTrigger>
                             <TabsTrigger value="Admin">Admins</TabsTrigger>
                         </TabsList>
                         <TabsContent value="all" className="mt-4">
                             {renderUserTable('All')}
-                        </TabsContent>
-                        <TabsContent value="Student" className="mt-4">
-                            {renderUserTable('Student')}
                         </TabsContent>
                         <TabsContent value="Teacher" className="mt-4">
                             {renderUserTable('Teacher')}
@@ -859,8 +712,4 @@ export default function UserManagementPage() {
              </Card>
         </div>
     );
-
-
-    
-
 }
