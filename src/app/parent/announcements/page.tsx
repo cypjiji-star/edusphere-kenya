@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, Timestamp, getDocs, startAfter, arrayUnion, increment } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -48,6 +49,7 @@ export default function ParentAnnouncementsPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
   const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
   const [filter, setFilter] = React.useState<'All' | 'Read' | 'Unread'>('All');
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -55,7 +57,7 @@ export default function ParentAnnouncementsPage() {
   const [lastVisible, setLastVisible] = React.useState<any>(null);
   const [hasMore, setHasMore] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const currentUserId = 'parent-user-id'; // This should be dynamic
+  const currentUserId = user?.uid;
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -84,7 +86,7 @@ export default function ParentAnnouncementsPage() {
 
 
   const handleMarkAsRead = async (id: string, readBy: string[]) => {
-    if (!schoolId) return;
+    if (!schoolId || !currentUserId) return;
 
     // Prevent re-marking if already read
     if (readBy.includes(currentUserId)) {
@@ -106,7 +108,7 @@ export default function ParentAnnouncementsPage() {
   }
   
   const filteredAnnouncements = announcements.filter(ann => {
-      const isRead = ann.readBy?.includes(currentUserId);
+      const isRead = ann.readBy?.includes(currentUserId || '');
       const matchesFilter = filter === 'All' || (filter === 'Read' && isRead) || (filter === 'Unread' && !isRead);
       const matchesSearch = searchTerm === '' || ann.content.toLowerCase().includes(searchTerm.toLowerCase()) || ann.sender.name.toLowerCase().includes(searchTerm.toLowerCase()) || ann.title.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesFilter && matchesSearch;
@@ -194,7 +196,7 @@ export default function ParentAnnouncementsPage() {
             <>
                 <CardContent className="space-y-6 pt-6">
                     {filteredAnnouncements.length > 0 ? filteredAnnouncements.map((ann) => {
-                        const isRead = ann.readBy?.includes(currentUserId);
+                        const isRead = ann.readBy?.includes(currentUserId || '');
                         return (
                         <Card key={ann.id} className={cn(!isRead && 'border-primary/50')}>
                             <CardHeader className="flex flex-row items-start justify-between gap-4">
