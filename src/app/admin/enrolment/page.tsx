@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { firestore, storage, auth } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
 
@@ -269,6 +269,15 @@ export default function StudentEnrolmentPage() {
         }
         setIsSubmitting(true);
         try {
+            // Fetch fee structure for the selected class
+            const feeStructureRef = doc(firestore, `schools/${schoolId}/fee-structures`, values.classId);
+            const feeStructureSnap = await getDoc(feeStructureRef);
+            let totalFee = 0;
+            if (feeStructureSnap.exists()) {
+                const feeItems = feeStructureSnap.data().items || [];
+                totalFee = feeItems.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
+            }
+
             let photoUrl = '';
             if (profilePhotoFile) {
                 const storageRef = ref(storage, `${schoolId}/profile_photos/${Date.now()}_${profilePhotoFile.name}`);
@@ -326,12 +335,14 @@ export default function StudentEnrolmentPage() {
                 medicalConditions: values.medicalConditions,
                 emergencyContactName: values.emergencyContactName,
                 emergencyContactPhone: values.emergencyContactPhone,
-                status: amountPaid > 0 ? 'Approved' : 'Pending',
+                status: 'Approved', // Always approved on creation
                 createdAt: serverTimestamp(),
                 avatarUrl: photoUrl,
                 documents: admissionDocUrls,
                 role: 'Student',
                 amountPaid: amountPaid,
+                totalFee: totalFee, // Set the calculated total fee
+                balance: totalFee - amountPaid, // Calculate initial balance
             };
             await setDoc(studentDocRef, studentData);
 
