@@ -2,6 +2,7 @@
 "use client"
 
 import * as React from "react"
+import { format } from "date-fns"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker, useDayPicker, useNavigation } from "react-day-picker"
 
@@ -67,9 +68,12 @@ function Calendar({
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
         Caption: ({ ...props }) => {
           const { goToMonth, currentMonth } = useNavigation();
-          const { fromYear, fromDate, toDate } = useDayPicker();
-          const currentYear = new Date().getFullYear();
-          const years = Array.from({ length: (fromYear || currentYear) - 1900 + 1 }, (_, i) => currentYear - i);
+          const { fromYear, toYear } = useDayPicker();
+          
+          const years = Array.from(
+            { length: (toYear || new Date().getFullYear()) - (fromYear || 1900) + 1 },
+            (_, i) => (fromYear || 1900) + i
+          ).reverse();
 
           return (
             <div className="flex justify-center items-center gap-2">
@@ -87,7 +91,7 @@ function Calendar({
                 <SelectContent>
                   {Array.from({ length: 12 }).map((_, i) => (
                     <SelectItem key={i} value={i.toString()}>
-                      {format(new Date(currentYear, i), "MMMM")}
+                      {format(new Date(currentMonth.getFullYear(), i, 1), "MMMM")}
                     </SelectItem>
                   ))}
                 </SelectContent>
