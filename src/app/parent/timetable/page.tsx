@@ -10,14 +10,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
     Select,
     SelectContent,
     SelectItem,
@@ -25,7 +17,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Calendar, User, Printer, FileDown, ChevronDown, BookOpen, MapPin, Bell, Loader2 } from 'lucide-react';
+import { Calendar, User, Printer, FileDown, ChevronDown, BookOpen, MapPin, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,13 +26,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format } from 'date-fns';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 
 type Child = {
@@ -68,7 +60,7 @@ type PeriodData = {
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-const subjectDetails: Record<string, { color: string }> = {
+const subjectColors: Record<string, string> = {
     'Mathematics': { color: 'bg-blue-100 text-blue-800 border-blue-200' },
     'English': { color: 'bg-green-100 text-green-800 border-green-200' },
     'Chemistry': { color: 'bg-purple-100 text-purple-800 border-purple-200' },
@@ -77,7 +69,6 @@ const subjectDetails: Record<string, { color: string }> = {
     'Geography': { color: 'bg-teal-100 text-teal-800 border-teal-200' },
     'Biology': { color: 'bg-pink-100 text-pink-800 border-pink-200' },
 }
-
 
 export default function ParentTimetablePage() {
     const searchParams = useSearchParams();
@@ -90,12 +81,10 @@ export default function ParentTimetablePage() {
     const [timetableData, setTimetableData] = React.useState<TimetableData>({});
     const [periods, setPeriods] = React.useState<PeriodData[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
-    const [clientReady, setClientReady] = React.useState(false);
     const { toast } = useToast();
     
     React.useEffect(() => {
         if (!schoolId || !parentId) return;
-        setClientReady(true);
         const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
@@ -137,21 +126,6 @@ export default function ParentTimetablePage() {
         fetchTimetable();
     }, [selectedChild, childrenData, schoolId]);
 
-    const todayDayName = clientReady ? format(new Date(), 'EEEE') : 'Monday';
-    const todaysLessons = clientReady && timetableData[todayDayName] 
-        ? Object.entries(timetableData[todayDayName]).map(([time, lessonData]) => {
-            const [startTime, endTime] = time.split(' - ');
-            const lesson = lessonData as any;
-            return {
-                startTime,
-                endTime,
-                title: lesson.subject.name,
-                location: lesson.room,
-                teacher: { name: lesson.subject.teacher }
-            };
-        })
-        : [];
-    
     const handleExport = (type: 'PDF' | 'Print') => {
         toast({
             title: `Exporting Timetable as ${type}`,
@@ -166,7 +140,6 @@ export default function ParentTimetablePage() {
         return <div className="p-8">Error: School ID is missing.</div>
     }
 
-
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="mb-6">
@@ -176,14 +149,6 @@ export default function ParentTimetablePage() {
                 </h1>
                 <p className="text-muted-foreground">View your child's weekly class schedule.</p>
             </div>
-
-            <Alert className="mb-6">
-                <Bell className="h-4 w-4" />
-                <AlertTitle>Schedule Update!</AlertTitle>
-                <AlertDescription>
-                    Please note that this week is the Mid-Term exam period. The regular timetable may be adjusted.
-                </AlertDescription>
-            </Alert>
 
             <Card>
                 <CardHeader>
@@ -221,88 +186,69 @@ export default function ParentTimetablePage() {
                             <Loader2 className="h-10 w-10 animate-spin text-primary"/>
                         </div>
                     ) : (
-                        <>
-                            {/* Mobile View */}
-                            <div className="md:hidden space-y-4">
-                                <h2 className="font-bold text-lg">Today's Lessons ({clientReady ? format(new Date(), 'EEEE') : ''})</h2>
-                                {todaysLessons.length > 0 ? todaysLessons.map(lesson => (
-                                    <Card key={lesson.startTime} className="bg-muted/30">
-                                        <CardContent className="p-4">
-                                            <p className="font-bold">{lesson.title}</p>
-                                            <p className="text-sm text-muted-foreground">{lesson.startTime} - {lesson.endTime}</p>
-                                            <p className="text-sm text-muted-foreground">Teacher: {lesson.teacher.name}</p>
-                                            <p className="text-sm text-muted-foreground">Room: {lesson.location}</p>
-                                        </CardContent>
-                                    </Card>
-                                )) : (
-                                    <p className="text-muted-foreground">No lessons scheduled for today.</p>
-                                )}
-                            </div>
-                            {/* Desktop View */}
-                            <div className="w-full overflow-auto rounded-lg border hidden md:block">
-                                <Table className="min-w-[800px]">
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-32 text-center">Time</TableHead>
-                                            {days.map(day => (
-                                                <TableHead key={day} className="text-center">{day}</TableHead>
-                                            ))}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {periods.map(period => (
-                                            <TableRow key={period.id}>
-                                                <TableCell className="font-semibold text-center text-primary">{period.time}</TableCell>
-                                                {days.map(day => {
-                                                    const entry = timetableData[day]?.[period.time];
-                                                    const subject = entry ? (entry as any).subject?.name : null;
-
-                                                    return (
-                                                        <TableCell key={`${day}-${period.time}`} className="text-center p-1">
-                                                            {period.isBreak ? (
-                                                                <div className="h-full flex items-center justify-center bg-muted/50 rounded-md p-2">
-                                                                    <p className="font-semibold text-muted-foreground text-xs">{period.title}</p>
-                                                                </div>
-                                                            ) : entry ? (
-                                                                <Popover>
-                                                                    <PopoverTrigger asChild>
-                                                                        <div className={`p-2 rounded-md cursor-pointer transition-transform hover:scale-105 ${subjectDetails[subject as keyof typeof subjectDetails]?.color || 'bg-gray-100 text-gray-800'}`}>
-                                                                            <p className="font-bold text-sm">{subject}</p>
-                                                                        </div>
-                                                                    </PopoverTrigger>
-                                                                    <PopoverContent className="w-80">
-                                                                        <div className="space-y-4">
-                                                                            <h4 className="font-medium leading-none flex items-center gap-2">
-                                                                                <BookOpen className="h-5 w-5 text-primary" />
-                                                                                {subject}
-                                                                            </h4>
-                                                                            <div className="flex items-center gap-3">
-                                                                                <Avatar className="h-9 w-9">
-                                                                                    <AvatarImage src={`https://picsum.photos/seed/${entry.subject.teacher}/100`} alt={entry.subject.teacher} />
-                                                                                    <AvatarFallback>{entry.subject.teacher.charAt(0)}</AvatarFallback>
-                                                                                </Avatar>
-                                                                                <div>
-                                                                                    <p className="text-sm font-semibold">{entry.subject.teacher}</p>
-                                                                                    <p className="text-xs text-muted-foreground">Teacher</p>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-3 text-sm">
-                                                                                <MapPin className="h-4 w-4 text-muted-foreground" />
-                                                                                <p>{entry.room}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </PopoverContent>
-                                                                </Popover>
-                                                            ) : null}
-                                                        </TableCell>
-                                                    )
-                                                })}
-                                            </TableRow>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table className="min-w-[800px]">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-32 text-center">Time</TableHead>
+                                        {days.map(day => (
+                                            <TableHead key={day} className="text-center">{day}</TableHead>
                                         ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {periods.map(period => (
+                                        <TableRow key={period.id}>
+                                            <TableCell className="font-semibold text-center text-primary">{period.time}</TableCell>
+                                            {days.map(day => {
+                                                const entry = timetableData[day]?.[period.time];
+                                                const subject = entry ? (entry as any).subject?.name : null;
+
+                                                return (
+                                                    <TableCell key={`${day}-${period.time}`} className="text-center p-1">
+                                                        {period.isBreak ? (
+                                                            <div className="h-full flex items-center justify-center bg-muted/50 rounded-md p-2">
+                                                                <p className="font-semibold text-muted-foreground text-xs">{period.title}</p>
+                                                            </div>
+                                                        ) : entry ? (
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <div className={`p-2 rounded-md cursor-pointer transition-transform hover:scale-105 ${subjectDetails[subject as keyof typeof subjectDetails]?.color || 'bg-gray-100 text-gray-800'}`}>
+                                                                        <p className="font-bold text-sm">{subject}</p>
+                                                                    </div>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-80">
+                                                                    <div className="space-y-4">
+                                                                        <h4 className="font-medium leading-none flex items-center gap-2">
+                                                                            <BookOpen className="h-5 w-5 text-primary" />
+                                                                            {subject}
+                                                                        </h4>
+                                                                        <div className="flex items-center gap-3">
+                                                                            <Avatar className="h-9 w-9">
+                                                                                <AvatarImage src={`https://picsum.photos/seed/${entry.subject.teacher}/100`} alt={entry.subject.teacher} />
+                                                                                <AvatarFallback>{entry.subject.teacher.charAt(0)}</AvatarFallback>
+                                                                            </Avatar>
+                                                                            <div>
+                                                                                <p className="text-sm font-semibold">{entry.subject.teacher}</p>
+                                                                                <p className="text-xs text-muted-foreground">Teacher</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-3 text-sm">
+                                                                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                                                                            <p>{entry.room}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        ) : null}
+                                                    </TableCell>
+                                                )
+                                            })}
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     )}
                 </CardContent>
             </Card>
