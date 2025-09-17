@@ -61,6 +61,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { Timestamp } from 'firebase/firestore';
+import { deleteUserAction } from './actions';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -319,31 +320,52 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (userId: string, userName: string, userRole: string) => {
-        if (!schoolId || !adminUser) return;
-        if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-            try {
-                let collectionName;
-                if (userRole === 'Student') collectionName = 'students';
-                else if (userRole === 'Parent') collectionName = 'parents';
-                else if (userRole === 'Admin') collectionName = 'admins';
-                else collectionName = 'users';
-
-                await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userId));
-                
-                await logAuditEvent({
-                    schoolId,
-                    action: 'USER_DELETED',
-                    actionType: 'User Management',
-                    description: `User account for ${userName} deleted.`,
-                    user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-                    details: `Deleted User ID: ${userId}, Role: ${userRole}`
-                });
-
-                toast({ title: 'User Deleted', description: 'The user account has been deleted.', variant: 'destructive' });
-            } catch(e) {
-                toast({ title: 'Error', description: 'Could not delete user.', variant: 'destructive'});
-            }
+      if (!schoolId || !adminUser) return;
+      if (!window.confirm(`Are you sure you want to permanently delete the user "${userName}"? This will remove their login access and all associated data. This action cannot be undone.`)) {
+        return;
+      }
+    
+      try {
+        // Step 1: Delete the user from Firebase Authentication
+        const authResult = await deleteUserAction(userId);
+        if (!authResult.success && !authResult.message?.includes('user-not-found')) {
+          // If auth deletion fails and it's not because the user is already gone, stop.
+          throw new Error(authResult.message);
         }
+    
+        // Step 2: Determine the correct Firestore collection
+        let collectionName;
+        if (userRole === 'Student') collectionName = 'students';
+        else if (userRole === 'Parent') collectionName = 'parents';
+        else if (userRole === 'Admin') collectionName = 'admins';
+        else collectionName = 'users';
+    
+        // Step 3: Delete the user's document from Firestore
+        await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userId));
+    
+        // Step 4: Log the audit event
+        await logAuditEvent({
+          schoolId,
+          action: 'USER_DELETED',
+          actionType: 'Security',
+          description: `User account for ${userName} permanently deleted.`,
+          user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+          details: `Deleted User ID: ${userId}, Role: ${userRole}`,
+        });
+    
+        toast({
+          title: 'User Deleted',
+          description: `The user account for ${userName} has been permanently deleted.`,
+          variant: 'destructive',
+        });
+      } catch (e: any) {
+        console.error("Error deleting user:", e);
+        toast({
+          title: 'Deletion Failed',
+          description: e.message || 'Could not delete the user account. Please check the logs or contact support.',
+          variant: 'destructive',
+        });
+      }
     };
 
     const renderUserTable = (roleFilter: UserRole | 'All') => {
@@ -398,7 +420,7 @@ export default function UserManagementPage() {
                                             {getStatusBadge(user.status)}
                                         </TableCell>
                                         <TableCell>
-                                            {user.lastLogin && user.lastLogin !== 'Never' && user.lastLogin.toDate ? user.lastLogin.toDate().toLocaleDateString() : 'Never'}
+                                            {user.lastLogin && user.lastLogin !== 'Never' ? (user.lastLogin as Timestamp).toDate().toLocaleDateString() : 'Never'}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Dialog>
@@ -527,8 +549,8 @@ export default function UserManagementPage() {
                                                             <h4 className="font-semibold text-base flex items-center gap-2"><History className="h-4 w-4" />User History</h4>
                                                              <div className="text-sm text-muted-foreground space-y-2">
                                                                 <div><strong>Account Created:</strong> {user.createdAt ? (user.createdAt as Timestamp).toDate().toLocaleString() : ''}</div>
-                                                                <div><strong>Last Login:</strong> {user.lastLogin && user.lastLogin !== 'Never' && user.lastLogin.toDate ? user.lastLogin.toDate().toLocaleString() : 'Never'}</div>
-                                                                 <div><strong>Last Profile Update:</strong> {user.lastLogin && user.lastLogin !== 'Never' && user.lastLogin.toDate ? user.lastLogin.toDate().toLocaleDateString() : 'Never'} by Admin</div>
+                                                                <div><strong>Last Login:</strong> {user.lastLogin && user.lastLogin !== 'Never' && (user.lastLogin as Timestamp).toDate ? (user.lastLogin as Timestamp).toDate().toLocaleString() : 'Never'}</div>
+                                                                 <div><strong>Last Profile Update:</strong> {user.lastLogin && user.lastLogin !== 'Never' && (user.lastLogin as Timestamp).toDate ? (user.lastLogin as Timestamp).toDate().toLocaleDateString() : 'Never'} by Admin</div>
                                                             </div>
                                                         </div>
                                                         <Separator />
