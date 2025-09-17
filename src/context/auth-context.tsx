@@ -43,15 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const schoolId = searchParams.get('schoolId');
         if (schoolId) {
-          const collectionsToCheck = ['users', 'students', 'parents'];
+          // Prioritize checking for 'admin' role first.
+          const collectionsToCheck: ('admins' | 'users' | 'students' | 'parents')[] = ['admins', 'users', 'students', 'parents'];
           let userFound = false;
+
           for (const collectionName of collectionsToCheck) {
               const userDocRef = doc(firestore, 'schools', schoolId, collectionName, authUser.uid);
               const userDocSnap = await getDoc(userDocRef);
               if (userDocSnap.exists()) {
-                  setRole(userDocSnap.data().role?.toLowerCase() as AllowedRole || 'unknown');
+                  const userData = userDocSnap.data();
+                  setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
                   userFound = true;
-                  break;
+                  break; // Stop after finding the first role (now prioritized).
               }
           }
            if (!userFound) {
