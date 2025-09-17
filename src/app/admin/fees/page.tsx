@@ -1824,16 +1824,16 @@ export default function FeesPage() {
                   <div className="pt-4">
                     <Label htmlFor="class-structure-select">Select a Class to Manage</Label>
                     <Select value={selectedClassForStructure} onValueChange={setSelectedClassForStructure}>
-                      <SelectTrigger id="class-structure-select" className="w-full md:w-72 mt-2" aria-label="Select class for fee structure">
-                        <SelectValue placeholder="Select a class..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {classes.filter((c) => c.id !== 'All Classes').map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                        <SelectTrigger id="class-structure-select" className="w-full md:w-72 mt-2" aria-label="Select class for fee structure">
+                          <SelectValue placeholder="Select a class..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {classes.filter((c) => c.id !== 'All Classes').map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
                     </Select>
                   </div>
                 </CardHeader>
