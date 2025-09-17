@@ -335,14 +335,14 @@ export default function StudentEnrolmentPage() {
                 medicalConditions: values.medicalConditions,
                 emergencyContactName: values.emergencyContactName,
                 emergencyContactPhone: values.emergencyContactPhone,
-                status: 'Approved', // Always approved on creation
+                status: 'Approved',
                 createdAt: serverTimestamp(),
                 avatarUrl: photoUrl,
                 documents: admissionDocUrls,
                 role: 'Student',
                 amountPaid: amountPaid,
-                totalFee: totalFee, // Set the calculated total fee
-                balance: totalFee - amountPaid, // Calculate initial balance
+                totalFee: totalFee,
+                balance: totalFee - amountPaid,
             };
             await setDoc(studentDocRef, studentData);
 
