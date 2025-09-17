@@ -872,7 +872,14 @@ export default function AdminGradesPage() {
                       </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar initialFocus mode="single" selected={date?.from} onSelect={(day) => setDate({ from: day, to: day })} />
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={date?.from}
+                            selected={date}
+                            onSelect={setDate}
+                            numberOfMonths={1}
+                        />
                       </PopoverContent>
                   </Popover>
                   </div>
