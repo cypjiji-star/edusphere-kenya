@@ -22,8 +22,8 @@ export default function RootLayout({
       <head>
         {/* PWA Manifest & Icons */}
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="https://i.postimg.cc/fWq00L3V/favicon-96x96.png" type="image/png" />
         <link rel="apple-touch-icon" href="https://i.postimg.cc/1zK8R5h5/apple-touch-icon.png" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
 
         {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
