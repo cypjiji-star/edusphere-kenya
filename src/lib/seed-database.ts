@@ -2,7 +2,7 @@
 'use server';
 
 import { firestore } from '@/lib/firebase';
-import { collection, writeBatch, doc, Timestamp, getDocs, query, where } from 'firebase/firestore';
+import { collection, writeBatch, doc, Timestamp, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 
 const subjects = [
@@ -45,6 +45,43 @@ const students = [
     { firstName: 'Grace', lastName: 'Nanjala', gender: 'Female' },
     { firstName: 'Henry', lastName: 'Mutua', gender: 'Male' },
 ];
+
+async function clearCollection(collectionPath: string) {
+    const q = query(collection(firestore, collectionPath));
+    const snapshot = await getDocs(q);
+    const batch = writeBatch(firestore);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+}
+
+
+export async function clearSchoolData(schoolId: string) {
+    if (!schoolId) {
+        return { success: false, message: 'School ID is required.' };
+    }
+
+    try {
+        const collectionsToClear = [
+            'classes', 'subjects', 'users', 'students', 'parents', 'attendance', 
+            'grades', 'assignments', 'incidents', 'lesson-plans', 'teams', 
+            'teacher_attendance', 'support-tickets', 'mini_payments', 'leave-applications',
+            'library-requests', 'library-resources', 'audit_logs', 'notifications',
+            'conversations', 'calendar-events', 'class-assignments', 'expenses'
+        ];
+
+        for (const coll of collectionsToClear) {
+            await clearCollection(`schools/${schoolId}/${coll}`);
+        }
+
+        return { success: true, message: `Successfully cleared data for school ${schoolId}.` };
+    } catch (error: any) {
+        console.error('Error clearing database:', error);
+        return { success: false, message: `An error occurred while clearing data: ${error.message}` };
+    }
+}
+
 
 export async function seedSchoolData(schoolId: string) {
     if (!schoolId) {

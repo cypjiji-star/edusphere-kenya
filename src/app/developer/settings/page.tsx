@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { firestore } from '@/lib/firebase';
 import { doc, onSnapshot, setDoc, collection, query, orderBy, limit, Timestamp } from 'firebase/firestore';
-import { seedSchoolData } from '@/lib/seed-database';
+import { seedSchoolData, clearSchoolData } from '@/lib/seed-database';
 
 type School = {
   id: string;
@@ -70,6 +70,7 @@ export default function DeveloperSettingsPage() {
     const [schools, setSchools] = React.useState<School[]>([]);
     const [selectedSchoolToSeed, setSelectedSchoolToSeed] = React.useState<string>('');
     const [isSeeding, setIsSeeding] = React.useState(false);
+    const [isClearing, setIsClearing] = React.useState(false);
 
 
     React.useEffect(() => {
@@ -158,6 +159,28 @@ export default function DeveloperSettingsPage() {
         }
     };
 
+    const handleClearDatabase = async () => {
+        if (!selectedSchoolToSeed) {
+            toast({ title: 'No School Selected', description: 'Please select a school to clear.', variant: 'destructive'});
+            return;
+        }
+        setIsClearing(true);
+        toast({ title: 'Clearing Database...', description: 'This may take a few moments...' });
+
+        try {
+            const result = await clearSchoolData(selectedSchoolToSeed);
+             if (result.success) {
+                toast({ title: 'Database Cleared!', description: result.message, variant: 'destructive' });
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+            toast({ title: 'Clearing Failed', description: error.message, variant: 'destructive'});
+        } finally {
+            setIsClearing(false);
+        }
+    };
+
 
     if (isLoading) {
         return (
@@ -186,7 +209,7 @@ export default function DeveloperSettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label>Select School to Seed</Label>
+                        <Label>Select School</Label>
                         <Select value={selectedSchoolToSeed} onValueChange={setSelectedSchoolToSeed}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a school..." />
@@ -199,10 +222,10 @@ export default function DeveloperSettingsPage() {
                         </Select>
                     </div>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="gap-2">
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" disabled={!selectedSchoolToSeed || isSeeding}>
+                            <Button variant="outline" disabled={!selectedSchoolToSeed || isSeeding}>
                                 {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                                 Seed Database
                             </Button>
@@ -217,6 +240,26 @@ export default function DeveloperSettingsPage() {
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={handleSeedDatabase}>Yes, seed the database</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={!selectedSchoolToSeed || isClearing}>
+                                {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Clear Seeded Data
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will permanently delete all student, teacher, academic, and financial records for the selected school. This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearDatabase}>Yes, delete all data</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
