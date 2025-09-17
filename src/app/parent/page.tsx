@@ -348,9 +348,10 @@ export default function ParentDashboard() {
                     
                     const attendanceSnapshot = await getDocs(attendanceQuery);
                     const totalDays = attendanceSnapshot.size;
-                    const presentDays = attendanceSnapshot.docs.filter(d => 
-                        ['Present', 'Late'].includes(d.data().status)
-                    ).length;
+                    const presentDays = attendanceSnapshot.docs.filter(d => {
+                        const status = d.data().status.toLowerCase();
+                        return status === 'present' || status === 'late';
+                    }).length;
                     
                     const attendancePercentage = totalDays > 0 ? 
                         Math.round((presentDays / totalDays) * 100) : 100;
@@ -393,37 +394,25 @@ export default function ParentDashboard() {
                     const overallGrade = numericScores.length > 0 ? 
                         Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length) : 0;
                     
-                    // Fetch fee transactions
-                    const transactionsQuery = query(
-                        collection(firestore, `schools/${schoolId}/students/${studentId}/transactions`), 
-                        where('type', '==', 'fee_payment')
-                    );
-                    
-                    const transactionsSnapshot = await getDocs(transactionsQuery);
-                    let totalPaid = 0;
-                    transactionsSnapshot.forEach(doc => {
-                        totalPaid += doc.data().amount || 0;
-                    });
-
                     const totalFee = studentData.totalFee || 0;
-                    const balance = totalFee - totalPaid;
-                    
+                    const amountPaid = studentData.amountPaid || 0;
+                    const balance = totalFee - amountPaid;
+                    const dueDate = studentData.dueDate instanceof Timestamp ? studentData.dueDate.toDate() : (studentData.dueDate ? new Date(studentData.dueDate) : new Date());
+
                     const feeStatus = {
                         total: totalFee,
-                        paid: totalPaid,
+                        paid: amountPaid,
                         balance: balance,
                         status: balance <= 0 ? 'Paid' as const : 
-                               isPast(new Date(studentData.dueDate || new Date())) ? 
-                               'Overdue' as const : 'Partial' as const,
-                        dueDate: (studentData.dueDate as Timestamp)?.toDate().toISOString() || 
-                                new Date().toISOString(),
+                               (isPast(dueDate) ? 'Overdue' as const : 'Partial' as const),
+                        dueDate: dueDate.toISOString(),
                     };
 
                     return { 
                         id: studentId, 
                         name: studentData.name || 'Unknown',
                         class: studentData.class || 'Unknown',
-                        avatarUrl: studentData.avatarUrl || '',
+                        avatarUrl: studentData.avatarUrl || `https://picsum.photos/seed/${studentId}/100`,
                         attendance: attendancePercentage,
                         overallGrade: overallGrade,
                         feeStatus: feeStatus,
@@ -434,6 +423,7 @@ export default function ParentDashboard() {
             
             setChildrenData(fetchedChildren);
             if (fetchedChildren.length > 0) {
+                // If a child is already selected, try to find their updated data, otherwise default to the first child.
                 const currentSelectedId = selectedChild?.id;
                 const updatedSelectedChild = currentSelectedId ? 
                     fetchedChildren.find(c => c.id === currentSelectedId) : undefined;
@@ -445,7 +435,7 @@ export default function ParentDashboard() {
             setError('Failed to load student data');
             setIsLoading(false);
         }
-    }, [schoolId, parentId]);
+    }, [schoolId, parentId, selectedChild?.id]);
 
     React.useEffect(() => {
         fetchChildrenData();
@@ -485,7 +475,7 @@ export default function ParentDashboard() {
                         No students are registered under your account.
                     </p>
                     <Button asChild>
-                        <Link href="/support">Contact Support</Link>
+                        <Link href={`/parent/support?schoolId=${schoolId}`}>Contact Support</Link>
                     </Button>
                 </div>
             </div>
