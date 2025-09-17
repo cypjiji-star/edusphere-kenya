@@ -49,6 +49,7 @@ const students = [
 async function clearCollection(collectionPath: string) {
     const q = query(collection(firestore, collectionPath));
     const snapshot = await getDocs(q);
+    if (snapshot.empty) return;
     const batch = writeBatch(firestore);
     snapshot.docs.forEach(doc => {
         batch.delete(doc.ref);
