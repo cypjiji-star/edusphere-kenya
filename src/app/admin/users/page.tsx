@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -82,7 +83,7 @@ type User = {
     avatarUrl: string;
     role: UserRole;
     status: UserStatus;
-    lastLogin: Timestamp | 'Never';
+    lastLogin: Timestamp | 'Never' | null;
     createdAt: Timestamp;
     class?: string;
     parents?: ParentLink[];
@@ -326,24 +327,19 @@ export default function UserManagementPage() {
       }
     
       try {
-        // Step 1: Delete the user from Firebase Authentication
         const authResult = await deleteUserAction(userId);
         if (!authResult.success && !authResult.message?.includes('user-not-found')) {
-          // If auth deletion fails and it's not because the user is already gone, stop.
           throw new Error(authResult.message);
         }
     
-        // Step 2: Determine the correct Firestore collection
         let collectionName;
         if (userRole === 'Student') collectionName = 'students';
         else if (userRole === 'Parent') collectionName = 'parents';
         else if (userRole === 'Admin') collectionName = 'admins';
-        else collectionName = 'users';
+        else collectionName = 'users'; // Default for Teacher and other roles
     
-        // Step 3: Delete the user's document from Firestore
         await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userId));
     
-        // Step 4: Log the audit event
         await logAuditEvent({
           schoolId,
           action: 'USER_DELETED',
