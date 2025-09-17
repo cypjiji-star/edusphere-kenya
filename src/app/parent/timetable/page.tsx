@@ -192,7 +192,7 @@ export default function ParentTimetablePage() {
                             <User className="h-5 w-5 text-primary"/>
                             <Select value={selectedChild} onValueChange={setSelectedChild}>
                                 <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select a child" />
+                                <SelectValue placeholder="Select a child" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {childrenData.map((child) => (
