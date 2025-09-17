@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -25,13 +26,6 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
-import {
     Dialog,
     DialogContent,
     DialogHeader,
@@ -46,7 +40,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail } from 'lucide-react';
+import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
