@@ -332,6 +332,12 @@ export function TimetableBuilder() {
     }
   };
 
+    const currentYear = new Date().getFullYear();
+    const academicTerms = Array.from({ length: 2 }, (_, i) => {
+        const year = currentYear + i;
+        return [`Term 1, ${year}`, `Term 2, ${year}`, `Term 3, ${year}`];
+    }).flat();
+
   if (!selectedItem && !isLoading) {
     return (
         <Card>
@@ -374,13 +380,14 @@ export function TimetableBuilder() {
                                 <CardDescription>Drag subjects from the right panel and drop them into time slots.</CardDescription>
                             </div>
                             <div className="flex w-full flex-wrap md:w-auto items-center gap-2">
-                                <Select defaultValue="term2-2024">
+                                <Select defaultValue="term-2-2024">
                                     <SelectTrigger className="w-full sm:w-auto">
                                         <SelectValue placeholder="Select term" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                        <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                        {academicTerms.map(term => (
+                                            <SelectItem key={term} value={term.toLowerCase().replace(/[\s,]+/g, '-')}>{term}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                                 <Select value={view} onValueChange={(v) => {
