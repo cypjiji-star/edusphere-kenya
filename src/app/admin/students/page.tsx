@@ -46,6 +46,8 @@ import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firest
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 type Student = {
     id: string;
@@ -76,7 +78,7 @@ const getStatusBadge = (status: Student['status']) => {
 const getFeeStatusBadge = (status: Student['feeStatus']) => {
     switch (status) {
         case 'Paid': return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
-        case 'Partial': return <Badge className="bg-blue-500 hover:bg-blue-600">Partial</Badge>;
+        case 'Partial': return <Badge className="bg-blue-500 hover:bg-blue-500">Partial</Badge>;
         case 'Overdue': return <Badge variant="destructive">Overdue</Badge>;
     }
 };
