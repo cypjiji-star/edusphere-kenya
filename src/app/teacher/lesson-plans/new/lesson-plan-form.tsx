@@ -86,19 +86,30 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   useEffect(() => {
     if (!schoolId || !user) return;
     const teacherId = user.uid;
-    const q = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const uniqueSubjects = new Set<string>();
-        const uniqueGrades = new Set<string>();
+
+    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
+    const subjectsUnsub = onSnapshot(subjectsQuery, (snapshot) => {
+        const subjectData = new Set<string>();
         snapshot.docs.forEach(doc => {
-            const subjectName = doc.data().name.split(' - ')[1]; // Assumes format "Form 4 - Chemistry"
-            if (subjectName) uniqueSubjects.add(subjectName);
-            uniqueGrades.add(doc.data().name.split(' ')[0]);
+            const data = doc.data();
+            if (data.name) subjectData.add(data.name);
         });
-        setSubjects(Array.from(uniqueSubjects));
-        setGrades(Array.from(uniqueGrades));
+        setSubjects(Array.from(subjectData));
     });
-    return () => unsubscribe();
+
+    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+    const classesUnsub = onSnapshot(classesQuery, (snapshot) => {
+        const gradeData = new Set<string>();
+        snapshot.docs.forEach(doc => {
+            gradeData.add(doc.data().name);
+        });
+        setGrades(Array.from(gradeData));
+    });
+
+    return () => {
+        subjectsUnsub();
+        classesUnsub();
+    }
   }, [schoolId, user]);
 
    useEffect(() => {
