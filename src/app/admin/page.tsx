@@ -99,16 +99,19 @@ export default function AdminDashboard() {
       }
     });
 
-    const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
-    const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
-      let students = 0, teachers = 0, parents = 0;
-      snapshot.forEach(doc => {
-        const user = doc.data();
-        if (user.role === 'Student') students++;
-        if (user.role === 'Teacher') teachers++;
-        if (user.role === 'Parent' && user.status === 'Active') parents++;
-      });
-      setStats(prev => ({...prev, totalStudents: students, totalTeachers: teachers, activeParents: parents }));
+    const usersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher'));
+    const unsubTeachers = onSnapshot(usersQuery, (snapshot) => {
+      setStats(prev => ({...prev, totalTeachers: snapshot.size }));
+    });
+    
+    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
+    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+      setStats(prev => ({...prev, totalStudents: snapshot.size }));
+    });
+
+    const parentsQuery = query(collection(firestore, `schools/${schoolId}/parents`));
+    const unsubParents = onSnapshot(parentsQuery, (snapshot) => {
+      setStats(prev => ({ ...prev, activeParents: snapshot.size }));
     });
 
     const pendingRegQuery = query(collection(firestore, `schools/${schoolId}/students`), where('status', '==', 'Pending'));
@@ -173,7 +176,9 @@ export default function AdminDashboard() {
 
     return () => {
       unsubSchool();
-      unsubUsers();
+      unsubTeachers();
+      unsubStudents();
+      unsubParents();
       unsubPendingReg();
       unsubAttendance();
       unsubFees();
