@@ -76,9 +76,6 @@ export default function SettingsPage() {
     const [maintenanceMode, setMaintenanceMode] = React.useState(false);
     const [aiChatbot, setAiChatbot] = React.useState(false);
     
-    const [attendanceAlerts, setAttendanceAlerts] = React.useState(true);
-    const [systemAlerts, setSystemAlerts] = React.useState(true);
-    
     const [recentChanges, setRecentChanges] = React.useState<any[]>([]);
 
     const settingUpdaters: Record<string, React.Dispatch<React.SetStateAction<any>>> = {
