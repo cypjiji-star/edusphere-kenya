@@ -1143,20 +1143,20 @@ export default function FeesPage() {
   const handleDeleteFeeItem = async (itemId: string, itemCategory: string) => {
     if (!window.confirm('Are you sure you want to delete this fee item?')) return;
     if (!schoolId || !selectedClassForStructure || !user) return;
-
+    
     try {
-      const structureRef = doc(firestore, `schools/${schoolId}/fee-structures`, selectedClassForStructure);
+      const structureRef = doc(firestore, 'schools', schoolId, 'fee-structures', selectedClassForStructure);
       const updatedStructure = feeStructure.filter((item) => item.id !== itemId);
-      await setDoc(structureRef, { items: updatedStructure });
+      await setDoc(structureRef, { items: updatedStructure }, { merge: true });
 
-       await logAuditEvent({
+      await logAuditEvent({
         schoolId,
         action: 'FEE_STRUCTURE_ITEM_REMOVED',
         actionType: 'Finance',
         user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
         details: `Fee item "${itemCategory}" removed from class ${classes.find(c => c.id === selectedClassForStructure)?.name}.`,
       });
-
+      
       toast({ title: 'Fee Item Deleted', description: 'Fee item removed successfully.' });
     } catch (e: unknown) {
       console.error('Error deleting fee item:', e);
