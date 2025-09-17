@@ -40,9 +40,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2, TrendingUp, BarChart } from 'lucide-react';
+import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2, TrendingUp, BarChart, History, HeartPulse, ShieldAlert, CheckCircle, XCircle } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, getDocs, orderBy, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
@@ -54,6 +54,7 @@ type Student = {
     name: string;
     admissionNumber: string;
     class: string;
+    classId: string;
     gender: 'Male' | 'Female';
     dateOfBirth: string; // Stored as ISO string
     parentName: string;
@@ -62,6 +63,42 @@ type Student = {
     avatarUrl: string;
     balance: number;
     feeStatus: 'Paid' | 'Partial' | 'Overdue';
+    birthCertificateNumber?: string;
+    nhifNumber?: string;
+    parentEmail?: string;
+    parentAddress?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+};
+
+type AttendanceRecord = {
+    id: string;
+    date: Timestamp;
+    status: 'Present' | 'Absent' | 'Late';
+    notes?: string;
+};
+
+type Transaction = {
+    id: string;
+    date: Timestamp;
+    description: string;
+    type: 'Charge' | 'Payment';
+    amount: number;
+};
+
+type Incident = {
+    id: string;
+    date: Timestamp;
+    type: string;
+    description: string;
+    reportedBy: string;
+    status: string;
+};
+
+type SelectedStudentDetails = Student & {
+    attendance: AttendanceRecord[];
+    transactions: Transaction[];
+    incidents: Incident[];
 };
 
 const getStatusBadge = (status: Student['status']) => {
@@ -83,6 +120,14 @@ const getFeeStatusBadge = (status: Student['feeStatus']) => {
     }
 };
 
+const getAttendanceStatusBadge = (status: AttendanceRecord['status']) => {
+    switch (status) {
+        case 'Present': return <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Present</Badge>;
+        case 'Absent': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>;
+        case 'Late': return <Badge className="bg-yellow-500 hover:bg-yellow-600">Late</Badge>;
+    }
+};
+
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
 };
@@ -99,7 +144,7 @@ export default function StudentManagementPage() {
   const [enrollmentStatusFilter, setEnrollmentStatusFilter] = React.useState('All Statuses');
   const [feeStatusFilter, setFeeStatusFilter] = React.useState('All Fee Statuses');
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
-  const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = React.useState<SelectedStudentDetails | null>(null);
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -114,8 +159,7 @@ export default function StudentManagementPage() {
         const balance = data.balance || 0;
         let feeStatus: 'Paid' | 'Partial' | 'Overdue' = 'Paid';
         if (balance > 0) {
-            // A simple check for overdue, a real app would use due dates
-            feeStatus = 'Partial';
+            feeStatus = 'Partial'; // Simplified logic
         }
 
         return {
@@ -123,14 +167,21 @@ export default function StudentManagementPage() {
           name: data.name,
           admissionNumber: data.admissionNumber,
           class: data.class,
+          classId: data.classId,
           gender: data.gender,
-          dateOfBirth: data.dateOfBirth.toDate().toISOString(),
+          dateOfBirth: data.dateOfBirth?.toDate().toISOString(),
           parentName: data.parentName,
           parentContact: data.parentPhone,
           status: data.status || 'Active',
           avatarUrl: data.avatarUrl,
           balance: balance,
           feeStatus: feeStatus,
+          birthCertificateNumber: data.birthCertificateNumber,
+          nhifNumber: data.nhifNumber,
+          parentEmail: data.parentEmail,
+          parentAddress: data.parentAddress,
+          emergencyContactName: data.emergencyContactName,
+          emergencyContactPhone: data.emergencyContactPhone,
         } as Student;
       });
       setStudents(studentData);
@@ -143,6 +194,32 @@ export default function StudentManagementPage() {
 
     return () => unsubscribe();
   }, [schoolId]);
+
+  const openStudentDialog = async (student: Student) => {
+    if (!schoolId) return;
+
+    // Fetch details for the selected student
+    const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', student.id), orderBy('date', 'desc'));
+    const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
+    const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', '==', student.id), orderBy('date', 'desc'));
+
+    const [attendanceSnap, transactionsSnap, incidentsSnap] = await Promise.all([
+        getDocs(attendanceQuery),
+        getDocs(transactionsQuery),
+        getDocs(incidentsQuery),
+    ]);
+
+    const attendanceRecords = attendanceSnap.docs.map(d => ({id: d.id, ...d.data()}) as AttendanceRecord);
+    const transactionRecords = transactionsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Transaction);
+    const incidentRecords = incidentsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Incident);
+
+    setSelectedStudent({
+        ...student,
+        attendance: attendanceRecords,
+        transactions: transactionRecords,
+        incidents: incidentRecords,
+    });
+  };
 
   const filteredStudents = students.filter(student => 
     (student.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -243,7 +320,7 @@ export default function StudentManagementPage() {
                 <TableBody>
                   {filteredStudents.map((student) => (
                     <DialogTrigger key={student.id} asChild>
-                        <TableRow className="cursor-pointer" onClick={() => setSelectedStudent(student)}>
+                        <TableRow className="cursor-pointer" onClick={() => openStudentDialog(student)}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9">
@@ -292,50 +369,96 @@ export default function StudentManagementPage() {
                 </DialogHeader>
                 <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
                     <Tabs defaultValue="bio">
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="bio">Bio Data</TabsTrigger>
                             <TabsTrigger value="academics">Academics</TabsTrigger>
                             <TabsTrigger value="finance">Finance</TabsTrigger>
+                            <TabsTrigger value="health">Health & Incidents</TabsTrigger>
                         </TabsList>
                         <TabsContent value="bio" className="mt-4">
                              <Card>
                                 <CardHeader><CardTitle className="text-base">Personal Details</CardTitle></CardHeader>
                                 <CardContent className="grid grid-cols-2 gap-4 text-sm">
                                     <div><Label>Gender</Label><p>{selectedStudent.gender}</p></div>
-                                    <div><Label>Date of Birth</Label><p>{new Date(selectedStudent.dateOfBirth).toLocaleDateString()}</p></div>
-                                    <div><Label>Birth Certificate No.</Label><p className="font-mono">N/A</p></div>
-                                    <div><Label>NHIF Number</Label><p className="font-mono">N/A</p></div>
+                                    <div><Label>Date of Birth</Label><p>{selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : 'N/A'}</p></div>
+                                    <div><Label>Birth Certificate No.</Label><p className="font-mono">{selectedStudent.birthCertificateNumber || 'N/A'}</p></div>
+                                    <div><Label>NHIF Number</Label><p className="font-mono">{selectedStudent.nhifNumber || 'N/A'}</p></div>
                                 </CardContent>
                             </Card>
                             <Card className="mt-4">
                                 <CardHeader><CardTitle className="text-base">Parent / Guardian Details</CardTitle></CardHeader>
                                 <CardContent className="grid grid-cols-2 gap-4 text-sm">
                                     <div><Label>Name</Label><p>{selectedStudent.parentName}</p></div>
-                                    <div><Label>Contact</Label><p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p></div>
+                                    <div><Label>Primary Contact</Label><p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p></div>
+                                    <div><Label>Email Address</Label><p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentEmail || 'N/A'}</p></div>
+                                    <div><Label>Physical Address</Label><p>{selectedStudent.parentAddress || 'N/A'}</p></div>
+                                     <div><Label>Emergency Contact</Label><p>{selectedStudent.emergencyContactName || 'N/A'} ({selectedStudent.emergencyContactPhone || 'N/A'})</p></div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
-                        <TabsContent value="academics" className="mt-4">
-                             <Card>
-                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary"/>Performance Trend</CardTitle></CardHeader>
-                                <CardContent><p className="text-sm text-muted-foreground">Detailed chart of past exam results will be shown here.</p></CardContent>
+                        <TabsContent value="academics" className="mt-4 space-y-4">
+                            <Card>
+                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4 text-primary"/>Attendance History</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="w-full overflow-auto rounded-lg border max-h-60">
+                                        <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
+                                            <TableBody>
+                                                {selectedStudent.attendance.map(att => <TableRow key={att.id}><TableCell>{att.date.toDate().toLocaleDateString()}</TableCell><TableCell>{getAttendanceStatusBadge(att.status)}</TableCell><TableCell>{att.notes || '—'}</TableCell></TableRow>)}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
                             </Card>
-                             <Card className="mt-4">
-                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4 text-primary"/>Class History</CardTitle></CardHeader>
-                                <CardContent><p className="text-sm text-muted-foreground">A log of the student's progression through classes will be shown here.</p></CardContent>
+                             <Card>
+                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart className="h-4 w-4 text-primary"/>Grade History</CardTitle></CardHeader>
+                                <CardContent><p className="text-sm text-muted-foreground">A detailed log of past exam results will be shown here.</p></CardContent>
                             </Card>
                         </TabsContent>
                          <TabsContent value="finance" className="mt-4">
                             <Card>
-                                <CardHeader><CardTitle className="text-base">Fee Status</CardTitle></CardHeader>
-                                <CardContent className="space-y-2">
-                                    <div className="flex justify-between font-bold text-lg"><p>Balance:</p><p className="text-destructive">{formatCurrency(selectedStudent.balance)}</p></div>
+                                <CardHeader><CardTitle className="text-base">Full Fee Statement</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="w-full overflow-auto rounded-lg border max-h-80">
+                                         <Table>
+                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Charge</TableHead><TableHead className="text-right">Payment</TableHead></TableRow></TableHeader>
+                                            <TableBody>
+                                                {selectedStudent.transactions.map(tx => (
+                                                    <TableRow key={tx.id}>
+                                                        <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
+                                                        <TableCell>{tx.description}</TableCell>
+                                                        <TableCell className="text-right">{tx.type === 'Charge' ? formatCurrency(tx.amount) : '—'}</TableCell>
+                                                        <TableCell className="text-right text-green-600">{tx.type === 'Payment' ? formatCurrency(Math.abs(tx.amount)) : '—'}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
                                 </CardContent>
-                                <CardFooter>
-                                     <Button variant="outline" asChild>
-                                        <Link href={`/admin/fees?schoolId=${schoolId}&studentId=${selectedStudent.id}`}>View Full Statement</Link>
-                                    </Button>
+                                <CardFooter className="font-bold flex justify-end">
+                                    Balance: {formatCurrency(selectedStudent.balance)}
                                 </CardFooter>
+                            </Card>
+                        </TabsContent>
+                        <TabsContent value="health" className="mt-4">
+                             <Card>
+                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary"/>Incidents &amp; Health Log</CardTitle></CardHeader>
+                                <CardContent>
+                                     <div className="w-full overflow-auto rounded-lg border max-h-80">
+                                         <Table>
+                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Reported By</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                                            <TableBody>
+                                                {selectedStudent.incidents.map(inc => (
+                                                    <TableRow key={inc.id}>
+                                                        <TableCell>{inc.date.toDate().toLocaleDateString()}</TableCell>
+                                                        <TableCell><Badge variant={inc.type === 'Health' ? 'destructive' : 'secondary'}>{inc.type}</Badge></TableCell>
+                                                        <TableCell>{inc.reportedBy}</TableCell>
+                                                        <TableCell><Badge variant="outline">{inc.status}</Badge></TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                     </div>
+                                </CardContent>
                             </Card>
                         </TabsContent>
                     </Tabs>
