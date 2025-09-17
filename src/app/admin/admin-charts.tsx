@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, getDocs, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -49,6 +49,7 @@ export function FinanceSnapshot() {
 
     const fetchData = async () => {
         setIsLoading(true);
+        const currentYear = new Date().getFullYear();
         const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
         const studentsSnapshot = await getDocs(studentsQuery);
 
@@ -63,16 +64,17 @@ export function FinanceSnapshot() {
 
             transactionsSnapshot.forEach(transDoc => {
                 const transaction = transDoc.data();
-                if (transaction.description === 'School Fees' && transaction.type === 'Charge') {
+                if (
+                    transaction.description === 'School Fees' &&
+                    transaction.type === 'Charge' &&
+                    (transaction.date as Timestamp).toDate().getFullYear() === currentYear
+                ) {
                     totalSchoolFeesBilled += transaction.amount > 0 ? transaction.amount : 0;
                 }
             });
         }
         
-        // As we are filtering by 'School Fees', the collected amount should also be contextualized.
-        // A simple approach is to show all payments against the school fee billing.
-        // A more complex (and accurate) model would allocate payments, but for this snapshot,
-        // we'll cap collected at billed amount if it exceeds it.
+        // Cap collected amount at billed amount for a more accurate representation of fee collection
         const totalCollectedForSchoolFees = Math.min(totalPaidOverall, totalSchoolFeesBilled);
 
         setFinanceData({ totalCollected: totalCollectedForSchoolFees, totalBilled: totalSchoolFeesBilled });
@@ -100,7 +102,7 @@ export function FinanceSnapshot() {
                 <CircleDollarSign className="h-6 w-6 text-primary"/>
                 School Fees Snapshot
             </CardTitle>
-            <CardDescription>Term 2 School Fee Collection Overview</CardDescription>
+            <CardDescription>Yearly School Fee Collection Overview</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row items-center gap-6">
           {isLoading ? (
@@ -137,7 +139,7 @@ export function FinanceSnapshot() {
             </div>
             <div className="flex-1 space-y-4 w-full">
                 <div className="flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground">Total School Fees Billed</p>
+                    <p className="text-sm text-muted-foreground">Total School Fees Billed (This Year)</p>
                     <p className="text-lg font-bold">KES {financeData.totalBilled.toLocaleString()}</p>
                 </div>
                 <div className="flex justify-between items-center">
