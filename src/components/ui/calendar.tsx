@@ -6,6 +6,13 @@ import { DayPicker } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./select"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
@@ -23,7 +30,7 @@ function Calendar({
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        caption_label: "hidden", // Hide the default label
         caption_dropdowns: "flex justify-center gap-1",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
@@ -52,14 +59,71 @@ function Calendar({
         day_range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",
-        vhidden: "hidden",
-        dropdown: "bg-background border rounded-md",
-        dropdown_icon: "ml-2",
         ...classNames,
       }}
       components={{
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+        Caption: ({ ...props }) => {
+          const { fromMonth, fromYear, fromDate, toMonth, toYear, toDate, onMonthChange } =
+            (props as any).displayer || {};
+          const months = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December",
+          ];
+          const years: number[] = [];
+          const currentYear = new Date().getFullYear();
+          for (let i = currentYear - 100; i <= currentYear; i++) {
+            years.push(i);
+          }
+          
+          const handleYearChange = (year: string) => {
+            const newDate = new Date(props.displayMonth);
+            newDate.setFullYear(parseInt(year, 10));
+            props.onMonthChange?.(newDate);
+          };
+
+          const handleMonthChange = (monthIndex: string) => {
+            const newDate = new Date(props.displayMonth);
+            newDate.setMonth(parseInt(monthIndex, 10));
+            props.onMonthChange?.(newDate);
+          };
+          
+          return (
+            <div className="flex justify-center items-center gap-2">
+               <Select
+                value={props.displayMonth.getMonth().toString()}
+                onValueChange={handleMonthChange}
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((month, index) => (
+                    <SelectItem key={month} value={index.toString()}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+               <Select
+                value={props.displayMonth.getFullYear().toString()}
+                onValueChange={handleYearChange}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        },
       }}
       {...props}
     />
