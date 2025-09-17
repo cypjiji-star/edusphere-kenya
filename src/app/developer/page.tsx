@@ -108,11 +108,11 @@ export default function DeveloperDashboard() {
             batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore, userCount: 0 });
         });
         
-        // 4. Create the admin's user document in the school's users subcollection
-        const adminUserRef = doc(firestore, 'schools', schoolCode, 'users', adminUid);
+        // 4. Create the admin's user document in the school's admins subcollection
+        const adminUserRef = doc(firestore, 'schools', schoolCode, 'admins', adminUid);
         batch.set(adminUserRef, {
             id: adminUid,
-            schoolId: schoolCode, // <-- This is the fix
+            schoolId: schoolCode,
             name: 'School Admin', // Placeholder name
             email: adminEmail,
             role: 'Admin',
