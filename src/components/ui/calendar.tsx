@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import { DayPicker, useDayPicker, useNavigation } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -31,7 +31,7 @@ function Calendar({
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "hidden", // Hide the default label
+        caption_label: "hidden",
         caption_dropdowns: "flex justify-center gap-1",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
@@ -66,51 +66,42 @@ function Calendar({
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
         Caption: ({ ...props }) => {
-          const { fromMonth, fromYear, fromDate, toMonth, toYear, toDate } =
-            (props as any).displayer || {};
-          const months = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December",
-          ];
-          
+          const { goToMonth, currentMonth } = useNavigation();
+          const { fromYear, fromDate, toDate } = useDayPicker();
           const currentYear = new Date().getFullYear();
-          const years: number[] = Array.from({ length: 101 }, (_, i) => currentYear - i);
-          
-          const handleYearChange = (year: string) => {
-            const newDate = new Date(props.displayMonth);
-            newDate.setFullYear(parseInt(year, 10));
-            props.onMonthChange?.(newDate);
-          };
+          const years = Array.from({ length: (fromYear || currentYear) - 1900 + 1 }, (_, i) => currentYear - i);
 
-          const handleMonthChange = (monthIndex: string) => {
-            const newDate = new Date(props.displayMonth);
-            newDate.setMonth(parseInt(monthIndex, 10));
-            props.onMonthChange?.(newDate);
-          };
-          
           return (
             <div className="flex justify-center items-center gap-2">
-               <Select
-                value={props.displayMonth.getMonth().toString()}
-                onValueChange={handleMonthChange}
+              <Select
+                value={currentMonth.getMonth().toString()}
+                onValueChange={(value) => {
+                  const newDate = new Date(currentMonth);
+                  newDate.setMonth(parseInt(value, 10));
+                  goToMonth(newDate);
+                }}
               >
                 <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Select month" />
+                  <SelectValue placeholder={format(currentMonth, "MMMM")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {months.map((month, index) => (
-                    <SelectItem key={month} value={index.toString()}>
-                      {month}
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <SelectItem key={i} value={i.toString()}>
+                      {format(new Date(currentYear, i), "MMMM")}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-               <Select
-                value={props.displayMonth.getFullYear().toString()}
-                onValueChange={handleYearChange}
+              <Select
+                value={currentMonth.getFullYear().toString()}
+                onValueChange={(value) => {
+                   const newDate = new Date(currentMonth);
+                   newDate.setFullYear(parseInt(value, 10));
+                   goToMonth(newDate);
+                }}
               >
                 <SelectTrigger className="w-[100px]">
-                  <SelectValue placeholder="Select year" />
+                  <SelectValue placeholder={currentMonth.getFullYear()} />
                 </SelectTrigger>
                 <SelectContent>
                   {years.map((year) => (
