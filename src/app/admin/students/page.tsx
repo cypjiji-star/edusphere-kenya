@@ -319,26 +319,26 @@ export default function StudentManagementPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredStudents.map((student) => (
-                    <DialogTrigger key={student.id} asChild>
-                        <TableRow className="cursor-pointer" onClick={() => openStudentDialog(student)}>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                    <AvatarImage src={student.avatarUrl} alt={student.name} />
-                                    <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <span className="font-medium">{student.name}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell>{student.admissionNumber}</TableCell>
-                            <TableCell>{student.class}</TableCell>
-                            <TableCell>{getFeeStatusBadge(student.feeStatus)}</TableCell>
-                            <TableCell>{getStatusBadge(student.status)}</TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openStudentDialog(student); }}>View Details</Button>
-                            </TableCell>
-                        </TableRow>
-                    </DialogTrigger>
+                    <TableRow key={student.id}>
+                        <TableCell>
+                            <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                                <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{student.name}</span>
+                            </div>
+                        </TableCell>
+                        <TableCell>{student.admissionNumber}</TableCell>
+                        <TableCell>{student.class}</TableCell>
+                        <TableCell>{getFeeStatusBadge(student.feeStatus)}</TableCell>
+                        <TableCell>{getStatusBadge(student.status)}</TableCell>
+                        <TableCell className="text-right">
+                           <DialogTrigger asChild>
+                               <Button variant="ghost" size="sm" onClick={() => openStudentDialog(student)}>View Details</Button>
+                           </DialogTrigger>
+                        </TableCell>
+                    </TableRow>
                   ))}
                 </TableBody>
               </Table>
@@ -373,7 +373,7 @@ export default function StudentManagementPage() {
                             <TabsTrigger value="bio">Bio Data</TabsTrigger>
                             <TabsTrigger value="academics">Academics</TabsTrigger>
                             <TabsTrigger value="finance">Finance</TabsTrigger>
-                            <TabsTrigger value="health">Health & Incidents</TabsTrigger>
+                            <TabsTrigger value="health">Health &amp; Incidents</TabsTrigger>
                         </TabsList>
                         <TabsContent value="bio" className="mt-4">
                              <Card>
@@ -472,3 +472,5 @@ export default function StudentManagementPage() {
     </div>
   );
 }
+
+    
