@@ -78,6 +78,14 @@ type AttendanceRecord = {
     notes?: string;
 };
 
+type GradeRecord = {
+    id: string;
+    assessmentTitle: string;
+    subject: string;
+    grade: string;
+    date: Timestamp;
+}
+
 type Transaction = {
     id: string;
     date: Timestamp;
@@ -97,6 +105,7 @@ type Incident = {
 
 type SelectedStudentDetails = Student & {
     attendance: AttendanceRecord[];
+    grades: GradeRecord[];
     transactions: Transaction[];
     incidents: Incident[];
 };
@@ -202,20 +211,36 @@ export default function StudentManagementPage() {
     const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', student.id), orderBy('date', 'desc'));
     const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
     const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', '==', student.id), orderBy('date', 'desc'));
+    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', student.id), orderBy('date', 'desc'));
 
-    const [attendanceSnap, transactionsSnap, incidentsSnap] = await Promise.all([
+    const [attendanceSnap, transactionsSnap, incidentsSnap, gradesSnap] = await Promise.all([
         getDocs(attendanceQuery),
         getDocs(transactionsQuery),
         getDocs(incidentsQuery),
+        getDocs(gradesQuery),
     ]);
 
     const attendanceRecords = attendanceSnap.docs.map(d => ({id: d.id, ...d.data()}) as AttendanceRecord);
     const transactionRecords = transactionsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Transaction);
     const incidentRecords = incidentsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Incident);
 
+    const gradeRecords: GradeRecord[] = await Promise.all(gradesSnap.docs.map(async (gradeDoc) => {
+        const gradeData = gradeDoc.data();
+        const assessmentSnap = await getDoc(doc(firestore, 'schools', schoolId!, 'assessments', gradeData.assessmentId));
+        return {
+            id: gradeDoc.id,
+            assessmentTitle: assessmentSnap.data()?.title || 'Unknown Assessment',
+            subject: gradeData.subject,
+            grade: gradeData.grade,
+            date: gradeData.date,
+        }
+    }));
+
+
     setSelectedStudent({
         ...student,
         attendance: attendanceRecords,
+        grades: gradeRecords,
         transactions: transactionRecords,
         incidents: incidentRecords,
     });
@@ -411,7 +436,23 @@ export default function StudentManagementPage() {
                             </Card>
                              <Card>
                                 <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart className="h-4 w-4 text-primary"/>Grade History</CardTitle></CardHeader>
-                                <CardContent><p className="text-sm text-muted-foreground">A detailed log of past exam results will be shown here.</p></CardContent>
+                                <CardContent>
+                                    <div className="w-full overflow-auto rounded-lg border max-h-60">
+                                        <Table>
+                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Assessment</TableHead><TableHead>Subject</TableHead><TableHead className="text-right">Grade</TableHead></TableRow></TableHeader>
+                                            <TableBody>
+                                                {selectedStudent.grades.map(grade => (
+                                                    <TableRow key={grade.id}>
+                                                        <TableCell>{grade.date.toDate().toLocaleDateString()}</TableCell>
+                                                        <TableCell>{grade.assessmentTitle}</TableCell>
+                                                        <TableCell>{grade.subject}</TableCell>
+                                                        <TableCell className="text-right font-semibold">{grade.grade}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
                             </Card>
                         </TabsContent>
                          <TabsContent value="finance" className="mt-4">
@@ -472,5 +513,3 @@ export default function StudentManagementPage() {
     </div>
   );
 }
-
-    
