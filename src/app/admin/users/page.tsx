@@ -398,7 +398,7 @@ export default function UserManagementPage() {
                                             {getStatusBadge(user.status)}
                                         </TableCell>
                                         <TableCell>
-                                            {user.lastLogin === 'Never' ? 'Never' : (user.lastLogin instanceof Timestamp ? user.lastLogin.toDate().toLocaleDateString() : 'N/A')}
+                                            {user.lastLogin && user.lastLogin !== 'Never' && user.lastLogin.toDate ? user.lastLogin.toDate().toLocaleDateString() : 'Never'}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Dialog>
@@ -527,8 +527,8 @@ export default function UserManagementPage() {
                                                             <h4 className="font-semibold text-base flex items-center gap-2"><History className="h-4 w-4" />User History</h4>
                                                              <div className="text-sm text-muted-foreground space-y-2">
                                                                 <div><strong>Account Created:</strong> {user.createdAt ? (user.createdAt as Timestamp).toDate().toLocaleString() : ''}</div>
-                                                                <div><strong>Last Login:</strong> {user.lastLogin !== 'Never' ? (user.lastLogin as Timestamp).toDate().toLocaleString() : 'Never'}</div>
-                                                                 <div><strong>Last Profile Update:</strong> {user.lastLogin !== 'Never' ? (user.lastLogin as Timestamp).toDate().toLocaleDateString() : 'Never'} by Admin</div>
+                                                                <div><strong>Last Login:</strong> {user.lastLogin && user.lastLogin !== 'Never' && user.lastLogin.toDate ? user.lastLogin.toDate().toLocaleString() : 'Never'}</div>
+                                                                 <div><strong>Last Profile Update:</strong> {user.lastLogin && user.lastLogin !== 'Never' && user.lastLogin.toDate ? user.lastLogin.toDate().toLocaleDateString() : 'Never'} by Admin</div>
                                                             </div>
                                                         </div>
                                                         <Separator />
