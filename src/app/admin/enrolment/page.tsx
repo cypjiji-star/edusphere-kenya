@@ -85,6 +85,7 @@ import {
   Loader2,
   KeyRound,
   CircleDollarSign,
+  Contact,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -98,17 +99,21 @@ const enrolmentSchema = z.object({
   dateOfBirth: z.date({ required_error: 'Date of birth is required.' }),
   gender: z.string({ required_error: 'Please select a gender.' }),
   admissionNumber: z.string().optional(),
+  birthCertificateNumber: z.string().optional(),
   classId: z.string({ required_error: 'Please assign a class.' }),
-  admissionYear: z.string({ required_error: 'Please select an admission year.'}),
+  admissionYear: z.string({ required_error: 'Please select an admission year.' }),
   amountPaid: z.string().optional(),
   parentFirstName: z.string().min(2, 'Parent\'s first name is required.'),
   parentLastName: z.string().min(2, 'Parent\'s last name is required.'),
   parentRelationship: z.string({ required_error: 'Relationship is required.' }),
   parentEmail: z.string().email('Invalid email address.'),
   parentPassword: z.string().min(8, 'Password must be at least 8 characters.'),
-  parentPhone: z.string().optional(),
+  parentPhone: z.string().min(10, 'A valid phone number is required.'),
+  parentAltPhone: z.string().optional(),
+  parentAddress: z.string().optional(),
   allergies: z.string().optional(),
   medicalConditions: z.string().optional(),
+  nhifNumber: z.string().optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
   generateInvoice: z.boolean().default(true),
@@ -158,6 +163,7 @@ export default function StudentEnrolmentPage() {
             studentLastName: '',
             gender: '',
             admissionNumber: '',
+            birthCertificateNumber: '',
             classId: '',
             admissionYear: '',
             amountPaid: '0',
@@ -167,8 +173,11 @@ export default function StudentEnrolmentPage() {
             parentEmail: '',
             parentPassword: '',
             parentPhone: '',
+            parentAltPhone: '',
+            parentAddress: '',
             allergies: '',
             medicalConditions: '',
+            nhifNumber: '',
             emergencyContactName: '',
             emergencyContactPhone: '',
             generateInvoice: true,
@@ -296,7 +305,6 @@ export default function StudentEnrolmentPage() {
             const studentName = `${values.studentFirstName} ${values.studentLastName}`;
             const parentName = `${values.parentFirstName} ${values.parentLastName}`;
             
-            // Create parent document in `parents` collection
             const parentDocRef = doc(collection(firestore, 'schools', schoolId, 'parents'));
             const parentData = {
                 id: parentDocRef.id,
@@ -304,6 +312,9 @@ export default function StudentEnrolmentPage() {
                 name: parentName,
                 email: values.parentEmail,
                 password: values.parentPassword, 
+                phone: values.parentPhone,
+                altPhone: values.parentAltPhone,
+                address: values.parentAddress,
                 role: 'Parent',
                 status: 'Active',
                 createdAt: serverTimestamp(),
@@ -311,9 +322,9 @@ export default function StudentEnrolmentPage() {
             };
              await setDoc(parentDocRef, parentData);
 
-            // Create student document in `students` collection
             const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
             const amountPaid = Number(values.amountPaid) || 0;
+            
             const studentData = {
                 id: studentDocRef.id,
                 schoolId: schoolId,
@@ -323,6 +334,8 @@ export default function StudentEnrolmentPage() {
                 dateOfBirth: Timestamp.fromDate(values.dateOfBirth),
                 gender: values.gender,
                 admissionNumber: values.admissionNumber,
+                birthCertificateNumber: values.birthCertificateNumber,
+                nhifNumber: values.nhifNumber,
                 classId: values.classId,
                 class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
                 admissionYear: values.admissionYear,
@@ -583,12 +596,13 @@ export default function StudentEnrolmentPage() {
                                 />
                                 <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a gender" /></SelectTrigger></FormControl><SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
                                  <FormField control={form.control} name="admissionNumber" render={({ field }) => ( <FormItem><FormLabel>Admission Number</FormLabel><FormControl><Input placeholder="e.g., SCH-1234" {...field} /></FormControl><FormDescription>Leave blank to auto-generate.</FormDescription><FormMessage /></FormItem> )}/>
+                                 <FormField control={form.control} name="birthCertificateNumber" render={({ field }) => ( <FormItem><FormLabel>Birth Certificate No.</FormLabel><FormControl><Input placeholder="e.g., 1234567" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             </div>
                         </CardContent>
                     </Card>
                      <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary"/>Parent/Guardian Details & Login</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><Contact className="h-5 w-5 text-primary"/>Parent/Guardian Details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -596,7 +610,9 @@ export default function StudentEnrolmentPage() {
                                 <FormField control={form.control} name="parentLastName" render={({ field }) => ( <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="e.g., Johnson" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                                 <FormField control={form.control} name="parentRelationship" render={({ field }) => ( <FormItem><FormLabel>Relationship to Student</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a relationship" /></SelectTrigger></FormControl><SelectContent><SelectItem value="father">Father</SelectItem><SelectItem value="mother">Mother</SelectItem><SelectItem value="guardian">Guardian</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
                                 <FormField control={form.control} name="parentPhone" render={({ field }) => ( <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" placeholder="e.g., 0712345678" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="parentAltPhone" render={({ field }) => ( <FormItem><FormLabel>Alternative Phone No.</FormLabel><FormControl><Input type="tel" placeholder="Optional" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                              </div>
+                             <FormField control={form.control} name="parentAddress" render={({ field }) => ( <FormItem><FormLabel>Physical Address</FormLabel><FormControl><Textarea placeholder="e.g., P.O. Box 123, Nairobi" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             <Separator className="my-6" />
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="parentEmail" render={({ field }) => ( <FormItem><FormLabel>Parent's Login Email</FormLabel><FormControl><Input type="email" placeholder="parent@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
@@ -609,6 +625,7 @@ export default function StudentEnrolmentPage() {
                             <CardTitle className="flex items-center gap-2"><HeartPulse className="h-5 w-5 text-primary"/>Health Information</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
+                            <FormField control={form.control} name="nhifNumber" render={({ field }) => ( <FormItem><FormLabel>NHIF Number</FormLabel><FormControl><Input placeholder="e.g., 987654321" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             <FormField control={form.control} name="allergies" render={({ field }) => ( <FormItem><FormLabel>Known Allergies</FormLabel><FormControl><Textarea placeholder="e.g., Peanuts, Pollen, Lactose Intolerance. If none, write 'None'." {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             <FormField control={form.control} name="medicalConditions" render={({ field }) => ( <FormItem><FormLabel>Ongoing Medical Conditions</FormLabel><FormControl><Textarea placeholder="e.g., Asthma, Diabetes. If none, write 'None'." {...field} /></FormControl><FormMessage /></FormItem> )}/>
                             <Separator />
