@@ -12,23 +12,23 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  FileText,
-  PlusCircle,
-  Trophy,
-  Loader2,
-  Printer,
-  BarChart2,
-  Settings,
-  Edit,
-  Copy,
-  Archive,
-  Search,
-  Filter,
-  ChevronDown,
-  Lock,
-  Unlock,
-  Send,
+import { 
+  FileText, 
+  PlusCircle, 
+  Trophy, 
+  Loader2, 
+  Printer, 
+  BarChart2, 
+  Settings, 
+  Edit, 
+  Copy, 
+  Archive, 
+  Search, 
+  Filter, 
+  ChevronDown, 
+  Lock, 
+  Unlock, 
+  Send, 
   CheckCircle,
   Minus,
   TrendingUp,
@@ -36,7 +36,7 @@ import {
   FileDown,
   Mail,
   Save,
-  HelpCircle,
+  HelpCircle
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -60,7 +60,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { DatePicker } from '@/components/ui/date-picker';
+import { DateRangePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { firestore, auth } from '@/lib/firebase';
 import { 
@@ -852,11 +852,7 @@ export default function AdminGradesPage() {
                   </div>
                   <div className="space-y-2">
                   <Label htmlFor="date-range">Date Range</Label>
-                  <DatePicker
-                    mode="range"
-                    selected={date}
-                    onSelect={setDate}
-                  />
+                  <DateRangePicker selected={date} onSelect={setDate} />
                   </div>
                   <div className="space-y-2">
                   <Label htmlFor="exam-notes">Notes (Optional)</Label>
