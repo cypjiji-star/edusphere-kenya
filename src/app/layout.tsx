@@ -20,19 +20,29 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <head>
+        {/* PWA Manifest & Icons */}
         <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png" />
+
+        {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
-        <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800&display=swap" rel="stylesheet" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800&display=swap"
+          rel="stylesheet"
+        />
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-            <SplashScreen />
-            <ClientPageLoader />
-            <Suspense>{children}</Suspense>
-            <Toaster />
+          <SplashScreen />
+          <ClientPageLoader />
+          <Suspense>{children}</Suspense>
+          <Toaster />
         </AuthProvider>
       </body>
     </html>
