@@ -40,11 +40,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2 } from 'lucide-react';
+import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2, TrendingUp, BarChart } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 type Student = {
     id: string;
@@ -57,6 +58,8 @@ type Student = {
     parentContact: string;
     status: 'Active' | 'Inactive' | 'Graduated';
     avatarUrl: string;
+    balance: number;
+    feeStatus: 'Paid' | 'Partial' | 'Overdue';
 };
 
 const getStatusBadge = (status: Student['status']) => {
@@ -70,6 +73,19 @@ const getStatusBadge = (status: Student['status']) => {
     }
 };
 
+const getFeeStatusBadge = (status: Student['feeStatus']) => {
+    switch (status) {
+        case 'Paid': return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
+        case 'Partial': return <Badge className="bg-blue-500 hover:bg-blue-600">Partial</Badge>;
+        case 'Overdue': return <Badge variant="destructive">Overdue</Badge>;
+    }
+};
+
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
+};
+
+
 export default function StudentManagementPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -78,7 +94,8 @@ export default function StudentManagementPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [classFilter, setClassFilter] = React.useState('All Classes');
-  const [statusFilter, setStatusFilter] = React.useState('All Statuses');
+  const [enrollmentStatusFilter, setEnrollmentStatusFilter] = React.useState('All Statuses');
+  const [feeStatusFilter, setFeeStatusFilter] = React.useState('All Fee Statuses');
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
 
@@ -92,6 +109,13 @@ export default function StudentManagementPage() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const studentData = snapshot.docs.map(doc => {
         const data = doc.data();
+        const balance = data.balance || 0;
+        let feeStatus: 'Paid' | 'Partial' | 'Overdue' = 'Paid';
+        if (balance > 0) {
+            // A simple check for overdue, a real app would use due dates
+            feeStatus = 'Partial';
+        }
+
         return {
           id: doc.id,
           name: data.name,
@@ -101,8 +125,10 @@ export default function StudentManagementPage() {
           dateOfBirth: data.dateOfBirth.toDate().toISOString(),
           parentName: data.parentName,
           parentContact: data.parentPhone,
-          status: data.status,
-          avatarUrl: data.avatarUrl
+          status: data.status || 'Active',
+          avatarUrl: data.avatarUrl,
+          balance: balance,
+          feeStatus: feeStatus,
         } as Student;
       });
       setStudents(studentData);
@@ -120,8 +146,16 @@ export default function StudentManagementPage() {
     (student.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
      student.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (classFilter === 'All Classes' || student.class === classFilter) &&
-    (statusFilter === 'All Statuses' || student.status === statusFilter)
+    (enrollmentStatusFilter === 'All Statuses' || student.status === enrollmentStatusFilter) &&
+    (feeStatusFilter === 'All Fee Statuses' || student.feeStatus === feeStatusFilter)
   );
+  
+  const stats = React.useMemo(() => ({
+    totalStudents: students.length,
+    activeStudents: students.filter(s => s.status === 'Active').length,
+    graduatedStudents: students.filter(s => s.status === 'Graduated').length,
+    inactiveStudents: students.filter(s => s.status === 'Inactive').length,
+  }), [students]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -134,6 +168,13 @@ export default function StudentManagementPage() {
           <p className="text-muted-foreground">
             A central database for all student information.
           </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <Card><CardHeader className="pb-2"><CardDescription>Total Students</CardDescription><CardTitle className="text-2xl font-bold">{stats.totalStudents}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Active Students</CardDescription><CardTitle className="text-2xl font-bold text-green-600">{stats.activeStudents}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Graduated</CardDescription><CardTitle className="text-2xl font-bold">{stats.graduatedStudents}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Inactive/Transferred</CardDescription><CardTitle className="text-2xl font-bold text-muted-foreground">{stats.inactiveStudents}</CardTitle></CardHeader></Card>
         </div>
 
         <Card>
@@ -150,25 +191,32 @@ export default function StudentManagementPage() {
                 />
               </div>
               <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                <Select value={classFilter} onValueChange={setClassFilter}>
-                    <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
+                 <Select value={classFilter} onValueChange={setClassFilter}>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
+                 <Select value={enrollmentStatusFilter} onValueChange={(v) => setEnrollmentStatusFilter(v as any)}>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="All Statuses">All Statuses</SelectItem>
+                        <SelectItem value="All Statuses">All Enrollment Statuses</SelectItem>
                         <SelectItem value="Active">Active</SelectItem>
                         <SelectItem value="Inactive">Inactive</SelectItem>
                          <SelectItem value="Graduated">Graduated</SelectItem>
                     </SelectContent>
                 </Select>
+                <Select value={feeStatusFilter} onValueChange={(v) => setFeeStatusFilter(v as any)}>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All Fee Statuses">All Fee Statuses</SelectItem>
+                        <SelectItem value="Paid">Paid</SelectItem>
+                        <SelectItem value="Partial">Partial</SelectItem>
+                        <SelectItem value="Overdue">Overdue</SelectItem>
+                    </SelectContent>
+                </Select>
                 <Button asChild className="w-full md:w-auto">
                     <Link href={`/admin/enrolment?schoolId=${schoolId}`}>
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        Enroll New Student
+                        Enroll Student
                     </Link>
                 </Button>
               </div>
@@ -185,8 +233,8 @@ export default function StudentManagementPage() {
                     <TableHead>Student</TableHead>
                     <TableHead>Admission No.</TableHead>
                     <TableHead>Class</TableHead>
-                    <TableHead>Parent</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Fee Status</TableHead>
+                    <TableHead>Enrollment Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -205,7 +253,7 @@ export default function StudentManagementPage() {
                             </TableCell>
                             <TableCell>{student.admissionNumber}</TableCell>
                             <TableCell>{student.class}</TableCell>
-                            <TableCell>{student.parentName}</TableCell>
+                            <TableCell>{getFeeStatusBadge(student.feeStatus)}</TableCell>
                             <TableCell>{getStatusBadge(student.status)}</TableCell>
                             <TableCell className="text-right">
                                 <Button variant="ghost" size="sm">View Details</Button>
@@ -225,7 +273,7 @@ export default function StudentManagementPage() {
             </CardFooter>
         </Card>
         {selectedStudent && (
-             <DialogContent className="sm:max-w-2xl">
+             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <div className="flex items-center gap-4">
                         <Avatar className="h-16 w-16">
@@ -241,27 +289,54 @@ export default function StudentManagementPage() {
                     </div>
                 </DialogHeader>
                 <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
-                    <Card>
-                        <CardHeader><CardTitle className="text-base">Bio Data</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                            <div><Label>Gender</Label><p>{selectedStudent.gender}</p></div>
-                            <div><Label>Date of Birth</Label><p>{new Date(selectedStudent.dateOfBirth).toLocaleDateString()}</p></div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader><CardTitle className="text-base">Parent / Guardian Details</CardTitle></CardHeader>
-                         <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                            <div><Label>Name</Label><p>{selectedStudent.parentName}</p></div>
-                             <div><Label>Contact</Label><p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p></div>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader><CardTitle className="text-base">Official Documents</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground"/><p>Birth Certificate: <span className="font-mono">N/A</span></p></div>
-                             <div className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground"/><p>NHIF Number: <span className="font-mono">N/A</span></p></div>
-                        </CardContent>
-                    </Card>
+                    <Tabs defaultValue="bio">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="bio">Bio Data</TabsTrigger>
+                            <TabsTrigger value="academics">Academics</TabsTrigger>
+                            <TabsTrigger value="finance">Finance</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="bio" className="mt-4">
+                             <Card>
+                                <CardHeader><CardTitle className="text-base">Personal Details</CardTitle></CardHeader>
+                                <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                                    <div><Label>Gender</Label><p>{selectedStudent.gender}</p></div>
+                                    <div><Label>Date of Birth</Label><p>{new Date(selectedStudent.dateOfBirth).toLocaleDateString()}</p></div>
+                                    <div><Label>Birth Certificate No.</Label><p className="font-mono">N/A</p></div>
+                                    <div><Label>NHIF Number</Label><p className="font-mono">N/A</p></div>
+                                </CardContent>
+                            </Card>
+                            <Card className="mt-4">
+                                <CardHeader><CardTitle className="text-base">Parent / Guardian Details</CardTitle></CardHeader>
+                                <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                                    <div><Label>Name</Label><p>{selectedStudent.parentName}</p></div>
+                                    <div><Label>Contact</Label><p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p></div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        <TabsContent value="academics" className="mt-4">
+                             <Card>
+                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary"/>Performance Trend</CardTitle></CardHeader>
+                                <CardContent><p className="text-sm text-muted-foreground">Detailed chart of past exam results will be shown here.</p></CardContent>
+                            </Card>
+                             <Card className="mt-4">
+                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4 text-primary"/>Class History</CardTitle></CardHeader>
+                                <CardContent><p className="text-sm text-muted-foreground">A log of the student's progression through classes will be shown here.</p></CardContent>
+                            </Card>
+                        </TabsContent>
+                         <TabsContent value="finance" className="mt-4">
+                            <Card>
+                                <CardHeader><CardTitle className="text-base">Fee Status</CardTitle></CardHeader>
+                                <CardContent className="space-y-2">
+                                    <div className="flex justify-between font-bold text-lg"><p>Balance:</p><p className="text-destructive">{formatCurrency(selectedStudent.balance)}</p></div>
+                                </CardContent>
+                                <CardFooter>
+                                     <Button variant="outline" asChild>
+                                        <Link href={`/admin/fees?schoolId=${schoolId}&studentId=${selectedStudent.id}`}>View Full Statement</Link>
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
