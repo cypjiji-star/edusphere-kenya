@@ -170,9 +170,13 @@ export default function AdminHealthPage() {
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
         defaultValues: {
+            studentId: '',
             incidentType: 'Health',
             incidentTime: format(new Date(), 'HH:mm'),
             urgency: 'Low',
+            location: '',
+            description: '',
+            actionsTaken: '',
         },
     });
 
@@ -984,6 +988,4 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
-    
 
-    
