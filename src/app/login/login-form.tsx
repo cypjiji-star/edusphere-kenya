@@ -10,7 +10,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { auth, firestore } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { logAuditEvent } from '@/lib/audit-log.service';
@@ -42,44 +42,33 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      let userDocRef;
-      let userRoleCollection = 'users';
+      const collectionsToSearch = ['admins', 'users', 'students', 'parents'];
+      let userFound = false;
 
-      if (role === 'parent') {
-        userRoleCollection = 'parents';
+      for (const collectionName of collectionsToSearch) {
+        const userDocRef = doc(firestore, 'schools', schoolCode, collectionName, user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data() as DocumentData;
+          
+          // The role in the document should match the one selected in the login form
+          if (userData.role?.toLowerCase() === role) {
+            userFound = true;
+            await logAuditEvent({
+              schoolId: schoolCode,
+              action: 'USER_LOGIN_SUCCESS',
+              actionType: 'Security',
+              description: `User ${user.email} successfully logged in as ${role}.`,
+              user: { id: user.uid, name: userData.name || user.email || 'Unknown', role: userData.role },
+            });
+            router.push(`/${role}?schoolId=${schoolCode}`);
+            break; 
+          }
+        }
       }
 
-      userDocRef = doc(firestore, 'schools', schoolCode, userRoleCollection, user.uid);
-      
-      const userDocSnap = await getDoc(userDocRef);
-
-      if (userDocSnap.exists() && userDocSnap.data().role?.toLowerCase() === role) {
-        await logAuditEvent({
-            schoolId: schoolCode,
-            action: 'USER_LOGIN_SUCCESS',
-            actionType: 'Security',
-            description: `User ${user.email} successfully logged in.`,
-            user: { id: user.uid, name: user.email || 'Unknown', role: userDocSnap.data().role },
-        });
-        router.push(`/${role}?schoolId=${schoolCode}`);
-      } else {
-        // If not found, a teacher might be in the general 'users' collection
-        if (role === 'teacher' && userRoleCollection !== 'users') {
-             userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-             const generalUserDocSnap = await getDoc(userDocRef);
-             if (generalUserDocSnap.exists() && generalUserDocSnap.data().role?.toLowerCase() === role) {
-                 await logAuditEvent({
-                    schoolId: schoolCode,
-                    action: 'USER_LOGIN_SUCCESS',
-                    actionType: 'Security',
-                    description: `User ${user.email} successfully logged in.`,
-                    user: { id: user.uid, name: user.email || 'Unknown', role: generalUserDocSnap.data().role },
-                });
-                 router.push(`/${role}?schoolId=${schoolCode}`);
-                 return;
-             }
-        }
-
+      if (!userFound) {
         await auth.signOut();
         toast({
           title: 'Access Denied',
@@ -87,6 +76,7 @@ export function LoginForm() {
           variant: 'destructive',
         });
       }
+
     } catch (error: any) {
       let title = 'Login Failed';
       let description = 'An unexpected error occurred. Please try again.';
