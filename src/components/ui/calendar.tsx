@@ -52,6 +52,9 @@ function Calendar({
         day_range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",
+        vhidden: "hidden",
+        dropdown: "bg-background border rounded-md",
+        dropdown_icon: "ml-2",
         ...classNames,
       }}
       components={{
