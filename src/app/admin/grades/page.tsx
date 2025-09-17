@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -255,7 +254,9 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
     }
 
 
-    if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
+    if (isLoading) {
+      return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
+    }
 
     return (
         <Card>
@@ -298,9 +299,8 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
                             )}
                          </TableBody>
                     </Table>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
     );
 }
 
@@ -679,6 +679,7 @@ export default function AdminGradesPage() {
         case 'Active': return 'bg-blue-500';
         case 'Locked': return 'bg-yellow-500';
         case 'Published': return 'bg-green-600';
+        default: return 'bg-gray-500';
     }
   }
   
@@ -895,249 +896,6 @@ export default function AdminGradesPage() {
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-           <TabsContent value="ranking">
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-primary"/>Class Ranking</CardTitle>
-                            <CardDescription>Student ranking based on performance in a specific subject or overall.</CardDescription>
-                        </div>
-                        <div className="flex w-full flex-col md:flex-row flex-wrap md:items-center gap-2">
-                            <Select><SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Year: 2024" /></SelectTrigger></Select>
-                            <Select><SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Term: Term 2" /></SelectTrigger></Select>
-                            <Select><SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Exam: End of Term" /></SelectTrigger></Select>
-                            <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
-                                <SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Select a class" /></SelectTrigger>
-                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Select value={selectedSubjectForRanking} onValueChange={setSelectedSubjectForRanking}>
-                                <SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Select a subject" /></SelectTrigger>
-                                <SelectContent>{subjectsForRanking.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild><Button variant="outline"><FileDown className="mr-2 h-4 w-4" />Export/Actions<ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print Ranking</DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleExportRanking('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleExportRanking('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={handleShare}><Mail className="mr-2 h-4 w-4" />Share Overview</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingRanking ? (
-                    <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Loading ranking data...</span></div>
-                  ) : (
-                    <>
-                    <GradeSummaryWidget students={studentsForRanking} />
-                    <Tabs defaultValue="ranking-table" className="w-full">
-                        <TabsList><TabsTrigger value="ranking-table">Student Ranking</TabsTrigger><TabsTrigger value="subject-performance">Subject Performance</TabsTrigger><TabsTrigger value="stream-comparison">Stream Comparison</TabsTrigger></TabsList>
-                        <TabsContent value="ranking-table" className="mt-4">
-                             <div className="flex items-center justify-around p-6 bg-muted/50 rounded-lg mb-6 text-center">
-                                {topStudents.map((student, index) => (
-                                    <div key={student.id} className={`flex flex-col items-center ${index === 0 ? 'transform -translate-y-4' : ''}`}>
-                                        <div className="relative">
-                                            <Avatar className={`h-20 w-20 border-4 ${index === 0 ? 'border-yellow-400' : index === 1 ? 'border-gray-400' : 'border-orange-400'}`}>
-                                                <AvatarImage src={student.avatarUrl} />
-                                                <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <Badge className={`absolute -bottom-2 left-1/2 -translate-x-1/2 ${index === 0 ? 'bg-yellow-400 text-black' : index === 1 ? 'bg-gray-400' : 'bg-orange-400'}`}>{index + 1}</Badge>
-                                        </div>
-                                        <p className="font-bold mt-3">{student.studentName}</p>
-                                        <p className="text-sm text-muted-foreground">{student.overall}%</p>
-                                    </div>
-                                ))}
-                             </div>
-                            {studentsForRanking.length > 0 ? (
-                                <Dialog onOpenChange={(open) => !open && setSelectedStudentForDetails(null)}>
-                                     <div className="w-full overflow-auto rounded-lg border mt-6">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>POS.</TableHead>
-                                                    <TableHead>ADM. NO.</TableHead>
-                                                    <TableHead>STUDENT NAME</TableHead>
-                                                    <TableHead>CLASS/STREAM</TableHead>
-                                                    <TableHead>TOTAL MARKS</TableHead>
-                                                    <TableHead>AVERAGE (%)</TableHead>
-                                                    <TableHead>GRADE</TableHead>
-                                                    <TableHead>DEVIATION</TableHead>
-                                                    <TableHead>TREND</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {studentsForRanking.map((student, index) => {
-                                                    const deviation = student.overall - classAverage;
-                                                    return (
-                                                    <DialogTrigger asChild key={student.id}>
-                                                        <TableRow className="cursor-pointer" onClick={() => setSelectedStudentForDetails(student)}>
-                                                            <TableCell className="font-bold">{index + 1}</TableCell>
-                                                            <TableCell>{student.rollNumber}</TableCell>
-                                                            <TableCell className="font-medium">{student.studentName}</TableCell>
-                                                            <TableCell>{student.className}</TableCell>
-                                                            <TableCell>N/A</TableCell>
-                                                            <TableCell>{student.overall}%</TableCell>
-                                                            <TableCell><Badge>{getGradeFromScore(student.overall)}</Badge></TableCell>
-                                                            <TableCell>
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild><button>{deviation >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}</button></TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>{deviation.toFixed(1)}% {deviation >= 0 ? 'above' : 'below'} class average</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
-                                                                {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
-                                                                {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    </DialogTrigger>
-                                                )})}
-                                            </TableBody>
-                                        </Table>
-                                     </div>
-                                    <DialogContent className="sm:max-w-md">
-                                        {selectedStudentForDetails && (
-                                            <>
-                                                <DialogHeader>
-                                                    <DialogTitle>{selectedStudentForDetails.studentName}</DialogTitle>
-                                                    <DialogDescription>
-                                                    Overall Average: <span className="font-bold text-primary">{selectedStudentForDetails.overall}%</span>
-                                                    {selectedStudentForDetails.rollNumber && (<span> | Adm No: {selectedStudentForDetails.rollNumber}</span>)}
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <div className="py-4">
-                                                    <h4 className="mb-4 font-semibold">Scores by Subject</h4>
-                                                    <div className="w-full overflow-auto rounded-lg border">
-                                                    <Table>
-                                                        <TableHeader><TableRow><TableHead>Subject</TableHead><TableHead className="text-right">Score</TableHead></TableRow></TableHeader>
-                                                        <TableBody>
-                                                            {selectedStudentForDetails.grades?.map((gradeInfo, index) => (
-                                                                <TableRow key={index}><TableCell className="font-medium">{gradeInfo.subject}</TableCell><TableCell className="text-right">{gradeInfo.grade}%</TableCell></TableRow>
-                                                            ))}
-                                                        </TableBody>
-                                                    </Table>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
-                                    </DialogContent>
-                                </Dialog>
-                            ) : (
-                                <div className="text-center text-muted-foreground py-16"><p>No ranking data available for this class and subject yet.</p><p className="text-sm mt-2">Make sure students have grades assigned.</p></div>
-                            )}
-                        </TabsContent>
-                        <TabsContent value="subject-performance" className="mt-4">
-                             <div className="w-full overflow-auto rounded-lg border">
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Subject</TableHead><TableHead className="text-center">Mean Score</TableHead><TableHead className="text-center">Highest</TableHead><TableHead className="text-center">Lowest</TableHead><TableHead className="text-center">No. of A's</TableHead><TableHead className="text-center">No. of E's</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {subjectPerformance.map(subject => (
-                                            <TableRow key={subject.name}>
-                                                <TableCell className="font-bold">{subject.name}</TableCell>
-                                                <TableCell className="text-center"><Badge variant={subject.meanScore > 70 ? 'default' : 'secondary'}>{subject.meanScore}%</Badge></TableCell>
-                                                <TableCell className="text-center text-green-600 font-medium">{subject.highestScore}%</TableCell>
-                                                <TableCell className="text-center text-red-600 font-medium">{subject.lowestScore}%</TableCell>
-                                                <TableCell className="text-center">{subject.numAs}</TableCell>
-                                                <TableCell className="text-center">{subject.numEs}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                             </div>
-                        </TabsContent>
-                        <TabsContent value="stream-comparison" className="mt-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Stream Mean Score Comparison</CardTitle>
-                                    <CardDescription>Comparing the average performance across different streams for Form 3.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <ChartContainer config={streamComparisonConfig} className="h-[300px] w-full">
-                                        <RechartsBarChart data={streamComparisonData} margin={{ top: 20 }}>
-                                            <CartesianGrid vertical={false} />
-                                            <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                                            <YAxis />
-                                            <ChartTooltip content={<ChartTooltipContent />} />
-                                            <Bar dataKey="avg" fill="var(--color-avg)" radius={8}>
-                                                 <LabelList
-                                                    position="top"
-                                                    offset={12}
-                                                    className="fill-foreground"
-                                                    fontSize={12}
-                                                    formatter={(value: number) => `${value}%`}
-                                                />
-                                            </Bar>
-                                        </RechartsBarChart>
-                                    </ChartContainer>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                   </Tabs>
-                  </>
-                )}
-              </CardContent>
-          </Card>
-          </TabsContent>
-
-          <TabsContent value="gradebook">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Broad Sheet / Gradebook</CardTitle>
-                    <CardDescription>A single-sheet overview of the entire class's results for all assessments.</CardDescription>
-                </CardHeader>
-                 <CardContent>
-                 {isGradebookLoading ? (
-                  <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Loading gradebook...</span></div>
-                 ) : (
-                    <div className="w-full overflow-auto rounded-lg border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="sticky left-0 bg-card z-10">Student Name</TableHead>
-                                    {currentAssessments.map(assessment => <TableHead key={assessment.id} className="text-center">{assessment.title}</TableHead>)}
-                                    <TableHead className="text-center font-bold sticky right-0 bg-card z-10 w-[150px]">Overall Average</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                             <TableBody>
-                                {studentsForRanking.map(student => (
-                                    <TableRow key={student.id}>
-                                        <TableCell className="sticky left-0 bg-card z-10">
-                                          <div className="flex items-center gap-3">
-                                            <Avatar className="h-9 w-9"><AvatarImage src={student.avatarUrl} alt={student.studentName} /><AvatarFallback>{student.studentName.slice(0,2)}</AvatarFallback></Avatar>
-                                            <span className="font-medium">{student.studentName}</span>
-                                          </div>
-                                        </TableCell>
-                                         {currentAssessments.map(assessment => (
-                                            <TableCell key={assessment.id} className="text-center">{getGradeForStudent(student, assessment.id)}</TableCell>
-                                        ))}
-                                        <TableCell className="text-center font-bold sticky right-0 bg-card z-10"><Badge>{student.overall}%</Badge></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                 )}
-                 </CardContent>
-             </Card>
-          </TabsContent>
-          
-          <TabsContent value="reports">
-            <ReportGenerator />
-          </TabsContent>
-          
-          <TabsContent value="requests">
-             <EditRequestsTab schoolId={schoolId!} />
-          </TabsContent>
-
           <TabsContent value="exams">
             {selectedExam ? (
                 <GradeAnalysisCharts exam={selectedExam} onBack={() => setSelectedExam(null)} />
@@ -1186,6 +944,14 @@ export default function AdminGradesPage() {
              </Card>
              )}
           </TabsContent>
+          <TabsContent value="requests">
+             <EditRequestsTab schoolId={schoolId!} />
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <ReportGenerator />
+          </TabsContent>
+          
           <TabsContent value="settings">
             <Card>
                 <CardHeader>
