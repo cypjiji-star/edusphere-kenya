@@ -4,6 +4,34 @@ import withPWAInit from '@ducanh2912/next-pwa';
 
 const withPWA = withPWAInit({
   dest: 'public',
+  runtimeCaching: [
+    {
+      urlPattern: /^https?:\/\/i\.postimg\.cc\/.*/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'postimg-images',
+        expiration: {
+          maxEntries: 100,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+        },
+        cacheableResponse: {
+          statuses: [0, 200],
+        },
+      },
+    },
+    {
+      urlPattern: /^https?:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'google-fonts',
+        expiration: {
+          maxEntries: 20,
+          maxAgeSeconds: 365 * 24 * 60 * 60, // 1 Year
+        },
+      },
+    },
+    // Add more runtime caching rules as needed
+  ],
 });
 
 
