@@ -120,7 +120,7 @@ export default function AdminDashboard() {
         const startOfToday = new Date(today.setHours(0, 0, 0, 0));
         const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
         const unsubAttendance = onSnapshot(attendanceQuery, (attSnapshot) => {
-             const presentCount = attSnapshot.docs.filter(r => ['Present', 'Late'].includes(r.data().status)).length;
+             const presentCount = attSnapshot.docs.filter(r => ['Present', 'Late', 'present', 'late'].includes(r.data().status)).length;
              setStats(prev => ({...prev, attendanceRate: Math.round((presentCount / studentCount) * 100) }));
         });
         return () => unsubAttendance(); // Cleanup attendance listener
@@ -194,7 +194,16 @@ export default function AdminDashboard() {
             <div>
                 <h2 className="text-xl font-semibold mb-4">Key Metrics</h2>
                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    {overviewStats.map((stat) => (
+                    {isLoading ? Array(4).fill(0).map((_, index) => (
+                        <Card key={index}>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                 <div className="h-5 w-32 rounded-md bg-muted animate-pulse" />
+                            </CardHeader>
+                            <CardContent>
+                                 <div className="h-8 w-16 rounded-md bg-muted animate-pulse" />
+                            </CardContent>
+                        </Card>
+                    )) : overviewStats.map((stat) => (
                         <Link href={`${overviewLinks[stat.title]}?schoolId=${schoolId}` || '#'} key={stat.title}>
                             <Card className="hover:bg-muted/50 transition-colors">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
