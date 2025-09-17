@@ -1,7 +1,7 @@
 
 'use client';
 
-import { ReactNode, useContext } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,13 @@ export function AuthCheck({ children, requiredRole }: { children: ReactNode; req
   const router = useRouter();
   const pathname = usePathname();
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && !user && pathname !== '/login' && pathname !== '/' && !pathname.startsWith('/developer/create-dev-account')) {
+      router.push('/login');
+    }
+  }, [loading, user, pathname, router]);
+
+  if (loading || (!user && pathname !== '/login' && pathname !== '/' && !pathname.startsWith('/developer/create-dev-account'))) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -24,14 +30,14 @@ export function AuthCheck({ children, requiredRole }: { children: ReactNode; req
   }
 
   if (!user) {
-    // Redirect to login if user is not authenticated and not on a public page
-    if (pathname !== '/login' && pathname !== '/') {
-        router.push('/login');
+    // Allows public pages like /login, /, and /developer/create-dev-account to render
+    if (pathname === '/login' || pathname === '/' || pathname.startsWith('/developer/create-dev-account')) {
+        return <>{children}</>;
     }
-    return null; // Return null while redirecting
+    return null; // Should be redirected by useEffect
   }
   
-  if (role !== requiredRole) {
+  if (role !== 'unknown' && role !== requiredRole) {
     return (
       <div className="flex h-screen flex-col items-center justify-center p-8 text-center">
         <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
