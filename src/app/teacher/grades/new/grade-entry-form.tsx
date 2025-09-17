@@ -58,6 +58,7 @@ import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import type { Timestamp } from 'firebase/firestore';
 
 type Student = {
     id: string;
@@ -235,13 +236,19 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
     fetchData();
   }, [schoolId, watchedClassId, watchedSubject, watchedAssessmentId, replace]);
   
-  // Fetch assessments when class changes
+  // Fetch assessments when class and subject change
   React.useEffect(() => {
-    if (!schoolId || !watchedClassId) {
+    if (!schoolId || !watchedClassId || !watchedSubject) {
       setAssessments([]);
       return;
     }
-    const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', watchedClassId));
+
+    const assessmentsQuery = query(
+        collection(firestore, 'schools', schoolId, 'assessments'), 
+        where('classId', '==', watchedClassId),
+        where('subject', '==', watchedSubject)
+    );
+
     const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
         const assessmentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
         setAssessments(assessmentData);
@@ -249,8 +256,9 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
           form.resetField('assessmentId');
         }
     });
+
     return () => unsubAssessments();
-  }, [schoolId, watchedClassId, form, preselectedTask]);
+  }, [schoolId, watchedClassId, watchedSubject, form, preselectedTask]);
 
 
   async function handleSave(values: GradeEntryFormValues) {
@@ -356,7 +364,10 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                 <FormItem>
                   <FormLabel>Subject</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      form.resetField('assessmentId');
+                    }}
                     value={field.value}
                     disabled={!watchedClassId}
                   >
@@ -384,7 +395,7 @@ export function GradeEntryForm({ preselectedTask }: GradeEntryFormProps) {
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
-                    disabled={!watchedClassId || assessments.length === 0}
+                    disabled={!watchedClassId || !watchedSubject || assessments.length === 0}
                   >
                     <FormControl>
                       <SelectTrigger>
