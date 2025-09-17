@@ -1,14 +1,4 @@
 
-import { add, sub } from 'date-fns';
-
-export type CalendarEvent = {
-  id: string;
-  date: Date;
-  title: string;
-  type: 'event' | 'holiday' | 'exam' | 'meeting' | 'sports' | 'trip';
-  description: string;
-  location?: string;
-  startTime?: string;
-  endTime?: string;
-  attachments?: { name: string; size: string }[];
-};
+// This file can be deleted as it is no longer used.
+// The calendar now fetches live data from Firestore.
+export {};
