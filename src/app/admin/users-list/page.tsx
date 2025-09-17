@@ -1,6 +1,7 @@
 
 
 
+
 'use client';
 
 import * as React from 'react';
@@ -63,7 +64,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { Timestamp } from 'firebase/firestore';
-import { deleteUserAction } from './actions';
+import { deleteUserAction } from '../users/actions';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
