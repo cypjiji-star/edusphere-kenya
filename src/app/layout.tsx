@@ -9,6 +9,7 @@ import { SplashScreen } from '@/components/layout/splash-screen';
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
   description: "Empowering Kenya's Future, One School at a Time.",
+  manifest: '/manifest.json'
 };
 
 export default function RootLayout({
@@ -30,6 +31,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800&display=swap"
           rel="stylesheet"
         />
+        <meta name="theme-color" content="#2563eb" />
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
