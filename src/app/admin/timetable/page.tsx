@@ -30,8 +30,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import * as React from 'react';
 
 export default function TimetablePage() {
+    const currentYear = new Date().getFullYear();
+    const academicTerms = Array.from({ length: 2 }, (_, i) => {
+        const year = currentYear + i;
+        return [`Term 1, ${year}`, `Term 2, ${year}`, `Term 3, ${year}`];
+    }).flat();
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
@@ -63,13 +70,14 @@ export default function TimetablePage() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="academic-term">Academic Term</Label>
-                         <Select defaultValue="term2-2024">
+                         <Select>
                             <SelectTrigger id="academic-term">
                                 <SelectValue placeholder="Select term" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                <SelectItem value="term3-2024">Term 3, 2024 (Upcoming)</SelectItem>
+                                {academicTerms.map(term => (
+                                    <SelectItem key={term} value={term.toLowerCase().replace(/[\s,]+/g, '-')}>{term}</SelectItem>
+                                ))}
                             </SelectContent>
                          </Select>
                     </div>
