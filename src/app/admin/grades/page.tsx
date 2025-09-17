@@ -535,9 +535,10 @@ export default function AdminGradesPage() {
     }, [schoolId, selectedClassForRanking]);
 
 
-  const handleGradingScaleChange = (index: number, field: 'min' | 'max', value: number) => {
+  const handleGradingScaleChange = (index: number, field: 'min' | 'max', value: string) => {
     const newScale = [...gradingScale];
-    newScale[index][field] = value;
+    const numericValue = parseInt(value, 10) || 0;
+    newScale[index] = { ...newScale[index], [field]: numericValue };
     setGradingScale(newScale);
   };
 
@@ -1196,14 +1197,14 @@ export default function AdminGradesPage() {
                                 <Input
                                   type="number"
                                   value={item.min}
-                                  onChange={(e) => handleGradingScaleChange(index, 'min', parseInt(e.target.value) || 0)}
+                                  onChange={(e) => handleGradingScaleChange(index, 'min', e.target.value)}
                                 />
                               </TableCell>
                               <TableCell>
                                 <Input
                                   type="number"
                                   value={item.max}
-                                  onChange={(e) => handleGradingScaleChange(index, 'max', parseInt(e.target.value) || 0)}
+                                  onChange={(e) => handleGradingScaleChange(index, 'max', e.target.value)}
                                 />
                               </TableCell>
                               <TableCell>
