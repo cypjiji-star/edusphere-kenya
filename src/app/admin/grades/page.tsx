@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -871,7 +872,7 @@ export default function AdminGradesPage() {
                       </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} />
+                        <Calendar initialFocus mode="single" selected={date?.from} onSelect={(day) => setDate({ from: day, to: day })} />
                       </PopoverContent>
                   </Popover>
                   </div>
