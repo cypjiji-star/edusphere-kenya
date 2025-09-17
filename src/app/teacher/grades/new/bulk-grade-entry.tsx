@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -23,11 +22,12 @@ import { useToast } from '@/hooks/use-toast';
 import { FileDown, Upload, FileCheck2, Loader2, AlertCircle, CheckCircle, Columns, X, FileText } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { collection, onSnapshot, query, where, getDocs, writeBatch, doc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 import { saveGradesAction } from '../actions';
 import type { GradeEntryFormValues } from '../types';
+import { Badge } from '@/components/ui/badge';
 
 
 type TeacherClass = {
@@ -99,7 +99,7 @@ export function BulkGradeEntry() {
   }, [selectedClassId, schoolId]);
 
   const handleDownloadTemplate = async () => {
-    if (!selectedClassId || !selectedAssessmentId) {
+    if (!selectedClassId || !selectedAssessmentId || !schoolId) {
       toast({
         title: 'Selection Required',
         description: 'Please select a class and an assessment first.',
@@ -152,7 +152,7 @@ export function BulkGradeEntry() {
   };
 
   const handleProcessFile = async () => {
-    if (!bulkGradeFile) return;
+    if (!bulkGradeFile || !schoolId || !selectedClassId) return;
     setIsProcessing(true);
 
     const studentsQuery = query(
@@ -174,8 +174,33 @@ export function BulkGradeEntry() {
       
       lines.forEach(line => {
         if (!line.trim()) return;
-        const [studentId, admNo, name, grade] = line.split(',');
-        const student = classStudents.find(s => s.id === studentId.trim() || s.admissionNumber === admNo.trim());
+        
+        // Handle CSV parsing with quotes and commas
+        const columns = line.split(',').reduce((acc: string[], column) => {
+          // If the column starts with a quote but doesn't end with one, it's part of a quoted field
+          if (column.startsWith('"') && !column.endsWith('"')) {
+            if (acc.length > 0 && acc[acc.length - 1].startsWith('"')) {
+              // Continue building the quoted field
+              acc[acc.length - 1] += ',' + column;
+            } else {
+              acc.push(column);
+            }
+          } else if (acc.length > 0 && acc[acc.length - 1].startsWith('"') && !acc[acc.length - 1].endsWith('"')) {
+            // Continue building the quoted field
+            acc[acc.length - 1] += ',' + column;
+          } else {
+            acc.push(column);
+          }
+          return acc;
+        }, []);
+        
+        // Clean up quoted fields
+        const cleanColumns = columns.map(col => 
+          col.replace(/^"(.*)"$/, '$1').trim()
+        );
+        
+        const [studentId, admNo, name, grade] = cleanColumns;
+        const student = classStudents.find(s => s.id === studentId || s.admissionNumber === admNo);
 
         if (!student) {
             results.push({ student: name, admissionNumber: admNo, grade, status: 'Error', message: 'Student not found in this class.' });
@@ -203,7 +228,7 @@ export function BulkGradeEntry() {
   };
   
   const handleImportGrades = async () => {
-    if (!user) {
+    if (!user || !schoolId) {
         toast({variant: 'destructive', title: 'Authentication Error'});
         return;
     }
@@ -228,7 +253,7 @@ export function BulkGradeEntry() {
         grades: validGrades.map(g => ({ studentId: g.studentId!, grade: g.grade })),
     };
 
-    const result = await saveGradesAction(schoolId!, user.uid, user.displayName || 'Teacher', gradeData);
+    const result = await saveGradesAction(schoolId, user.uid, user.displayName || 'Teacher', gradeData);
 
     if (result.success) {
         toast({

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -54,16 +53,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { DateRange } from "react-day-picker";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-  DialogClose,
-} from '@/components/ui/dialog';
 
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
@@ -142,7 +131,7 @@ function LeaveManagementTab({ schoolId, user }: { schoolId: string, user: any })
         try {
             await addDoc(collection(firestore, `schools/${schoolId}/leave-applications`), {
                 teacherId: user.uid,
-                teacherName: user.displayName,
+                teacherName: user.displayName || 'Teacher',
                 leaveType,
                 startDate: Timestamp.fromDate(dateRange.from),
                 endDate: Timestamp.fromDate(dateRange.to),
@@ -480,7 +469,7 @@ export default function AttendancePage() {
                     <PopoverContent className="w-auto p-0">
                         <Calendar
                         mode="single"
-                        selected={selectedDate || undefined}
+                        selected={selectedDate}
                         onSelect={(d) => setSelectedDate(d || new Date())}
                         initialFocus
                         />

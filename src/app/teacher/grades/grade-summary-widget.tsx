@@ -24,13 +24,6 @@ const gradeDistributionRanges = [
   { range: 'E (0-34)', min: 0, max: 34, count: 0 },
 ];
 
-const performanceChartConfig = {
-  students: {
-    label: 'Students',
-    color: 'hsl(var(--primary))',
-  },
-};
-
 export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) {
     
     const summary = React.useMemo(() => {
@@ -47,13 +40,29 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
           };
         }
 
-        const grades = students.map(s => s.overall);
+        // Filter out students without grades or with invalid grades
+        const validStudents = students.filter(s => s.overall !== undefined && s.overall !== null && !isNaN(s.overall));
+        
+        if (validStudents.length === 0) {
+          return {
+            average: 0,
+            highest: 0,
+            lowest: 0,
+            distribution: gradeDistributionRanges.map(r => ({ 
+              name: r.range.split(' ')[0], 
+              students: 0,
+              range: r.range 
+            })),
+          };
+        }
+
+        const grades = validStudents.map(s => s.overall);
         const average = grades.reduce((acc, grade) => acc + grade, 0) / grades.length;
         const highest = Math.max(...grades);
         const lowest = Math.min(...grades);
 
         const distribution = [...gradeDistributionRanges.map(r => ({ ...r, count: 0 }))];
-        students.forEach(student => {
+        validStudents.forEach(student => {
           const grade = student.overall;
           const range = distribution.find(r => grade >= r.min && grade <= r.max);
           if (range) {
@@ -73,8 +82,10 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
         };
     }, [students]);
 
-    // If no students with grades, show a message
-    if (students.length === 0 || summary.average === 0) {
+    // If no students with valid grades, show a message
+    const hasValidGrades = students.some(s => s.overall !== undefined && s.overall !== null && !isNaN(s.overall));
+    
+    if (!hasValidGrades) {
       return (
         <Card className="mb-6">
           <CardHeader>
@@ -83,7 +94,7 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
           </CardHeader>
           <CardContent>
             <div className="text-center py-8 text-muted-foreground">
-              <p>No students with grades found in this class.</p>
+              <p>No students with valid grades found in this class.</p>
               <p className="text-sm mt-2">Add grades to see performance statistics.</p>
             </div>
           </CardContent>
@@ -116,7 +127,7 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
                 </div>
                 <div className="md:col-span-2">
                     <h4 className="text-sm font-medium mb-2 text-center">Grade Distribution</h4>
-                    <ChartContainer config={performanceChartConfig} className="h-[200px] w-full">
+                    <ChartContainer className="h-[200px] w-full">
                         <BarChart
                           data={summary.distribution}
                           layout="vertical"
@@ -139,7 +150,7 @@ export function GradeSummaryWidget({ students }: { students: StudentGrades[] }) 
                           />
                           <Bar 
                             dataKey="students" 
-                            fill="var(--color-students)" 
+                            fill="hsl(var(--primary))" 
                             radius={5} 
                             barSize={25}
                           >

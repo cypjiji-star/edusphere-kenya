@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -47,17 +45,28 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Save, FileText, AlertCircle, Edit, ShieldCheck, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDocs, doc, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import type { Timestamp } from 'firebase/firestore';
 
 type Student = {

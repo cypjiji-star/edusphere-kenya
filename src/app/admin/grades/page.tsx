@@ -236,7 +236,7 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
                 schoolId,
                 actionType: 'Academics',
                 description: `Grade Edit Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
-                user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+                user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
                 details: `Request from ${requestDetails.teacherName} for ${requestDetails.assessmentTitle} (${requestDetails.className}) was ${newStatus}.`,
             });
             toast({ title: `Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`, description: `The teacher has been notified.`});
@@ -555,7 +555,7 @@ export default function AdminGradesPage() {
             schoolId,
             actionType: 'Settings',
             description: 'Grading Scale Updated',
-            user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+            user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
             details: 'The school-wide grading scale was modified.',
         });
 
@@ -612,7 +612,7 @@ export default function AdminGradesPage() {
         schoolId,
         actionType: 'Academics',
         description,
-        user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
         details: `Term: ${examData.term}, Dates: ${format(date.from, 'PPP')} - ${format(date.to || date.from, 'PPP')}`,
       });
 
@@ -692,7 +692,7 @@ export default function AdminGradesPage() {
             schoolId,
             actionType: 'Academics',
             description: `Exam Status Changed to ${newStatus}`,
-            user: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+            user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
             details: `Exam: ${exam.title} (${exam.className})`,
         });
 

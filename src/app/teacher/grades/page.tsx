@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -174,7 +172,7 @@ export default function GradesPage() {
             }
         });
 
-        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName || ''));
         const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
             const subjects = snapshot.docs.map(doc => doc.data().name as string);
             setTeacherSubjects(['All Subjects', ...subjects]);
@@ -309,12 +307,12 @@ export default function GradesPage() {
     };
 
     const handleExport = (type: 'PDF' | 'CSV') => {
-        if (!activeTab) return;
+        if (!selectedClass) return;
         const doc = new jsPDF();
         const tableData = filteredStudents.map(student => [
             student.studentName,
             student.rollNumber,
-            student.overall,
+            `${student.overall}%`,
         ]);
     
         const className = teacherClasses.find(c => c.id === selectedClass)?.name;
@@ -334,6 +332,7 @@ export default function GradesPage() {
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
+                document.body.removeChild(link);
             }
         } else {
              doc.text(`${className} Grades`, 14, 16);

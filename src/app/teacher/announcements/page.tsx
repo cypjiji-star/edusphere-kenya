@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -56,7 +55,7 @@ const announcementSchema = z.object({
     title: z.string().min(5, 'Title must be at least 5 characters long.'),
     message: z.string().min(10, 'Message must be at least 10 characters.'),
     audience: z.string({ required_error: 'Please select an audience.' }),
-    category: z.nativeEnum(Object.keys(announcementCategories) as [AnnouncementCategory]),
+    category: z.string({ required_error: 'Please select a category.' }),
 });
 
 type AnnouncementFormValues = z.infer<typeof announcementSchema>;
@@ -81,8 +80,8 @@ function AnnouncementCard({ announcement }: { announcement: Announcement }) {
                     </CardTitle>
                     <CardDescription>Posted: {announcement.sentAt?.toDate().toLocaleString()}</CardDescription>
                 </div>
-                <Badge className={cn('whitespace-nowrap', announcementCategories[announcement.category]?.color)}>
-                    {announcementCategories[announcement.category]?.label}
+                <Badge className={cn('whitespace-nowrap', announcementCategories[announcement.category as AnnouncementCategory]?.color)}>
+                    {announcementCategories[announcement.category as AnnouncementCategory]?.label}
                 </Badge>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -137,6 +136,8 @@ export default function AnnouncementsPage() {
     defaultValues: {
         title: '',
         message: '',
+        audience: '',
+        category: 'General',
     }
   });
   const { toast } = useToast();
@@ -157,7 +158,7 @@ export default function AnnouncementsPage() {
         const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
         setAllAnnouncements(fetched);
         setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-        setHasMore(snapshot.docs.length > 0);
+        setHasMore(snapshot.docs.length === 5);
         setIsLoadingAll(false);
     });
 
@@ -191,6 +192,7 @@ export default function AnnouncementsPage() {
     if (newAnnouncements.length > 0) {
         setAllAnnouncements(prev => [...prev, ...newAnnouncements]);
         setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1]);
+        setHasMore(newAnnouncements.length === 5);
     } else {
         setHasMore(false);
         toast({ description: 'No more announcements to load.' });
@@ -249,7 +251,7 @@ export default function AnnouncementsPage() {
           title: values.title,
           content: values.message,
           audience: values.audience,
-          category: values.category,
+          category: values.category as AnnouncementCategory,
           sender: { id: user.uid, name: teacherName, avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100` },
           sentAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
           readBy: [],
@@ -306,12 +308,14 @@ export default function AnnouncementsPage() {
                         <p className="text-muted-foreground text-center py-8">No announcements to display.</p>
                     )}
                     </CardContent>
-                    <CardFooter>
-                        <Button variant="outline" className="w-full" onClick={handleLoadMore} disabled={isLoadingMore || !hasMore}>
-                            {isLoadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MoreHorizontal className="mr-2 h-4 w-4" />}
-                            {hasMore ? 'Load More' : 'No More Announcements'}
-                        </Button>
-                    </CardFooter>
+                    {hasMore && (
+                      <CardFooter>
+                          <Button variant="outline" className="w-full" onClick={handleLoadMore} disabled={isLoadingMore || !hasMore}>
+                              {isLoadingMore ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MoreHorizontal className="mr-2 h-4 w-4" />}
+                              {hasMore ? 'Load More' : 'No More Announcements'}
+                          </Button>
+                      </CardFooter>
+                    )}
                 </Card>
             </TabsContent>
             <TabsContent value="compose" className="mt-4">
@@ -351,7 +355,7 @@ export default function AnnouncementsPage() {
                                 </Select><FormMessage /></FormItem>)} />
                                <FormField control={form.control} name="category" render={({ field }) => (<FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                                    <SelectContent>{Object.entries(announcementCategories).map(([key, {label}]) => (<SelectItem key={key} value={key as AnnouncementCategory}>{label}</SelectItem>))}</SelectContent>
+                                    <SelectContent>{Object.entries(announcementCategories).map(([key, {label}]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}</SelectContent>
                                 </Select><FormMessage /></FormItem>)} />
                           </div>
                            <div className="space-y-2">

@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -35,7 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
-import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, LabelList } from 'recharts';
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, LabelList, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
@@ -150,9 +149,13 @@ export function ReportGenerator() {
         // Fetch grades for the student
         const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', studentDoc.id), where('classId', '==', selectedClass));
         const gradesSnapshot = await getDocs(gradesQuery);
-        const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ assessmentId: gdoc.data().assessmentId, grade: gdoc.data().grade, subject: gdoc.data().subject }));
+        const grades: Grade[] = gradesSnapshot.docs.map(gdoc => ({ 
+          assessmentId: gdoc.data().assessmentId, 
+          grade: Number(gdoc.data().grade), 
+          subject: gdoc.data().subject 
+        }));
         
-        const numericScores = grades.map(g => parseInt(String(g.grade), 10)).filter(s => !isNaN(s));
+        const numericScores = grades.map(g => g.grade).filter(s => !isNaN(s));
         const overall = numericScores.length > 0 ? Math.round(numericScores.reduce((a, b) => a + b, 0) / numericScores.length) : 0;
         
         return { 
@@ -169,19 +172,12 @@ export function ReportGenerator() {
 
       // Fetch assessments for the selected class
       const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClass));
-      const unsubAssessments = onSnapshot(assessmentsQuery, (snapshot) => {
-        const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
-        setAssessmentsForClass(assessments);
-      });
-      
-      return unsubAssessments;
+      const assessmentsSnapshot = await getDocs(assessmentsQuery);
+      const assessments = assessmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assessment));
+      setAssessmentsForClass(assessments);
     };
     
-    const unsubPromise = fetchClassData();
-
-    return () => {
-      unsubPromise.then(unsub => unsub && unsub());
-    };
+    fetchClassData();
   }, [selectedClass, schoolId]);
 
 
@@ -538,17 +534,17 @@ export function ReportGenerator() {
                                   </Card>
                               </div>
                               <h3 className="font-semibold mb-2">Grade Distribution</h3>
-                              <ChartContainer config={summaryChartConfig} className="h-[200px] w-full">
-                                  <BarChart accessibilityLayer data={summaryReport.distribution} margin={{ top: 20 }}>
+                              <div className="h-[200px] w-full">
+                                  <BarChart data={summaryReport.distribution} margin={{ top: 20 }}>
                                       <CartesianGrid vertical={false} />
                                       <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
                                       <YAxis />
                                       <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                      <Bar key="students" dataKey="students" fill="var(--color-students)" radius={8}>
+                                      <Bar key="students" dataKey="students" fill="hsl(var(--primary))" radius={8}>
                                           <LabelList position="top" offset={8} className="fill-foreground" fontSize={12} />
                                       </Bar>
                                   </BarChart>
-                              </ChartContainer>
+                              </div>
                               <Separator className="my-6"/>
                               <div className="grid md:grid-cols-2 gap-6">
                                   <div>
