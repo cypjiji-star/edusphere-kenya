@@ -37,14 +37,14 @@ import {
   } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2, TrendingUp, BarChart, History, HeartPulse, ShieldAlert, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2, TrendingUp, BarChart, History, HeartPulse, ShieldAlert, CheckCircle, XCircle, TrendingDown } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, where, Timestamp, getDocs, orderBy, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -84,7 +84,7 @@ type GradeRecord = {
     subject: string;
     grade: string;
     date: Timestamp;
-}
+};
 
 type Transaction = {
     id: string;
@@ -110,6 +110,7 @@ type SelectedStudentDetails = Student & {
     incidents: Incident[];
 };
 
+
 const getStatusBadge = (status: Student['status']) => {
     switch (status) {
       case 'Active':
@@ -133,7 +134,7 @@ const getAttendanceStatusBadge = (status: AttendanceRecord['status']) => {
     switch (status) {
         case 'Present': return <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Present</Badge>;
         case 'Absent': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>;
-        case 'Late': return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600">Late</Badge>;
+        case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Late</Badge>;
     }
 };
 
@@ -206,8 +207,8 @@ export default function StudentManagementPage() {
 
   const openStudentDialog = async (student: Student) => {
     if (!schoolId) return;
+    setIsLoading(true);
 
-    // Fetch details for the selected student
     const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', student.id), orderBy('date', 'desc'));
     const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
     const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', '==', student.id), orderBy('date', 'desc'));
@@ -236,7 +237,6 @@ export default function StudentManagementPage() {
         }
     }));
 
-
     setSelectedStudent({
         ...student,
         attendance: attendanceRecords,
@@ -244,6 +244,7 @@ export default function StudentManagementPage() {
         transactions: transactionRecords,
         incidents: incidentRecords,
     });
+    setIsLoading(false);
   };
 
   const filteredStudents = students.filter(student => 
@@ -417,7 +418,7 @@ export default function StudentManagementPage() {
                                     <div><Label>Primary Contact</Label><p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p></div>
                                     <div><Label>Email Address</Label><p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentEmail || 'N/A'}</p></div>
                                     <div><Label>Physical Address</Label><p>{selectedStudent.parentAddress || 'N/A'}</p></div>
-                                     <div><Label>Emergency Contact</Label><p>{selectedStudent.emergencyContactName || 'N/A'} ({selectedStudent.emergencyContactPhone || 'N/A'})</p></div>
+                                    <div><Label>Emergency Contact</Label><p>{selectedStudent.emergencyContactName || 'N/A'} ({selectedStudent.emergencyContactPhone || 'N/A'})</p></div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
