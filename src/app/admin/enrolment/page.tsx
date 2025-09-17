@@ -10,6 +10,7 @@ import { firestore, storage, auth } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 import { cn } from '@/lib/utils';
 import {
@@ -278,7 +279,11 @@ export default function StudentEnrolmentPage() {
         }
         setIsSubmitting(true);
         try {
-            // Fetch fee structure for the selected class
+            // Step 1: Create the parent user in Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, values.parentEmail, values.parentPassword);
+            const parentUser = userCredential.user;
+
+            // Step 2: Fetch fee structure for the selected class
             const feeStructureRef = doc(firestore, `schools/${schoolId}/fee-structures`, values.classId);
             const feeStructureSnap = await getDoc(feeStructureRef);
             let totalFee = 0;
@@ -287,6 +292,7 @@ export default function StudentEnrolmentPage() {
                 totalFee = feeItems.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
             }
 
+            // Step 3: Upload files
             let photoUrl = '';
             if (profilePhotoFile) {
                 const storageRef = ref(storage, `${schoolId}/profile_photos/${Date.now()}_${profilePhotoFile.name}`);
@@ -302,16 +308,16 @@ export default function StudentEnrolmentPage() {
                 })
             );
 
+            // Step 4: Create Firestore documents
             const studentName = `${values.studentFirstName} ${values.studentLastName}`;
             const parentName = `${values.parentFirstName} ${values.parentLastName}`;
             
-            const parentDocRef = doc(collection(firestore, 'schools', schoolId, 'parents'));
+            const parentDocRef = doc(firestore, 'schools', schoolId, 'parents', parentUser.uid);
             const parentData = {
-                id: parentDocRef.id,
+                id: parentUser.uid,
                 schoolId: schoolId,
                 name: parentName,
                 email: values.parentEmail,
-                password: values.parentPassword, 
                 phone: values.parentPhone,
                 altPhone: values.parentAltPhone,
                 address: values.parentAddress,
@@ -339,7 +345,7 @@ export default function StudentEnrolmentPage() {
                 classId: values.classId,
                 class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
                 admissionYear: values.admissionYear,
-                parentId: parentDocRef.id,
+                parentId: parentUser.uid,
                 parentName: parentName,
                 parentRelationship: values.parentRelationship,
                 parentEmail: values.parentEmail,
@@ -359,6 +365,7 @@ export default function StudentEnrolmentPage() {
             };
             await setDoc(studentDocRef, studentData);
 
+            // Step 5: Log and notify
             await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'New Student Enrolled',
                 description: `${studentName} has been enrolled and is now active in the system.`,
@@ -394,11 +401,17 @@ export default function StudentEnrolmentPage() {
             setProfilePhotoFile(null);
             setAdmissionDocs([]);
 
-        } catch (error) {
+        } catch (error: any) {
+             let errorMessage = 'An error occurred. Please try again.';
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'This parent email is already registered. Please use a different email or log in to their existing account to add another child.';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'The password is too weak. It must be at least 8 characters long.';
+            }
             console.error("Error submitting enrolment:", error);
             toast({
                 title: 'Submission Failed',
-                description: 'An error occurred. Please try again.',
+                description: errorMessage,
                 variant: 'destructive',
             });
         } finally {
