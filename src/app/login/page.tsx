@@ -54,7 +54,7 @@ function LoginPageContent() {
                     <p className="text-sm mt-8 text-white/70">© {new Date().getFullYear()} EduSphere. All rights reserved.</p>
                 </div>
             </div>
-            <div className="flex items-center justify-center p-6 bg-background lg:h-screen lg:overflow-y-auto">
+            <div className="flex items-center justify-center py-12 px-6 bg-background lg:h-screen lg:overflow-y-auto">
                 <div className="mx-auto grid w-full max-w-sm items-center gap-6">
                     <div className="text-center">
                         <h1 className="text-3xl font-bold font-headline text-primary">Sign In</h1>
