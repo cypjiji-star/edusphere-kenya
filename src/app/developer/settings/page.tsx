@@ -30,7 +30,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { firestore } from '@/lib/firebase';
 import { doc, onSnapshot, setDoc, collection, query, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { seedSchoolData } from '@/lib/seed-database';
 
+type School = {
+  id: string;
+  name: string;
+};
 
 export default function DeveloperSettingsPage() {
     const { toast } = useToast();
@@ -49,6 +54,12 @@ export default function DeveloperSettingsPage() {
     const [twoFactorAuth, setTwoFactorAuth] = React.useState(false);
     
     const [maintenanceMode, setMaintenanceMode] = React.useState(false);
+
+    // States for seeding
+    const [schools, setSchools] = React.useState<School[]>([]);
+    const [selectedSchoolToSeed, setSelectedSchoolToSeed] = React.useState<string>('');
+    const [isSeeding, setIsSeeding] = React.useState(false);
+
 
     React.useEffect(() => {
         setIsLoading(true);
@@ -76,9 +87,17 @@ export default function DeveloperSettingsPage() {
                 }
             });
         });
+
+        const unsubSchools = onSnapshot(collection(firestore, 'schools'), (snapshot) => {
+            const schoolsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+            setSchools(schoolsData);
+        });
         
         setIsLoading(false);
-        return () => unsubscribers.forEach(unsub => unsub());
+        return () => {
+            unsubscribers.forEach(unsub => unsub());
+            unsubSchools();
+        }
 
     }, []);
 
@@ -106,6 +125,29 @@ export default function DeveloperSettingsPage() {
         toast({ title: 'Password Policy Updated' });
     }
 
+    const handleSeedDatabase = async () => {
+        if (!selectedSchoolToSeed) {
+            toast({ title: 'No School Selected', description: 'Please select a school to seed.', variant: 'destructive'});
+            return;
+        }
+        setIsSeeding(true);
+        toast({ title: 'Database Seeding Started', description: 'This may take a few moments...' });
+
+        try {
+            const result = await seedSchoolData(selectedSchoolToSeed);
+            if (result.success) {
+                toast({ title: 'Seeding Complete!', description: result.message });
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+            toast({ title: 'Seeding Failed', description: error.message, variant: 'destructive'});
+        } finally {
+            setIsSeeding(false);
+        }
+    };
+
+
     if (isLoading) {
         return (
              <div className="flex h-[80vh] w-full items-center justify-center">
@@ -126,6 +168,49 @@ export default function DeveloperSettingsPage() {
 
        <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary"/>Database Seeding</CardTitle>
+                    <CardDescription>Populate a selected school with sample data for demonstration and testing purposes. This action is irreversible.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label>Select School to Seed</Label>
+                        <Select value={selectedSchoolToSeed} onValueChange={setSelectedSchoolToSeed}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a school..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {schools.map(school => (
+                                    <SelectItem key={school.id} value={school.id}>{school.name} ({school.id})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={!selectedSchoolToSeed || isSeeding}>
+                                {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Seed Database
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will overwrite existing data in the selected school with sample data. This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleSeedDatabase}>Yes, seed the database</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </CardFooter>
+            </Card>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-primary"/>Global Communication Gateways</CardTitle>
