@@ -119,10 +119,10 @@ const mockGradeLog = [
 ];
 
 const mockRanking = [
-    { position: 1, name: 'Mary Anne', admNo: '1237', avatarUrl: 'https://picsum.photos/seed/student4/100', total: 467, avg: 93.4, grade: 'A' },
-    { position: 2, name: 'Jane Smith', admNo: '1235', avatarUrl: 'https://picsum.photos/seed/student2/100', total: 435, avg: 87.0, grade: 'A-' },
-    { position: 3, name: 'John Doe', admNo: '1234', avatarUrl: 'https://picsum.photos/seed/student1/100', total: 381, avg: 76.2, grade: 'B+' },
-    { position: 4, name: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', total: 289, avg: 57.8, grade: 'C' },
+    { position: 1, streamPosition: 1, name: 'Mary Anne', admNo: '1237', avatarUrl: 'https://picsum.photos/seed/student4/100', total: 467, avg: 93.4, grade: 'A' },
+    { position: 2, streamPosition: 2, name: 'Jane Smith', admNo: '1235', avatarUrl: 'https://picsum.photos/seed/student2/100', total: 435, avg: 87.0, grade: 'A-' },
+    { position: 3, streamPosition: 3, name: 'John Doe', admNo: '1234', avatarUrl: 'https://picsum.photos/seed/student1/100', total: 381, avg: 76.2, grade: 'B+' },
+    { position: 4, streamPosition: 4, name: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', total: 289, avg: 57.8, grade: 'C' },
 ];
 
 const subjectPerformanceData = [
@@ -620,6 +620,7 @@ export default function AdminGradesPage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Pos</TableHead>
+                                            <TableHead>Stream</TableHead>
                                             <TableHead>Name</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
                                             <TableHead className="text-right">Average</TableHead>
@@ -631,6 +632,7 @@ export default function AdminGradesPage() {
                                         {mockRanking.map(student => (
                                             <TableRow key={student.admNo}>
                                                 <TableCell className="font-bold">{student.position}</TableCell>
+                                                <TableCell className="font-bold">{student.streamPosition}</TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <Avatar className="h-8 w-8"><AvatarImage src={student.avatarUrl}/><AvatarFallback>{student.name[0]}</AvatarFallback></Avatar>
