@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -61,6 +62,8 @@ import { firestore, auth } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -479,5 +482,8 @@ export default function TeacherHealthPage() {
             </div>
         </Dialog>
     );
+
+    
+}
 
     
