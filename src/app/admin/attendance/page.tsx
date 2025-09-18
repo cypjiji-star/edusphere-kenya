@@ -143,7 +143,7 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
     const { toast } = useToast();
 
     const lowAttendanceAlerts = React.useMemo(() => {
-        if (!records.length) return [];
+        if (!records.length || !dateRange?.from) return [];
 
         const recordsInPeriod = records.filter(record => {
             const recordDate = record.date.toDate();
@@ -217,6 +217,20 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
             title: 'Reminder Sent',
             description: `A reminder notification has been sent to ${teacherName}.`,
         });
+    }
+
+    if (!dateRange?.from) {
+         return (
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <UserCheck className="h-6 w-6 text-primary"/>
+                        Attendance Alerts
+                    </CardTitle>
+                    <CardDescription>Select a date range to view attendance alerts for classes.</CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     if (lowAttendanceAlerts.length === 0) {
@@ -968,4 +982,5 @@ export default function AdminAttendancePage() {
   );
 }
 
+    
     
