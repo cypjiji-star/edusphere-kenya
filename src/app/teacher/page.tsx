@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -46,70 +45,102 @@ export default function TeacherDashboard() {
         const teacherId = user.uid;
         setIsLoading(true);
 
-        const schoolRef = doc(firestore, 'schools', schoolId);
-        const unsubSchool = onSnapshot(schoolRef, (docSnap) => {
-            if(docSnap.exists()) {
-                setSchoolName(docSnap.data().name);
-            }
-        });
-        
-        const userDocRef = doc(firestore, `schools/${schoolId}/users`, teacherId);
-        const unsubUser = onSnapshot(userDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setTeacherName(docSnap.data().name || 'Teacher');
-            }
-        });
+        let unsubAttendance: (() => void) | undefined;
 
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId));
-        const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
-            const studentCount = snapshot.size;
-            setTotalStudents(studentCount);
-
-            // Fetch attendance only after we have the student count
-            if (studentCount > 0) {
-                const today = new Date();
-                const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-                const attendanceQuery = query(
-                    collection(firestore, `schools/${schoolId}/attendance`), 
-                    where('teacherId', '==', teacherId),
-                    where('date', '>=', Timestamp.fromDate(startOfToday))
-                );
-                const unsubAttendance = onSnapshot(attendanceQuery, (attSnapshot) => {
-                     const presentCount = attSnapshot.docs.filter(r => r.data().status === 'present' || r.data().status === 'late').length;
-                     setAttendancePercentage(Math.round((presentCount / studentCount) * 100));
-                });
-                return () => unsubAttendance(); // Cleanup attendance listener
-            } else {
-                 setAttendancePercentage(100);
-            }
-        });
-        
-        const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
-        const unsubAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
-            let ungradedCount = 0;
-            snapshot.forEach(doc => {
-                const assignment = doc.data();
-                if (assignment.submissions < assignment.totalStudents) {
-                    ungradedCount++;
+        try {
+            const schoolRef = doc(firestore, 'schools', schoolId);
+            const unsubSchool = onSnapshot(schoolRef, 
+                (docSnap) => {
+                    if(docSnap.exists()) {
+                        setSchoolName(docSnap.data().name);
+                    }
+                },
+                (error) => {
+                    console.error("Error fetching school:", error);
                 }
-            });
-            setUngradedAssignments(ungradedCount);
-        });
+            );
+            
+            const userDocRef = doc(firestore, `schools/${schoolId}/users`, teacherId);
+            const unsubUser = onSnapshot(userDocRef, 
+                (docSnap) => {
+                    if (docSnap.exists()) {
+                        setTeacherName(docSnap.data().name || 'Teacher');
+                    }
+                },
+                (error) => {
+                    console.error("Error fetching user:", error);
+                }
+            );
 
-        // Mock average score
-        setAvgScore(78);
-        setIsLoading(false);
+            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId));
+            const unsubStudents = onSnapshot(studentsQuery, 
+                (snapshot) => {
+                    const studentCount = snapshot.size;
+                    setTotalStudents(studentCount);
 
-        return () => {
-            unsubSchool();
-            unsubUser();
-            unsubStudents();
-            unsubAssignments();
-        };
+                    // Fetch attendance only after we have the student count
+                    if (studentCount > 0) {
+                        const today = new Date();
+                        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                        const attendanceQuery = query(
+                            collection(firestore, `schools/${schoolId}/attendance`), 
+                            where('teacherId', '==', teacherId),
+                            where('date', '>=', Timestamp.fromDate(startOfToday))
+                        );
+                        unsubAttendance = onSnapshot(attendanceQuery, 
+                            (attSnapshot) => {
+                                const presentCount = attSnapshot.docs.filter(r => r.data().status === 'present' || r.data().status === 'late').length;
+                                setAttendancePercentage(Math.round((presentCount / studentCount) * 100));
+                            },
+                            (error) => {
+                                console.error("Error fetching attendance:", error);
+                            }
+                        );
+                    } else {
+                         setAttendancePercentage(100);
+                    }
+                },
+                (error) => {
+                    console.error("Error fetching students:", error);
+                }
+            );
+            
+            const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
+            const unsubAssignments = onSnapshot(assignmentsQuery, 
+                (snapshot) => {
+                    let ungradedCount = 0;
+                    snapshot.forEach(doc => {
+                        const assignment = doc.data();
+                        if (assignment.submissions < assignment.totalStudents) {
+                            ungradedCount++;
+                        }
+                    });
+                    setUngradedAssignments(ungradedCount);
+                },
+                (error) => {
+                    console.error("Error fetching assignments:", error);
+                }
+            );
 
+            // Mock average score
+            setAvgScore(78);
+            setIsLoading(false);
+
+            return () => {
+                unsubSchool();
+                unsubUser();
+                unsubStudents();
+                unsubAssignments();
+                if (unsubAttendance) unsubAttendance();
+            };
+
+        } catch (error) {
+            console.error("Error setting up dashboard listeners:", error);
+            setIsLoading(false);
+        }
     }, [schoolId, user]);
 
-    const quickStats = [
+    const quickStats = React.useMemo(() => [
         {
             title: "Total Students",
             stat: totalStudents,
@@ -134,7 +165,7 @@ export default function TeacherDashboard() {
             icon: <Percent className="h-6 w-6 text-muted-foreground" />,
             href: `/teacher/grades?schoolId=${schoolId}`,
         }
-    ];
+    ], [totalStudents, attendancePercentage, ungradedAssignments, avgScore, schoolId]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -144,7 +175,7 @@ export default function TeacherDashboard() {
       </div>
 
        <div className="mb-8">
-          <MyAttendanceWidget />
+          <MyAttendanceWidget schoolId={schoolId} />
        </div>
 
        {isLoading ? (
@@ -153,6 +184,7 @@ export default function TeacherDashboard() {
                     <Card key={index}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                              <div className="h-5 w-32 rounded-md bg-muted animate-pulse" />
+                             <div className="h-6 w-6 rounded-md bg-muted animate-pulse" />
                         </CardHeader>
                         <CardContent>
                              <div className="h-8 w-16 rounded-md bg-muted animate-pulse" />
@@ -161,33 +193,46 @@ export default function TeacherDashboard() {
                 ))}
             </div>
        ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {quickStats.map((stat) => (
-                    <Link href={stat.href} key={stat.title}>
-                    <Card className="hover:bg-muted/50 transition-colors">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                            {stat.icon}
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stat.stat}</div>
-                        </CardContent>
-                    </Card>
-                    </Link>
-                ))}
-            </div>
+            <>
+                {totalStudents === 0 ? (
+                    <div className="text-center py-8 border rounded-lg">
+                        <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                        <h3 className="font-medium text-lg mb-2">No students assigned</h3>
+                        <p className="text-muted-foreground mb-4">
+                            You haven't been assigned any students yet.
+                        </p>
+                        <Button variant="outline">Contact Administrator</Button>
+                    </div>
+                ) : (
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        {quickStats.map((stat) => (
+                            <Link href={stat.href} key={stat.title} aria-label={`View ${stat.title}`}>
+                            <Card className="hover:bg-muted/50 transition-colors">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                                    {stat.icon}
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{stat.stat}</div>
+                                </CardContent>
+                            </Card>
+                            </Link>
+                        ))}
+                    </div>
+                )}
+            </>
        )}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
-            <TimetableWidget />
-            <DashboardCharts />
-            <MessagesWidget />
+            <TimetableWidget schoolId={schoolId} isLoading={isLoading} />
+            <DashboardCharts schoolId={schoolId} isLoading={isLoading} />
+            <MessagesWidget schoolId={schoolId} isLoading={isLoading} />
         </div>
         <div className="lg:col-span-1 space-y-8">
-            <PendingTasksWidget />
-            <AbsentStudentsWidget />
-            <LibraryNoticesWidget />
+            <PendingTasksWidget schoolId={schoolId} isLoading={isLoading} />
+            <AbsentStudentsWidget schoolId={schoolId} isLoading={isLoading} />
+            <LibraryNoticesWidget schoolId={schoolId} isLoading={isLoading} />
         </div>
       </div>
     </div>

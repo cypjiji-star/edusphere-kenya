@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -12,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -80,6 +80,7 @@ type Incident = {
   reportedBy: string;
   reportedById: string;
   status: IncidentStatus;
+  urgency?: 'Low' | 'Medium' | 'High' | 'Critical';
 };
 
 type TeacherStudent = { id: string; name: string; class: string; };
@@ -101,9 +102,10 @@ type IncidentFormValues = z.infer<typeof incidentSchema>;
 const getStatusBadge = (status: IncidentStatus) => {
     switch (status) {
         case 'Reported': return <Badge variant="secondary">Reported</Badge>;
-        case 'Under Review': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
-        case 'Resolved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
+        case 'Under Review': return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
+        case 'Resolved': return <Badge className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
         case 'Archived': return <Badge variant="outline">Archived</Badge>;
+        default: return <Badge variant="secondary">{status}</Badge>;
     }
 }
 
@@ -113,6 +115,7 @@ const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
         case 'High': return 'bg-red-500 text-white';
         case 'Medium': return 'bg-yellow-500 text-white';
         case 'Low': return 'bg-blue-500 text-white';
+        default: return 'bg-gray-500 text-white';
     }
 }
 
@@ -130,12 +133,20 @@ export default function TeacherHealthPage() {
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState({
+      classes: true,
+      students: true,
+      incidents: true
+    });
+    const [incidentsPage, setIncidentsPage] = React.useState(1);
+    const incidentsPerPage = 10;
 
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
         defaultValues: {
             studentId: '',
             incidentType: 'Health',
+            incidentDate: new Date(),
             incidentTime: format(new Date(), 'HH:mm'),
             urgency: 'Low',
             location: '',
@@ -147,42 +158,121 @@ export default function TeacherHealthPage() {
     // Fetch classes for the current teacher
     React.useEffect(() => {
         if (!schoolId || !user) return;
-        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', user.uid));
-        const unsubscribe = onSnapshot(classesQuery, (snapshot) => {
-            const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
-            setTeacherClasses(classesData);
-        });
-        return () => unsubscribe();
-    }, [schoolId, user]);
+        
+        try {
+          setIsLoading(prev => ({...prev, classes: true}));
+          const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', user.uid));
+          const unsubscribe = onSnapshot(classesQuery, 
+            (snapshot) => {
+                const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+                setTeacherClasses(classesData);
+                setIsLoading(prev => ({...prev, classes: false}));
+            },
+            (error) => {
+                console.error("Error fetching classes:", error);
+                toast({ 
+                  variant: 'destructive', 
+                  title: 'Error loading classes' 
+                });
+                setIsLoading(prev => ({...prev, classes: false}));
+            }
+          );
+          return () => unsubscribe();
+        } catch (error) {
+          console.error("Error setting up classes query:", error);
+          setIsLoading(prev => ({...prev, classes: false}));
+        }
+    }, [schoolId, user, toast]);
     
     // Fetch students based on teacher's classes
     React.useEffect(() => {
         if (teacherClasses.length === 0 || !schoolId) return;
-        const classIds = teacherClasses.map(c => c.id);
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
-        const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
-            const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
-            setTeacherStudents(studentsData);
-        });
-        return () => unsubscribe();
-    }, [teacherClasses, schoolId]);
+        
+        try {
+          setIsLoading(prev => ({...prev, students: true}));
+          const classIds = teacherClasses.map(c => c.id);
+          const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+          const unsubscribe = onSnapshot(studentsQuery, 
+            (snapshot) => {
+                const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
+                setTeacherStudents(studentsData);
+                setIsLoading(prev => ({...prev, students: false}));
+            },
+            (error) => {
+                console.error("Error fetching students:", error);
+                toast({ 
+                  variant: 'destructive', 
+                  title: 'Error loading students' 
+                });
+                setIsLoading(prev => ({...prev, students: false}));
+            }
+          );
+          return () => unsubscribe();
+        } catch (error) {
+          console.error("Error setting up students query:", error);
+          setIsLoading(prev => ({...prev, students: false}));
+        }
+    }, [teacherClasses, schoolId, toast]);
 
     // Fetch incidents reported BY the teacher
     React.useEffect(() => {
         if (!schoolId || !user) {
             setIncidents([]);
+            setIsLoading(prev => ({...prev, incidents: false}));
             return;
         }
-        const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('reportedById', '==', user.uid), orderBy('date', 'desc'));
-        const unsubscribe = onSnapshot(incidentsQuery, (snapshot) => {
-            const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
-            setIncidents(incidentsData);
-        });
-        return () => unsubscribe();
-    }, [schoolId, user]);
+        
+        try {
+          setIsLoading(prev => ({...prev, incidents: true}));
+          const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('reportedById', '==', user.uid), orderBy('date', 'desc'));
+          const unsubscribe = onSnapshot(incidentsQuery, 
+            (snapshot) => {
+                const incidentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
+                setIncidents(incidentsData);
+                setIsLoading(prev => ({...prev, incidents: false}));
+            },
+            (error) => {
+                console.error("Error fetching incidents:", error);
+                toast({ 
+                  variant: 'destructive', 
+                  title: 'Error loading incidents' 
+                });
+                setIsLoading(prev => ({...prev, incidents: false}));
+            }
+          );
+          return () => unsubscribe();
+        } catch (error) {
+          console.error("Error setting up incidents query:", error);
+          setIsLoading(prev => ({...prev, incidents: false}));
+        }
+    }, [schoolId, user, toast]);
+
+    const filteredIncidents = React.useMemo(() => 
+      incidents.filter(incident => 
+        incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        incident.description.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+      [incidents, searchTerm]
+    );
+
+    const paginatedIncidents = React.useMemo(() => 
+      filteredIncidents.slice(
+        (incidentsPage - 1) * incidentsPerPage,
+        incidentsPage * incidentsPerPage
+      ),
+      [filteredIncidents, incidentsPage]
+    );
 
     async function onSubmit(values: IncidentFormValues) {
-        if (!schoolId || !user) return;
+        if (!schoolId || !user) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Unable to submit - missing school or user information'
+          });
+          return;
+        }
+        
         setIsSubmitting(true);
         const student = teacherStudents.find(s => s.id === values.studentId);
         
@@ -213,16 +303,15 @@ export default function TeacherHealthPage() {
             form.reset();
         } catch (e) {
             console.error("Error submitting incident:", e);
-            toast({ variant: 'destructive', title: 'Submission Failed' });
+            toast({ 
+              variant: 'destructive', 
+              title: 'Submission Failed',
+              description: 'There was an error submitting the incident report. Please try again.'
+            });
         } finally {
             setIsSubmitting(false);
         }
     }
-    
-    const filteredIncidents = incidents.filter(incident => 
-        incident.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        incident.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -256,28 +345,170 @@ export default function TeacherHealthPage() {
                                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             <div className="space-y-6">
-                                                <FormField control={form.control} name="studentId" render={({ field }) => ( <FormItem> <FormLabel>Student Involved</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl> <SelectTrigger> <SelectValue placeholder="Select a student" /> </SelectTrigger> </FormControl> <SelectContent> {teacherStudents.map((s) => ( <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem> ))} </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
-                                                <FormField control={form.control} name="incidentType" render={({ field }) => ( <FormItem> <FormLabel>Type of Incident</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl> <SelectTrigger> <SelectValue placeholder="Select a type" /> </SelectTrigger> </FormControl> <SelectContent> <SelectItem value="Health">Health Issue</SelectItem> <SelectItem value="Accident">Accident / Injury</SelectItem> <SelectItem value="Bullying">Bullying</SelectItem> <SelectItem value="Safety Issue">Safety Issue</SelectItem> <SelectItem value="Discipline">Disciplinary Note</SelectItem> <SelectItem value="Other">Other</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
+                                                <FormField 
+                                                  control={form.control} 
+                                                  name="studentId" 
+                                                  render={({ field }) => ( 
+                                                    <FormItem> 
+                                                      <FormLabel>Student Involved</FormLabel> 
+                                                      <Select onValueChange={field.onChange} defaultValue={field.value}> 
+                                                        <FormControl> 
+                                                          <SelectTrigger> 
+                                                            <SelectValue placeholder="Select a student" /> 
+                                                          </SelectTrigger> 
+                                                        </FormControl> 
+                                                        <SelectContent> 
+                                                          {teacherStudents.map((s) => ( 
+                                                            <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem> 
+                                                          ))} 
+                                                        </SelectContent> 
+                                                      </Select> 
+                                                      <FormMessage /> 
+                                                    </FormItem> 
+                                                  )}
+                                                />
+                                                <FormField 
+                                                  control={form.control} 
+                                                  name="incidentType" 
+                                                  render={({ field }) => ( 
+                                                    <FormItem> 
+                                                      <FormLabel>Type of Incident</FormLabel> 
+                                                      <Select onValueChange={field.onChange} defaultValue={field.value}> 
+                                                        <FormControl> 
+                                                          <SelectTrigger> 
+                                                            <SelectValue placeholder="Select a type" /> 
+                                                          </SelectTrigger> 
+                                                        </FormControl> 
+                                                        <SelectContent> 
+                                                          <SelectItem value="Health">Health Issue</SelectItem> 
+                                                          <SelectItem value="Accident">Accident / Injury</SelectItem> 
+                                                          <SelectItem value="Bullying">Bullying</SelectItem> 
+                                                          <SelectItem value="Safety Issue">Safety Issue</SelectItem> 
+                                                          <SelectItem value="Discipline">Disciplinary Note</SelectItem> 
+                                                          <SelectItem value="Other">Other</SelectItem> 
+                                                        </SelectContent> 
+                                                      </Select> 
+                                                      <FormMessage /> 
+                                                    </FormItem> 
+                                                  )}
+                                                />
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField control={form.control} name="incidentDate" render={({ field }) => ( <FormItem className="flex flex-col"> <FormLabel>Date of Incident</FormLabel> <Popover> <PopoverTrigger asChild> <FormControl> <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}> {field.value ? format(field.value, "PPP") : <span>Pick a date</span>} <CalendarIcon className="ml-auto h-4 w-4 opacity-50" /> </Button> </FormControl> </PopoverTrigger> <PopoverContent className="w-auto p-0" align="start"> <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /> </PopoverContent> </Popover> <FormMessage /> </FormItem> )}/>
-                                                    <FormField control={form.control} name="incidentTime" render={({ field }) => ( <FormItem> <FormLabel>Time</FormLabel> <FormControl> <Input type="time" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+                                                    <FormField 
+                                                      control={form.control} 
+                                                      name="incidentDate" 
+                                                      render={({ field }) => ( 
+                                                        <FormItem className="flex flex-col"> 
+                                                          <FormLabel>Date of Incident</FormLabel> 
+                                                          <Popover> 
+                                                            <PopoverTrigger asChild> 
+                                                              <FormControl> 
+                                                                <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}> 
+                                                                  {field.value ? format(field.value, "PPP") : <span>Pick a date</span>} 
+                                                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" /> 
+                                                                </Button> 
+                                                              </FormControl> 
+                                                            </PopoverTrigger> 
+                                                            <PopoverContent className="w-auto p-0" align="start"> 
+                                                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /> 
+                                                            </PopoverContent> 
+                                                          </Popover> 
+                                                          <FormMessage /> 
+                                                        </FormItem> 
+                                                      )}
+                                                    />
+                                                    <FormField 
+                                                      control={form.control} 
+                                                      name="incidentTime" 
+                                                      render={({ field }) => ( 
+                                                        <FormItem> 
+                                                          <FormLabel>Time</FormLabel> 
+                                                          <FormControl> 
+                                                            <Input type="time" {...field} /> 
+                                                          </FormControl> 
+                                                          <FormMessage /> 
+                                                        </FormItem> 
+                                                      )}
+                                                    />
                                                 </div>
-                                                <FormField control={form.control} name="location" render={({ field }) => ( <FormItem> <FormLabel>Location</FormLabel> <FormControl> <Input placeholder="e.g., Science Lab, Playground" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                                                <FormField control={form.control} name="urgency" render={({ field }) => ( <FormItem> <FormLabel>Urgency Level</FormLabel> <FormControl> <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"> {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => ( <FormItem key={level} className="flex items-center space-x-2 space-y-0"> <FormControl> <RadioGroupItem value={level} id={`urgency-teacher-${level}`} /> </FormControl> <Label htmlFor={`urgency-teacher-${level}`} className="font-normal"> <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge> </Label> </FormItem> ))} </RadioGroup> </FormControl> <FormMessage /> </FormItem> )}/>
+                                                <FormField 
+                                                  control={form.control} 
+                                                  name="location" 
+                                                  render={({ field }) => ( 
+                                                    <FormItem> 
+                                                      <FormLabel>Location</FormLabel> 
+                                                      <FormControl> 
+                                                        <Input placeholder="e.g., Science Lab, Playground" {...field} /> 
+                                                      </FormControl> 
+                                                      <FormMessage /> 
+                                                    </FormItem> 
+                                                  )}
+                                                />
+                                                <FormField 
+                                                  control={form.control} 
+                                                  name="urgency" 
+                                                  render={({ field }) => ( 
+                                                    <FormItem> 
+                                                      <FormLabel>Urgency Level</FormLabel> 
+                                                      <FormControl> 
+                                                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"> 
+                                                          {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => ( 
+                                                            <FormItem key={level} className="flex items-center space-x-2 space-y-0"> 
+                                                              <FormControl> 
+                                                                <RadioGroupItem value={level} id={`urgency-teacher-${level}`} /> 
+                                                              </FormControl> 
+                                                              <Label htmlFor={`urgency-teacher-${level}`} className="font-normal"> 
+                                                                <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge> 
+                                                              </Label> 
+                                                            </FormItem> 
+                                                          ))} 
+                                                        </RadioGroup> 
+                                                      </FormControl> 
+                                                      <FormMessage /> 
+                                                    </FormItem> 
+                                                  )}
+                                                />
                                             </div>
                                             <div className="space-y-6">
-                                                <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Detailed Description</FormLabel> <FormControl> <Textarea placeholder="Describe the condition, diagnosis, or incident..." className="min-h-[120px]" {...field}/> </FormControl> <FormMessage /> </FormItem> )}/>
-                                                <FormField control={form.control} name="actionsTaken" render={({ field }) => ( <FormItem> <FormLabel>Action(s) Taken</FormLabel> <FormControl> <Textarea placeholder="Record any notes, treatment given, or actions taken..." className="min-h-[120px]" {...field}/> </FormControl> <FormMessage /> </FormItem> )}/>
+                                                <FormField 
+                                                  control={form.control} 
+                                                  name="description" 
+                                                  render={({ field }) => ( 
+                                                    <FormItem> 
+                                                      <FormLabel>Detailed Description</FormLabel> 
+                                                      <FormControl> 
+                                                        <Textarea placeholder="Describe the condition, diagnosis, or incident..." className="min-h-[120px]" {...field}/> 
+                                                      </FormControl> 
+                                                      <FormMessage /> 
+                                                    </FormItem> 
+                                                  )}
+                                                />
+                                                <FormField 
+                                                  control={form.control} 
+                                                  name="actionsTaken" 
+                                                  render={({ field }) => ( 
+                                                    <FormItem> 
+                                                      <FormLabel>Action(s) Taken</FormLabel> 
+                                                      <FormControl> 
+                                                        <Textarea placeholder="Record any notes, treatment given, or actions taken..." className="min-h-[120px]" {...field}/> 
+                                                      </FormControl> 
+                                                      <FormMessage /> 
+                                                    </FormItem> 
+                                                  )}
+                                                />
                                             </div>
                                         </div>
-                                        <div className="flex justify-end pt-8"> <Button type="submit" disabled={isSubmitting}> {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : <><Send className="mr-2 h-4 w-4" />Submit Report</>} </Button> </div>
+                                        <div className="flex justify-end pt-8"> 
+                                          <Button type="submit" disabled={isSubmitting}> 
+                                            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : <><Send className="mr-2 h-4 w-4" />Submit Report</>} 
+                                          </Button> 
+                                        </div>
                                     </form>
                                 </Form>
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                     <TabsContent value="log">
+                    <TabsContent value="log">
                          <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle>My Incident Log</CardTitle>
@@ -285,60 +516,155 @@ export default function TeacherHealthPage() {
                                 <div className="mt-4 relative w-full md:max-w-sm">
                                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                    type="search"
-                                    placeholder="Search by student or keyword..."
-                                    className="w-full bg-background pl-8"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                      type="search"
+                                      placeholder="Search by student or keyword..."
+                                      className="w-full bg-background pl-8"
+                                      value={searchTerm}
+                                      onChange={(e) => setSearchTerm(e.target.value)}
+                                      aria-label="Search incidents"
                                     />
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="w-full overflow-auto rounded-lg border hidden md:block">
-                                    <Table>
-                                        <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Type</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                                        <TableBody>
-                                            {filteredIncidents.map(incident => (
-                                                <DialogTrigger asChild key={incident.id}>
-                                                    <TableRow className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
-                                                        <TableCell>{incident.studentName}</TableCell>
-                                                        <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>{incident.type}</Badge></TableCell>
-                                                        <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell>
-                                                        <TableCell>{getStatusBadge(incident.status)}</TableCell>
-                                                    </TableRow>
-                                                </DialogTrigger>
-                                            ))}
-                                            {filteredIncidents.length === 0 && (
-                                                <TableRow>
-                                                    <TableCell colSpan={4} className="h-24 text-center">
-                                                        You have not reported any incidents.
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
+                              {isLoading.incidents ? (
+                                <div className="flex justify-center items-center h-40">
+                                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
-                                <div className="grid grid-cols-1 gap-4 md:hidden">
-                                {filteredIncidents.map(incident => (
-                                    <DialogTrigger asChild key={incident.id}>
-                                    <Card className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
-                                        <CardHeader>
+                              ) : (
+                                <>
+                                  <div className="w-full overflow-auto rounded-lg border hidden md:block">
+                                      <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead>Student</TableHead>
+                                              <TableHead>Type</TableHead>
+                                              <TableHead>Date</TableHead>
+                                              <TableHead>Status</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                              {paginatedIncidents.map(incident => (
+                                                  <DialogTrigger asChild key={incident.id}>
+                                                      <TableRow 
+                                                        className="cursor-pointer" 
+                                                        onClick={() => setSelectedIncident(incident)}
+                                                        role="button"
+                                                        aria-label={`View details for incident involving ${incident.studentName}`}
+                                                      >
+                                                          <TableCell>{incident.studentName}</TableCell>
+                                                          <TableCell>
+                                                            <Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>
+                                                              {incident.type}
+                                                            </Badge>
+                                                          </TableCell>
+                                                          <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell>
+                                                          <TableCell>{getStatusBadge(incident.status)}</TableCell>
+                                                      </TableRow>
+                                                  </DialogTrigger>
+                                              ))}
+                                              {filteredIncidents.length === 0 && (
+                                                  <TableRow>
+                                                      <TableCell colSpan={4} className="h-24 text-center">
+                                                          {searchTerm ? (
+                                                            <div className="text-center py-6">
+                                                              <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                                                              <h3 className="font-medium text-lg mb-2">No incidents found</h3>
+                                                              <p className="text-muted-foreground">
+                                                                Try adjusting your search terms
+                                                              </p>
+                                                            </div>
+                                                          ) : (
+                                                            <div className="text-center py-6">
+                                                              <Siren className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                                                              <h3 className="font-medium text-lg mb-2">No incidents reported yet</h3>
+                                                              <p className="text-muted-foreground">
+                                                                You haven't reported any incidents yet
+                                                              </p>
+                                                            </div>
+                                                          )}
+                                                      </TableCell>
+                                                  </TableRow>
+                                              )}
+                                          </TableBody>
+                                      </Table>
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-4 md:hidden">
+                                  {paginatedIncidents.map(incident => (
+                                      <DialogTrigger asChild key={incident.id}>
+                                      <Card 
+                                        className="cursor-pointer" 
+                                        onClick={() => setSelectedIncident(incident)}
+                                        role="button"
+                                        aria-label={`View details for incident involving ${incident.studentName}`}
+                                      >
+                                          <CardHeader className="pb-2">
                                             <div className="flex items-center justify-between">
                                                 <CardTitle className="text-base">{incident.studentName}</CardTitle>
-                                                <Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>{incident.type}</Badge>
+                                                <div className="flex items-center gap-2">
+                                                  <Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>
+                                                    {incident.type}
+                                                  </Badge>
+                                                  {getStatusBadge(incident.status)}
+                                                </div>
                                             </div>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm truncate text-muted-foreground">{incident.description}</p>
-                                        </CardContent>
-                                        <CardFooter className="flex justify-between items-center text-xs">
-                                            <span>{incident.date.toDate().toLocaleDateString()}</span>
-                                            {getStatusBadge(incident.status)}
-                                        </CardFooter>
-                                    </Card>
-                                    </DialogTrigger>
-                                ))}
-                                </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                {incident.date.toDate().toLocaleDateString()}
+                                            </p>
+                                          </CardHeader>
+                                          <CardContent className="pb-3">
+                                            <p className="text-sm line-clamp-2 text-muted-foreground">
+                                                {incident.description}
+                                            </p>
+                                          </CardContent>
+                                      </Card>
+                                      </DialogTrigger>
+                                  ))}
+                                  {filteredIncidents.length === 0 && (
+                                    <div className="text-center py-12">
+                                      {searchTerm ? (
+                                        <>
+                                          <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                                          <h3 className="font-medium text-lg mb-2">No incidents found</h3>
+                                          <p className="text-muted-foreground">
+                                            Try adjusting your search terms
+                                          </p>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Siren className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                                          <h3 className="font-medium text-lg mb-2">No incidents reported yet</h3>
+                                          <p className="text-muted-foreground">
+                                            You haven't reported any incidents yet
+                                          </p>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                  </div>
+
+                                  {filteredIncidents.length > incidentsPerPage && (
+                                    <div className="flex justify-between items-center mt-6">
+                                      <Button 
+                                        variant="outline" 
+                                        onClick={() => setIncidentsPage(prev => Math.max(1, prev - 1))}
+                                        disabled={incidentsPage === 1}
+                                      >
+                                        Previous
+                                      </Button>
+                                      <span className="text-sm text-muted-foreground">
+                                        Page {incidentsPage} of {Math.ceil(filteredIncidents.length / incidentsPerPage)}
+                                      </span>
+                                      <Button 
+                                        variant="outline" 
+                                        onClick={() => setIncidentsPage(prev => Math.min(Math.ceil(filteredIncidents.length / incidentsPerPage), prev + 1))}
+                                        disabled={incidentsPage >= Math.ceil(filteredIncidents.length / incidentsPerPage)}
+                                      >
+                                        Next
+                                      </Button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -351,14 +677,36 @@ export default function TeacherHealthPage() {
                             <DialogTitle>Incident Details</DialogTitle>
                             <DialogDescription>Review the incident you reported for {selectedIncident.studentName}.</DialogDescription>
                         </DialogHeader>
-                        <div className="py-4 space-y-4"><div><p className="text-sm font-medium text-muted-foreground">Description</p><p className="text-sm">{selectedIncident.description}</p></div><Separator/><div><h4 className="font-semibold mb-2">Status</h4><p>{getStatusBadge(selectedIncident.status)}</p></div></div>
-                        <DialogFooter><DialogClose asChild><Button variant="outline">Close</Button></DialogClose></DialogFooter>
+                        <div className="py-4 space-y-4">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">Description</p>
+                            <p className="text-sm">{selectedIncident.description}</p>
+                          </div>
+                          <Separator/>
+                          <div>
+                            <h4 className="font-semibold mb-2">Status</h4>
+                            <p>{getStatusBadge(selectedIncident.status)}</p>
+                          </div>
+                          {selectedIncident.urgency && (
+                            <>
+                              <Separator/>
+                              <div>
+                                <h4 className="font-semibold mb-2">Urgency</h4>
+                                <Badge className={cn(getUrgencyBadge(selectedIncident.urgency))}>
+                                  {selectedIncident.urgency}
+                                </Badge>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Close</Button>
+                          </DialogClose>
+                        </DialogFooter>
                     </DialogContent>
                 )}
             </div>
         </Dialog>
     );
-
-    
 }
-
