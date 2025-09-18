@@ -147,6 +147,14 @@ export default function TeacherPaymentsPage() {
                 teacherName: user.displayName || 'Teacher',
                 recordedAt: serverTimestamp(),
             });
+            
+            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+                title: 'Class Funds Payment Recorded',
+                description: `${user.displayName || 'A teacher'} recorded a payment of ${formatCurrency(Number(amount))} for ${student.name}.`,
+                createdAt: serverTimestamp(),
+                category: 'Finance',
+                href: `/admin/expenses?schoolId=${schoolId}`,
+            });
 
             toast({ title: 'Payment Recorded', description: 'The payment has been successfully logged.' });
             setSelectedStudentId('');

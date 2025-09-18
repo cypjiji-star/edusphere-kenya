@@ -147,6 +147,14 @@ export function TeacherChatLayout() {
            timestamp: serverTimestamp(),
            unread: true,
        });
+
+        await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+            title: 'New Support Request',
+            description: `${user.displayName || 'A teacher'} has escalated a chat to an administrator.`,
+            createdAt: serverTimestamp(),
+            category: 'Communication',
+            href: `/admin/messaging?schoolId=${schoolId}&convoId=${currentConvoId}`,
+        });
     }
   };
 
@@ -173,7 +181,7 @@ export function TeacherChatLayout() {
             role: 'model',
             content: result.response || 'Sorry, I am unable to respond right now.',
             timestamp: Timestamp.now(),
-            senderName: 'AI Assistant',
+            senderName: 'AI Assistant'
         };
         setMessages(prev => [...prev, aiResponse]);
     } else {
@@ -194,6 +202,14 @@ export function TeacherChatLayout() {
                 timestamp: serverTimestamp(),
                 unread: true,
                 lastMessageSender: user.uid,
+            });
+            
+            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+                title: 'New Message from Teacher',
+                description: `New message from ${user.displayName || 'a teacher'}: "${userInput.substring(0,50)}..."`,
+                createdAt: serverTimestamp(),
+                category: 'Communication',
+                href: `/admin/messaging?schoolId=${schoolId}&convoId=${currentConvoId}`,
             });
         }
     }

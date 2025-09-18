@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -33,7 +34,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { generateTeamIcon } from '@/ai/flows/generate-team-icon-flow';
 import { Textarea } from '@/components/ui/textarea';
@@ -158,6 +159,14 @@ export default function SportsPage() {
             icon: newTeamIcon || '🏆', // Default icon if not generated
         };
         await addDoc(collection(firestore, 'schools', schoolId, 'teams'), newTeamData);
+
+        await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+            title: 'New Team Created',
+            description: `A new team, "${newTeamName}", has been created by ${coachName}.`,
+            createdAt: serverTimestamp(),
+            category: 'General',
+            href: `/admin/sports?schoolId=${schoolId}`,
+        });
 
         toast({
             title: 'Team Created!',

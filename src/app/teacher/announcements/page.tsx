@@ -264,6 +264,14 @@ export default function AnnouncementsPage() {
 
       await addDoc(collection(firestore, 'schools', schoolId, 'announcements'), newAnnouncement);
       
+      await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+          title: `New Announcement: ${values.title}`,
+          description: `From ${teacherName}: ${values.message.substring(0, 100)}`,
+          createdAt: serverTimestamp(),
+          category: 'Communication',
+          href: `/admin/announcements?schoolId=${schoolId}`,
+      });
+
       form.reset();
       setAttachedFile(null);
       

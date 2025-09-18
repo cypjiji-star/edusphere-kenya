@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, AlertTriangle, Clock, Loader2, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { firestore } from '@/lib/firebase';
-import { doc, onSnapshot, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, Timestamp, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
@@ -75,6 +75,14 @@ export function MyAttendanceWidget() {
             status: 'Present',
             checkInTime: Timestamp.now(),
         }, { merge: true });
+
+        await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+            title: 'Teacher Check-In',
+            description: `${user.displayName || 'A teacher'} has checked in for the day.`,
+            createdAt: serverTimestamp(),
+            category: 'General',
+            href: `/admin/attendance?schoolId=${schoolId}`,
+        });
         
         toast({
             title: 'Checked In!',
@@ -128,7 +136,7 @@ export function MyAttendanceWidget() {
     }
     switch (status) {
       case 'Late':
-        return { icon: Clock, text: 'You are marked Late', badgeVariant: 'secondary', badgeClass: 'bg-yellow-500 hover:bg-yellow-600' };
+        return { icon: Clock, text: 'You are marked Late', badgeVariant: 'secondary', badgeClass: 'bg-yellow-500 hover:bg-yellow-500' };
       case 'Absent':
         return { icon: AlertTriangle, text: 'You are marked Absent', badgeVariant: 'destructive', badgeClass: '' };
       case 'Pending':

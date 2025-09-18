@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -195,6 +196,14 @@ export default function TeacherHealthPage() {
                 reportedBy: user.displayName || 'Teacher',
                 reportedById: user.uid,
                 status: 'Reported',
+            });
+            
+            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+                title: `New Incident Report: ${values.incidentType}`,
+                description: `Incident involving ${student?.name || 'a student'} reported by ${user.displayName || 'a teacher'}.`,
+                createdAt: serverTimestamp(),
+                category: 'Health',
+                href: `/admin/health?schoolId=${schoolId}`,
             });
 
             toast({
@@ -474,5 +483,3 @@ export default function TeacherHealthPage() {
         </Dialog>
     );
 }
-
-    

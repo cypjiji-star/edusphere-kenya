@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { firestore } from '@/lib/firebase';
-import { doc, updateDoc, setDoc, query, where, getDocs, collection, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, query, where, getDocs, collection, getDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import type { GradingFormValues } from './grading-dialog';
 import { logAuditEvent } from '@/lib/audit-log.service';
 
@@ -20,7 +20,10 @@ export async function saveGradeAction(
   }
 
   try {
-    const gradeRef = doc(collection(firestore, `schools/${schoolId}/grades`));
+    const gradeRef = data.submissionId
+      ? doc(firestore, `schools/${schoolId}/grades`, data.submissionId)
+      : doc(collection(firestore, `schools/${schoolId}/grades`));
+
     const studentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'students', studentId));
     const assignmentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'assignments', assignmentId));
 
@@ -37,7 +40,7 @@ export async function saveGradeAction(
     await setDoc(gradeRef, {
         grade: data.grade,
         feedback: data.feedback,
-        examId: assignmentId, // Use assignmentId as examId for consistency
+        examId: assignmentId,
         studentId: studentId,
         studentRef: doc(firestore, 'schools', schoolId, 'students', studentId),
         subject: assignmentData.subject || 'N/A',
@@ -59,6 +62,16 @@ export async function saveGradeAction(
         user: { id: actor.id, name: actor.name, role: 'Teacher' },
         details: description,
     });
+    
+    if (isEditing) {
+        await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+            title: 'Grade Update Awaiting Approval',
+            description: `${actor.name} updated a grade for ${studentData.name} in "${assignmentData.title}".`,
+            createdAt: serverTimestamp(),
+            category: 'Academics',
+            href: `/admin/grades?schoolId=${schoolId}&tab=moderation`,
+        });
+    }
 
     revalidatePath(`/teacher/assignments/${assignmentId}?schoolId=${schoolId}`);
     return { success: true, message: 'Grade saved successfully!', status };
