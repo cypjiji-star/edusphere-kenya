@@ -41,6 +41,7 @@ import {
   Send,
   RefreshCcw,
   ArrowLeft,
+  Search,
 } from 'lucide-react';
 import {
   Table,
@@ -196,16 +197,6 @@ const schoolInfo = {
     motto: "Excellence & Integrity",
     logoUrl: "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
 };
-
-const getStatusBadge = (status: Exam['status']) => {
-    switch (status) {
-        case 'Open': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600">Open</Badge>;
-        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending Approval</Badge>;
-        case 'Closed': return <Badge variant="outline">Closed</Badge>;
-        case 'Grading Complete': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Grading Complete</Badge>;
-        default: return <Badge variant="outline">{status}</Badge>;
-    }
-}
 
 
 function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { student: Ranking | null, studentGrades: StudentGrade[] | null, open: boolean, onOpenChange: (open: boolean) => void }) {
@@ -706,6 +697,16 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
     )
 }
 
+const getStatusBadge = (status: Exam['status']) => {
+    switch (status) {
+        case 'Open': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600">Open</Badge>;
+        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending Approval</Badge>;
+        case 'Closed': return <Badge variant="outline">Closed</Badge>;
+        case 'Grading Complete': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Grading Complete</Badge>;
+        default: return <Badge variant="outline">{status}</Badge>;
+    }
+}
+
 export default function TeacherGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId')!;
@@ -1040,5 +1041,4 @@ export default function TeacherGradesPage() {
     </div>
   )
 }
-
   
