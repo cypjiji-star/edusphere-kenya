@@ -164,8 +164,6 @@ function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { stud
     const handleDownloadPdf = () => {
         const doc = new jsPDF();
         
-        // This is a simplified version. A real implementation would use a more robust
-        // HTML-to-PDF library or a server-side generation service for better formatting.
         doc.setFontSize(22);
         doc.text(schoolInfo.name, 14, 22);
         doc.setFontSize(12);
@@ -260,7 +258,7 @@ function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { stud
                                 <div className="flex justify-between"><span className="font-semibold">Total Marks:</span><span>{student.total} / {studentData ? Object.keys(studentData.scores).length * 100 : 'N/A'}</span></div>
                                 <div className="flex justify-between"><span className="font-semibold">Average:</span><span>{student.avg.toFixed(1)}%</span></div>
                                 <div className="flex justify-between"><span className="font-semibold">Mean Grade:</span><Badge>{student.grade}</Badge></div>
-                                <div className="flex justify-between"><span className="font-semibold">Class Rank:</span><span>{student.position} of {studentGrades.length}</span></div>
+                                <div className="flex justify-between"><span className="font-semibold">Class Rank:</span><span>{student.position} of ${studentGrades.length}</span></div>
                             </CardContent>
                         </Card>
                          <Card>
@@ -504,50 +502,48 @@ export default function AdminGradesPage() {
             return;
         }
 
-        const createExamForClass = async (classInfo: { id: string, name: string }) => {
-            await addDoc(collection(firestore, `schools/${schoolId}/exams`), {
-                title: examTitle,
-                class: classInfo.name,
-                classId: classInfo.id,
-                subject: examSubject,
-                date: Timestamp.fromDate(examDate),
-                duration: Number(examDuration),
-                type: examType,
-                createdAt: serverTimestamp(),
-            });
-        };
-
         try {
-            if (examClassId === 'all') {
-                const batch = writeBatch(firestore);
-                classes.forEach(classInfo => {
+            const classesToCreateFor = examClassId === 'all' ? classes : classes.filter(c => c.id === examClassId);
+            const subjectsToCreateFor = examSubject === 'all' ? subjects : [examSubject];
+
+            if (classesToCreateFor.length === 0 || subjectsToCreateFor.length === 0) {
+                 toast({
+                    title: 'No targets found',
+                    description: 'Could not find any classes or subjects to create exams for.',
+                    variant: 'destructive',
+                });
+                return;
+            }
+
+            const batch = writeBatch(firestore);
+
+            for (const classInfo of classesToCreateFor) {
+                for (const subjectName of subjectsToCreateFor) {
                     const examRef = doc(collection(firestore, `schools/${schoolId}/exams`));
                     batch.set(examRef, {
                         title: examTitle,
                         class: classInfo.name,
                         classId: classInfo.id,
-                        subject: examSubject,
+                        subject: subjectName,
                         date: Timestamp.fromDate(examDate),
                         duration: Number(examDuration),
                         type: examType,
                         createdAt: serverTimestamp(),
                     });
-                });
-                await batch.commit();
-                toast({
-                    title: 'Exams Created for All Classes',
-                    description: `The "${examTitle}" exam has been scheduled for all classes.`,
-                });
-            } else {
-                const selectedClass = classes.find(c => c.id === examClassId);
-                if (selectedClass) {
-                    await createExamForClass(selectedClass);
-                    toast({
-                        title: 'Exam Created',
-                        description: `The "${examTitle}" exam has been scheduled for ${selectedClass.name}.`,
-                    });
                 }
             }
+
+            await batch.commit();
+            
+            let successMessage = `The "${examTitle}" exam has been scheduled.`;
+            if (examClassId === 'all' || examSubject === 'all') {
+                successMessage = `Exams have been created for the selected classes and subjects.`;
+            }
+            
+            toast({
+                title: 'Exams Created',
+                description: successMessage,
+            });
 
             await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'New Exam Scheduled',
@@ -884,7 +880,10 @@ export default function AdminGradesPage() {
                                             <Label htmlFor="exam-subject">Subject</Label>
                                             <Select value={examSubject} onValueChange={setExamSubject}>
                                                 <SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger>
-                                                <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All Subjects</SelectItem>
+                                                    {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                                </SelectContent>
                                             </Select>
                                         </div>
                                     </div>
