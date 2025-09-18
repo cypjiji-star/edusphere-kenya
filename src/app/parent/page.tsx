@@ -304,6 +304,7 @@ export default function ParentDashboard() {
     const parentId = user?.uid; // Use actual user ID
     
     const [schoolName, setSchoolName] = React.useState('');
+    const [parentName, setParentName] = React.useState('Parent');
     const [childrenData, setChildrenData] = React.useState<Child[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<Child | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -319,11 +320,16 @@ export default function ParentDashboard() {
             setIsLoading(true);
             setError(null);
             
-            // Fetch school name
+            // Fetch school name and parent name
             const schoolDoc = await getDoc(doc(firestore, 'schools', schoolId));
             if (schoolDoc.exists()) {
                 setSchoolName(schoolDoc.data().name);
             }
+            const parentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'parents', parentId));
+            if (parentDoc.exists()) {
+                setParentName(parentDoc.data().name || 'Parent');
+            }
+
 
             // Fetch children
             const childrenQuery = query(
@@ -469,7 +475,7 @@ export default function ParentDashboard() {
         return (
             <div className="flex h-[calc(100vh-200px)] items-center justify-center">
                 <div className="text-center">
-                    <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <h2 className="text-xl font-semibold mb-2">No Students Found</h2>
                     <p className="text-muted-foreground mb-4">
                         No students are registered under your account.
@@ -485,8 +491,8 @@ export default function ParentDashboard() {
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="mb-8">
-                <h1 className="font-headline text-3xl font-bold">Parent Dashboard</h1>
-                <p className="text-muted-foreground">Welcome to the {schoolName} parent portal.</p>
+                <h1 className="font-headline text-3xl font-bold">Welcome, {parentName}!</h1>
+                <p className="text-muted-foreground">Your dashboard for the {schoolName} parent portal.</p>
             </div>
 
             {/* Dashboard stats cards */}

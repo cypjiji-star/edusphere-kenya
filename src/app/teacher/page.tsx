@@ -110,6 +110,7 @@ export default function TeacherDashboard() {
                 } else {
                     setAvgScore(0);
                 }
+                setIsLoading(false);
             }));
             
             const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
@@ -122,7 +123,6 @@ export default function TeacherDashboard() {
                 setUngradedAssignments(ungradedCount);
             }));
 
-            setIsLoading(false);
 
         } catch (error) {
             console.error("Error setting up dashboard listeners:", error);
