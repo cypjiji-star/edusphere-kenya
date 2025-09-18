@@ -26,6 +26,7 @@ import {
   CheckCircle,
   Columns,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Table,
@@ -55,6 +56,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
 type Exam = {
@@ -80,17 +83,19 @@ type StudentGradeEntry = {
     score: string;
     grade: string;
     submissionId?: string;
+    error?: string;
 };
 
 const getStatusBadge = (status: Exam['status']) => {
     switch(status) {
         case 'Open': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">🟢 Open</Badge>;
-        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600">🟡 Pending Approval</Badge>;
+        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">🟡 Pending Approval</Badge>;
         case 'Closed': return <Badge variant="destructive" className="bg-red-600">🔴 Closed</Badge>;
     }
 };
 
 const calculateGrade = (score: number): string => {
+    if (isNaN(score)) return '';
     if (score >= 80) return 'A';
     if (score >= 70) return 'A-';
     if (score >= 65) return 'B+';
@@ -102,7 +107,7 @@ const calculateGrade = (score: number): string => {
     if (score >= 35) return 'D+';
     if (score >= 30) return 'D';
     if (score < 30) return 'E';
-    return 'N/A';
+    return '';
 };
 
 function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBack: () => void, schoolId: string, teacher: { id: string, name: string } }) {
@@ -142,15 +147,22 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
     }, [exam, schoolId]);
     
     const handleScoreChange = (studentId: string, score: string) => {
+        let error = undefined;
+        const scoreNum = Number(score);
+        if (score && (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100)) {
+            error = 'Score must be between 0 and 100.';
+        }
+
         setStudents(prev => prev.map(s => 
             s.studentId === studentId 
-            ? { ...s, score, grade: calculateGrade(Number(score)) } 
+            ? { ...s, score, grade: calculateGrade(scoreNum), error } 
             : s
         ));
     };
 
     const handleSaveGrade = async (studentId: string, score: string, index: number) => {
-        if (!score || isNaN(Number(score))) return; // Don't save if empty or not a number
+        const scoreNum = Number(score);
+        if (!score || isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100) return;
 
         const student = students.find(s => s.studentId === studentId);
         if (!student) return;
@@ -166,16 +178,41 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 classId: exam.classId,
                 date: exam.date,
                 teacherName: teacher.name,
-                status: 'Pending Approval' // Grades entered by teachers need moderation
+                status: 'Pending Approval'
             }, { merge: true });
 
             if (!student.submissionId) {
-                // If it was a new grade, update the local state with the new ID
-                 setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id } : s));
+                setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id } : s));
             }
-            
         } catch (e) {
+            console.error(e);
             toast({ title: 'Error', description: 'Failed to save grade.', variant: 'destructive'});
+        }
+    };
+
+    const handleSubmitAllGrades = async () => {
+        setIsSaving(true);
+        try {
+            const examRef = doc(firestore, 'schools', schoolId, 'exams', exam.id);
+            await updateDoc(examRef, { status: 'Pending Approval' });
+            
+            await logAuditEvent({
+                schoolId,
+                action: 'GRADES_SUBMITTED',
+                actionType: 'Academics',
+                user: { id: teacher.id, name: teacher.name, role: 'Teacher' },
+                details: `Submitted all grades for exam: "${exam.title}" - ${exam.className}.`,
+            });
+            
+            toast({
+                title: 'Grades Submitted!',
+                description: 'All grades for this exam have been submitted for moderation.',
+            });
+            onBack();
+        } catch(e) {
+            toast({ title: 'Error', description: 'Failed to submit grades.', variant: 'destructive'});
+        } finally {
+            setIsSaving(false);
         }
     };
     
@@ -184,25 +221,57 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
             e.preventDefault();
             gradeInputRefs.current[index + 1]?.focus();
         } else if (e.key === 'ArrowUp') {
-             e.preventDefault();
+            e.preventDefault();
             gradeInputRefs.current[index - 1]?.focus();
         }
     };
     
     const filteredStudents = students.filter(s => s.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const gradedCount = students.filter(s => s.score !== '' && !s.error).length;
+    const progress = totalStudents > 0 ? (gradedCount / totalStudents) * 100 : 0;
+    const allGraded = gradedCount === totalStudents;
+    const totalStudents = students.length;
 
     return (
         <Card>
             <CardHeader>
+                <Button variant="outline" size="sm" onClick={onBack} className="mb-4 w-fit">
+                    <ArrowLeft className="mr-2 h-4 w-4"/> Back to Exams
+                </Button>
                 <div className="flex justify-between items-start">
                     <div>
-                        <Button variant="outline" size="sm" onClick={onBack} className="mb-4">
-                            <ArrowLeft className="mr-2 h-4 w-4"/> Back to Exams
-                        </Button>
                         <CardTitle className="font-headline text-2xl">Enter Marks: {exam.title}</CardTitle>
                         <CardDescription>{exam.className} - {exam.subject}</CardDescription>
                     </div>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button disabled={!allGraded || isSaving}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
+                                Submit All Grades
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will submit all {gradedCount} grades for moderation. You will not be able to edit them after this point.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleSubmitAllGrades}>Confirm & Submit</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
+                 <div className="pt-4 space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                        <Label>Grading Progress</Label>
+                        <span>{gradedCount} / {totalStudents} Students</span>
+                    </div>
+                    <Progress value={progress} />
+                 </div>
                  <div className="relative w-full md:max-w-sm mt-4">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -220,7 +289,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[300px]">Student</TableHead>
-                                <TableHead className="w-[150px]">Mark / Score</TableHead>
+                                <TableHead className="w-[200px]">Mark / Score (out of 100)</TableHead>
                                 <TableHead className="w-[150px]">Auto-Grade</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -242,20 +311,23 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Input
-                                        ref={el => gradeInputRefs.current[index] = el}
-                                        type="number"
-                                        placeholder="Enter score"
-                                        value={student.score}
-                                        onChange={(e) => handleScoreChange(student.studentId, e.target.value)}
-                                        onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
-                                        onKeyDown={(e) => handleKeyDown(e, index)}
-                                        className="w-32"
-                                    />
+                                    <div className="relative">
+                                        <Input
+                                            ref={el => gradeInputRefs.current[index] = el}
+                                            type="number"
+                                            placeholder="Enter score"
+                                            value={student.score}
+                                            onChange={(e) => handleScoreChange(student.studentId, e.target.value)}
+                                            onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
+                                            onKeyDown={(e) => handleKeyDown(e, index)}
+                                            className={cn("w-32", student.error && "border-destructive focus-visible:ring-destructive")}
+                                        />
+                                        {student.error && <p className="text-xs text-destructive mt-1">{student.error}</p>}
+                                    </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="outline" className="text-lg font-bold p-2 w-12 justify-center">
-                                        {student.grade}
+                                    <Badge variant={!student.score || student.error ? "outline" : "default"} className="text-lg font-bold p-2 w-12 justify-center">
+                                        {student.grade || '—'}
                                     </Badge>
                                 </TableCell>
                             </TableRow>
@@ -301,9 +373,9 @@ export default function TeacherGradesPage() {
     }, [schoolId, user]);
     
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !user) return;
 
-        const classIdsQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user?.uid));
+        const classIdsQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user.uid));
         const unsubClasses = onSnapshot(classIdsQuery, (classSnapshot) => {
             const classIds = classSnapshot.docs.map(doc => doc.id);
             setTeacherClasses(classSnapshot.docs.map(d => ({id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim()})));
@@ -315,10 +387,17 @@ export default function TeacherGradesPage() {
                     const examsData = snapshot.docs.map(doc => {
                         const data = doc.data();
                         const isDueDatePast = isPast(data.date?.toDate() || new Date());
+                        let status: Exam['status'] = 'Open';
+                        if (data.status === 'Pending Approval') {
+                            status = 'Pending Approval';
+                        } else if (isDueDatePast) {
+                            status = 'Closed';
+                        }
+                        
                         return { 
                             id: doc.id, 
                             ...data,
-                            status: isDueDatePast ? 'Closed' : 'Open' 
+                            status: status
                         } as Exam
                     });
                     setExams(examsData);
