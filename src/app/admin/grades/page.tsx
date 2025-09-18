@@ -24,6 +24,9 @@ import {
   Edit,
   Save,
   Copy,
+  Check,
+  X,
+  History,
 } from 'lucide-react';
 import {
   Table,
@@ -91,9 +94,21 @@ const mockStudents = [
     { id: 'stu-001', name: 'John Doe', admNo: '1234', avatarUrl: 'https://picsum.photos/seed/student1/100', scores: { Mathematics: 85, English: 72, Chemistry: 65, Physics: 78, Biology: 81 } },
     { id: 'stu-002', name: 'Jane Smith', admNo: '1235', avatarUrl: 'https://picsum.photos/seed/student2/100', scores: { Mathematics: 92, English: 88, Chemistry: 75, Physics: 85, Biology: 90 } },
     { id: 'stu-003', name: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', scores: { Mathematics: 65, English: 58, Chemistry: 50, Physics: 61, Biology: 55 } },
+    { id: 'stu-004', name: 'Mary Anne', admNo: '1237', avatarUrl: 'https://picsum.photos/seed/student4/100', scores: { Mathematics: 98, English: 95, Chemistry: 91, Physics: 89, Biology: 94 } },
 ];
 const gradebookSubjects = ['Mathematics', 'English', 'Chemistry', 'Physics', 'Biology'];
 
+const mockPendingGrades = [
+    { id: 'grd-001', studentName: 'John Doe', admNo: '1234', class: 'Form 4', subject: 'Mathematics', score: 85, enteredBy: 'Mr. Otieno' },
+    { id: 'grd-002', studentName: 'Jane Smith', admNo: '1235', class: 'Form 4', subject: 'Mathematics', score: 92, enteredBy: 'Mr. Otieno' },
+    { id: 'grd-003', studentName: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', scores: { Mathematics: 65, English: 58, Chemistry: 50, Physics: 61, Biology: 55 } },
+];
+
+const mockGradeLog = [
+    { id: 'log-001', timestamp: '2024-07-29 10:05 AM', user: 'Mr. Otieno', student: 'John Doe (1234)', action: 'Entered grade', details: 'Maths Midterm: 85' },
+    { id: 'log-002', timestamp: '2024-07-29 10:06 AM', user: 'Mr. Otieno', student: 'Jane Smith (1235)', action: 'Entered grade', details: 'Maths Midterm: 92' },
+    { id: 'log-003', timestamp: '2024-07-29 11:30 AM', user: 'Ms. Wanjiku (HOD)', student: 'John Doe (1234)', action: 'Approved grade', details: 'Maths Midterm: 85' },
+];
 
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
@@ -158,6 +173,7 @@ export default function AdminGradesPage() {
             <TabsList>
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
                 <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+                <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
             </TabsList>
             <TabsContent value="exam-management" className="mt-4">
                 <Card>
@@ -353,6 +369,82 @@ export default function AdminGradesPage() {
                         </div>
                     </CardContent>
                 </Card>
+            </TabsContent>
+            <TabsContent value="moderation" className="mt-4 space-y-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Grade Approval Queue</CardTitle>
+                        <CardDescription>Review and approve grade entries submitted by teachers.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Score</TableHead>
+                                        <TableHead>Entered By</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {mockPendingGrades.map(grade => (
+                                        <TableRow key={grade.id}>
+                                            <TableCell>{grade.studentName} ({grade.admNo})</TableCell>
+                                            <TableCell>{grade.subject}</TableCell>
+                                            <TableCell className="font-semibold flex items-center gap-2">
+                                                {grade.score}
+                                                {grade.flagged && <AlertTriangle className="h-4 w-4 text-destructive" title="Flagged: Abnormal score"/>}
+                                            </TableCell>
+                                            <TableCell>{grade.enteredBy}</TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700">
+                                                    <Check className="mr-2 h-4 w-4"/>Approve
+                                                </Button>
+                                                <Button variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700">
+                                                    <X className="mr-2 h-4 w-4"/>Reject
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                 </Card>
+                 <Card>
+                     <CardHeader>
+                        <CardTitle>Grade Change Audit Trail</CardTitle>
+                        <CardDescription>A log of all grade entries and modifications for accountability.</CardDescription>
+                     </CardHeader>
+                     <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Timestamp</TableHead>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Action</TableHead>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead>Details</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {mockGradeLog.map(log => (
+                                        <TableRow key={log.id}>
+                                            <TableCell className="text-xs text-muted-foreground">{log.timestamp}</TableCell>
+                                            <TableCell className="font-medium">{log.user}</TableCell>
+                                            <TableCell><Badge variant="secondary">{log.action}</Badge></TableCell>
+                                            <TableCell>{log.student}</TableCell>
+                                            <TableCell className="text-sm text-muted-foreground italic">"{log.details}"</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                         </div>
+                     </CardContent>
+                 </Card>
             </TabsContent>
         </Tabs>
     </div>
