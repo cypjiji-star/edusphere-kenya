@@ -258,7 +258,6 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
             createdAt: serverTimestamp(),
             read: false,
             href: `/admin/grades?schoolId=${schoolId}&examId=${exam.id}`,
-            // We might want a way to target specific admins here in a real system
         });
 
         toast({
@@ -333,7 +332,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 </div>
             </CardHeader>
             <CardContent>
-                 <div className="w-full overflow-auto rounded-lg border">
+                 <div className="w-full overflow-auto rounded-lg border hidden md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -384,6 +383,49 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                         ))}
                         </TableBody>
                     </Table>
+                 </div>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+                    {isLoading ? (
+                         <div className="col-span-full h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>
+                    ) : filteredStudents.map((student, index) => (
+                        <Card key={student.studentId}>
+                             <CardHeader>
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={student.avatarUrl} alt={student.studentName} />
+                                        <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <CardTitle className="text-base">{student.studentName}</CardTitle>
+                                        <CardDescription>Adm: {student.admNo}</CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor={`score-${student.studentId}`}>Score (out of 100)</Label>
+                                    <Input
+                                        id={`score-${student.studentId}`}
+                                        ref={el => gradeInputRefs.current[index] = el}
+                                        type="number"
+                                        placeholder="Enter score"
+                                        value={student.score}
+                                        onChange={(e) => handleScoreChange(student.studentId, e.target.value)}
+                                        onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
+                                        className={cn(student.error && "border-destructive focus-visible:ring-destructive")}
+                                        disabled={isLocked}
+                                    />
+                                    {student.error && <p className="text-xs text-destructive mt-1">{student.error}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                     <Label>Auto-Grade</Label>
+                                     <Badge variant={!student.score || student.error ? "outline" : "default"} className="text-lg font-bold p-2 w-16 justify-center block">
+                                        {student.grade || '—'}
+                                    </Badge>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
                  </div>
             </CardContent>
         </Card>
@@ -436,12 +478,7 @@ export default function TeacherGradesPage() {
                 const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', classIds));
                 const unsubscribeExams = onSnapshot(examsQuery, (snapshot) => {
                     const examsData = snapshot.docs.map(doc => {
-                        const data = doc.data();
-                        
-                        return { 
-                            id: doc.id, 
-                            ...data,
-                        } as Exam
+                        return { id: doc.id, ...doc.data() } as Exam;
                     });
                     setExams(examsData);
                     setIsLoading(false);
@@ -628,7 +665,7 @@ export default function TeacherGradesPage() {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="w-full overflow-auto rounded-lg border">
+                <div className="w-full overflow-auto rounded-lg border hidden md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -688,6 +725,54 @@ export default function TeacherGradesPage() {
                         </TableBody>
                     </Table>
                 </div>
+                 {/* Mobile Cards */}
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+                    {isLoading ? (
+                         <div className="col-span-full h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>
+                    ) : filteredExams.length > 0 ? (
+                        filteredExams.map(exam => (
+                            <Card key={exam.id}>
+                                <CardHeader>
+                                    <div className="flex items-start justify-between">
+                                        <CardTitle className="text-base font-semibold">{exam.title}</CardTitle>
+                                        {getStatusBadge(exam.status)}
+                                    </div>
+                                    <CardDescription>{exam.className} - {exam.subject}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">Due: {exam.date.toDate().toLocaleDateString()}</p>
+                                      {exam.moderatorFeedback && (
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="link" size="sm" className="p-0 h-auto mt-2 text-yellow-500 hover:text-yellow-600">
+                                                    <AlertTriangle className="mr-2 h-4 w-4"/>View Feedback
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Moderator Feedback</DialogTitle>
+                                                </DialogHeader>
+                                                <p className="py-4">{exam.moderatorFeedback}</p>
+                                            </DialogContent>
+                                        </Dialog>
+                                    )}
+                                </CardContent>
+                                <CardFooter>
+                                    <Button variant="outline" size="sm" className="w-full" onClick={() => setSelectedExam(exam)} disabled={exam.status !== 'Open'}>
+                                        <Plus className="mr-2 h-4 w-4"/>
+                                        Enter Marks
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))
+                    ) : (
+                        <Card className="sm:col-span-2">
+                           <CardContent className="h-24 text-center flex items-center justify-center">
+                                No exams found for the selected filters.
+                            </CardContent>
+                        </Card>
+                    )}
+                 </div>
             </CardContent>
         </Card>
     </div>
