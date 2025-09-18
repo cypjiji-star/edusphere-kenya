@@ -322,7 +322,7 @@ export default function BrandingPage() {
                         <CardTitle>Color Scheme</CardTitle>
                         <CardDescription>Customize the look and feel of the portal.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <ColorPicker label="Primary Color" color={primaryColor} setColor={setPrimaryColor} />
                         <ColorPicker label="Accent Color" color={accentColor} setColor={setAccentColor} />
                         <ColorPicker label="Background Color" color={backgroundColor} setColor={setBackgroundColor} />
@@ -333,7 +333,7 @@ export default function BrandingPage() {
                         <CardTitle className="flex items-center gap-2"><Type className="h-5 w-5 text-primary"/>Typography</CardTitle>
                         <CardDescription>Select fonts for headings and body text.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="headline-font">Headline Font</Label>
                             <Select value={headlineFont} onValueChange={setHeadlineFont}>
@@ -363,7 +363,7 @@ export default function BrandingPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-            <TabsContent value="manage" className="space-y-6 mt-6">
+            <TabsContent value="manage" className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>
                         <CardTitle>Save Changes</CardTitle>
@@ -448,7 +448,5 @@ export default function BrandingPage() {
     </div>
   );
 }
-
-  
 
     

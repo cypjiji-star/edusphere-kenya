@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, BookOpen, ArrowRight, Search, FileDown, Filter, ChevronDown, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -212,7 +214,7 @@ export default function LessonPlansPage() {
                             </CardContent>
                             <CardFooter>
                                 <Button asChild variant="outline" className="w-full">
-                                    <Link href={`/teacher/lesson-plans/${plan.id}?schoolId=${schoolId}`}>
+                                    <Link href={`/teacher/lesson-plans/new?id=${plan.id}&schoolId=${schoolId}`}>
                                         View / Edit
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </Link>
@@ -254,3 +256,5 @@ export default function LessonPlansPage() {
     </div>
   );
 }
+
+    

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -198,7 +199,7 @@ export default function AdminLessonPlansPage() {
                               onChange={(e) => setSearchTerm(e.target.value)}
                           />
                       </div>
-                      <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                      <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                           <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                               <Button variant="outline" className="w-full md:w-auto">
@@ -400,3 +401,5 @@ export default function AdminLessonPlansPage() {
     </div>
   );
 }
+
+    

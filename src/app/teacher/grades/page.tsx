@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -70,7 +71,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   Select,
@@ -98,7 +98,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
@@ -486,7 +486,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 action: 'GRADES_SUBMITTED',
                 actionType: 'Academics',
                 user: { id: teacher.id, name: teacher.name, role: 'Teacher' },
-                details: `Finished grading for exam: "${exam.title}" - ${exam.className}.`,
+                details: `Finished grading for exam: "${exam.title}" - ${exam.class}.`,
             });
             
             toast({
@@ -544,7 +544,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 <div className="flex justify-between items-start">
                     <div>
                         <CardTitle className="font-headline text-2xl">Enter Marks: {exam.title}</CardTitle>
-                        <CardDescription>{exam.className} - {exam.subject}</CardDescription>
+                        <CardDescription>{exam.class} - {exam.subject}</CardDescription>
                     </div>
                     {isLocked ? (
                         <Button variant="secondary" onClick={handleRequestUnlock}>
@@ -707,96 +707,429 @@ const getStatusBadge = (status: Exam['status']) => {
     }
 }
 
-export default function TeacherGradesPage() {
+export default function AdminGradesPage() {
     const searchParams = useSearchParams();
-    const schoolId = searchParams.get('schoolId')!;
+    const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user: adminUser } = useAuth();
     
     const [exams, setExams] = React.useState<Exam[]>([]);
-    const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
-    const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
-    const [isLoading, setIsLoading] = React.useState(true);
-    const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
+    const [selectedExamForGrading, setSelectedExamForGrading] = React.useState<Exam | null>(null);
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+    const [editingExam, setEditingExam] = React.useState<Exam | null>(null);
+    const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
+    const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
+    const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
+    const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
+    const [pendingGrades, setPendingGrades] = React.useState<PendingGrade[]>([]);
+    const [activeTab, setActiveTab] = React.useState('exam-management');
 
-    const [classFilter, setClassFilter] = React.useState('all');
-    const [subjectFilter, setSubjectFilter] = React.useState('all');
+    // State for the create exam form
+    const [examTitle, setExamTitle] = React.useState('');
+    const [examClassId, setExamClassId] = React.useState('');
+    const [examSubject, setExamSubject] = React.useState('');
+    const [examDate, setExamDate] = React.useState<Date | undefined>();
+    const [examDuration, setExamDuration] = React.useState('');
+    const [examType, setExamType] = React.useState<Exam['type'] | undefined>();
+    const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
+    const [subjects, setSubjects] = React.useState<string[]>([]);
+    const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<{subject: string; average: number}[]>([]);
     const [academicTerms] = React.useState(generateAcademicTerms());
-    const [termFilter, setTermFilter] = React.useState(getCurrentTerm());
-
+    
+    // Gradebook state
+    const [selectedGradebookClass, setSelectedGradebookClass] = React.useState<string>('');
+    const [selectedGradebookExam, setSelectedGradebookExam] = React.useState<string>('');
+    const [selectedReportClass, setSelectedReportClass] = React.useState<string>('');
+    const [selectedReportTerm, setSelectedReportTerm] = React.useState<string>(getCurrentTerm());
+    
     const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
     const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
+    const [gradeToReject, setGradeToReject] = React.useState<PendingGrade | null>(null);
+
 
     React.useEffect(() => {
-        if (!schoolId || !user?.displayName) return;
+        if (!schoolId) return;
+
+        const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), orderBy('date', 'desc'));
+        const unsubscribeExams = onSnapshot(examsQuery, (snapshot) => {
+            const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
+            setExams(fetchedExams);
+        });
         
-        const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
-        const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
-            setTeacherSubjects(snapshot.docs.map(doc => doc.data().name));
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
+        const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
+            const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
+            setClasses(classData);
+            if (classData.length > 0) {
+                if (!selectedGradebookClass) setSelectedGradebookClass(classData[0].id);
+                if (!selectedReportClass) setSelectedReportClass(classData[0].id);
+            }
+        });
+        
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
+        const unsubscribeSubjects = onSnapshot(subjectsQuery, snapshot => {
+            setSubjects(snapshot.docs.map(doc => doc.data().name));
         });
 
-        return () => unsubSubjects();
-    }, [schoolId, user]);
-    
-    React.useEffect(() => {
-        if (!schoolId || !user) return;
-        
-        const classIdsQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user.uid));
-        
-        const unsubClasses = onSnapshot(classIdsQuery, (classSnapshot) => {
-            const teacherClassIds = classSnapshot.docs.map(doc => doc.id);
-            setTeacherClasses(classSnapshot.docs.map(d => ({id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim()})));
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
+        const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
+            const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number> }> = {};
+            const studentPromises = [];
+            
+            for (const doc of snapshot.docs) {
+                const gradeData = doc.data();
+                if (!gradeData.studentId || !gradeData.subject || isNaN(parseInt(gradeData.grade))) continue;
+                if (!gradeData.studentRef) continue;
 
-            let examQueries: any[] = [];
-            if (teacherClassIds.length > 0) {
-                 examQueries.push(query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', teacherClassIds)));
+                if (!gradesByStudent[gradeData.studentId]) {
+                    gradesByStudent[gradeData.studentId] = { studentId: gradeData.studentId, scores: {} };
+                    studentPromises.push(getDoc(gradeData.studentRef));
+                }
+                gradesByStudent[gradeData.studentId].scores[gradeData.subject] = parseInt(gradeData.grade);
             }
-            if(teacherSubjects.length > 0) {
-                examQueries.push(query(collection(firestore, `schools/${schoolId}/exams`), where('subject', 'in', teacherSubjects)));
-            }
+            
+            const studentDocs = await Promise.all(studentPromises);
+            const studentDataMap = new Map(studentDocs.map(doc => [doc.id, doc.data()]));
+            
+            const studentScores: StudentGrade[] = Object.values(gradesByStudent).map(data => {
+                const studentInfo = studentDataMap.get(data.studentId);
+                return {
+                    studentId: data.studentId,
+                    studentName: studentInfo?.name || 'Unknown',
+                    admNo: studentInfo?.admissionNumber || 'N/A',
+                    avatarUrl: studentInfo?.avatarUrl || '',
+                    scores: data.scores
+                }
+            });
+            
+            setStudentGrades(studentScores);
+            
+            const calculatedRanking: Omit<Ranking, 'position' | 'streamPosition'>[] = studentScores.map(student => {
+                const subjectCount = Object.keys(student.scores).length;
+                const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
+                const avg = subjectCount > 0 ? total / subjectCount : 0;
+                let grade;
+                if (avg >= 80) grade = 'A';
+                else if (avg >= 65) grade = 'B';
+                else if (avg >= 50) grade = 'C';
+                else if (avg >= 40) grade = 'D';
+                else grade = 'E';
 
-            if (examQueries.length > 0) {
-                setIsLoading(true);
-                Promise.all(examQueries.map(q => getDocs(q))).then(results => {
-                    const examMap = new Map<string, Exam>();
-                    results.forEach(snapshot => {
-                        snapshot.docs.forEach(doc => {
-                             examMap.set(doc.id, { id: doc.id, ...doc.data() } as Exam);
-                        });
-                    });
-                    setExams(Array.from(examMap.values()));
-                    setIsLoading(false);
+                return {
+                    name: student.studentName,
+                    admNo: student.admNo,
+                    avatarUrl: student.avatarUrl,
+                    total,
+                    avg,
+                    grade,
+                };
+            });
+            
+            const sortedRanking = calculatedRanking.sort((a, b) => b.total - a.total).map((student, index) => ({
+                ...student,
+                position: index + 1,
+                streamPosition: index + 1, 
+            }));
+            
+            setClassRanking(sortedRanking);
+
+            const perfData: Record<string, { total: number, count: number }> = {};
+            studentScores.forEach(student => {
+                Object.entries(student.scores).forEach(([subject, score]) => {
+                    if (!perfData[subject]) {
+                        perfData[subject] = { total: 0, count: 0 };
+                    }
+                    perfData[subject].total += score;
+                    perfData[subject].count++;
                 });
-            } else {
-                 setIsLoading(false);
-                 setExams([]);
-            }
+            });
+             setSubjectPerformanceData(Object.entries(perfData).map(([subject, data]) => ({
+                subject: subject.substring(0, 5),
+                average: Math.round(data.total / data.count),
+            })));
+        });
+
+        const auditLogQuery = query(collection(firestore, 'schools', schoolId, 'audit_logs'), where('action', 'in', ['GRADE_UPDATED', 'GRADE_APPROVED', 'GRADE_REJECTED']), orderBy('timestamp', 'desc'));
+        const unsubscribeLogs = onSnapshot(auditLogQuery, (snapshot) => {
+            const logs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as AuditLog));
+            setAuditLog(logs);
         });
         
-        return () => unsubClasses();
-    }, [schoolId, user, teacherSubjects]);
+        const pendingGradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval'));
+        const unsubscribePendingGrades = onSnapshot(pendingGradesQuery, async (snapshot) => {
+            const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
+                const data = gradeDoc.data();
+                const studentSnap = await getDoc(data.studentRef);
+                const examSnap = data.examId ? await getDoc(doc(firestore, 'schools', schoolId, 'exams', data.examId)) : null;
+
+                return {
+                    id: gradeDoc.id,
+                    studentName: studentSnap.data()?.name || 'Unknown',
+                    studentId: studentSnap.id,
+                    subject: data.subject,
+                    grade: data.grade,
+                    teacherName: data.teacherName,
+                    assessmentTitle: examSnap?.data()?.title || 'N/A',
+                    examId: data.examId
+                };
+            }));
+            setPendingGrades(pendingData);
+        });
+
+        return () => {
+            unsubscribeExams();
+            unsubscribeGrades();
+            unsubscribeClasses();
+            unsubscribeSubjects();
+            unsubscribeLogs();
+            unsubscribePendingGrades();
+        };
+    }, [schoolId, selectedGradebookClass]);
+
+    const filteredGradebookExams = React.useMemo(() => {
+        return exams.filter(exam => exam.classId === selectedGradebookClass);
+    }, [exams, selectedGradebookClass]);
+
+    const gradebookStudents = React.useMemo(() => {
+        return studentGrades;
+    }, [studentGrades]);
+    
+    const gradebookSubjects = React.useMemo(() => {
+        if (!selectedGradebookExam) return [];
+        const exam = exams.find(e => e.id === selectedGradebookExam);
+        return exam ? [exam.subject] : [];
+    }, [exams, selectedGradebookExam]);
+    
+    const groupedExams = React.useMemo(() => {
+        const groups = new Map<string, Exam[]>();
+        exams.forEach(exam => {
+            const key = `${exam.title}|${exam.classId}|${exam.date.toMillis()}`;
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key)!.push(exam);
+        });
+
+        const allSubjectsCount = subjects.length;
+
+        return Array.from(groups.values()).map(group => {
+            const representative = group[0];
+            if (group.length > 1) {
+                return {
+                    ...representative,
+                    id: group.map(g => g.id).join(','), // Combine IDs for unique key & deletion
+                    isGrouped: true,
+                    subjectCount: group.length,
+                    subject: group.length === allSubjectsCount ? 'All Subjects' : `${group.length} subjects`,
+                    groupedIds: group.map(g => g.id),
+                };
+            }
+            return representative;
+        });
+    }, [exams, subjects.length]);
 
 
-    const filteredExams = exams.filter(exam => {
-        const classMatch = classFilter === 'all' || exam.classId === classFilter;
-        const subjectMatch = subjectFilter === 'all' || exam.subject === subjectFilter;
-        return classMatch && subjectMatch;
-    });
+    const handleCreateExam = async () => {
+        if (!schoolId || !examTitle || !examClassId || !examSubject || !examDate || !examDuration || !examType) {
+            toast({
+                title: 'Missing Information',
+                description: 'Please fill out all exam details.',
+                variant: 'destructive',
+            });
+            return;
+        }
 
-    const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            const classesToCreateFor = examClassId === 'all' ? classes : classes.filter(c => c.id === examClassId);
+            const subjectsToCreateFor = examSubject === 'all' ? subjects : [examSubject];
+
+            if (classesToCreateFor.length === 0 || subjectsToCreateFor.length === 0) {
+                 toast({
+                    title: 'No targets found',
+                    description: 'Could not find any classes or subjects to create exams for.',
+                    variant: 'destructive',
+                });
+                return;
+            }
+
+            const batch = writeBatch(firestore);
+
+            for (const classInfo of classesToCreateFor) {
+                for (const subjectName of subjectsToCreateFor) {
+                    const examRef = doc(collection(firestore, `schools/${schoolId}/exams`));
+                    batch.set(examRef, {
+                        title: examTitle,
+                        class: classInfo.name,
+                        classId: classInfo.id,
+                        subject: subjectName,
+                        date: Timestamp.fromDate(examDate),
+                        duration: Number(examDuration),
+                        type: examType,
+                        createdAt: serverTimestamp(),
+                        status: 'Open',
+                    });
+                }
+            }
+
+            await batch.commit();
+            
+            let successMessage = `The "${examTitle}" exam has been scheduled.`;
+            if (examClassId === 'all' || examSubject === 'all') {
+                successMessage = `Exams have been created for the selected classes and subjects.`;
+            }
+            
+            toast({
+                title: 'Exams Created',
+                description: successMessage,
+            });
+
+            await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+                title: 'New Exam Scheduled',
+                description: `A new ${examType} exam, "${examTitle}", has been scheduled for ${examClassId === 'all' ? 'all classes' : classes.find(c=>c.id === examClassId)?.name} on ${format(examDate, 'PPP')}.`,
+                createdAt: serverTimestamp(),
+                read: false,
+                href: `/teacher/assignments?schoolId=${schoolId}`,
+                category: 'Academics',
+            });
+
+            setExamTitle('');
+            setExamClassId('');
+            setExamSubject('');
+            setExamDate(undefined);
+            setExamDuration('');
+            setExamType(undefined);
+            setIsCreateDialogOpen(false);
+
+        } catch (error) {
+            console.error("Error creating exam(s): ", error);
+            toast({ title: 'Error', description: 'Could not create the exam(s).', variant: 'destructive' });
+        }
+    };
+    
+    const handleGradeModeration = async (gradeId: string, studentId: string, studentName: string, subject: string, grade: string, decision: 'Approved' | 'Rejected', feedback?: string) => {
+        if (!schoolId || !adminUser) return;
+        const gradeRef = doc(firestore, `schools/${schoolId}/grades`, gradeId);
+        try {
+            await updateDoc(gradeRef, { status: decision, moderatorFeedback: feedback || null });
+            
+            const pendingGrade = pendingGrades.find(g => g.id === gradeId);
+            if (decision === 'Rejected' && pendingGrade?.examId) {
+                const examRef = doc(firestore, 'schools', schoolId, 'exams', pendingGrade.examId);
+                await updateDoc(examRef, { status: 'Open' });
+            }
+
+            await logAuditEvent({
+                schoolId,
+                action: decision === 'Approved' ? 'GRADE_APPROVED' : 'GRADE_REJECTED',
+                actionType: 'Academics',
+                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                details: `${decision} grade of ${grade} for ${studentName} in ${subject}. Feedback: ${feedback || 'N/A'}`,
+            });
+            
+            toast({
+                title: `Grade ${decision}`,
+                description: `The grade has been successfully ${decision.toLowerCase()}.`,
+            });
+
+            if (decision === 'Rejected') {
+                setGradeToReject(null);
+            }
+        } catch (e) {
+            toast({ title: 'Error', description: 'Could not update grade status.', variant: 'destructive' });
+        }
+    };
+    
+    const handlePublishResults = async () => {
+        if (!schoolId) return;
+
+        try {
+            await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+                title: 'Exam Results Published!',
+                description: `The results for ${selectedReportTerm} are now available on the portal.`,
+                createdAt: serverTimestamp(),
+                read: false,
+                href: `/parent/grades?schoolId=${schoolId}`,
+                audience: 'parents-and-students',
+                category: 'Academics',
+            });
+            toast({
+                title: 'Results Published!',
+                description: 'Parents and students have been notified that results are available.',
+            });
+        } catch (e) {
+            toast({ title: 'Failed to publish results.', variant: 'destructive' });
+        }
+    };
+    
+    const handlePrintResults = () => {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            const tableHtml = document.getElementById('class-ranking-table')?.outerHTML;
+            printWindow.document.write('<html><head><title>Class Ranking</title>');
+            // Basic styles for printing
+            printWindow.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } th { background-color: #f2f2f2; } </style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(`<h2>Class Ranking - ${classes.find(c => c.id === selectedReportClass)?.name} - ${selectedReportTerm}</h2>`);
+            if (tableHtml) {
+                printWindow.document.write(tableHtml);
+            }
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+    };
+
+    const handleDownloadAllReportCards = () => {
+        const doc = new jsPDF();
+        
+        classRanking.forEach((student, index) => {
+            if (index > 0) {
+                doc.addPage();
+            }
+            const studentData = studentGrades.find(s => s.admNo === student.admNo);
+            
+            doc.text(`${schoolInfo.name} Report Card`, 14, 22);
+            doc.text(`Student: ${student.name}`, 14, 30);
+            doc.text(`Admission No: ${student.admNo}`, 14, 36);
+
+            (doc as any).autoTable({
+                startY: 45,
+                head: [['Subject', 'Score', 'Grade']],
+                body: studentData ? Object.entries(studentData.scores).map(([subject, score]) => [
+                    subject,
+                    score,
+                    score >= 80 ? 'A' : score >= 65 ? 'B' : 'C'
+                ]) : [],
+            });
+
+            const finalY = (doc as any).lastAutoTable.finalY;
+            doc.text(`Total Marks: ${student.total}`, 14, finalY + 10);
+            doc.text(`Average: ${student.avg.toFixed(1)}%`, 14, finalY + 16);
+            doc.text(`Mean Grade: ${student.grade}`, 14, finalY + 22);
+            doc.text(`Class Rank: ${student.position} of ${classRanking.length}`, 14, finalY + 28);
+        });
+
+        doc.save('all-report-cards.pdf');
+        toast({
+            title: "Bulk Download Started",
+            description: "All report cards are being downloaded as a single PDF.",
+        });
+    };
+
+     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
             setBulkImportFile(event.target.files[0]);
             setIsFileProcessed(false);
         }
     };
-
+    
     const handleRemoveBulkFile = () => {
         setBulkImportFile(null);
         setIsFileProcessed(false);
     };
-
+    
     const handleProcessFile = () => {
         setIsProcessingFile(true);
         setTimeout(() => {
@@ -815,230 +1148,580 @@ export default function TeacherGradesPage() {
             title: 'Marks Imported',
             description: 'The marks have been successfully uploaded and are pending moderation.',
         });
-        setTimeout(() => {
+         setTimeout(() => {
             setBulkImportFile(null);
             setIsFileProcessed(false);
         }, 300);
     };
+    
+    const handleDeleteExam = async (exam: GroupedExam) => {
+        if (!schoolId) return;
+        const examIdsToDelete = exam.isGrouped ? exam.groupedIds! : [exam.id];
 
-    if (selectedExam) {
-        return <GradeEntryView exam={selectedExam} onBack={() => setSelectedExam(null)} schoolId={schoolId} teacher={{ id: user!.uid, name: user!.displayName || 'Teacher' }} />;
+        if (!window.confirm(`Are you sure you want to delete this exam entry? This will delete ${examIdsToDelete.length} exam(s) and cannot be undone.`)) return;
+
+        const batch = writeBatch(firestore);
+        examIdsToDelete.forEach(id => {
+            const examRef = doc(firestore, `schools/${schoolId}/exams`, id);
+            batch.delete(examRef);
+        });
+
+        try {
+            await batch.commit();
+            toast({ title: 'Exam Deleted', description: 'The exam has been removed.', variant: 'destructive' });
+        } catch (error) {
+            console.error("Error deleting exam:", error);
+            toast({ title: 'Error', description: 'Could not delete exam.', variant: 'destructive' });
+        }
+    };
+
+     const handleUpdateExam = async (id: string, updates: Partial<Exam>) => {
+        if (!schoolId) return;
+        try {
+            const examRef = doc(firestore, 'schools', schoolId, 'exams', id);
+            await updateDoc(examRef, updates);
+            toast({ title: "Exam Updated", description: "The exam details have been successfully updated."});
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Error', description: 'Could not update exam details.', variant: 'destructive' });
+        }
+    };
+    
+    if (selectedExamForGrading) {
+        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
+    }
+
+
+    if (!schoolId) {
+        return <div className="p-8">Error: School ID is missing from URL.</div>
     }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+        <RejectGradeDialog open={!!gradeToReject} onOpenChange={(open) => !open && setGradeToReject(null)} grade={gradeToReject} onSubmit={(feedback) => handleGradeModeration(gradeToReject!.id, gradeToReject!.studentId, gradeToReject!.studentName, gradeToReject!.subject, gradeToReject!.grade, 'Rejected', feedback)} />
+        <ReportCardDialog student={selectedStudentForReport} studentGrades={studentGrades} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
-        <p className="text-muted-foreground">View assigned exams and enter student marks.</p>
+        <p className="text-muted-foreground">Manage exams, grades, and academic reports.</p>
        </div>
-
-        <Card className="mb-6">
-            <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline">
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload Marks from CSV/Excel
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>Upload Student Marks</DialogTitle>
-                            <DialogDescription>
-                                Bulk upload marks for an exam from a CSV or Excel file.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-6 py-4">
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid gap-6 md:grid-cols-3 mb-6">
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardDescription>Total Exams Created</CardDescription>
+                    <CardTitle className="text-4xl">{exams.length}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-xs text-muted-foreground">
+                        {exams.filter(e => e.date.toDate() > new Date(new Date().setMonth(new Date().getMonth() - 3))).length} this term
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardDescription>Pending Grading</CardDescription>
+                    <CardTitle className="text-4xl text-yellow-500 flex items-center gap-2">
+                        <AlertTriangle/>
+                        {pendingGrades.length}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-xs text-muted-foreground">
+                        entries require approval
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                 <CardContent className="flex flex-col gap-2">
+                    <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload Marks
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-2xl">
+                             <DialogHeader>
+                                <DialogTitle>Upload Student Marks</DialogTitle>
+                                <DialogDescription>
+                                    Bulk upload marks for an exam from a CSV or Excel file.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-6 py-4">
                                 <div className="space-y-2">
-                                    <Label>Exam</Label>
-                                    <Select><SelectTrigger><SelectValue placeholder="Select exam..."/></SelectTrigger><SelectContent>{filteredExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title} - {exam.className}</SelectItem>)}</SelectContent></Select>
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Step 1: Upload File</Label>
-                                <div className="flex items-center justify-center w-full">
-                                    {bulkImportFile ? (
-                                        <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-sm font-medium">
-                                                <FileText className="h-5 w-5 text-primary" />
-                                                <span className="truncate">{bulkImportFile.name}</span>
+                                    <Label>Step 1: Upload File</Label>
+                                    <div className="flex items-center justify-center w-full">
+                                        {bulkImportFile ? (
+                                            <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                                <div className="flex items-center gap-2 text-sm font-medium">
+                                                    <FileText className="h-5 w-5 text-primary" />
+                                                    <span className="truncate">{bulkImportFile.name}</span>
+                                                </div>
+                                                <Button variant="ghost" size="icon" onClick={handleRemoveBulkFile} className="h-6 w-6">
+                                                    <X className="h-4 w-4 text-destructive" />
+                                                </Button>
                                             </div>
-                                            <Button variant="ghost" size="icon" onClick={handleRemoveBulkFile} className="h-6 w-6">
-                                                <X className="h-4 w-4 text-destructive" />
-                                            </Button>
+                                        ) : (
+                                            <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                    <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                                    <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
+                                                </div>
+                                                <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} />
+                                            </Label>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className={cn("space-y-4", !isFileProcessed && "opacity-50")}>
+                                    <div className="flex items-center gap-2">
+                                        <Columns className="h-5 w-5 text-primary" />
+                                        <h4 className="font-medium">Step 2: Map Columns</h4>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                            <Label>Admission No.</Label>
+                                            <Select defaultValue="col1" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col1">Column A</SelectItem></SelectContent></Select>
                                         </div>
-                                    ) : (
-                                        <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                                <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                                <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                                                <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
-                                            </div>
-                                            <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} />
-                                        </Label>
-                                    )}
+                                         <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                            <Label>Score</Label>
+                                            <Select defaultValue="col2" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col2">Column B</SelectItem></SelectContent></Select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div className={cn("space-y-4", !isFileProcessed && "opacity-50")}>
-                                <div className="flex items-center gap-2">
-                                    <Columns className="h-5 w-5 text-primary" />
-                                    <h4 className="font-medium">Step 2: Map Columns</h4>
-                                </div>
-                                <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                                        <Label>Admission No.</Label>
-                                        <Select defaultValue="col1" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col1">Column A</SelectItem></SelectContent></Select>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>Cancel</Button>
+                                {isFileProcessed ? (
+                                    <Button onClick={handleImportMarks}><CheckCircle className="mr-2 h-4 w-4" /> Import Marks</Button>
+                                ) : (
+                                    <Button onClick={handleProcessFile} disabled={!bulkImportFile || isProcessingFile}>
+                                        {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
+                                    </Button>
+                                )}
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" onClick={() => setActiveTab('reports')}>
+                        <BarChartIcon className="mr-2 h-4 w-4" />
+                        View Reports
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
+                <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+                <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
+                <TabsTrigger value="reports">Reports &amp; Analytics</TabsTrigger>
+            </TabsList>
+            <TabsContent value="exam-management" className="mt-4">
+                <Card>
+                    <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <CardTitle>Exam Scheduler</CardTitle>
+                            <CardDescription>Create, schedule, and manage all school examinations.</CardDescription>
+                        </div>
+                        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4"/>
+                                    Create Exam
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Create New Exam</DialogTitle>
+                                    <DialogDescription>Fill in the details for the new examination.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="exam-title">Exam Title</Label>
+                                        <Input id="exam-title" placeholder="e.g., Form 4 Midterm Exam" value={examTitle} onChange={e => setExamTitle(e.target.value)} />
                                     </div>
-                                    <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                                        <Label>Score</Label>
-                                        <Select defaultValue="col2" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col2">Column B</SelectItem></SelectContent></Select>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-class">Class</Label>
+                                            <Select value={examClassId} onValueChange={setExamClassId}>
+                                                <SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All Classes</SelectItem>
+                                                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-subject">Subject</Label>
+                                            <Select value={examSubject} onValueChange={setExamSubject}>
+                                                <SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All Subjects</SelectItem>
+                                                    {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-date">Date</Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="w-full justify-start font-normal">
+                                                        <CalendarIcon className="mr-2 h-4 w-4"/>
+                                                        {examDate ? format(examDate, 'PPP') : <span>Pick a date</span>}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={examDate} onSelect={setExamDate} initialFocus/></PopoverContent>
+                                            </Popover>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-duration">Duration (minutes)</Label>
+                                            <Input id="exam-duration" type="number" placeholder="e.g., 120" value={examDuration} onChange={e => setExamDuration(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-type">Type</Label>
+                                            <Select value={examType} onValueChange={(v: Exam['type']) => setExamType(v)}>
+                                                <SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger>
+                                                <SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 </div>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                                    <Button onClick={handleCreateExam}>Create Exam</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Exam Title</TableHead>
+                                        <TableHead>Class</TableHead>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {groupedExams.map(exam => (
+                                        <TableRow key={exam.id}>
+                                            <TableCell className="font-medium">{exam.title}</TableCell>
+                                            <TableCell>{exam.class}</TableCell>
+                                            <TableCell>{exam.subject}</TableCell>
+                                            <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
+                                            <TableCell>{getStatusBadge(exam.status)}</TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                 <Button variant="outline" size="sm" onClick={() => setSelectedExamForGrading(exam)}>Enter Grades</Button>
+                                                <Button variant="ghost" size="icon" onClick={() => setEditingExam(exam)}><Edit className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="gradebook" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Gradebook</CardTitle>
+                        <CardDescription>View and manage student marks for different exams.</CardDescription>
+                        <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
+                             <Select value={selectedGradebookClass} onValueChange={setSelectedGradebookClass}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select a Class"/>
+                                </SelectTrigger>
+                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={selectedGradebookExam} onValueChange={setSelectedGradebookExam} disabled={filteredGradebookExams.length === 0}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select an Exam"/>
+                                </SelectTrigger>
+                                <SelectContent>{filteredGradebookExams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Student</TableHead>
+                                        {gradebookSubjects.map(sub => (
+                                            <TableHead key={sub} className="text-center">{sub}</TableHead>
+                                        ))}
+                                        <TableHead className="text-right font-bold">Total</TableHead>
+                                        <TableHead className="text-right font-bold">Grade</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {gradebookStudents.map(student => {
+                                        let total = 0;
+                                        let subjectCount = 0;
+                                        gradebookSubjects.forEach(sub => {
+                                            if (student.scores[sub]) {
+                                                total += student.scores[sub];
+                                                subjectCount++;
+                                            }
+                                        });
+                                        const mean = subjectCount > 0 ? total / subjectCount : 0;
+                                        const grade = mean >= 80 ? 'A' : mean >= 65 ? 'B' : 'C';
+
+                                        return (
+                                        <TableRow key={student.studentId}>
+                                            <TableCell>
+                                                 <div className="flex items-center gap-3">
+                                                    <Avatar className="h-9 w-9">
+                                                        <AvatarImage src={student.avatarUrl} alt={student.studentName} />
+                                                        <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <span className="font-medium">{student.studentName}</span>
+                                                        <p className="text-xs text-muted-foreground">Adm: {student.admNo}</p>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                             {gradebookSubjects.map(sub => (
+                                                <TableCell key={sub} className="text-center">{student.scores[sub] || '—'}</TableCell>
+                                            ))}
+                                            <TableCell className="text-right font-bold">{total}</TableCell>
+                                            <TableCell className="text-right font-bold">
+                                                <Badge>{grade}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    )})}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="moderation" className="mt-4 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Wand2 className="h-5 w-5 text-primary"/>AI-Assisted Grading Insights</CardTitle>
+                        <CardDescription>AI-powered analysis to detect potential grading anomalies, patterns, or inconsistencies.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="p-4 rounded-lg flex items-center gap-3 bg-muted/50">
+                            <p className="text-sm text-muted-foreground">AI Insights are disabled. This feature requires a more complex data pipeline.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Grade Approval Queue</CardTitle>
+                        <CardDescription>Review and approve grade entries submitted by teachers.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Score</TableHead>
+                                        <TableHead>Entered By</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                     {pendingGrades.length > 0 ? pendingGrades.map(grade => (
+                                        <TableRow key={grade.id}>
+                                            <TableCell>{grade.studentName}</TableCell>
+                                            <TableCell>{grade.subject}</TableCell>
+                                            <TableCell className="font-semibold">{grade.grade}</TableCell>
+                                            <TableCell className="text-muted-foreground">{grade.teacherName}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Approved')}>
+                                                    <CheckCircle className="mr-2 h-4 w-4"/>Approve
+                                                </Button>
+                                                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => setGradeToReject(grade)}>
+                                                    <XCircle className="mr-2 h-4 w-4"/>Reject
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                     )) : (
+                                        <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No pending approvals.</TableCell></TableRow>
+                                     )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                 </Card>
+                 <Card>
+                     <CardHeader>
+                        <CardTitle>Grade Change Audit Trail</CardTitle>
+                        <CardDescription>A log of all grade entries and modifications for accountability.</CardDescription>
+                     </CardHeader>
+                     <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Timestamp</TableHead>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Action</TableHead>
+                                        <TableHead>Details</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                     {auditLog.map(log => (
+                                        <TableRow key={log.id}>
+                                            <TableCell className="text-xs text-muted-foreground">{format(log.timestamp.toDate(), 'PPp')}</TableCell>
+                                            <TableCell className="font-medium">{log.user.name}</TableCell>
+                                            <TableCell><Badge variant="secondary">{log.action}</Badge></TableCell>
+                                            <TableCell className="text-sm text-muted-foreground italic">"{log.details}"</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {auditLog.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">No grade-related audit events found.</TableCell></TableRow>}
+                                </TableBody>
+                            </Table>
+                         </div>
+                     </CardContent>
+                 </Card>
+            </TabsContent>
+             <TabsContent value="reports" className="mt-4 space-y-6">
+                <Card>
+                    <CardHeader>
+                         <CardTitle>Reports &amp; Analytics</CardTitle>
+                        <CardDescription>Generate reports and analyze academic performance.</CardDescription>
+                        <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
+                             <Select value={selectedReportClass} onValueChange={setSelectedReportClass}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select a Class"/>
+                                </SelectTrigger>
+                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={selectedReportTerm} onValueChange={setSelectedReportTerm}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select Term/Year"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <div className="flex gap-2">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="secondary">
+                                            <Bell className="mr-2 h-4 w-4" />
+                                            Publish Results
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Confirm Publication</DialogTitle>
+                                            <DialogDescription>
+                                                This will make results for the selected term visible to all students and parents. Are you sure you want to proceed?
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <DialogClose asChild>
+                                                <Button onClick={handlePublishResults}>
+                                                    Confirm &amp; Publish
+                                                </Button>
+                                            </DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button variant="secondary" onClick={handlePrintResults}><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
+                                <Button variant="secondary" onClick={handleDownloadAllReportCards}><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
                             </div>
                         </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>Cancel</Button>
-                            {isFileProcessed ? (
-                                <Button onClick={handleImportMarks}><CheckCircle className="mr-2 h-4 w-4" /> Import Marks</Button>
-                            ) : (
-                                <Button onClick={handleProcessFile} disabled={!bulkImportFile || isProcessingFile}>
-                                    {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
-                                </Button>
-                            )}
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </CardContent>
-        </Card>
-        
-        <Card className="mt-6">
-            <CardHeader>
-                <CardTitle>My Assigned Exams</CardTitle>
-                <CardDescription>A list of all exams for your assigned classes and subjects.</CardDescription>
-                <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
-                    <Select value={classFilter} onValueChange={setClassFilter}>
-                        <SelectTrigger className="w-full md:w-[180px]">
-                            <SelectValue placeholder="Filter by class..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All My Classes</SelectItem>
-                            {teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                     <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-                        <SelectTrigger className="w-full md:w-[180px]">
-                            <SelectValue placeholder="Filter by subject..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                             <SelectItem value="all">All My Subjects</SelectItem>
-                            {teacherSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                     <Select value={termFilter} onValueChange={setTermFilter}>
-                        <SelectTrigger className="w-full md:w-[180px]">
-                            <SelectValue placeholder="Filter by term..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
+                    </CardHeader>
+                </Card>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Class Ranking</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             <div className="w-full overflow-auto rounded-lg border" id="class-ranking-table">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Pos</TableHead>
+                                            <TableHead>Stream</TableHead>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead className="text-right">Total</TableHead>
+                                            <TableHead className="text-right">Average</TableHead>
+                                            <TableHead>Grade</TableHead>
+                                            <TableHead className="text-right">Report</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {classRanking.map(student => (
+                                            <TableRow key={student.admNo}>
+                                                <TableCell className="font-bold">{student.position}</TableCell>
+                                                <TableCell className="font-bold">{student.streamPosition}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="h-8 w-8"><AvatarImage src={student.avatarUrl}/><AvatarFallback>{student.name[0]}</AvatarFallback></Avatar>
+                                                        {student.name}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right">{student.total}</TableCell>
+                                                <TableCell className="text-right">{student.avg.toFixed(1)}</TableCell>
+                                                <TableCell><Badge>{student.grade}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="outline" size="sm" onClick={() => setSelectedStudentForReport(student)}>View Report</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Performance Analytics</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 gap-4 text-center mb-6">
+                                <div className="p-4 bg-muted/50 rounded-lg">
+                                    <p className="text-xs text-muted-foreground">Class Average</p>
+                                    <p className="text-2xl font-bold">{classRanking.length > 0 ? (classRanking.reduce((sum, s) => sum + s.avg, 0) / classRanking.length).toFixed(1) : 0}%</p>
+                                </div>
+                                <div className="p-4 bg-muted/50 rounded-lg">
+                                    <p className="text-xs text-muted-foreground">Pass Rate</p>
+                                    <p className="text-2xl font-bold">{classRanking.length > 0 ? (classRanking.filter(s => s.avg >= 40).length / classRanking.length * 100).toFixed(0) : 100}%</p>
+                                </div>
+                            </div>
+                             <Separator />
+                            <h4 className="font-semibold text-sm my-4 text-center">Average Score by Subject</h4>
+                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                                <BarChart data={subjectPerformanceData}>
+                                <CartesianGrid vertical={false} />
+                                <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} />
+                                <YAxis />
+                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <Bar dataKey="average" fill="var(--color-average)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
                 </div>
-            </CardHeader>
-            <CardContent>
-                <div className="w-full overflow-auto rounded-lg border hidden md:block">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Exam Title</TableHead>
-                                <TableHead>Class &amp; Subject</TableHead>
-                                <TableHead>Exam Date</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Feedback</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
-                            ) : filteredExams.length > 0 ? (
-                                filteredExams.map(exam => (
-                                    <TableRow key={exam.id}>
-                                        <TableCell className="font-semibold">{exam.title}</TableCell>
-                                        <TableCell>
-                                            <div className="font-medium">{exam.className}</div>
-                                            <div className="text-sm text-muted-foreground">{exam.subject}</div>
-                                        </TableCell>
-                                        <TableCell>{exam.date?.toDate().toLocaleDateString()}</TableCell>
-                                        <TableCell>{getStatusBadge(exam.status)}</TableCell>
-                                        <TableCell>
-                                            {exam.moderatorFeedback ? (
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="secondary" size="sm">View Feedback</Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Moderator Feedback</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                {exam.moderatorFeedback}
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Close</AlertDialogCancel>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            ) : (
-                                                <Badge variant="outline">No Feedback</Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button size="sm" onClick={() => setSelectedExam(exam)}>
-                                                {exam.status === 'Open' ? 'Enter Marks' : 'View Results'}
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow><TableCell colSpan={6} className="h-24 text-center">No exams assigned.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-                 <div className="grid grid-cols-1 gap-4 md:hidden">
-                    {isLoading ? (
-                        <div className="col-span-full h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>
-                    ) : filteredExams.length > 0 ? (
-                        filteredExams.map(exam => (
-                            <Card key={exam.id}>
-                                <CardHeader>
-                                    <CardTitle className="text-base">{exam.title}</CardTitle>
-                                    <CardDescription>{exam.className} - {exam.subject}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    <p className="text-sm">Date: {exam.date?.toDate().toLocaleDateString()}</p>
-                                    <p className="text-sm flex items-center gap-2">Status: {getStatusBadge(exam.status)}</p>
-                                    {exam.moderatorFeedback && (
-                                        <p className="text-sm text-yellow-500">Feedback: {exam.moderatorFeedback}</p>
-                                    )}
-                                    <Button size="sm" className="w-full" onClick={() => setSelectedExam(exam)}>
-                                        {exam.status === 'Open' ? 'Enter Marks' : 'View Results'}
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ))
-                    ) : (
-                        <div className="col-span-full h-24 text-center">No exams assigned.</div>
-                    )}
-                 </div>
-            </CardContent>
-        </Card>
+             </TabsContent>
+        </Tabs>
     </div>
-  )
+  );
 }
-  
+
+    
