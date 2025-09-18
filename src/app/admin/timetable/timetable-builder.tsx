@@ -55,7 +55,8 @@ type DraggableSubjectType = {
 };
 
 type Period = { id: number; time: string; isBreak?: boolean; title?: string };
-type TimetableData = Record<string, Record<string, { subject: DraggableSubjectType; room: string; clash?: { with: string; message: string } }>>;
+type TimetableCellData = { subject: DraggableSubjectType; room: string; className?: string; clash?: { with: string; message: string } };
+type TimetableData = Record<string, Record<string, TimetableCellData>>;
 type AllTimetables = Record<string, TimetableData>;
 
 const subjectColors = [
@@ -179,7 +180,7 @@ export function TimetableBuilder() {
             fetchedTimetables[doc.id] = doc.data() as TimetableData;
         });
         setAllTimetables(fetchedTimetables);
-        if (selectedItem) {
+        if (selectedItem && view === 'Class View') {
           setTimetable(fetchedTimetables[selectedItem] || {});
         }
         setIsLoading(false);
@@ -195,10 +196,36 @@ export function TimetableBuilder() {
   }, [schoolId]);
 
   React.useEffect(() => {
-    if (selectedItem) {
-      setTimetable(allTimetables[selectedItem] || {});
+    if (!selectedItem) return;
+
+    if (view === 'Class View') {
+        setTimetable(allTimetables[selectedItem] || {});
+    } else {
+        const aggregatedTimetable: TimetableData = {};
+        for (const classId in allTimetables) {
+            const classTimetable = allTimetables[classId];
+            const className = allClasses.find(c => c.id === classId)?.name || classId;
+            for (const day in classTimetable) {
+                if (!aggregatedTimetable[day]) {
+                    aggregatedTimetable[day] = {};
+                }
+                for (const periodTime in classTimetable[day]) {
+                    const lesson = classTimetable[day][periodTime];
+                    let match = false;
+                    if (view === 'Teacher View' && lesson.subject.teacher === selectedItem) {
+                        match = true;
+                    } else if (view === 'Room View' && lesson.room === selectedItem) {
+                        match = true;
+                    }
+                    if (match) {
+                        aggregatedTimetable[day][periodTime] = { ...lesson, className };
+                    }
+                }
+            }
+        }
+        setTimetable(aggregatedTimetable);
     }
-  }, [selectedItem, allTimetables]);
+}, [selectedItem, allTimetables, view, allClasses]);
   
   const addPeriod = () => {
     const newId = periods.length > 0 ? Math.max(...periods.map(p => p.id)) + 1 : 1;
@@ -216,6 +243,7 @@ export function TimetableBuilder() {
 
   const renderFilterDropdown = () => {
     let items: {id: string, name: string}[] | string[] = [];
+    let placeholder = `Select ${view.split(' ')[0]}`;
     switch(view) {
         case 'Class View':
             items = allClasses;
@@ -231,7 +259,7 @@ export function TimetableBuilder() {
     return (
         <Select value={selectedItem} onValueChange={setSelectedItem}>
             <SelectTrigger className="w-full md:w-auto">
-                <SelectValue placeholder={`Select ${view.split(' ')[0]}`} />
+                <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
                 {items.map(item => typeof item === 'string' 
@@ -269,7 +297,7 @@ export function TimetableBuilder() {
     const { over, active } = event;
     const subject = active.data.current?.subject as DraggableSubjectType | undefined;
 
-    if (over && subject && selectedItem) {
+    if (over && subject && selectedItem && view === 'Class View') {
         const [day, periodIdStr] = over.id.toString().split('-');
         const periodId = parseInt(periodIdStr, 10);
         const periodTime = periods.find(p => p.id === periodId)?.time;
@@ -301,10 +329,17 @@ export function TimetableBuilder() {
                 }
             }
         }));
+    } else if (view !== 'Class View') {
+        toast({
+            title: 'Read-only View',
+            description: `You can only edit timetables in "Class View".`,
+            variant: 'destructive'
+        });
     }
   }
   
   const handleClearCell = (day: string, periodTime: string) => {
+    if (view !== 'Class View') return;
     setTimetable(prev => {
         const newTimetable = { ...prev };
         if (newTimetable[day] && newTimetable[day][periodTime]) {
@@ -391,8 +426,8 @@ export function TimetableBuilder() {
 
     const currentYear = new Date().getFullYear();
     const academicYears = Array.from({ length: 5 }, (_, i) => (currentYear + i).toString());
-
-  if (!selectedItem && !isLoading) {
+  
+  if ((!selectedItem && !isLoading && view === 'Class View' && allClasses.length === 0)) {
     return (
         <Card>
             <CardHeader>
@@ -425,7 +460,9 @@ export function TimetableBuilder() {
   }
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const selectedClassName = allClasses.find(c => c.id === selectedItem)?.name || selectedItem;
+  const selectedName = view === 'Class View' 
+    ? (allClasses.find(c => c.id === selectedItem)?.name || selectedItem)
+    : selectedItem;
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
@@ -435,7 +472,7 @@ export function TimetableBuilder() {
                     <CardHeader>
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
-                                <CardTitle>Timetable for {selectedClassName}</CardTitle>
+                                <CardTitle>Timetable for {selectedName}</CardTitle>
                                 <CardDescription>Drag subjects from the right panel and drop them into time slots.</CardDescription>
                             </div>
                             <div className="flex w-full flex-wrap md:w-auto items-center gap-2">
@@ -568,16 +605,18 @@ export function TimetableBuilder() {
                                                                     <div>
                                                                         <p className="font-bold text-sm">{cellData.subject.name}</p>
                                                                         <p className="text-xs opacity-80">{cellData.subject.teacher}</p>
-                                                                        <p className="text-xs opacity-80 mt-1">@{cellData.room}</p>
+                                                                        {view !== 'Class View' && <p className="text-xs opacity-80 mt-1">@{cellData.className}</p>}
                                                                     </div>
-                                                                    <div className="text-right">
-                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
-                                                                            <Edit className="h-4 w-4" />
-                                                                        </Button>
-                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white" onClick={() => handleClearCell(day, period.time)}>
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </div>
+                                                                    {view === 'Class View' && (
+                                                                        <div className="text-right">
+                                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
+                                                                                <Edit className="h-4 w-4" />
+                                                                            </Button>
+                                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white" onClick={() => handleClearCell(day, period.time)}>
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             ) : null
                                                         )}
