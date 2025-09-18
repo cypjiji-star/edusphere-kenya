@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -733,12 +732,6 @@ export default function TeacherGradesPage() {
 
         const teacherId = user.uid;
 
-        const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`));
-        const unsubscribeExams = onSnapshot(examsQuery, (snapshot) => {
-            const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
-            setExams(fetchedExams);
-        });
-        
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
         const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
             const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
@@ -746,6 +739,14 @@ export default function TeacherGradesPage() {
             if (classData.length > 0) {
                 if (!selectedGradebookClass) setSelectedGradebookClass(classData[0].id);
                 if (!selectedReportClass) setSelectedReportClass(classData[0].id);
+                
+                const classIds = classData.map(c => c.id);
+                const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', classIds));
+                const unsubscribeExams = onSnapshot(examsQuery, (examSnapshot) => {
+                    const fetchedExams = examSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
+                    setExams(fetchedExams);
+                });
+                return () => unsubscribeExams();
             }
         });
         
@@ -829,7 +830,6 @@ export default function TeacherGradesPage() {
 
 
         return () => {
-            unsubscribeExams();
             unsubscribeGrades();
             unsubscribeClasses();
         };
@@ -1012,5 +1012,3 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
-
-
