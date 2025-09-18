@@ -15,7 +15,7 @@ import {
   FileText,
   PlusCircle,
   Upload,
-  BarChart,
+  BarChart as BarChartIcon,
   AlertTriangle,
   CalendarIcon,
   ChevronDown,
@@ -27,6 +27,9 @@ import {
   Check,
   X,
   History,
+  Printer,
+  FileDown,
+  Download,
 } from 'lucide-react';
 import {
   Table,
@@ -68,6 +71,8 @@ import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 
 type Exam = {
@@ -109,6 +114,27 @@ const mockGradeLog = [
     { id: 'log-002', timestamp: '2024-07-29 10:06 AM', user: 'Mr. Otieno', student: 'Jane Smith (1235)', action: 'Entered grade', details: 'Maths Midterm: 92' },
     { id: 'log-003', timestamp: '2024-07-29 11:30 AM', user: 'Ms. Wanjiku (HOD)', student: 'John Doe (1234)', action: 'Approved grade', details: 'Maths Midterm: 85' },
 ];
+
+const mockRanking = [
+    { position: 1, name: 'Mary Anne', admNo: '1237', total: 467, avg: 93.4, grade: 'A' },
+    { position: 2, name: 'Jane Smith', admNo: '1235', total: 435, avg: 87.0, grade: 'A-' },
+    { position: 3, name: 'John Doe', admNo: '1234', total: 381, avg: 76.2, grade: 'B+' },
+    { position: 4, name: 'Peter Jones', admNo: '1236', total: 289, avg: 57.8, grade: 'C' },
+];
+
+const subjectPerformanceData = [
+  { subject: 'Maths', average: 85 },
+  { subject: 'Eng', average: 78 },
+  { subject: 'Chem', average: 70 },
+  { subject: 'Phy', average: 78 },
+  { subject: 'Bio', average: 80 },
+];
+const chartConfig = {
+  average: {
+    label: "Average",
+    color: "hsl(var(--primary))",
+  },
+} satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
@@ -162,7 +188,7 @@ export default function AdminGradesPage() {
                         Upload Marks
                     </Button>
                      <Button variant="outline" disabled>
-                        <BarChart className="mr-2 h-4 w-4" />
+                        <BarChartIcon className="mr-2 h-4 w-4" />
                         View Reports
                     </Button>
                 </CardContent>
@@ -170,10 +196,11 @@ export default function AdminGradesPage() {
         </div>
 
         <Tabs defaultValue="exam-management" className="w-full">
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
                 <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
                 <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
+                <TabsTrigger value="reports">Reports & Analytics</TabsTrigger>
             </TabsList>
             <TabsContent value="exam-management" className="mt-4">
                 <Card>
@@ -446,6 +473,98 @@ export default function AdminGradesPage() {
                      </CardContent>
                  </Card>
             </TabsContent>
+             <TabsContent value="reports" className="mt-4 space-y-6">
+                <Card>
+                    <CardHeader>
+                         <CardTitle>Reports & Analytics</CardTitle>
+                        <CardDescription>Generate reports and analyze academic performance.</CardDescription>
+                        <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
+                             <Select defaultValue="form-4">
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select a Class"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {mockClasses.map(c => <SelectItem key={c} value={c.replace(' ','-').toLowerCase()}>{c}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select defaultValue="term2-2024">
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select Term/Year"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
+                                    <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div className="flex gap-2">
+                                <Button variant="secondary"><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
+                                <Button variant="secondary"><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
+                            </div>
+                        </div>
+                    </CardHeader>
+                </Card>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Class Ranking</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Pos</TableHead>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead className="text-right">Total</TableHead>
+                                            <TableHead className="text-right">Average</TableHead>
+                                            <TableHead className="text-right">Grade</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {mockRanking.map(student => (
+                                            <TableRow key={student.admNo}>
+                                                <TableCell className="font-bold">{student.position}</TableCell>
+                                                <TableCell>{student.name}</TableCell>
+                                                <TableCell className="text-right">{student.total}</TableCell>
+                                                <TableCell className="text-right">{student.avg.toFixed(1)}</TableCell>
+                                                <TableCell className="text-right"><Badge>{student.grade}</Badge></TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Performance Analytics</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 gap-4 text-center mb-6">
+                                <div className="p-4 bg-muted/50 rounded-lg">
+                                    <p className="text-xs text-muted-foreground">Class Average</p>
+                                    <p className="text-2xl font-bold">76.7%</p>
+                                </div>
+                                <div className="p-4 bg-muted/50 rounded-lg">
+                                    <p className="text-xs text-muted-foreground">Pass Rate</p>
+                                    <p className="text-2xl font-bold">100%</p>
+                                </div>
+                            </div>
+                             <Separator />
+                            <h4 className="font-semibold text-sm my-4 text-center">Average Score by Subject</h4>
+                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                                <BarChart data={subjectPerformanceData}>
+                                <CartesianGrid vertical={false} />
+                                <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} />
+                                <YAxis />
+                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <Bar dataKey="average" fill="var(--color-average)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                </div>
+             </TabsContent>
         </Tabs>
     </div>
   );
