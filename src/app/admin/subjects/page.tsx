@@ -95,6 +95,7 @@ type ClassAssignment = {
 const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', 'Technical Subjects', 'Creative Arts'];
 
 function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAssignments, setClassAssignments }: { schoolClass: SchoolClass, allSubjects: Subject[], schoolId: string, classAssignments: ClassAssignment, setClassAssignments: React.Dispatch<React.SetStateAction<ClassAssignment>> }) {
+    const { toast } = useToast();
     const [selectedSubjects, setSelectedSubjects] = React.useState<string[]>(() => {
         return (classAssignments[schoolClass.id] || []).map(a => a.subject);
     });
@@ -116,8 +117,10 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
             await setDoc(assignmentRef, { assignments });
             // Optimistic update
             setClassAssignments(prev => ({ ...prev, [schoolClass.id]: assignments }));
+            toast({ title: 'Subjects Updated', description: `Subjects for ${schoolClass.name} ${schoolClass.stream} have been saved.` });
         } catch (e) {
             console.error("Failed to save subject assignments:", e);
+            toast({ title: 'Save Failed', variant: 'destructive' });
         }
     };
 
@@ -608,10 +611,13 @@ export default function ClassesAndSubjectsPage() {
                                                     <form onSubmit={(e) => {
                                                         e.preventDefault();
                                                         const formData = new FormData(e.currentTarget);
+                                                        const teacherId = formData.get('teacherId') as string;
+                                                        const teacher = teachers.find(t => t.id === teacherId);
                                                         const updates = {
                                                             name: formData.get('className') as string,
                                                             stream: formData.get('stream') as string,
-                                                            teacherId: formData.get('teacherId') as string,
+                                                            teacherId: teacherId,
+                                                            classTeacher: { name: teacher?.name, avatarUrl: teacher?.avatarUrl },
                                                             capacity: Number(formData.get('capacity')),
                                                             status: formData.get('status') as 'Active' | 'Graduated'
                                                         };
@@ -855,48 +861,50 @@ export default function ClassesAndSubjectsPage() {
                             <CardContent>
                                 <div className="space-y-2">
                                     {assignmentsForSelectedClass.length > 0 ? assignmentsForSelectedClass.map(assignment => {
-                                        const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
                                         const subjectDetails = subjects.find(s => s.name === assignment.subject);
-                                        const availableTeachers = subjectDetails ? (subjectDetails.teachers || []).filter(t => (teacherWorkload[t] || 0) <= OVER_ASSIGNED_THRESHOLD) : [];
+                                        const availableTeachers = subjectDetails ? (subjectDetails.teachers || []) : [];
+                                        const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
 
                                         return (
                                         <div key={assignment.subject} className="flex items-center justify-between border-b py-3">
                                             <span className="font-medium">{assignment.subject}</span>
-                                            {assignment.teacher ? (
-                                                <div className="flex items-center gap-2">
-                                                     {isOverAssigned && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger>
-                                                                <AlertCircle className="h-4 w-4 text-destructive"/>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>{assignment.teacher} may be over-assigned.</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    )}
-                                                    <User className="h-4 w-4 text-muted-foreground"/>
-                                                    <span className="text-sm text-muted-foreground">{assignment.teacher}</span>
-                                                </div>
-                                            ) : (
+                                            <div className="flex items-center gap-2">
+                                                 {isOverAssigned && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger>
+                                                            <AlertCircle className="h-4 w-4 text-destructive"/>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>{assignment.teacher} may be over-assigned with {teacherWorkload[assignment.teacher!]} classes.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                )}
                                                 <Popover>
                                                     <PopoverTrigger asChild>
-                                                        <Badge variant="destructive" className="cursor-pointer">
-                                                            <AlertCircle className="mr-2 h-4 w-4"/>
-                                                            Unassigned
-                                                        </Badge>
+                                                        {assignment.teacher ? (
+                                                            <Button variant="outline" size="sm" className="w-48 justify-start text-left">
+                                                                <User className="mr-2 h-4 w-4 text-muted-foreground"/>
+                                                                <span className="truncate">{assignment.teacher}</span>
+                                                            </Button>
+                                                        ) : (
+                                                            <Badge variant="destructive" className="cursor-pointer">
+                                                                <AlertCircle className="mr-2 h-4 w-4"/>
+                                                                Unassigned
+                                                            </Badge>
+                                                        )}
                                                     </PopoverTrigger>
-                                                    <PopoverContent className="w-auto">
+                                                    <PopoverContent className="w-auto p-2">
                                                         <div className="space-y-2">
-                                                            <p className="font-semibold text-sm">Suggested Teachers</p>
+                                                            <p className="font-semibold text-sm">Assign Teacher</p>
                                                             {availableTeachers.length > 0 ? availableTeachers.map(t => (
                                                                 <Button key={t} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacher(currentClassForAssignment.id, assignment.subject, t)}>
                                                                     <UserCheck className="mr-2 h-4 w-4" /> {t}
                                                                 </Button>
-                                                            )) : <p className="text-xs text-muted-foreground">No available teachers found.</p>}
+                                                            )) : <p className="text-xs text-muted-foreground p-2">No qualified teachers found for this subject.</p>}
                                                         </div>
                                                     </PopoverContent>
                                                 </Popover>
-                                            )}
+                                            </div>
                                         </div>
                                     )}) : (
                                         <div className="text-sm text-muted-foreground text-center py-4">
