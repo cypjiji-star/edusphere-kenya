@@ -17,6 +17,7 @@ import {
   PlusCircle,
   Filter,
   Trash2,
+  Sparkles,
 } from 'lucide-react';
 import {
   collection,
@@ -65,7 +66,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { supportChatbot } from '@/ai/flows/support-chatbot-flow';
 
 type Conversation = {
   id: string;
@@ -77,17 +78,29 @@ type Conversation = {
   participants: string[];
   lastMessageSender?: string;
   userRole?: 'Teacher' | 'Parent';
+  isAi?: boolean;
 };
 
 type Message = {
   id?: string;
-  sender: string;
-  text: string;
-  timestamp: Timestamp | null;
+  role: 'user' | 'model';
+  content: string;
+  timestamp?: Timestamp | null;
   read?: boolean;
   senderName?: string;
-  translatedText?: string;
 };
+
+const aiConversation: Conversation = {
+    id: 'ai-support',
+    name: 'AI Support Assistant',
+    avatar: `https://picsum.photos/seed/ai-avatar/100`,
+    lastMessage: 'Ask me anything about the school portal!',
+    timestamp: Timestamp.now(),
+    unread: false,
+    participants: ['ai'],
+    isAi: true,
+};
+
 
 export function AdminChatLayout() {
   const searchParams = useSearchParams();
@@ -95,7 +108,7 @@ export function AdminChatLayout() {
   const { user } = useAuth();
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [messages, setMessages] = React.useState<Record<string, Message[]>>({});
-  const [selectedConvo, setSelectedConvo] = React.useState<Conversation | null>(null);
+  const [selectedConvo, setSelectedConvo] = React.useState<Conversation | null>(aiConversation);
   const [message, setMessage] = React.useState("");
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
@@ -156,10 +169,6 @@ export function AdminChatLayout() {
           ...doc.data() 
         } as Conversation));
         setConversations(convos);
-        
-        if (!selectedConvo && convos.length > 0) {
-          setSelectedConvo(convos[0]);
-        }
       },
       (error) => {
         console.error("Error fetching conversations:", error);
@@ -167,10 +176,10 @@ export function AdminChatLayout() {
     );
 
     return () => unsubConvos();
-  }, [schoolId, user, selectedConvo]);
+  }, [schoolId, user]);
 
   React.useEffect(() => {
-    if (!selectedConvo || !schoolId || !user) return;
+    if (!selectedConvo || selectedConvo.isAi || !schoolId || !user) return;
 
     const messagesQuery = query(
       collection(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages'),
@@ -178,59 +187,74 @@ export function AdminChatLayout() {
     );
 
     const unsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
-        const convoMessages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+        const convoMessages = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              role: data.sender === user.uid ? 'user' : 'model', // Simple mapping
+              content: data.text,
+              timestamp: data.timestamp,
+              read: data.read,
+            } as Message;
+        });
         setMessages(prev => ({ ...prev, [selectedConvo.id]: convoMessages }));
-        
-        const unreadMessages = convoMessages.filter(msg => msg.sender !== user.uid && !msg.read);
-        if (unreadMessages.length > 0) {
-          markMessagesAsRead(unreadMessages);
-        }
       });
 
     return () => unsubscribe();
   }, [selectedConvo, schoolId, user]);
 
-  const markMessagesAsRead = async (messagesToMark: Message[]) => {
-    if (!schoolId || !selectedConvo || !user) return;
-    try {
-      const batch = writeBatch(firestore);
-      messagesToMark.forEach(msg => {
-        if (msg.id) {
-          const messageRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages', msg.id);
-          batch.update(messageRef, { read: true });
-        }
-      });
-      const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
-      batch.update(convoRef, { unread: false });
-      await batch.commit();
-    } catch (error) { console.error("Error marking messages as read:", error); }
-  };
-
   const handleSendMessage = async () => {
     if ((message.trim() === '') || !selectedConvo || !schoolId || !user) return;
+    
     setIsSending(true);
+    const userMessage: Message = {
+        role: 'user',
+        content: message.trim(),
+        timestamp: Timestamp.now(),
+    };
 
-    try {
-      const newMessage: Omit<Message, 'id'> & { timestamp: any } = {
-        sender: user.uid,
-        text: message.trim(),
-        timestamp: serverTimestamp(),
-        read: false,
-        senderName: user.displayName || 'Admin',
-      };
-      await addDoc(collection(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages'), newMessage);
-      const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
-      await updateDoc(convoRef, { lastMessage: message.trim().substring(0, 100), timestamp: serverTimestamp(), lastMessageSender: user.uid });
-      setMessage('');
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Action Failed' });
-    } finally {
-      setIsSending(false);
+    const currentMessages = messages[selectedConvo.id] || [];
+    setMessages(prev => ({ ...prev, [selectedConvo.id]: [...currentMessages, userMessage] }));
+    const messageTextForDb = message;
+    setMessage('');
+
+    if (selectedConvo.isAi) {
+      try {
+        const history = [...currentMessages, userMessage];
+        const aiResponse = await supportChatbot({ history });
+        const aiMessage: Message = {
+            role: 'model',
+            content: aiResponse.response,
+            timestamp: Timestamp.now(),
+        };
+        setMessages(prev => ({ ...prev, [selectedConvo.id]: [...history, aiMessage] }));
+      } catch (error) {
+        console.error('AI chat error:', error);
+        toast({ title: 'AI Error', description: 'The AI assistant could not respond.', variant: 'destructive' });
+      }
+    } else {
+        // Handle regular conversation message sending
+        try {
+          const newMessageData = {
+            sender: user.uid,
+            text: messageTextForDb,
+            timestamp: serverTimestamp(),
+            read: false,
+            senderName: user.displayName || 'Admin',
+          };
+          await addDoc(collection(firestore, `schools/${schoolId}/conversations`, selectedConvo.id, 'messages'), newMessageData);
+          const convoRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConvo.id);
+          await updateDoc(convoRef, { lastMessage: messageTextForDb, timestamp: serverTimestamp(), lastMessageSender: user.uid, unread: true });
+        } catch (error) {
+          toast({ variant: 'destructive', title: 'Action Failed' });
+        }
     }
+    
+    setIsSending(false);
   };
 
   const handleDeleteConversation = async () => {
-    if (!selectedConvo || !schoolId) return;
+    if (!selectedConvo || selectedConvo.isAi || !schoolId) return;
 
     try {
       await deleteDoc(doc(firestore, 'schools', schoolId, 'conversations', selectedConvo.id));
@@ -239,7 +263,7 @@ export function AdminChatLayout() {
         description: 'The conversation has been permanently removed.',
         variant: 'destructive'
       });
-      setSelectedConvo(null);
+      setSelectedConvo(aiConversation); // Fallback to AI convo
     } catch (error) {
       console.error('Error deleting conversation:', error);
       toast({
@@ -256,8 +280,6 @@ export function AdminChatLayout() {
     (statusFilter === 'all' || convo.unread === (statusFilter === 'unread')) &&
     (roleFilter === 'all' || convo.userRole === roleFilter)
   );
-  
-  const isSender = (message: Message) => message.sender === user?.uid;
 
   return (
     <div className="flex h-full">
@@ -295,11 +317,16 @@ export function AdminChatLayout() {
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="p-2 space-y-1">
-              {filteredConversations.map((convo) => (
+              {[aiConversation, ...filteredConversations].map((convo) => (
                   <button key={convo.id} className={cn('flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-slate-800/60', selectedConvo?.id === convo.id && 'bg-slate-800')} onClick={() => setSelectedConvo(convo)}>
-                    <Avatar className="h-10 w-10"><AvatarImage src={convo.avatar} alt={convo.name} /><AvatarFallback><User /></AvatarFallback></Avatar>
+                    <Avatar className="h-10 w-10">
+                        <AvatarImage src={convo.avatar} alt={convo.name} />
+                        <AvatarFallback>{convo.isAi ? <Sparkles/> : <User />}</AvatarFallback>
+                    </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between"><p className="font-semibold truncate text-slate-100">{convo.name}</p><p className="text-xs text-slate-400 whitespace-nowrap">{convo.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p></div>
+                      <div className="flex items-center justify-between"><p className="font-semibold truncate text-slate-100">{convo.name}</p>
+                      {convo.timestamp && <p className="text-xs text-slate-400 whitespace-nowrap">{convo.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
+                      </div>
                       <p className="text-sm text-slate-400 truncate">{convo.lastMessageSender === user?.uid ? 'You: ' : ''}{convo.lastMessage}</p>
                     </div>
                     {convo.unread && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1 self-center"></div>}
@@ -312,44 +339,52 @@ export function AdminChatLayout() {
           {selectedConvo ? (
             <>
               <div className="flex-shrink-0 p-4 border-b border-slate-700/50 flex items-center justify-between">
-                <div className="flex items-center gap-3"><Avatar className="h-10 w-10"><AvatarImage src={selectedConvo.avatar} alt={selectedConvo.name} /><AvatarFallback><User/></AvatarFallback></Avatar><div><p className="font-semibold text-slate-100">{selectedConvo.name}</p></div></div>
-                 <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Close Conversation
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Are you sure?</DialogTitle>
-                            <DialogDescription>
-                                This will permanently delete the conversation for all participants. This action cannot be undone.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                            <DialogClose asChild>
-                                <Button variant="destructive" onClick={handleDeleteConversation}>Delete Permanently</Button>
-                            </DialogClose>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                        <AvatarImage src={selectedConvo.avatar} alt={selectedConvo.name} />
+                        <AvatarFallback>{selectedConvo.isAi ? <Sparkles/> : <User/>}</AvatarFallback>
+                    </Avatar>
+                    <div><p className="font-semibold text-slate-100">{selectedConvo.name}</p></div>
+                </div>
+                {!selectedConvo.isAi && (
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Close Conversation
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Are you sure?</DialogTitle>
+                                <DialogDescription>
+                                    This will permanently delete the conversation for all participants. This action cannot be undone.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                <DialogClose asChild>
+                                    <Button variant="destructive" onClick={handleDeleteConversation}>Delete Permanently</Button>
+                                </DialogClose>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {(messages[selectedConvo.id] || []).map((msg, index) => {
-                  const isUserSender = isSender(msg);
+                  const isUserSender = msg.role === 'user';
                   return (
                     <div key={msg.id || index} className={cn("flex items-end gap-2", isUserSender ? 'justify-end' : 'justify-start')}>
-                      {!isUserSender && (<Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback><User/></AvatarFallback></Avatar>)}
+                      {!isUserSender && (<Avatar className="h-8 w-8"><AvatarImage src={selectedConvo.avatar}/><AvatarFallback>{selectedConvo.isAi ? <Sparkles/> : <User/>}</AvatarFallback></Avatar>)}
                       <div className="group relative max-w-xs lg:max-w-md">
                         <div className={cn("rounded-2xl p-3 text-sm shadow-sm", isUserSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-slate-700 text-slate-200 rounded-bl-none')}>
-                           {msg.senderName && <p className="font-semibold text-xs mb-1">{msg.senderName}</p>}
-                          <p className="whitespace-pre-wrap">{msg.text}</p>
-                          <div className={cn("text-xs mt-2 flex items-center gap-2", isUserSender ? 'text-primary-foreground/70' : 'text-slate-400')}>
-                            <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            {isUserSender && msg.read && <CheckCircle2 className="h-3 w-3" />}
-                          </div>
+                           <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {msg.timestamp && (
+                            <div className={cn("text-xs mt-2 flex items-center gap-2", isUserSender ? 'text-primary-foreground/70' : 'text-slate-400')}>
+                                <span>{msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {isUserSender && (<Avatar className="h-8 w-8"><AvatarImage src={user?.photoURL || "https://picsum.photos/seed/admin-avatar/100"} /><AvatarFallback>{user?.displayName?.charAt(0) || 'A'}</AvatarFallback></Avatar>)}
