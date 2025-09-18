@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -20,6 +19,8 @@ import {
   Edit,
   Plus,
   File,
+  Search,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Table,
@@ -44,7 +45,9 @@ import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { isPast } from 'date-fns';
-import Link from 'next/link';
+import { logAuditEvent } from '@/lib/audit-log.service';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+
 
 type Exam = {
     id: string;
@@ -61,17 +64,205 @@ type TeacherClass = {
   name: string;
 };
 
+type StudentGradeEntry = {
+    studentId: string;
+    studentName: string;
+    avatarUrl: string;
+    admNo: string;
+    score: string;
+    grade: string;
+    submissionId?: string;
+};
+
 const getStatusBadge = (status: Exam['status']) => {
     switch(status) {
         case 'Open': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">🟢 Open</Badge>;
-        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">🟡 Pending Approval</Badge>;
+        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600">🟡 Pending Approval</Badge>;
         case 'Closed': return <Badge variant="destructive" className="bg-red-600">🔴 Closed</Badge>;
     }
+};
+
+const calculateGrade = (score: number): string => {
+    if (score >= 80) return 'A';
+    if (score >= 70) return 'A-';
+    if (score >= 65) return 'B+';
+    if (score >= 60) return 'B';
+    if (score >= 55) return 'B-';
+    if (score >= 50) return 'C+';
+    if (score >= 45) return 'C';
+    if (score >= 40) return 'C-';
+    if (score >= 35) return 'D+';
+    if (score >= 30) return 'D';
+    if (score < 30) return 'E';
+    return 'N/A';
+};
+
+function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBack: () => void, schoolId: string, teacher: { id: string, name: string } }) {
+    const { toast } = useToast();
+    const [students, setStudents] = React.useState<StudentGradeEntry[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [isSaving, setIsSaving] = React.useState(false);
+    const [searchTerm, setSearchTerm] = React.useState('');
+    const gradeInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+
+    React.useEffect(() => {
+        setIsLoading(true);
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
+        const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
+
+        Promise.all([getDocs(studentsQuery), getDocs(gradesQuery)]).then(([studentsSnap, gradesSnap]) => {
+            const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade }]));
+            
+            const studentData = studentsSnap.docs.map(doc => {
+                const data = doc.data();
+                const existingGrade = gradesMap.get(doc.id);
+                const score = existingGrade?.score || '';
+                return {
+                    studentId: doc.id,
+                    studentName: data.name,
+                    avatarUrl: data.avatarUrl || '',
+                    admNo: data.admissionNumber || '',
+                    score: score,
+                    grade: score ? calculateGrade(Number(score)) : '',
+                    submissionId: existingGrade?.submissionId,
+                }
+            });
+            setStudents(studentData);
+            gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
+            setIsLoading(false);
+        });
+    }, [exam, schoolId]);
+    
+    const handleScoreChange = (studentId: string, score: string) => {
+        setStudents(prev => prev.map(s => 
+            s.studentId === studentId 
+            ? { ...s, score, grade: calculateGrade(Number(score)) } 
+            : s
+        ));
+    };
+
+    const handleSaveGrade = async (studentId: string, score: string, index: number) => {
+        if (!score || isNaN(Number(score))) return; // Don't save if empty or not a number
+
+        const student = students.find(s => s.studentId === studentId);
+        if (!student) return;
+
+        try {
+            const gradeRef = student.submissionId ? doc(firestore, 'schools', schoolId, 'grades', student.submissionId) : doc(collection(firestore, 'schools', schoolId, 'grades'));
+            await setDoc(gradeRef, {
+                grade: score,
+                examId: exam.id,
+                studentId: student.studentId,
+                studentRef: doc(firestore, 'schools', schoolId, 'students', student.studentId),
+                subject: exam.subject,
+                classId: exam.classId,
+                date: exam.date,
+                teacherName: teacher.name,
+                status: 'Pending Approval' // Grades entered by teachers need moderation
+            }, { merge: true });
+
+            if (!student.submissionId) {
+                // If it was a new grade, update the local state with the new ID
+                 setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id } : s));
+            }
+            
+        } catch (e) {
+            toast({ title: 'Error', description: 'Failed to save grade.', variant: 'destructive'});
+        }
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+        if (e.key === 'Enter' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            gradeInputRefs.current[index + 1]?.focus();
+        } else if (e.key === 'ArrowUp') {
+             e.preventDefault();
+            gradeInputRefs.current[index - 1]?.focus();
+        }
+    };
+    
+    const filteredStudents = students.filter(s => s.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <Button variant="outline" size="sm" onClick={onBack} className="mb-4">
+                            <ArrowLeft className="mr-2 h-4 w-4"/> Back to Exams
+                        </Button>
+                        <CardTitle className="font-headline text-2xl">Enter Marks: {exam.title}</CardTitle>
+                        <CardDescription>{exam.className} - {exam.subject}</CardDescription>
+                    </div>
+                </div>
+                 <div className="relative w-full md:max-w-sm mt-4">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Search students..."
+                        className="w-full bg-background pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </CardHeader>
+            <CardContent>
+                 <div className="w-full overflow-auto rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[300px]">Student</TableHead>
+                                <TableHead className="w-[150px]">Mark / Score</TableHead>
+                                <TableHead className="w-[150px]">Auto-Grade</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {isLoading ? (
+                            <TableRow><TableCell colSpan={3} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
+                        ) : filteredStudents.map((student, index) => (
+                            <TableRow key={student.studentId}>
+                                <TableCell>
+                                     <div className="flex items-center gap-3">
+                                        <Avatar className="h-9 w-9">
+                                            <AvatarImage src={student.avatarUrl} alt={student.studentName} />
+                                            <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <span className="font-medium">{student.studentName}</span>
+                                            <p className="text-xs text-muted-foreground">Adm: {student.admNo}</p>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Input
+                                        ref={el => gradeInputRefs.current[index] = el}
+                                        type="number"
+                                        placeholder="Enter score"
+                                        value={student.score}
+                                        onChange={(e) => handleScoreChange(student.studentId, e.target.value)}
+                                        onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
+                                        onKeyDown={(e) => handleKeyDown(e, index)}
+                                        className="w-32"
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="outline" className="text-lg font-bold p-2 w-12 justify-center">
+                                        {student.grade}
+                                    </Badge>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                 </div>
+            </CardContent>
+        </Card>
+    )
 }
 
 export default function TeacherGradesPage() {
     const searchParams = useSearchParams();
-    const schoolId = searchParams.get('schoolId');
+    const schoolId = searchParams.get('schoolId')!;
     const { toast } = useToast();
     const { user } = useAuth();
     
@@ -79,71 +270,66 @@ export default function TeacherGradesPage() {
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
     const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
 
     const [classFilter, setClassFilter] = React.useState('all');
     const [subjectFilter, setSubjectFilter] = React.useState('all');
     const [termFilter, setTermFilter] = React.useState('term2-2024');
 
-    // Fetch classes and subjects taught by the teacher
     React.useEffect(() => {
-        if (!schoolId || !user) return;
-        const teacherId = user.uid;
+        if (!schoolId || !user?.displayName) return;
         
-        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
-        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
-            const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
-            setTeacherClasses(classesData);
-        });
-
         const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
         const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
             setTeacherSubjects(snapshot.docs.map(doc => doc.data().name));
         });
 
-        return () => {
-            unsubClasses();
-            unsubSubjects();
-        };
+        return () => unsubSubjects();
+    }, [schoolId, user]);
+    
+    React.useEffect(() => {
+        if (!schoolId) return;
+
+        const classIdsQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user?.uid));
+        const unsubClasses = onSnapshot(classIdsQuery, (classSnapshot) => {
+            const classIds = classSnapshot.docs.map(doc => doc.id);
+            setTeacherClasses(classSnapshot.docs.map(d => ({id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim()})));
+            
+            if (classIds.length > 0) {
+                setIsLoading(true);
+                const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', classIds));
+                const unsubscribeExams = onSnapshot(examsQuery, (snapshot) => {
+                    const examsData = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        const isDueDatePast = isPast(data.date?.toDate() || new Date());
+                        return { 
+                            id: doc.id, 
+                            ...data,
+                            status: isDueDatePast ? 'Closed' : 'Open' 
+                        } as Exam
+                    });
+                    setExams(examsData);
+                    setIsLoading(false);
+                });
+                 return () => unsubscribeExams();
+            } else {
+                 setIsLoading(false);
+                 setExams([]);
+            }
+        });
+        
+        return () => unsubClasses();
     }, [schoolId, user]);
 
-    // Fetch exams based on teacher's classes
-    React.useEffect(() => {
-        if (!schoolId || teacherClasses.length === 0) {
-            setIsLoading(false);
-            return;
-        }
-
-        const classIds = teacherClasses.map(c => c.id);
-        
-        setIsLoading(true);
-        const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', classIds));
-        const unsubscribe = onSnapshot(examsQuery, (snapshot) => {
-            const examsData = snapshot.docs.map(doc => {
-                const data = doc.data();
-                const isDueDatePast = isPast(data.dueDate?.toDate() || new Date());
-                return { 
-                    id: doc.id, 
-                    ...data,
-                    // Simplified status logic
-                    status: isDueDatePast ? 'Closed' : 'Open' 
-                } as Exam
-            });
-            setExams(examsData);
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [schoolId, teacherClasses]);
 
     const filteredExams = exams.filter(exam => {
         const classMatch = classFilter === 'all' || exam.classId === classFilter;
         const subjectMatch = subjectFilter === 'all' || exam.subject === subjectFilter;
-        // Term filter logic would be more complex and is mocked for now
         return classMatch && subjectMatch;
     });
 
-    if (!schoolId) {
-        return <div className="p-8">Error: School ID is missing from URL.</div>
+    if (selectedExam) {
+        return <GradeEntryView exam={selectedExam} onBack={() => setSelectedExam(null)} schoolId={schoolId} teacher={{ id: user!.uid, name: user!.displayName || 'Teacher' }} />;
     }
 
   return (
@@ -193,7 +379,7 @@ export default function TeacherGradesPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Exam Title</TableHead>
-                                <TableHead>Class & Subject</TableHead>
+                                <TableHead>Class &amp; Subject</TableHead>
                                 <TableHead>Exam Date</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -213,11 +399,11 @@ export default function TeacherGradesPage() {
                                         <TableCell>{exam.date.toDate().toLocaleDateString()}</TableCell>
                                         <TableCell>{getStatusBadge(exam.status)}</TableCell>
                                         <TableCell className="text-right space-x-2">
-                                            <Button variant="outline" size="sm" disabled={exam.status !== 'Open'}>
+                                            <Button variant="outline" size="sm" onClick={() => setSelectedExam(exam)} disabled={exam.status !== 'Open'}>
                                                 <Plus className="mr-2 h-4 w-4"/>
                                                 Enter Marks
                                             </Button>
-                                            <Button variant="secondary" size="sm" disabled={exam.status === 'Open'}>
+                                            <Button variant="secondary" size="sm" disabled>
                                                 <File className="mr-2 h-4 w-4"/>
                                                 View Results
                                             </Button>
