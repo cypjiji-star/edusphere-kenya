@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
+import { useSearchParams } from 'next/navigation';
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System';
 
@@ -105,7 +106,7 @@ function NotificationItem({
 
 export function NotificationCenter() {
   const { user } = useAuth();
-  const searchParams = React.use(React.Suspense.Promise).searchParams;
+  const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [activeTab, setActiveTab] = React.useState('all');
