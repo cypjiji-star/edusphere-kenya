@@ -80,7 +80,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -113,29 +113,18 @@ type Ranking = {
     grade: string;
 };
 
-const mockClasses = ['Form 1', 'Form 2', 'Form 3', 'Form 4'];
-const mockSubjects = ['Mathematics', 'English', 'Kiswahili', 'Chemistry', 'Physics', 'Biology', 'History', 'Geography', 'CRE', 'Business Studies', 'Computer Science'];
+type AuditLog = {
+  id: string;
+  timestamp: Timestamp;
+  user: { name: string };
+  student: string;
+  action: string;
+  details: string;
+};
+
+
 const examTypes: Exam['type'][] = ['CAT', 'Midterm', 'Final', 'Practical'];
 
-const mockPendingGrades = [
-    { id: 'grd-001', studentName: 'John Doe', admNo: '1234', class: 'Form 4', subject: 'Mathematics', score: 85, enteredBy: 'Mr. Otieno', flagged: false },
-    { id: 'grd-002', studentName: 'Jane Smith', admNo: '1235', class: 'Form 4', subject: 'Mathematics', score: 92, enteredBy: 'Mr. Otieno', flagged: false },
-    { id: 'grd-003', studentName: 'Peter Jones', admNo: '1236', class: 'Form 4', subject: 'Mathematics', score: 25, enteredBy: 'Mr. Otieno', flagged: true, flagReason: "Score is >3 standard deviations below student's average." },
-];
-
-const mockGradeLog = [
-    { id: 'log-001', timestamp: '2024-07-29 10:05 AM', user: 'Mr. Otieno', student: 'John Doe (1234)', action: 'Entered grade', details: 'Maths Midterm: 85' },
-    { id: 'log-002', timestamp: '2024-07-29 10:06 AM', user: 'Mr. Otieno', student: 'Jane Smith (1235)', action: 'Entered grade', details: 'Maths Midterm: 92' },
-    { id: 'log-003', timestamp: '2024-07-29 11:30 AM', user: 'Ms. Wanjiku (HOD)', student: 'John Doe (1234)', action: 'Approved grade', details: 'Maths Midterm: 85' },
-];
-
-const subjectPerformanceData = [
-  { subject: 'Maths', average: 85 },
-  { subject: 'Eng', average: 78 },
-  { subject: 'Chem', average: 70 },
-  { subject: 'Phy', average: 78 },
-  { subject: 'Bio', average: 80 },
-];
 const chartConfig = {
   average: {
     label: "Average",
@@ -150,7 +139,7 @@ const schoolInfo = {
 };
 
 const aiInsights = [
-    { id: 'ai-1', level: 'warning', text: "Peter Jones' score of 25 in Mathematics is a significant outlier compared to his average of 60. Could be an entry error." },
+    { id: 'ai-1', level: 'warning', text: "A student's score of 25 in Mathematics is a significant outlier compared to their average of 60. Could be an entry error." },
     { id: 'ai-2', level: 'info', text: "The average score for the Form 4 Chemistry CAT is 45%, which is 15% lower than the previous exam. Consider reviewing the exam's difficulty or class performance." },
     { id: 'ai-3', level: 'info', text: "Teacher 'Mr. Otieno' has an average awarded score of 82%, which is consistently higher than the departmental average of 71%." },
 ]
@@ -260,6 +249,7 @@ export default function AdminGradesPage() {
     const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
     const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
     const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
+    const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
 
     // State for the create exam form
     const [examTitle, setExamTitle] = React.useState('');
@@ -268,6 +258,10 @@ export default function AdminGradesPage() {
     const [examDate, setExamDate] = React.useState<Date | undefined>();
     const [examDuration, setExamDuration] = React.useState('');
     const [examType, setExamType] = React.useState<Exam['type'] | undefined>();
+    const [classes, setClasses] = React.useState<string[]>([]);
+    const [subjects, setSubjects] = React.useState<string[]>([]);
+    const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<{subject: string; average: number}[]>([]);
+
 
     React.useEffect(() => {
         if (!schoolId) return;
@@ -276,6 +270,16 @@ export default function AdminGradesPage() {
         const unsubscribeExams = onSnapshot(examsQuery, (snapshot) => {
             const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
             setExams(fetchedExams);
+        });
+        
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
+        const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
+            setClasses(snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim()));
+        });
+        
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
+        const unsubscribeSubjects = onSnapshot(subjectsQuery, snapshot => {
+            setSubjects(snapshot.docs.map(doc => doc.data().name));
         });
 
         // Real-time listener for grades to update ranking
@@ -310,7 +314,7 @@ export default function AdminGradesPage() {
             });
             
             setStudentGrades(studentScores);
-
+            
             const calculatedRanking: Omit<Ranking, 'position' | 'streamPosition'>[] = studentScores.map(student => {
                 const subjectCount = Object.keys(student.scores).length;
                 const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
@@ -340,11 +344,36 @@ export default function AdminGradesPage() {
             }));
             
             setClassRanking(sortedRanking);
+
+            const perfData: Record<string, { total: number, count: number }> = {};
+            studentScores.forEach(student => {
+                Object.entries(student.scores).forEach(([subject, score]) => {
+                    if (!perfData[subject]) {
+                        perfData[subject] = { total: 0, count: 0 };
+                    }
+                    perfData[subject].total += score;
+                    perfData[subject].count++;
+                });
+            });
+             setSubjectPerformanceData(Object.entries(perfData).map(([subject, data]) => ({
+                subject: subject.substring(0, 5),
+                average: Math.round(data.total / data.count),
+            })));
+        });
+
+        // Fetch audit logs for grade changes
+        const auditLogQuery = query(collection(firestore, 'schools', schoolId, 'audit_logs'), where('action', 'in', ['GRADE_UPDATED', 'GRADE_APPROVED', 'GRADE_REJECTED']), orderBy('timestamp', 'desc'));
+        const unsubscribeLogs = onSnapshot(auditLogQuery, (snapshot) => {
+            const logs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as AuditLog));
+            setAuditLog(logs);
         });
 
         return () => {
             unsubscribeExams();
             unsubscribeGrades();
+            unsubscribeClasses();
+            unsubscribeSubjects();
+            unsubscribeLogs();
         };
     }, [schoolId]);
 
@@ -452,7 +481,7 @@ export default function AdminGradesPage() {
                     <CardDescription>Pending Grading</CardDescription>
                     <CardTitle className="text-4xl text-yellow-500 flex items-center gap-2">
                         <AlertTriangle/>
-                        3
+                        0
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -512,11 +541,11 @@ export default function AdminGradesPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-class">Class</Label>
-                                            <Select value={examClass} onValueChange={setExamClass}><SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger><SelectContent>{mockClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                                            <Select value={examClass} onValueChange={setExamClass}><SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger><SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-subject">Subject</Label>
-                                            <Select value={examSubject} onValueChange={setExamSubject}><SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger><SelectContent>{mockSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                            <Select value={examSubject} onValueChange={setExamSubject}><SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger><SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -612,17 +641,13 @@ export default function AdminGradesPage() {
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select a Class"/>
                                 </SelectTrigger>
-                                <SelectContent>
-                                    {mockClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                </SelectContent>
+                                <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                             </Select>
                             <Select>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select an Exam"/>
                                 </SelectTrigger>
-                                <SelectContent>
-                                    {exams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}
-                                </SelectContent>
+                                <SelectContent>{exams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                     </CardHeader>
@@ -632,7 +657,7 @@ export default function AdminGradesPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Student</TableHead>
-                                        {mockSubjects.slice(0, 5).map(sub => (
+                                        {subjects.slice(0, 5).map(sub => (
                                             <TableHead key={sub} className="text-center">{sub.substring(0,3).toUpperCase()}</TableHead>
                                         ))}
                                         <TableHead className="text-right font-bold">Total</TableHead>
@@ -659,7 +684,7 @@ export default function AdminGradesPage() {
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                             {mockSubjects.slice(0, 5).map(sub => (
+                                             {subjects.slice(0, 5).map(sub => (
                                                 <TableCell key={sub} className="text-center">{student.scores[sub] || '—'}</TableCell>
                                             ))}
                                             <TableCell className="text-right font-bold">{total}</TableCell>
@@ -681,12 +706,9 @@ export default function AdminGradesPage() {
                         <CardDescription>AI-powered analysis to detect potential grading anomalies, patterns, or inconsistencies.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {aiInsights.map(insight => (
-                            <div key={insight.id} className={cn("p-4 rounded-lg flex items-start gap-3", insight.level === 'warning' ? 'bg-destructive/10 border border-destructive/20' : 'bg-muted/50')}>
-                                <AlertTriangle className={cn("h-5 w-5 flex-shrink-0 mt-0.5", insight.level === 'warning' ? 'text-destructive' : 'text-blue-500')} />
-                                <p className={cn("text-sm", insight.level === 'warning' ? 'text-destructive-foreground' : 'text-muted-foreground')}>{insight.text}</p>
-                            </div>
-                        ))}
+                        <div className="p-4 rounded-lg flex items-center gap-3 bg-muted/50">
+                            <p className="text-sm text-muted-foreground">AI Insights are disabled. This feature requires a more complex data pipeline.</p>
+                        </div>
                     </CardContent>
                 </Card>
                  <Card>
@@ -707,25 +729,9 @@ export default function AdminGradesPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {mockPendingGrades.map(grade => (
-                                        <TableRow key={grade.id}>
-                                            <TableCell>{grade.studentName} ({grade.admNo})</TableCell>
-                                            <TableCell>{grade.subject}</TableCell>
-                                            <TableCell className="font-semibold flex items-center gap-2">
-                                                {grade.score}
-                                                {grade.flagged && <AlertTriangle className="h-4 w-4 text-destructive" title={grade.flagReason || "Flagged: Abnormal score"}/>}
-                                            </TableCell>
-                                            <TableCell>{grade.enteredBy}</TableCell>
-                                            <TableCell className="text-right space-x-2">
-                                                <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700">
-                                                    <Check className="mr-2 h-4 w-4"/>Approve
-                                                </Button>
-                                                <Button variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700">
-                                                    <X className="mr-2 h-4 w-4"/>Reject
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No pending approvals.</TableCell>
+                                    </TableRow>
                                 </TableBody>
                             </Table>
                         </div>
@@ -744,20 +750,19 @@ export default function AdminGradesPage() {
                                         <TableHead>Timestamp</TableHead>
                                         <TableHead>User</TableHead>
                                         <TableHead>Action</TableHead>
-                                        <TableHead>Student</TableHead>
                                         <TableHead>Details</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {mockGradeLog.map(log => (
+                                     {auditLog.map(log => (
                                         <TableRow key={log.id}>
-                                            <TableCell className="text-xs text-muted-foreground">{log.timestamp}</TableCell>
-                                            <TableCell className="font-medium">{log.user}</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{format(log.timestamp.toDate(), 'PPp')}</TableCell>
+                                            <TableCell className="font-medium">{log.user.name}</TableCell>
                                             <TableCell><Badge variant="secondary">{log.action}</Badge></TableCell>
-                                            <TableCell>{log.student}</TableCell>
                                             <TableCell className="text-sm text-muted-foreground italic">"{log.details}"</TableCell>
                                         </TableRow>
                                     ))}
+                                    {auditLog.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">No grade-related audit events found.</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                          </div>
@@ -775,7 +780,7 @@ export default function AdminGradesPage() {
                                     <SelectValue placeholder="Select a Class"/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {mockClasses.map(c => <SelectItem key={c} value={c.replace(' ','-').toLowerCase()}>{c}</SelectItem>)}
+                                    {classes.map(c => <SelectItem key={c} value={c.replace(' ','-').toLowerCase()}>{c}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <Select defaultValue="term2-2024">
@@ -871,11 +876,11 @@ export default function AdminGradesPage() {
                             <div className="grid grid-cols-2 gap-4 text-center mb-6">
                                 <div className="p-4 bg-muted/50 rounded-lg">
                                     <p className="text-xs text-muted-foreground">Class Average</p>
-                                    <p className="text-2xl font-bold">76.7%</p>
+                                    <p className="text-2xl font-bold">{classRanking.length > 0 ? (classRanking.reduce((sum, s) => sum + s.avg, 0) / classRanking.length).toFixed(1) : 0}%</p>
                                 </div>
                                 <div className="p-4 bg-muted/50 rounded-lg">
                                     <p className="text-xs text-muted-foreground">Pass Rate</p>
-                                    <p className="text-2xl font-bold">100%</p>
+                                    <p className="text-2xl font-bold">{classRanking.length > 0 ? (classRanking.filter(s => s.avg >= 40).length / classRanking.length * 100).toFixed(0) : 100}%</p>
                                 </div>
                             </div>
                              <Separator />
