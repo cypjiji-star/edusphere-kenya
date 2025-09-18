@@ -38,7 +38,8 @@ import {
   Mail,
   Save,
   HelpCircle,
-  CalendarIcon
+  CalendarIcon,
+  Trash2,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -842,7 +843,7 @@ export default function AdminGradesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="exam-term">Academic Term</Label>
-                  <Select value={newExamTerm} onValueChange={handleTermChange}>
+                  <Select value={newExamTerm} onValueChange={(value) => handleTermChange(value)}>
                     <SelectTrigger id="exam-term">
                       <SelectValue />
                     </SelectTrigger>
@@ -855,7 +856,7 @@ export default function AdminGradesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Classes Involved</Label>
-                  <Select value={newExamClass} onValueChange={handleClassChange}>
+                  <Select value={newExamClass} onValueChange={(value) => handleClassChange(value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select classes..." />
                     </SelectTrigger>
