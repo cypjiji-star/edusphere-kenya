@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -100,6 +101,31 @@ const chartConfig = {
   average: { label: 'Average Score', color: 'hsl(var(--primary))' },
 };
 
+const generateAcademicTerms = () => {
+    const currentYear = new Date().getFullYear();
+    const terms = [];
+    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
+        terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
+        terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
+        terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
+    }
+    return terms;
+};
+
+const getCurrentTerm = (): string => {
+  const today = new Date();
+  const month = today.getMonth(); // 0-11
+  const year = today.getFullYear();
+
+  if (month >= 0 && month <= 3) { // Jan - Apr
+    return `term1-${year}`;
+  } else if (month >= 4 && month <= 7) { // May - Aug
+    return `term2-${year}`;
+  } else { // Sep - Dec
+    return `term3-${year}`;
+  }
+};
+
 
 function CommentDialog({ studentName, subject, open, onOpenChange }: { studentName: string, subject: SubjectData | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     const { toast } = useToast();
@@ -158,6 +184,8 @@ export default function ParentGradesPage() {
   const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
   const { user } = useAuth();
   const parentId = user?.uid;
+  const [academicTerms] = React.useState(generateAcademicTerms());
+  const [selectedTerm, setSelectedTerm] = React.useState(getCurrentTerm());
 
   React.useEffect(() => {
     if (!schoolId || !parentId) return;
@@ -284,13 +312,14 @@ export default function ParentGradesPage() {
               </Select>
             </div>
             <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2">
-                <Select defaultValue="term2-2024">
+                <Select value={selectedTerm} onValueChange={setSelectedTerm}>
                     <SelectTrigger className="w-full md:w-auto">
                         <SelectValue placeholder="Select Term" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                        <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                        {academicTerms.map(term => (
+                            <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
@@ -402,4 +431,3 @@ export default function ParentGradesPage() {
     </>
   );
 }
-

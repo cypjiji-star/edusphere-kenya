@@ -1,4 +1,5 @@
 
+
       
 'use client';
 
@@ -267,14 +268,17 @@ const getCurrentTerm = (): string => {
   }
 };
 
-const academicTerms = [
-    { value: 'term1-2024', label: 'Term 1, 2024' },
-    { value: 'term2-2024', label: 'Term 2, 2024' },
-    { value: 'term3-2024', label: 'Term 3, 2024' },
-    { value: 'term1-2025', label: 'Term 1, 2025' },
-    { value: 'term2-2025', label: 'Term 2, 2025' },
-    { value: 'term3-2025', label: 'Term 3, 2025' },
-];
+const generateAcademicTerms = () => {
+    const currentYear = new Date().getFullYear();
+    const terms = [];
+    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
+        terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
+        terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
+        terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
+    }
+    return terms;
+};
+
 
 export default function AdminAttendancePage() {
   const searchParams = useSearchParams();
@@ -294,6 +298,7 @@ export default function AdminAttendancePage() {
   const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [academicTerms, setAcademicTerms] = React.useState(generateAcademicTerms());
 
   // New state for student analytics
   const [allStudents, setAllStudents] = React.useState<Student[]>([]);
