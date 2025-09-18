@@ -38,6 +38,7 @@ import {
   Mail,
   Save,
   HelpCircle,
+  CalendarIcon
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -99,8 +100,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
-import { DateRangePicker } from '@/components/ui/date-picker';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+
 
 type GradeStatus = 'Graded' | 'Pending';
 
@@ -345,10 +349,6 @@ export default function AdminGradesPage() {
     to: undefined,
   });
 
-  const handleDateChange = React.useCallback((range: DateRange | undefined) => {
-    setDate(range);
-  }, []);
-
   const handleTermChange = React.useCallback((value: string) => {
     setNewExamTerm(value);
   }, []);
@@ -545,13 +545,13 @@ export default function AdminGradesPage() {
   const handleGradingScaleChange = (index: number, field: 'min' | 'max' | 'grade', value: string) => {
     const newScale = [...gradingScale];
     if (field === 'min' || field === 'max') {
-      const numericValue = parseInt(value, 10);
-      newScale[index][field] = isNaN(numericValue) ? 0 : numericValue;
+      newScale[index] = { ...newScale[index], [field]: parseInt(value, 10) || 0 };
     } else {
-      newScale[index][field] = value;
+      newScale[index] = { ...newScale[index], [field]: value };
     }
     setGradingScale(newScale);
   };
+  
 
   const addGradingRow = () => {
     setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0, isDefault: false }]);
@@ -868,7 +868,42 @@ export default function AdminGradesPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date-range">Date Range</Label>
-                <DateRangePicker selected={date} onSelect={handleDateChange} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="date"
+                      variant={'outline'}
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !date && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date?.from ? (
+                        date.to ? (
+                          <>
+                            {format(date.from, 'LLL dd, y')} -{' '}
+                            {format(date.to, 'LLL dd, y')}
+                          </>
+                        ) : (
+                          format(date.from, 'LLL dd, y')
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={date?.from}
+                      selected={date}
+                      onSelect={setDate}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="exam-notes">Notes (Optional)</Label>
@@ -1200,6 +1235,7 @@ export default function AdminGradesPage() {
                         <TableHead>Grade</TableHead>
                         <TableHead>Min Score</TableHead>
                         <TableHead>Max Score</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1227,6 +1263,11 @@ export default function AdminGradesPage() {
                               onChange={(e) => handleGradingScaleChange(index, 'max', e.target.value)}
                               disabled={item.isDefault}
                             />
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" disabled={item.isDefault}>
+                              <Trash2 className="h-4 w-4 text-destructive"/>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1256,5 +1297,3 @@ export default function AdminGradesPage() {
     </div>
   );
 }
-
-    
