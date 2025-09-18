@@ -42,7 +42,7 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const collectionsToSearch = ['admins', 'users', 'students', 'parents'];
+      const collectionsToSearch = ['admins', 'teachers', 'students', 'parents'];
       let userFound = false;
 
       for (const collectionName of collectionsToSearch) {

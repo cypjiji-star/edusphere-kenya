@@ -43,8 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const schoolId = searchParams.get('schoolId');
         if (schoolId) {
-          // Prioritize checking for 'admin' role first.
-          const collectionsToCheck: ('admins' | 'users' | 'students' | 'parents')[] = ['admins', 'users', 'students', 'parents'];
+          // Prioritize checking roles in a specific order
+          const collectionsToCheck: ('admins' | 'teachers' | 'parents' | 'students')[] = ['admins', 'teachers', 'parents', 'students'];
           let userFound = false;
 
           for (const collectionName of collectionsToCheck) {
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   const userData = userDocSnap.data();
                   setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
                   userFound = true;
-                  break; // Stop after finding the first role (now prioritized).
+                  break; 
               }
           }
            if (!userFound) {
