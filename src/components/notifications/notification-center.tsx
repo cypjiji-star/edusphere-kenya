@@ -105,7 +105,7 @@ function NotificationItem({
 }
 
 export function NotificationCenter() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
@@ -116,9 +116,13 @@ export function NotificationCenter() {
   React.useEffect(() => {
     if (!schoolId || !user) return;
     
+    // Admins and teachers see notifications based on role, parents by user ID.
+    const audienceField = role === 'parent' ? 'userId' : 'audience';
+    const audienceValue = role === 'parent' ? user.uid : role;
+
     const q = query(
       collection(firestore, 'schools', schoolId, 'notifications'),
-      where('userId', '==', user.uid),
+      where(audienceField, 'in', [audienceValue, 'all']),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -128,10 +132,12 @@ export function NotificationCenter() {
         (doc) => ({ id: doc.id, ...doc.data() } as Notification)
       );
       setNotifications(fetchedNotifications);
+    }, (error) => {
+        console.error("Error fetching notifications:", error);
     });
 
     return () => unsubscribe();
-  }, [schoolId, user]);
+  }, [schoolId, user, role]);
 
   const handleMarkAsRead = async (id: string) => {
     if (!schoolId) return;
@@ -156,10 +162,10 @@ export function NotificationCenter() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+        <Button variant="outline" size="icon" className="relative rounded-full h-12 w-12 shadow-lg bg-background hover:bg-muted">
+          <Bell className="h-6 w-6" />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 flex h-4 w-4">
+            <span className="absolute top-0 right-0 flex h-4 w-4">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-4 w-4 text-xs items-center justify-center bg-primary text-primary-foreground">
                 {unreadCount}

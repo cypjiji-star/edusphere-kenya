@@ -198,8 +198,7 @@ export function TeacherSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="flex items-center gap-2">
-        <NotificationCenter />
+      <SidebarFooter className="p-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
