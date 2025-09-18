@@ -58,6 +58,8 @@ import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { MultiSelect } from '@/components/ui/multi-select';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 type SchoolClass = {
@@ -118,7 +120,7 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
             await setDoc(assignmentRef, { assignments });
             // Optimistic update
             setClassAssignments(prev => ({ ...prev, [schoolClass.id]: assignments }));
-            toast({ title: 'Subjects Updated', description: `Subjects for ${schoolClass.name} ${schoolClass.stream} have been saved.` });
+            toast({ title: 'Subjects Updated', description: `Subjects for ${schoolClass.name} ${schoolClass.stream || ''} have been saved.` });
         } catch (e) {
             console.error("Failed to save subject assignments:", e);
             toast({ title: 'Save Failed', variant: 'destructive' });
@@ -132,7 +134,7 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Manage Subjects for {schoolClass.name} {schoolClass.stream}</DialogTitle>
+                    <DialogTitle>Manage Subjects for {schoolClass.name} {schoolClass.stream || ''}</DialogTitle>
                     <DialogDescription>Select the subjects taught in this class.</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 max-h-[60vh] overflow-y-auto">
@@ -377,10 +379,50 @@ export default function ClassesAndSubjectsPage() {
     };
 
 
-    const handleExport = (type: string) => {
+    const handleExport = (type: 'PDF' | 'CSV' | 'Print', tab: 'classes' | 'subjects') => {
+        let headers: string[] = [];
+        let body: (string | number)[][] = [];
+        let title = '';
+        let filename = '';
+
+        if (tab === 'classes') {
+            headers = ['Class', 'Stream', 'Class Teacher', 'Enrollment'];
+            body = classes.map(c => [c.name, c.stream || '-', c.classTeacher.name, `${c.studentCount}/${c.capacity}`]);
+            title = 'Class List';
+            filename = 'class-list';
+        } else {
+            headers = ['Subject', 'Code', 'Department', 'Assigned Teachers'];
+            body = subjects.map(s => [s.name, s.code, s.department, (s.teachers || []).join(', ')]);
+            title = 'Subject List';
+            filename = 'subject-list';
+        }
+
+        if (type === 'Print') {
+            window.print();
+            return;
+        }
+
+        if (type === 'CSV') {
+            const csvContent = [headers.join(','), ...body.map(row => row.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `${filename}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else { // PDF
+            const doc = new jsPDF();
+            doc.text(title, 14, 16);
+            (doc as any).autoTable({ startY: 22, head: [headers], body: body });
+            doc.save(`${filename}.pdf`);
+        }
+
         toast({
-            title: 'Exporting...',
-            description: `Your data is being exported as a ${type} file.`,
+            title: 'Exporting Data',
+            description: `Your ${filename.replace('-', ' ')} is being exported as a ${type} file.`,
         });
     };
 
@@ -548,8 +590,9 @@ export default function ClassesAndSubjectsPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('PDF', 'classes')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('CSV', 'classes')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('Print', 'classes')}><Printer className="mr-2 h-4 w-4" />Print List</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -800,8 +843,9 @@ export default function ClassesAndSubjectsPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleExport('CSV')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('PDF', 'subjects')}><FileDown className="mr-2 h-4 w-4" />Export as PDF</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('CSV', 'subjects')}><FileDown className="mr-2 h-4 w-4" />Export as CSV</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExport('Print', 'subjects')}><Printer className="mr-2 h-4 w-4" />Print List</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -891,8 +935,8 @@ export default function ClassesAndSubjectsPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                                <DropdownMenuItem onClick={() => handleExport('PDF')}><FileDown className="mr-2 h-4 w-4" />Export Full Report (PDF)</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExport('Print')}><Printer className="mr-2 h-4 w-4" />Print Teacher Allocations</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('PDF', 'assignments')}><FileDown className="mr-2 h-4 w-4" />Export Full Report (PDF)</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('Print', 'assignments')}><Printer className="mr-2 h-4 w-4" />Print Teacher Allocations</DropdownMenuItem>
                             </DropdownMenuContent>
                          </DropdownMenu>
                     </div>
