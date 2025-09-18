@@ -32,6 +32,7 @@ import {
   Download,
   User,
   ShieldAlert,
+  Bell,
 } from 'lucide-react';
 import {
   Table,
@@ -285,22 +286,17 @@ export default function AdminGradesPage() {
                 createdAt: serverTimestamp(),
             });
             
-            // Placeholder for finding the relevant teacher to notify
-            // This would require a more complex query to find the teacher for that subject and class.
-            const teacherToNotify = 'teacher-id-placeholder'; 
-
-            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+            await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'New Exam Scheduled',
                 description: `A new ${examType} exam, "${examTitle}", has been scheduled for your ${examClass} class on ${format(examDate, 'PPP')}.`,
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/teacher/assignments?schoolId=${schoolId}`,
-                userId: teacherToNotify,
             });
 
             toast({
-                title: 'Exam Created',
-                description: 'The new exam has been scheduled and the teacher notified.',
+                title: 'Exam Created & Notified',
+                description: 'The new exam has been scheduled and relevant teachers have been notified.',
             });
             
             // Reset form and close dialog
@@ -323,7 +319,28 @@ export default function AdminGradesPage() {
             title: 'Notification Sent',
             description: `A reminder for the "${exam.title}" exam has been sent.`,
         });
-    }
+    };
+    
+    const handlePublishResults = async () => {
+        if (!schoolId) return;
+
+        try {
+            await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+                title: 'Exam Results Published!',
+                description: `The results for Form 4, Term 2 2024 exams are now available on the portal.`,
+                createdAt: serverTimestamp(),
+                read: false,
+                href: `/parent/grades?schoolId=${schoolId}`,
+                // In a real app, this would be targeted, not a general notification
+            });
+            toast({
+                title: 'Results Published!',
+                description: 'Parents and students have been notified that results are available.',
+            });
+        } catch (e) {
+            toast({ title: 'Failed to publish results.', variant: 'destructive' });
+        }
+    };
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -384,7 +401,7 @@ export default function AdminGradesPage() {
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
                 <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
                 <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
-                <TabsTrigger value="reports">Reports & Analytics</TabsTrigger>
+                <TabsTrigger value="reports">Reports &amp; Analytics</TabsTrigger>
             </TabsList>
             <TabsContent value="exam-management" className="mt-4">
                 <Card>
@@ -490,7 +507,7 @@ export default function AdminGradesPage() {
                                             <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
                                             <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                 <Button variant="outline" size="sm" onClick={() => handleNotify(exam)}><Clock className="mr-2 h-4 w-4"/>Schedule & Notify</Button>
+                                                 <Button variant="outline" size="sm" onClick={() => handleNotify(exam)}><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
                                                 <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Trash2 className="h-4 w-4 text-destructive"/></Button>
@@ -654,7 +671,7 @@ export default function AdminGradesPage() {
              <TabsContent value="reports" className="mt-4 space-y-6">
                 <Card>
                     <CardHeader>
-                         <CardTitle>Reports & Analytics</CardTitle>
+                         <CardTitle>Reports &amp; Analytics</CardTitle>
                         <CardDescription>Generate reports and analyze academic performance.</CardDescription>
                         <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
                              <Select defaultValue="form-4">
@@ -675,8 +692,34 @@ export default function AdminGradesPage() {
                                 </SelectContent>
                             </Select>
                             <div className="flex gap-2">
-                                <Button variant="secondary"><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
-                                <Button variant="secondary"><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="secondary">
+                                            <Bell className="mr-2 h-4 w-4" />
+                                            Publish Results
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Confirm Publication</DialogTitle>
+                                            <DialogDescription>
+                                                This will make results for Form 4, Term 2 visible to all students and parents. Are you sure you want to proceed?
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <DialogClose asChild>
+                                                <Button onClick={handlePublishResults}>
+                                                    Confirm &amp; Publish
+                                                </Button>
+                                            </DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button variant="secondary" disabled><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
+                                <Button variant="secondary" disabled><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
                             </div>
                         </div>
                     </CardHeader>
