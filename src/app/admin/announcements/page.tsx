@@ -279,7 +279,7 @@ export default function AdminAnnouncementsPage() {
             audience: values.audience,
             category: values.category,
             sender: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' },
-            sentAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
+            sentAt: scheduledDate && isScheduling ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
             channels: {
                 app: values.notifyApp,
                 email: values.notifyEmail,
@@ -561,8 +561,21 @@ export default function AdminAnnouncementsPage() {
                                               initialFocus
                                               disabled={(date) => date < new Date()}
                                             />
-                                            <div className="p-3 border-t border-border">
-                                              <Input type="time" defaultValue={scheduledDate ? format(scheduledDate, "HH:mm") : format(new Date(), "HH:mm")} className="w-full" />
+                                             <div className="p-3 border-t border-border flex items-center gap-2">
+                                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                                <Input 
+                                                    type="time" 
+                                                    defaultValue={scheduledDate ? format(scheduledDate, "HH:mm") : format(new Date(), "HH:mm")}
+                                                    onChange={(e) => {
+                                                        const [hours, minutes] = e.target.value.split(':').map(Number);
+                                                        setScheduledDate(prev => {
+                                                            const newDate = prev ? new Date(prev) : new Date();
+                                                            newDate.setHours(hours, minutes);
+                                                            return newDate;
+                                                        })
+                                                    }}
+                                                    className="w-full" 
+                                                />
                                             </div>
                                           </PopoverContent>
                                       </Popover>
@@ -620,7 +633,7 @@ export default function AdminAnnouncementsPage() {
                     <CardFooter>
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4" />}
-                            {isScheduling ? 'Schedule Announcement' : 'Send Announcement'}
+                            {isScheduling && scheduledDate ? 'Schedule Announcement' : 'Send Announcement'}
                         </Button>
                     </CardFooter>
                 </Card>
