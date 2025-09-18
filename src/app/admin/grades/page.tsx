@@ -34,6 +34,8 @@ import {
   ShieldAlert,
   Bell,
   Wand2,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import {
   Table,
@@ -79,9 +81,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { firestore } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc } from 'firebase/firestore';
+import { firestore, auth } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
+import { logAuditEvent } from '@/lib/audit-log.service';
 
 
 type Exam = {
@@ -117,10 +121,20 @@ type Ranking = {
 type AuditLog = {
   id: string;
   timestamp: Timestamp;
-  user: { name: string };
+  user: { id: string; name: string };
   student: string;
   action: string;
   details: string;
+};
+
+type PendingGrade = {
+    id: string;
+    studentName: string;
+    studentId: string;
+    subject: string;
+    grade: string;
+    teacherName: string;
+    assessmentTitle: string;
 };
 
 
@@ -245,12 +259,15 @@ export default function AdminGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
+    const { user: adminUser } = useAuth();
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
     const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
     const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
     const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
     const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
+    const [pendingGrades, setPendingGrades] = React.useState<PendingGrade[]>([]);
+
 
     // State for the create exam form
     const [examTitle, setExamTitle] = React.useState('');
@@ -292,7 +309,7 @@ export default function AdminGradesPage() {
         });
 
         // Real-time listener for grades to update ranking
-        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved'));
         const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
             const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number> }> = {};
             const studentPromises = [];
@@ -345,11 +362,10 @@ export default function AdminGradesPage() {
                 };
             });
             
-            // Sort by total score and assign rank
             const sortedRanking = calculatedRanking.sort((a, b) => b.total - a.total).map((student, index) => ({
                 ...student,
                 position: index + 1,
-                streamPosition: index + 1, // Placeholder for stream rank
+                streamPosition: index + 1,
             }));
             
             setClassRanking(sortedRanking);
@@ -376,6 +392,25 @@ export default function AdminGradesPage() {
             const logs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as AuditLog));
             setAuditLog(logs);
         });
+        
+         // Fetch pending grades for moderation
+        const pendingGradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval'));
+        const unsubscribePendingGrades = onSnapshot(pendingGradesQuery, async (snapshot) => {
+            const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
+                const data = gradeDoc.data();
+                const studentSnap = await getDoc(data.studentRef);
+                return {
+                    id: gradeDoc.id,
+                    studentName: studentSnap.data()?.name || 'Unknown',
+                    studentId: studentSnap.id,
+                    subject: data.subject,
+                    grade: data.grade,
+                    teacherName: data.teacherName,
+                    assessmentTitle: data.assessmentTitle || 'N/A'
+                };
+            }));
+            setPendingGrades(pendingData);
+        });
 
         return () => {
             unsubscribeExams();
@@ -383,6 +418,7 @@ export default function AdminGradesPage() {
             unsubscribeClasses();
             unsubscribeSubjects();
             unsubscribeLogs();
+            unsubscribePendingGrades();
         };
     }, [schoolId, selectedGradebookClass]);
 
@@ -391,8 +427,8 @@ export default function AdminGradesPage() {
     }, [exams, selectedGradebookClass]);
 
     const gradebookStudents = React.useMemo(() => {
-        return studentGrades; // This would be further filtered by class if `studentGrades` wasn't already aggregated
-    }, [studentGrades, selectedGradebookClass]);
+        return studentGrades;
+    }, [studentGrades]);
     
     const gradebookSubjects = React.useMemo(() => {
         if (!selectedGradebookExam) return [];
@@ -437,7 +473,6 @@ export default function AdminGradesPage() {
                 description: 'The new exam has been scheduled and relevant teachers have been notified.',
             });
             
-            // Reset form and close dialog
             setExamTitle('');
             setExamClassId('');
             setExamSubject('');
@@ -452,11 +487,27 @@ export default function AdminGradesPage() {
         }
     };
     
-    const handleNotify = (exam: Exam) => {
-         toast({
-            title: 'Notification Sent',
-            description: `A reminder for the "${exam.title}" exam has been sent.`,
-        });
+    const handleGradeModeration = async (gradeId: string, studentId: string, studentName: string, subject: string, grade: string, decision: 'Approved' | 'Rejected') => {
+        if (!schoolId || !adminUser) return;
+        const gradeRef = doc(firestore, `schools/${schoolId}/grades`, gradeId);
+        try {
+            await updateDoc(gradeRef, { status: decision });
+            
+            await logAuditEvent({
+                schoolId,
+                action: decision === 'Approved' ? 'GRADE_APPROVED' : 'GRADE_REJECTED',
+                actionType: 'Academics',
+                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                details: `${decision} grade of ${grade} for ${studentName} in ${subject}.`,
+            });
+            
+            toast({
+                title: `Grade ${decision}`,
+                description: `The grade has been successfully ${decision.toLowerCase()}.`,
+            });
+        } catch (e) {
+            toast({ title: 'Error', description: 'Could not update grade status.', variant: 'destructive' });
+        }
     };
     
     const handlePublishResults = async () => {
@@ -507,12 +558,12 @@ export default function AdminGradesPage() {
                     <CardDescription>Pending Grading</CardDescription>
                     <CardTitle className="text-4xl text-yellow-500 flex items-center gap-2">
                         <AlertTriangle/>
-                        0
+                        {pendingGrades.length}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="text-xs text-muted-foreground">
-                        assignments require grading
+                        entries require approval
                     </div>
                 </CardContent>
             </Card>
@@ -653,7 +704,7 @@ export default function AdminGradesPage() {
                                             <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
                                             <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                 <Button variant="outline" size="sm" onClick={() => handleNotify(exam)}><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
+                                                 <Button variant="outline" size="sm" disabled><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
                                                 <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Trash2 className="h-4 w-4 text-destructive"/></Button>
@@ -771,9 +822,24 @@ export default function AdminGradesPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow>
-                                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No pending approvals.</TableCell>
-                                    </TableRow>
+                                     {pendingGrades.length > 0 ? pendingGrades.map(grade => (
+                                        <TableRow key={grade.id}>
+                                            <TableCell>{grade.studentName}</TableCell>
+                                            <TableCell>{grade.subject}</TableCell>
+                                            <TableCell className="font-semibold">{grade.grade}</TableCell>
+                                            <TableCell className="text-muted-foreground">{grade.teacherName}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Approved')}>
+                                                    <CheckCircle className="mr-2 h-4 w-4"/>Approve
+                                                </Button>
+                                                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Rejected')}>
+                                                    <XCircle className="mr-2 h-4 w-4"/>Reject
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                     )) : (
+                                        <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No pending approvals.</TableCell></TableRow>
+                                     )}
                                 </TableBody>
                             </Table>
                         </div>
@@ -945,4 +1011,3 @@ export default function AdminGradesPage() {
   );
 }
 
-    
