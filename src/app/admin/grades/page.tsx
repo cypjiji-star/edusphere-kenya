@@ -63,6 +63,9 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 type Exam = {
     id: string;
@@ -84,6 +87,12 @@ const mockExams: Exam[] = [
 const mockClasses = ['Form 1', 'Form 2', 'Form 3', 'Form 4'];
 const mockSubjects = ['Mathematics', 'English', 'Kiswahili', 'Chemistry', 'Physics', 'Biology', 'History', 'Geography', 'CRE', 'Business Studies', 'Computer Science'];
 const examTypes: Exam['type'][] = ['CAT', 'Midterm', 'Final', 'Practical'];
+const mockStudents = [
+    { id: 'stu-001', name: 'John Doe', admNo: '1234', avatarUrl: 'https://picsum.photos/seed/student1/100', scores: { Mathematics: 85, English: 72, Chemistry: 65, Physics: 78, Biology: 81 } },
+    { id: 'stu-002', name: 'Jane Smith', admNo: '1235', avatarUrl: 'https://picsum.photos/seed/student2/100', scores: { Mathematics: 92, English: 88, Chemistry: 75, Physics: 85, Biology: 90 } },
+    { id: 'stu-003', name: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', scores: { Mathematics: 65, English: 58, Chemistry: 50, Physics: 61, Biology: 55 } },
+];
+const gradebookSubjects = ['Mathematics', 'English', 'Chemistry', 'Physics', 'Biology'];
 
 
 export default function AdminGradesPage() {
@@ -102,7 +111,7 @@ export default function AdminGradesPage() {
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades & Exams</h1>
         <p className="text-muted-foreground">Manage exams, grades, and academic reports.</p>
        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <div className="grid gap-6 md:grid-cols-3 mb-6">
             <Card>
                 <CardHeader className="pb-2">
                     <CardDescription>Total Exams Created</CardDescription>
@@ -128,135 +137,224 @@ export default function AdminGradesPage() {
                     </div>
                 </CardContent>
             </Card>
-        </div>
-
-        <Card>
-            <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div>
-                    <CardTitle>Exam Management</CardTitle>
-                    <CardDescription>Create, schedule, and manage all school examinations.</CardDescription>
-                </div>
-                 <div className="flex gap-2 mt-4 md:mt-0">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                 <CardContent className="flex flex-col gap-2">
                     <Button variant="outline" disabled>
                         <Upload className="mr-2 h-4 w-4" />
                         Upload Marks
                     </Button>
-                     <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <PlusCircle className="mr-2 h-4 w-4"/>
-                                Create Exam
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Create New Exam</DialogTitle>
-                                <DialogDescription>Fill in the details for the new examination.</DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4 space-y-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="exam-title">Exam Title</Label>
-                                    <Input id="exam-title" placeholder="e.g., Form 4 Midterm Exam" />
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <Button variant="outline" disabled>
+                        <BarChart className="mr-2 h-4 w-4" />
+                        View Reports
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+
+        <Tabs defaultValue="exam-management" className="w-full">
+            <TabsList>
+                <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
+                <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+            </TabsList>
+            <TabsContent value="exam-management" className="mt-4">
+                <Card>
+                    <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <CardTitle>Exam Scheduler</CardTitle>
+                            <CardDescription>Create, schedule, and manage all school examinations.</CardDescription>
+                        </div>
+                        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4"/>
+                                    Create Exam
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Create New Exam</DialogTitle>
+                                    <DialogDescription>Fill in the details for the new examination.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-6">
                                     <div className="space-y-2">
-                                        <Label htmlFor="exam-class">Class</Label>
-                                        <Select><SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger><SelectContent>{mockClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                                        <Label htmlFor="exam-title">Exam Title</Label>
+                                        <Input id="exam-title" placeholder="e.g., Form 4 Midterm Exam" />
                                     </div>
-                                     <div className="space-y-2">
-                                        <Label htmlFor="exam-subject">Subject</Label>
-                                        <Select><SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger><SelectContent>{mockSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-class">Class</Label>
+                                            <Select><SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger><SelectContent>{mockClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-subject">Subject</Label>
+                                            <Select><SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger><SelectContent>{mockSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-date">Date</Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="w-full justify-start font-normal">
+                                                        <CalendarIcon className="mr-2 h-4 w-4"/>
+                                                        <span>Pick a date</span>
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" initialFocus/></PopoverContent>
+                                            </Popover>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-duration">Duration (minutes)</Label>
+                                            <Input id="exam-duration" type="number" placeholder="e.g., 120" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-type">Type</Label>
+                                            <Select><SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger><SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+                                        </div>
+                                    </div>
+                                    <Separator/>
+                                    <div className="space-y-4">
+                                        <h4 className="font-medium text-sm">Advanced Options</h4>
+                                        <div className="flex items-center justify-between rounded-lg border p-3">
+                                            <div>
+                                                <Label>Schedule Exam</Label>
+                                                <p className="text-xs text-muted-foreground">Add this exam to the school timetable and notify students.</p>
+                                            </div>
+                                            <Button variant="secondary" size="sm" disabled><Clock className="mr-2 h-4 w-4"/>Schedule</Button>
+                                        </div>
+                                        <div className="flex items-center justify-between rounded-lg border p-3">
+                                            <div>
+                                                <Label>Assign Invigilators</Label>
+                                                <p className="text-xs text-muted-foreground">Assign teachers to supervise the exam.</p>
+                                            </div>
+                                            <Button variant="secondary" size="sm" disabled><PlusCircle className="mr-2 h-4 w-4"/>Assign</Button>
+                                        </div>
+                                        <div className="flex items-center justify-between rounded-lg border p-3">
+                                            <div>
+                                                <Label>Save as Template</Label>
+                                                <p className="text-xs text-muted-foreground">Save this configuration for future use.</p>
+                                            </div>
+                                            <Button variant="secondary" size="sm" disabled><Save className="mr-2 h-4 w-4"/>Save Template</Button>
+                                        </div>
                                     </div>
                                 </div>
-                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="exam-date">Date</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" className="w-full justify-start font-normal">
-                                                    <CalendarIcon className="mr-2 h-4 w-4"/>
-                                                    <span>Pick a date</span>
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" initialFocus/></PopoverContent>
-                                        </Popover>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="exam-duration">Duration (minutes)</Label>
-                                        <Input id="exam-duration" type="number" placeholder="e.g., 120" />
-                                    </div>
-                                     <div className="space-y-2">
-                                        <Label htmlFor="exam-type">Type</Label>
-                                        <Select><SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger><SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-                                    </div>
-                                </div>
-                                <Separator/>
-                                <div className="space-y-4">
-                                    <h4 className="font-medium text-sm">Advanced Options</h4>
-                                    <div className="flex items-center justify-between rounded-lg border p-3">
-                                        <div>
-                                            <Label>Schedule Exam</Label>
-                                            <p className="text-xs text-muted-foreground">Add this exam to the school timetable and notify students.</p>
-                                        </div>
-                                        <Button variant="secondary" size="sm" disabled><Clock className="mr-2 h-4 w-4"/>Schedule</Button>
-                                    </div>
-                                     <div className="flex items-center justify-between rounded-lg border p-3">
-                                        <div>
-                                            <Label>Assign Invigilators</Label>
-                                            <p className="text-xs text-muted-foreground">Assign teachers to supervise the exam.</p>
-                                        </div>
-                                        <Button variant="secondary" size="sm" disabled><PlusCircle className="mr-2 h-4 w-4"/>Assign</Button>
-                                    </div>
-                                     <div className="flex items-center justify-between rounded-lg border p-3">
-                                        <div>
-                                            <Label>Save as Template</Label>
-                                            <p className="text-xs text-muted-foreground">Save this configuration for future use.</p>
-                                        </div>
-                                        <Button variant="secondary" size="sm" disabled><Save className="mr-2 h-4 w-4"/>Save Template</Button>
-                                    </div>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                <Button>Create Exam</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="w-full overflow-auto rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Exam Title</TableHead>
-                                <TableHead>Class</TableHead>
-                                <TableHead>Subject</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {exams.map(exam => (
-                                <TableRow key={exam.id}>
-                                    <TableCell className="font-medium">{exam.title}</TableCell>
-                                    <TableCell>{exam.class}</TableCell>
-                                    <TableCell>{exam.subject}</TableCell>
-                                    <TableCell>{format(exam.date, 'PPP')}</TableCell>
-                                    <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
-                                    <TableCell className="text-right space-x-2">
-                                        <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
-                                        <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
-                                        <Button variant="ghost" size="icon" disabled><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <Button>Create Exam</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Exam Title</TableHead>
+                                        <TableHead>Class</TableHead>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {exams.map(exam => (
+                                        <TableRow key={exam.id}>
+                                            <TableCell className="font-medium">{exam.title}</TableCell>
+                                            <TableCell>{exam.class}</TableCell>
+                                            <TableCell>{exam.subject}</TableCell>
+                                            <TableCell>{format(exam.date, 'PPP')}</TableCell>
+                                            <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="icon" disabled><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="gradebook" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Gradebook</CardTitle>
+                        <CardDescription>View and manage student marks for different exams.</CardDescription>
+                        <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
+                            <Select>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select a Class"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {mockClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select an Exam"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {mockExams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Student</TableHead>
+                                        {gradebookSubjects.map(sub => (
+                                            <TableHead key={sub} className="text-center">{sub.substring(0,3).toUpperCase()}</TableHead>
+                                        ))}
+                                        <TableHead className="text-right font-bold">Total</TableHead>
+                                        <TableHead className="text-right font-bold">Grade</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {mockStudents.map(student => {
+                                        const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
+                                        const mean = total / Object.keys(student.scores).length;
+                                        const grade = mean >= 80 ? 'A' : mean >= 65 ? 'B' : 'C';
+
+                                        return (
+                                        <TableRow key={student.id}>
+                                            <TableCell>
+                                                 <div className="flex items-center gap-3">
+                                                    <Avatar className="h-9 w-9">
+                                                        <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                                        <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <span className="font-medium">{student.name}</span>
+                                                        <p className="text-xs text-muted-foreground">Adm: {student.admNo}</p>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                             {gradebookSubjects.map(sub => (
+                                                <TableCell key={sub} className="text-center">{student.scores[sub as keyof typeof student.scores] || '—'}</TableCell>
+                                            ))}
+                                            <TableCell className="text-right font-bold">{total}</TableCell>
+                                            <TableCell className="text-right font-bold">
+                                                <Badge>{grade}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    )})}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
     </div>
   );
 }
