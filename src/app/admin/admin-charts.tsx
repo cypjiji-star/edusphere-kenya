@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -49,42 +49,43 @@ export function FinanceSnapshot() {
 
     const fetchData = async () => {
         setIsLoading(true);
-        const currentYear = new Date().getFullYear();
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
-        const studentsSnapshot = await getDocs(studentsQuery);
+        try {
+            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
+            const studentsSnapshot = await getDocs(studentsQuery);
 
-        let totalSchoolFeesBilled = 0;
-        let totalPaidOverall = 0;
+            let totalPaidOverall = 0;
+            let totalSchoolFeesBilled = 0;
 
-        for (const studentDoc of studentsSnapshot.docs) {
-            totalPaidOverall += studentDoc.data().amountPaid || 0;
+            for (const studentDoc of studentsSnapshot.docs) {
+                const studentData = studentDoc.data();
+                totalPaidOverall += studentData.amountPaid || 0;
+                totalSchoolFeesBilled += studentData.totalFee || 0;
+            }
 
-            const transactionsQuery = query(collection(studentDoc.ref, 'transactions'));
-            const transactionsSnapshot = await getDocs(transactionsQuery);
-
-            transactionsSnapshot.forEach(transDoc => {
-                const transaction = transDoc.data();
-                if (
-                    transaction.description === 'School Fees' &&
-                    transaction.type === 'Charge' &&
-                    (transaction.date as Timestamp).toDate().getFullYear() === currentYear
-                ) {
-                    totalSchoolFeesBilled += transaction.amount > 0 ? transaction.amount : 0;
-                }
-            });
+            setFinanceData({ totalCollected: totalPaidOverall, totalBilled: totalSchoolFeesBilled });
+        } catch (error) {
+            console.error("Error fetching finance data:", error);
+        } finally {
+            setIsLoading(false);
         }
-        
-        // Cap collected amount at billed amount for a more accurate representation of fee collection
-        const totalCollectedForSchoolFees = Math.min(totalPaidOverall, totalSchoolFeesBilled);
-
-        setFinanceData({ totalCollected: totalCollectedForSchoolFees, totalBilled: totalSchoolFeesBilled });
-        setIsLoading(false);
     };
 
     fetchData();
     
-    // Note: This won't be real-time for transactions. For real-time, we'd need to set up listeners on all transaction subcollections.
-    // This is a more performant approach for a dashboard snapshot.
+    // For real-time updates on payments, we can add listeners here, but it can be performance-intensive.
+    // The current approach is a snapshot.
+    const studentsUnsubscribe = onSnapshot(query(collection(firestore, `schools/${schoolId}/students`)), (snapshot) => {
+        let totalPaidOverall = 0;
+        let totalSchoolFeesBilled = 0;
+        snapshot.forEach(doc => {
+            totalPaidOverall += doc.data().amountPaid || 0;
+            totalSchoolFeesBilled += doc.data().totalFee || 0;
+        });
+        setFinanceData({ totalCollected: totalPaidOverall, totalBilled: totalSchoolFeesBilled });
+    });
+
+    return () => studentsUnsubscribe();
+
   }, [schoolId]);
 
   const totalOutstanding = financeData.totalBilled - financeData.totalCollected;
@@ -139,16 +140,16 @@ export function FinanceSnapshot() {
             </div>
             <div className="flex-1 space-y-4 w-full">
                 <div className="flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground">Total School Fees Billed (This Year)</p>
+                    <p className="text-sm text-muted-foreground">Total Expected Fees (This Year)</p>
                     <p className="text-lg font-bold">KES {financeData.totalBilled.toLocaleString()}</p>
                 </div>
                 <div className="flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground">Total Collected (towards School Fees)</p>
+                    <p className="text-sm text-muted-foreground">Total Collected (This Year)</p>
                     <p className="text-lg font-bold text-primary">+ KES {financeData.totalCollected.toLocaleString()}</p>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center">
-                    <p className="text-sm font-semibold">Outstanding School Fees</p>
+                    <p className="text-sm font-semibold">Total Outstanding Fees</p>
                     <p className={`text-xl font-bold text-destructive`}>
                         KES {totalOutstanding.toLocaleString()}
                     </p>
