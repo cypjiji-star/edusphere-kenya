@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -96,7 +95,7 @@ const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i
 
 const getStatusBadge = (status: UserStatus) => {
     switch (status) {
-        case 'Active': return <Badge variant="default" className="bg-primary hover:bg-primary/90"><CheckCircle className="mr-1 h-3 w-3"/>Active</Badge>;
+        case 'Active': return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Active</Badge>;
         case 'Pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600"><Clock className="mr-1 h-3 w-3"/>Pending</Badge>;
         case 'Suspended': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Suspended</Badge>;
         case 'Transferred': return <Badge variant="outline"><ArrowRight className="mr-1 h-3 w-3"/>Transferred</Badge>;
@@ -149,11 +148,11 @@ export default function UserManagementListPage() {
             setAdminUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
         });
 
-        const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher')), (snapshot) => {
-            setTeacherUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+        const unsubTeachers = onSnapshot(query(collection(firestore, `schools/${schoolId}/teachers`)), (snapshot) => {
+            setTeacherUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), role: 'Teacher' } as User)));
         });
         
-        const unsubParents = onSnapshot(collection(firestore, 'schools', schoolId, 'parents'), (snapshot) => {
+        const unsubParents = onSnapshot(query(collection(firestore, 'schools', schoolId, 'parents')), (snapshot) => {
             setParentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), role: 'Parent' } as User)));
         });
         
@@ -225,10 +224,10 @@ export default function UserManagementListPage() {
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
             const user = userCredential.user;
             
-            const isParent = newUserRole === 'Parent';
-            const collectionName = isParent ? 'parents' : 'users';
-            
-            const batch = writeBatch(firestore);
+            let collectionName = 'users';
+            if (newUserRole === 'Parent') collectionName = 'parents';
+            else if (newUserRole === 'Teacher') collectionName = 'teachers';
+            else if (newUserRole === 'Admin') collectionName = 'admins';
             
             const userDocRef = doc(firestore, 'schools', schoolId, collectionName, user.uid);
             
@@ -246,9 +245,7 @@ export default function UserManagementListPage() {
 
             if (newUserRole === 'Teacher') userData.classes = newUserClasses;
 
-            batch.set(userDocRef, userData);
-
-            await batch.commit();
+            await setDoc(userDocRef, userData);
             
             await logAuditEvent({
                 schoolId,
@@ -308,6 +305,8 @@ export default function UserManagementListPage() {
             let collectionName = 'users';
             if (user.role === 'Parent') collectionName = 'parents';
             else if (user.role === 'Admin') collectionName = 'admins';
+            else if (user.role === 'Teacher') collectionName = 'teachers';
+
 
             const userRef = doc(firestore, 'schools', schoolId, collectionName, user.id);
             await updateDoc(userRef, updatedData);
@@ -338,7 +337,8 @@ export default function UserManagementListPage() {
         let collectionName;
         if (userRole === 'Parent') collectionName = 'parents';
         else if (userRole === 'Admin') collectionName = 'admins';
-        else collectionName = 'users'; // Default for Teacher and other roles
+        else if (userRole === 'Teacher') collectionName = 'teachers';
+        else collectionName = 'users'; // Fallback
     
         await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userId));
     
@@ -733,4 +733,3 @@ export default function UserManagementListPage() {
         </div>
     );
 }
-

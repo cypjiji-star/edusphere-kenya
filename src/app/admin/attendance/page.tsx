@@ -359,7 +359,7 @@ export default function AdminAttendancePage() {
     const unsubscribePromise = fetchAllAttendance();
 
     // Set up real-time listeners for teachers and classes
-    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const qTeachers = query(collection(firestore, 'schools', schoolId, 'teachers'));
     const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
       const teacherNames = snapshot.docs.map(doc => doc.data().name);
       setTeachers(['All Teachers', ...teacherNames]);
@@ -941,7 +941,3 @@ export default function AdminAttendancePage() {
 }
 
     
-
-
-
-

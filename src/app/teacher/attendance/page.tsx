@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -272,7 +273,7 @@ export default function AttendancePage() {
   // Fetch teacher's details (name)
   useEffect(() => {
     if (!user || !schoolId) return;
-    const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+    const userDocRef = doc(firestore, `schools/${schoolId}/teachers`, user.uid);
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
         setTeacherName(docSnap.data().name || 'Teacher');
