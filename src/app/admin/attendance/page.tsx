@@ -177,7 +177,22 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
     }, [records, dateRange]);
 
 
-    const handleSendReminder = async (teacherName: string, teacherId?: string) => {
+    const handleSendReminder = async (teacherName: string, teacherIdFromRecord?: string) => {
+        let teacherId = teacherIdFromRecord;
+
+        // If teacherId is not available directly, try to find it
+        if (!teacherId) {
+            try {
+                const teachersQuery = query(collection(firestore, `schools/${schoolId}/teachers`), where('name', '==', teacherName), limit(1));
+                const teacherSnap = await getDocs(teachersQuery);
+                if (!teacherSnap.empty) {
+                    teacherId = teacherSnap.docs[0].id;
+                }
+            } catch (error) {
+                 console.error("Could not fetch teacher ID by name:", error);
+            }
+        }
+        
         if (!teacherId) {
              toast({
                 title: 'Cannot Send Reminder',
@@ -943,3 +958,5 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
+    
