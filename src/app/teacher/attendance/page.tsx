@@ -50,7 +50,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/context/auth-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MyAttendanceHistory } from "./my-attendance-calendar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { DateRange } from "react-day-picker";
 import { Textarea } from "@/components/ui/textarea";
