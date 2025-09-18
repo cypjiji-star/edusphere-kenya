@@ -55,6 +55,7 @@ import {
   ChevronDown,
   ArrowRight,
   Loader2,
+  PlusCircle,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LessonPlanCalendar } from './lesson-plan-calendar';
@@ -85,6 +86,7 @@ const getStatusBadge = (status: LessonPlanStatus) => {
         case 'Completed': return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white">Completed</Badge>;
         case 'In Progress': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">In Progress</Badge>;
         case 'Skipped': return <Badge variant="destructive" className="bg-red-500 text-white hover:bg-red-600">Skipped</Badge>;
+        default: return <Badge variant="outline">{status}</Badge>;
     }
 }
 
@@ -141,10 +143,11 @@ export default function AdminLessonPlansPage() {
   }, [schoolId]);
 
   const filteredSubmissions = lessonPlans.filter(submission => {
+      if (!submission.date) return true; // Keep plans without a date for now
       const recordDate = submission.date.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
       const matchesSearch = submission.topic.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTeacher = teacherFilter === 'All Teachers' || submission.teacher.name === teacherFilter;
+      const matchesTeacher = teacherFilter === 'All Teachers' || submission.teacher?.name === teacherFilter;
       const matchesClass = classFilter === 'All Classes' || submission.class === classFilter;
       const matchesSubject = subjectFilter === 'All Subjects' || submission.subject === subjectFilter;
 
@@ -157,12 +160,20 @@ export default function AdminLessonPlansPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6">
-        <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-          <BookOpen className="h-8 w-8 text-primary" />
-          Lesson Plan Submissions
-        </h1>
-        <p className="text-muted-foreground">Review and manage lesson plans submitted by all teachers.</p>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+            <BookOpen className="h-8 w-8 text-primary" />
+            Lesson Plan Submissions
+            </h1>
+            <p className="text-muted-foreground">Review and manage lesson plans submitted by all teachers.</p>
+        </div>
+         <Button asChild>
+            <Link href={`/admin/lesson-plans/new?schoolId=${schoolId}`}>
+                <PlusCircle className="mr-2" />
+                Create New Lesson Plan
+            </Link>
+        </Button>
       </div>
       
       <Tabs defaultValue="list-view">
@@ -290,10 +301,10 @@ export default function AdminLessonPlansPage() {
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">
-                                  <AvatarImage src={submission.teacher.avatarUrl} alt={submission.teacher.name} />
-                                  <AvatarFallback>{submission.teacher.name.charAt(0)}</AvatarFallback>
+                                  <AvatarImage src={submission.teacher?.avatarUrl} alt={submission.teacher?.name} />
+                                  <AvatarFallback>{submission.teacher?.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                <span>{submission.teacher.name}</span>
+                                <span>{submission.teacher?.name || 'N/A'}</span>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -345,5 +356,4 @@ export default function AdminLessonPlansPage() {
       </Tabs>
     </div>
   );
-
-    
+}
