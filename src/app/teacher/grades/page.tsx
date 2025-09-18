@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -14,22 +13,32 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   FileText,
-  Save,
-  Loader2,
-  Filter,
-  ChevronDown,
-  Edit,
-  Plus,
-  File,
-  Search,
-  ArrowLeft,
+  PlusCircle,
   Upload,
-  CheckCircle,
-  Columns,
-  X,
+  BarChart as BarChartIcon,
   AlertTriangle,
+  CalendarIcon,
+  ChevronDown,
+  Clock,
+  Trash2,
+  Edit,
+  Save,
+  Copy,
+  Check,
+  X,
+  History,
+  Printer,
+  FileDown,
+  Download,
+  User,
+  ShieldAlert,
+  Bell,
+  Wand2,
+  CheckCircle,
+  XCircle,
+  Columns,
+  Loader2,
   Send,
-  RefreshCcw,
 } from 'lucide-react';
 import {
   Table,
@@ -81,42 +90,219 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
 
 
 type Exam = {
     id: string;
     title: string;
+    class: string;
     classId: string;
-    className: string;
     subject: string;
     date: Timestamp;
-    status: 'Open' | 'Pending Approval' | 'Closed' | 'Grading Complete';
+    duration: number; // in minutes
+    type: 'CAT' | 'Midterm' | 'Final' | 'Practical';
     moderatorFeedback?: string;
+    status: 'Open' | 'Pending Approval' | 'Closed' | 'Grading Complete';
 };
 
-type TeacherClass = {
-  id: string;
-  name: string;
+type GroupedExam = Exam & {
+    isGrouped?: boolean;
+    subjectCount?: number;
+    groupedIds?: string[];
 };
 
-type StudentGradeEntry = {
+type StudentGrade = {
     studentId: string;
     studentName: string;
-    avatarUrl: string;
     admNo: string;
-    score: string;
-    grade: string;
-    gradeStatus: 'Approved' | 'Pending Approval' | 'Unmarked';
-    submissionId?: string;
-    error?: string;
+    avatarUrl: string;
+    scores: Record<string, number>;
 };
+
+type Ranking = {
+    position: number;
+    streamPosition: number;
+    name: string;
+    admNo: string;
+    avatarUrl: string;
+    total: number;
+    avg: number;
+    grade: string;
+};
+
+type AuditLog = {
+  id: string;
+  timestamp: Timestamp;
+  user: { id: string; name: string };
+  student?: string;
+  action: string;
+  details: string;
+};
+
+type PendingGrade = {
+    id: string;
+    studentName: string;
+    studentId: string;
+    subject: string;
+    grade: string;
+    teacherName: string;
+    assessmentTitle: string;
+    examId: string;
+};
+
+
+const examTypes: Exam['type'][] = ['CAT', 'Midterm', 'Final', 'Practical'];
+
+const chartConfig = {
+  average: {
+    label: "Average",
+    color: "hsl(var(--primary))",
+  },
+} satisfies React.ComponentProps<typeof ChartContainer>["config"];
+
+const schoolInfo = {
+    name: "EduSphere High School",
+    motto: "Excellence & Integrity",
+    logoUrl: "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
+};
+
+
+function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { student: Ranking | null, studentGrades: StudentGrade[] | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!student || !studentGrades) return null;
+    
+    const studentData = studentGrades.find(s => s.admNo === student.admNo);
+
+    const handleDownloadPdf = () => {
+        const doc = new jsPDF();
+        
+        doc.setFontSize(22);
+        doc.text(schoolInfo.name, 14, 22);
+        doc.setFontSize(12);
+        doc.text(schoolInfo.motto, 14, 30);
+        doc.setFontSize(16);
+        doc.text("Student Report Card", 105, 40, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.text(`Student: ${student.name}`, 14, 50);
+        doc.text(`Admission No: ${student.admNo}`, 14, 56);
+        doc.text(`Class: Form 4`, 14, 62); // Placeholder class
+
+        (doc as any).autoTable({
+            startY: 70,
+            head: [['Subject', 'Score', 'Grade', 'Comment']],
+            body: studentData ? Object.entries(studentData.scores).map(([subject, score]) => [
+                subject,
+                score,
+                score >= 80 ? 'A' : score >= 65 ? 'B' : 'C',
+                'Good progress.' // Placeholder comment
+            ]) : [],
+        });
+        
+        const finalY = (doc as any).lastAutoTable.finalY || 100;
+        
+        doc.setFontSize(10);
+        doc.text('Summary', 14, finalY + 10);
+        (doc as any).autoTable({
+            startY: finalY + 15,
+            theme: 'plain',
+            body: [
+                ['Total Marks:', `${student.total} / ${studentData ? Object.keys(studentData.scores).length * 100 : 'N/A'}`],
+                ['Average:', `${student.avg.toFixed(1)}%`],
+                ['Mean Grade:', student.grade],
+                ['Class Rank:', `${student.position} of ${studentGrades.length}`],
+            ],
+        });
+
+        doc.save(`report-card-${student.admNo}.pdf`);
+    };
+    
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-3xl">
+                <div id="report-card-content" className="p-8">
+                    <DialogHeader className="border-b pb-4 mb-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <Avatar className="h-16 w-16"><AvatarImage src={schoolInfo.logoUrl} /></Avatar>
+                                <div>
+                                    <DialogTitle className="text-2xl font-headline">{schoolInfo.name}</DialogTitle>
+                                    <DialogDescription className="italic">"{schoolInfo.motto}"</DialogDescription>
+                                </div>
+                            </div>
+                             <div className="text-right">
+                                <h3 className="font-bold text-lg">Student Report Card</h3>
+                                <p className="text-sm text-muted-foreground">Term 2, 2024</p>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    <div className="grid grid-cols-3 gap-4 text-sm mb-6">
+                        <div><span className="font-semibold">Student:</span> {student.name}</div>
+                        <div><span className="font-semibold">Admission No:</span> {student.admNo}</div>
+                        <div><span className="font-semibold">Class:</span> Form 4</div>
+                    </div>
+
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Subject</TableHead>
+                                <TableHead className="text-center">Score</TableHead>
+                                <TableHead>Grade</TableHead>
+                                <TableHead>Comment</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {studentData && Object.entries(studentData.scores).map(([subject, score]) => (
+                                <TableRow key={subject}>
+                                    <TableCell>{subject}</TableCell>
+                                    <TableCell className="text-center font-semibold">{score}</TableCell>
+                                    <TableCell>{score >= 80 ? 'A' : score >= 65 ? 'B' : 'C'}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground italic">Good progress.</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+
+                    <div className="mt-6 grid grid-cols-2 gap-4">
+                        <Card>
+                            <CardHeader><CardTitle className="text-base">Summary</CardTitle></CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="font-semibold">Total Marks:</span><span>{student.total} / {studentData ? Object.keys(studentData.scores).length * 100 : 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="font-semibold">Average:</span><span>{student.avg.toFixed(1)}%</span></div>
+                                <div className="flex justify-between"><span className="font-semibold">Mean Grade:</span><Badge>{student.grade}</Badge></div>
+                                <div className="flex justify-between"><span className="font-semibold">Class Rank:</span><span>{student.position} of ${studentGrades.length}</span></div>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader><CardTitle className="text-base">Comments</CardTitle></CardHeader>
+                            <CardContent className="space-y-4 text-sm">
+                                <div><Label>Class Teacher:</Label><p className="italic text-muted-foreground">A commendable effort this term. Keep focusing in class.</p></div>
+                                <div><Label>Principal:</Label><p className="italic text-muted-foreground">Satisfactory performance. Well done.</p></div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+                <DialogFooter className="border-t pt-4">
+                    <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
+                    <Button onClick={handleDownloadPdf}><Download className="mr-2 h-4 w-4"/>Download as PDF</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 const getCurrentTerm = (): string => {
   const today = new Date();
-  const month = today.getMonth();
-  if (month >= 0 && month <= 3) return `term1-${today.getFullYear()}`;
-  if (month >= 4 && month <= 7) return `term2-${today.getFullYear()}`;
-  return `term3-${today.getFullYear()}`;
+  const month = today.getMonth(); // 0-11
+  const year = today.getFullYear();
+
+  if (month >= 0 && month <= 3) { // Jan - Apr
+    return `term1-${year}`;
+  } else if (month >= 4 && month <= 7) { // May - Aug
+    return `term2-${year}`;
+  } else { // Sep - Dec
+    return `term3-${year}`;
+  }
 };
 
 const generateAcademicTerms = () => {
@@ -128,33 +314,38 @@ const generateAcademicTerms = () => {
         terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
     }
     return terms.sort((a,b) => b.value.localeCompare(a.value));
-};
+}
 
+function RejectGradeDialog({ open, onOpenChange, onSubmit, grade }: { open: boolean, onOpenChange: (open: boolean) => void, onSubmit: (feedback: string) => void, grade: PendingGrade | null }) {
+    const [feedback, setFeedback] = React.useState('');
+    if (!grade) return null;
 
-const getStatusBadge = (status: Exam['status']) => {
-    switch(status) {
-        case 'Open': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">🟢 Open</Badge>;
-        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">🟡 Pending Approval</Badge>;
-        case 'Grading Complete': return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">🔵 Grading Complete</Badge>;
-        case 'Closed': return <Badge variant="destructive" className="bg-red-600">🔴 Closed</Badge>;
-    }
-};
-
-const calculateGrade = (score: number): string => {
-    if (isNaN(score)) return '';
-    if (score >= 80) return 'A';
-    if (score >= 70) return 'A-';
-    if (score >= 65) return 'B+';
-    if (score >= 60) return 'B';
-    if (score >= 55) return 'B-';
-    if (score >= 50) return 'C+';
-    if (score >= 45) return 'C';
-    if (score >= 40) return 'C-';
-    if (score >= 35) return 'D+';
-    if (score >= 30) return 'D';
-    if (score < 30) return 'E';
-    return '';
-};
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reject Grade Submission</DialogTitle>
+                    <DialogDescription>
+                        Provide feedback to the teacher explaining why the grade for {grade.studentName} in {grade.subject} is being rejected. The teacher will be able to edit and resubmit.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="feedback-input">Feedback</Label>
+                    <Textarea
+                        id="feedback-input"
+                        placeholder="e.g., Please double check this score, it seems unusually low..."
+                        value={feedback}
+                        onChange={(e) => setFeedback(e.target.value)}
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={() => onSubmit(feedback)} disabled={!feedback}>Reject &amp; Send Feedback</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBack: () => void, schoolId: string, teacher: { id: string, name: string } }) {
     const { toast } = useToast();
@@ -800,4 +991,3 @@ export default function TeacherGradesPage() {
     </div>
   )
 }
-
