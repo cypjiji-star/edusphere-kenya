@@ -560,7 +560,7 @@ export default function AdminAnnouncementsPage() {
                                     render={({ field }) => (
                                         <FormItem>
                                         <FormLabel>Audience</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select target groups" />
@@ -584,7 +584,7 @@ export default function AdminAnnouncementsPage() {
                                     render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Category</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select a category" />
