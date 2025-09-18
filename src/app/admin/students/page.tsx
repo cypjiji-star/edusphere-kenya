@@ -92,6 +92,7 @@ type Transaction = {
     description: string;
     type: 'Charge' | 'Payment';
     amount: number;
+    balance: number;
 };
 
 type Incident = {
@@ -155,6 +156,7 @@ export default function StudentManagementPage() {
   const [feeStatusFilter, setFeeStatusFilter] = React.useState('All Fee Statuses');
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [selectedStudent, setSelectedStudent] = React.useState<SelectedStudentDetails | null>(null);
+  const [isDialogLoading, setIsDialogLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -207,12 +209,13 @@ export default function StudentManagementPage() {
 
   const openStudentDialog = async (student: Student) => {
     if (!schoolId) return;
-    setIsLoading(true);
+    setIsDialogLoading(true);
+    setSelectedStudent({ ...student, attendance: [], grades: [], transactions: [], incidents: [] }); // Set basic data immediately
 
-    const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', student.id), orderBy('date', 'desc'));
+    const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
     const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
-    const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', '==', student.id), orderBy('date', 'desc'));
-    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', student.id), orderBy('date', 'desc'));
+    const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
+    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
 
     const [attendanceSnap, transactionsSnap, incidentsSnap, gradesSnap] = await Promise.all([
         getDocs(attendanceQuery),
@@ -224,18 +227,8 @@ export default function StudentManagementPage() {
     const attendanceRecords = attendanceSnap.docs.map(d => ({id: d.id, ...d.data()}) as AttendanceRecord);
     const transactionRecords = transactionsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Transaction);
     const incidentRecords = incidentsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Incident);
+    const gradeRecords = gradesSnap.docs.map(d => ({id: d.id, ...d.data(), assessmentTitle: d.data().subject + " Exam"} as GradeRecord));
 
-    const gradeRecords: GradeRecord[] = await Promise.all(gradesSnap.docs.map(async (gradeDoc) => {
-        const gradeData = gradeDoc.data();
-        const assessmentSnap = await getDoc(doc(firestore, 'schools', schoolId!, 'assessments', gradeData.assessmentId));
-        return {
-            id: gradeDoc.id,
-            assessmentTitle: assessmentSnap.data()?.title || 'Unknown Assessment',
-            subject: gradeData.subject,
-            grade: gradeData.grade,
-            date: gradeData.date,
-        }
-    }));
 
     setSelectedStudent({
         ...student,
@@ -244,7 +237,7 @@ export default function StudentManagementPage() {
         transactions: transactionRecords,
         incidents: incidentRecords,
     });
-    setIsLoading(false);
+    setIsDialogLoading(false);
   };
 
   const filteredStudents = students.filter(student => 
@@ -378,7 +371,7 @@ export default function StudentManagementPage() {
             </CardFooter>
         </Card>
         {selectedStudent && (
-             <DialogContent className="sm:max-w-3xl">
+             <DialogContent className="sm:max-w-4xl">
                 <DialogHeader>
                     <div className="flex items-center gap-4">
                         <Avatar className="h-16 w-16">
@@ -393,118 +386,121 @@ export default function StudentManagementPage() {
                         </div>
                     </div>
                 </DialogHeader>
-                <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
-                    <Tabs defaultValue="bio">
-                        <TabsList className="grid w-full grid-cols-4">
-                            <TabsTrigger value="bio">Bio Data</TabsTrigger>
-                            <TabsTrigger value="academics">Academics</TabsTrigger>
-                            <TabsTrigger value="finance">Finance</TabsTrigger>
-                            <TabsTrigger value="health">Health &amp; Incidents</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="bio" className="mt-4">
-                             <Card>
-                                <CardHeader><CardTitle className="text-base">Personal Details</CardTitle></CardHeader>
-                                <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                                    <div><Label>Gender</Label><p>{selectedStudent.gender}</p></div>
-                                    <div><Label>Date of Birth</Label><p>{selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : 'N/A'}</p></div>
-                                    <div><Label>Birth Certificate No.</Label><p className="font-mono">{selectedStudent.birthCertificateNumber || 'N/A'}</p></div>
-                                    <div><Label>NHIF Number</Label><p className="font-mono">{selectedStudent.nhifNumber || 'N/A'}</p></div>
-                                </CardContent>
-                            </Card>
-                            <Card className="mt-4">
-                                <CardHeader><CardTitle className="text-base">Parent / Guardian Details</CardTitle></CardHeader>
-                                <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                                    <div><Label>Name</Label><p>{selectedStudent.parentName}</p></div>
-                                    <div><Label>Primary Contact</Label><p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p></div>
-                                    <div><Label>Email Address</Label><p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentEmail || 'N/A'}</p></div>
-                                    <div><Label>Physical Address</Label><p>{selectedStudent.parentAddress || 'N/A'}</p></div>
-                                    <div><Label>Emergency Contact</Label><p>{selectedStudent.emergencyContactName || 'N/A'} ({selectedStudent.emergencyContactPhone || 'N/A'})</p></div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                        <TabsContent value="academics" className="mt-4 space-y-4">
-                            <Card>
-                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4 text-primary"/>Attendance History</CardTitle></CardHeader>
-                                <CardContent>
-                                    <div className="w-full overflow-auto rounded-lg border max-h-60">
-                                        <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
-                                            <TableBody>
-                                                {selectedStudent.attendance.map(att => <TableRow key={att.id}><TableCell>{att.date.toDate().toLocaleDateString()}</TableCell><TableCell>{getAttendanceStatusBadge(att.status)}</TableCell><TableCell>{att.notes || '—'}</TableCell></TableRow>)}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                             <Card>
-                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart className="h-4 w-4 text-primary"/>Grade History</CardTitle></CardHeader>
-                                <CardContent>
-                                    <div className="w-full overflow-auto rounded-lg border max-h-60">
-                                        <Table>
-                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Assessment</TableHead><TableHead>Subject</TableHead><TableHead className="text-right">Grade</TableHead></TableRow></TableHeader>
-                                            <TableBody>
-                                                {selectedStudent.grades.map(grade => (
-                                                    <TableRow key={grade.id}>
-                                                        <TableCell>{grade.date.toDate().toLocaleDateString()}</TableCell>
-                                                        <TableCell>{grade.assessmentTitle}</TableCell>
-                                                        <TableCell>{grade.subject}</TableCell>
-                                                        <TableCell className="text-right font-semibold">{grade.grade}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                         <TabsContent value="finance" className="mt-4">
-                            <Card>
-                                <CardHeader><CardTitle className="text-base">Full Fee Statement</CardTitle></CardHeader>
-                                <CardContent>
-                                    <div className="w-full overflow-auto rounded-lg border max-h-80">
-                                         <Table>
-                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Charge</TableHead><TableHead className="text-right">Payment</TableHead></TableRow></TableHeader>
-                                            <TableBody>
-                                                {selectedStudent.transactions.map(tx => (
-                                                    <TableRow key={tx.id}>
-                                                        <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
-                                                        <TableCell>{tx.description}</TableCell>
-                                                        <TableCell className="text-right">{tx.type === 'Charge' ? formatCurrency(tx.amount) : '—'}</TableCell>
-                                                        <TableCell className="text-right text-green-600">{tx.type === 'Payment' ? formatCurrency(Math.abs(tx.amount)) : '—'}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </CardContent>
-                                <CardFooter className="font-bold flex justify-end">
-                                    Balance: {formatCurrency(selectedStudent.balance)}
-                                </CardFooter>
-                            </Card>
-                        </TabsContent>
-                        <TabsContent value="health" className="mt-4">
-                             <Card>
-                                <CardHeader><CardTitle className="text-base flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary"/>Incidents &amp; Health Log</CardTitle></CardHeader>
-                                <CardContent>
-                                     <div className="w-full overflow-auto rounded-lg border max-h-80">
-                                         <Table>
-                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Reported By</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                                            <TableBody>
-                                                {selectedStudent.incidents.map(inc => (
-                                                    <TableRow key={inc.id}>
-                                                        <TableCell>{inc.date.toDate().toLocaleDateString()}</TableCell>
-                                                        <TableCell><Badge variant={inc.type === 'Health' ? 'destructive' : 'secondary'}>{inc.type}</Badge></TableCell>
-                                                        <TableCell>{inc.reportedBy}</TableCell>
-                                                        <TableCell><Badge variant="outline">{inc.status}</Badge></TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                     </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
-                </div>
+                 {isDialogLoading ? <div className="h-64 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
+                    <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                        <Tabs defaultValue="bio">
+                            <TabsList className="grid w-full grid-cols-4">
+                                <TabsTrigger value="bio">Bio Data</TabsTrigger>
+                                <TabsTrigger value="academics">Academics</TabsTrigger>
+                                <TabsTrigger value="finance">Finance</TabsTrigger>
+                                <TabsTrigger value="health">Health & Incidents</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="bio" className="mt-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Personal Details</CardTitle></CardHeader>
+                                    <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                                        <div><Label>Gender</Label><p>{selectedStudent.gender}</p></div>
+                                        <div><Label>Date of Birth</Label><p>{selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : 'N/A'}</p></div>
+                                        <div><Label>Birth Certificate No.</Label><p className="font-mono">{selectedStudent.birthCertificateNumber || 'N/A'}</p></div>
+                                        <div><Label>NHIF Number</Label><p className="font-mono">{selectedStudent.nhifNumber || 'N/A'}</p></div>
+                                    </CardContent>
+                                </Card>
+                                <Card className="mt-4">
+                                    <CardHeader><CardTitle className="text-base">Parent / Guardian Details</CardTitle></CardHeader>
+                                    <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                                        <div><Label>Name</Label><p>{selectedStudent.parentName}</p></div>
+                                        <div><Label>Primary Contact</Label><p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p></div>
+                                        <div><Label>Email Address</Label><p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentEmail || 'N/A'}</p></div>
+                                        <div><Label>Physical Address</Label><p>{selectedStudent.parentAddress || 'N/A'}</p></div>
+                                        <div><Label>Emergency Contact</Label><p>{selectedStudent.emergencyContactName || 'N/A'} ({selectedStudent.emergencyContactPhone || 'N/A'})</p></div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent value="academics" className="mt-4 space-y-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4 text-primary"/>Attendance History (Last 5)</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.attendance.map(att => <TableRow key={att.id}><TableCell>{att.date.toDate().toLocaleDateString()}</TableCell><TableCell>{getAttendanceStatusBadge(att.status)}</TableCell><TableCell>{att.notes || '—'}</TableCell></TableRow>)}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart className="h-4 w-4 text-primary"/>Grade History (Last 5)</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Assessment</TableHead><TableHead>Subject</TableHead><TableHead className="text-right">Grade</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.grades.map(grade => (
+                                                        <TableRow key={grade.id}>
+                                                            <TableCell>{grade.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell>{grade.assessmentTitle}</TableCell>
+                                                            <TableCell>{grade.subject}</TableCell>
+                                                            <TableCell className="text-right font-semibold">{grade.grade}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent value="finance" className="mt-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Full Fee Statement</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="w-full overflow-auto rounded-lg border max-h-80">
+                                            <Table>
+                                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Charge</TableHead><TableHead className="text-right">Payment</TableHead><TableHead className="text-right">Balance</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.transactions.map(tx => (
+                                                        <TableRow key={tx.id}>
+                                                            <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell>{tx.description}</TableCell>
+                                                            <TableCell className="text-right">{tx.type === 'Charge' ? formatCurrency(tx.amount) : '—'}</TableCell>
+                                                            <TableCell className="text-right text-green-600">{tx.type === 'Payment' ? formatCurrency(Math.abs(tx.amount)) : '—'}</TableCell>
+                                                             <TableCell className="text-right font-semibold">{formatCurrency(tx.balance)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter className="font-bold flex justify-end">
+                                        Balance: {formatCurrency(selectedStudent.balance)}
+                                    </CardFooter>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent value="health" className="mt-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary"/>Incidents &amp; Health Log (Last 5)</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Reported By</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.incidents.map(inc => (
+                                                        <TableRow key={inc.id}>
+                                                            <TableCell>{inc.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell><Badge variant={inc.type === 'Health' ? 'destructive' : 'secondary'}>{inc.type}</Badge></TableCell>
+                                                            <TableCell>{inc.reportedBy}</TableCell>
+                                                            <TableCell><Badge variant="outline">{inc.status}</Badge></TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
+                 )}
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
                 </DialogFooter>
