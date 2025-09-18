@@ -20,7 +20,7 @@ export default function TeacherLayout({
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
-            <Suspense>{children}</Suspense>
+            {children}
              <div className="absolute bottom-6 right-6 z-50 flex flex-col gap-4">
               <NotificationCenter />
             </div>
