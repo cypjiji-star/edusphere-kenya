@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
@@ -19,6 +20,7 @@ import { AdminChatLayout } from '@/app/admin/messaging/chat-layout';
 import { TeacherChatLayout } from '@/app/teacher/messaging/chat-layout';
 import { ParentChatLayout } from '@/app/parent/messaging/chat-layout';
 import { cn } from '@/lib/utils';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 export function MessagingShortcut() {
   const { user, role } = useAuth();
@@ -78,6 +80,12 @@ export function MessagingShortcut() {
         className="p-0 border-0 max-w-md h-[70vh] flex flex-col"
         onInteractOutside={(e) => e.preventDefault()}
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>Messaging Window</DialogTitle>
+          <VisuallyHidden>
+            <DialogDescription>A compact window for real-time chat with school support. Send and receive messages without leaving the current page.</DialogDescription>
+          </VisuallyHidden>
+        </DialogHeader>
         <div className="h-full w-full bg-[#1A1B1F] text-white rounded-lg overflow-hidden">
           {renderChatLayout()}
         </div>
