@@ -45,7 +45,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, addDoc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 type DraggableSubjectType = {
@@ -55,7 +55,8 @@ type DraggableSubjectType = {
 };
 
 type Period = { id: number; time: string; isBreak?: boolean; title?: string };
-type TimetableData = Record<string, Record<string, { subject: DraggableSubjectType; room: string; clash?: any }>>;
+type TimetableData = Record<string, Record<string, { subject: DraggableSubjectType; room: string; clash?: { with: string; message: string } }>>;
+type AllTimetables = Record<string, TimetableData>;
 
 const subjectColors = [
     'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-yellow-500', 'bg-teal-500', 'bg-red-500', 'bg-indigo-500'
@@ -120,6 +121,7 @@ export function TimetableBuilder() {
   const [view, setView] = React.useState('Class View');
   const [selectedItem, setSelectedItem] = React.useState<string | undefined>();
   const [timetable, setTimetable] = React.useState<TimetableData>({});
+  const [allTimetables, setAllTimetables] = React.useState<AllTimetables>({});
   const [periods, setPeriods] = React.useState<Period[]>([]);
   const [allClasses, setAllClasses] = React.useState<{id: string, name: string}[]>([]);
   const [allTeachers, setAllTeachers] = React.useState<string[]>([]);
@@ -136,7 +138,7 @@ export function TimetableBuilder() {
   React.useEffect(() => {
     if (!schoolId) return;
 
-    let unsubTimetable = () => {};
+    let unsubTimetables: () => void = () => {};
 
     const unsubClasses = onSnapshot(collection(firestore, `schools/${schoolId}/classes`), (snapshot) => {
       const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
@@ -169,30 +171,35 @@ export function TimetableBuilder() {
         setSubjects(subjectsData);
     });
 
-    if (selectedItem) {
-      setIsLoading(true);
-      const timetableRef = doc(firestore, `schools/${schoolId}/timetables`, selectedItem);
-      unsubTimetable = onSnapshot(timetableRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setTimetable(docSnap.data() as TimetableData);
-        } else {
-          setTimetable({});
+    setIsLoading(true);
+    const timetablesQuery = query(collection(firestore, `schools/${schoolId}/timetables`));
+    unsubTimetables = onSnapshot(timetablesQuery, (snapshot) => {
+        const fetchedTimetables: AllTimetables = {};
+        snapshot.forEach(doc => {
+            fetchedTimetables[doc.id] = doc.data() as TimetableData;
+        });
+        setAllTimetables(fetchedTimetables);
+        if (selectedItem) {
+          setTimetable(fetchedTimetables[selectedItem] || {});
         }
         setIsLoading(false);
-      });
-    } else {
-        setIsLoading(false);
-    }
-
+    });
+    
     return () => {
       unsubClasses();
       unsubPeriods();
       unsubTeachers();
       unsubSubjects();
-      unsubTimetable();
+      unsubTimetables();
     }
-  }, [schoolId, selectedItem]);
+  }, [schoolId]);
 
+  React.useEffect(() => {
+    if (selectedItem) {
+      setTimetable(allTimetables[selectedItem] || {});
+    }
+  }, [selectedItem, allTimetables]);
+  
   const addPeriod = () => {
     const newId = periods.length > 0 ? Math.max(...periods.map(p => p.id)) + 1 : 1;
     setPeriods([...periods, { id: newId, time: '00:00 - 00:00' }]);
@@ -236,15 +243,39 @@ export function TimetableBuilder() {
     )
   }
 
+  const checkForClashes = (
+    day: string,
+    periodTime: string,
+    subject: DraggableSubjectType,
+    currentTimetableId: string,
+    allTimetablesData: AllTimetables
+  ) => {
+    for (const timetableId in allTimetablesData) {
+      if (timetableId === currentTimetableId) continue;
+      const otherTimetable = allTimetablesData[timetableId];
+      const otherLesson = otherTimetable[day]?.[periodTime];
+      if (otherLesson && otherLesson.subject.teacher === subject.teacher) {
+        const conflictingClassName = allClasses.find(c => c.id === timetableId)?.name || timetableId;
+        return {
+          with: conflictingClassName,
+          message: `${subject.teacher} is already teaching ${otherLesson.subject.name} in ${conflictingClassName}.`,
+        };
+      }
+    }
+    return undefined;
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { over, active } = event;
     const subject = active.data.current?.subject as DraggableSubjectType | undefined;
 
-    if (over && subject) {
+    if (over && subject && selectedItem) {
         const [day, periodIdStr] = over.id.toString().split('-');
         const periodId = parseInt(periodIdStr, 10);
         const periodTime = periods.find(p => p.id === periodId)?.time;
         if (!periodTime) return;
+
+        const clash = checkForClashes(day, periodTime, subject, selectedItem, allTimetables);
 
         setTimetable(prev => {
             const newTimetable = { ...prev };
@@ -253,10 +284,23 @@ export function TimetableBuilder() {
             }
             newTimetable[day][periodTime] = {
                 subject,
-                room: 'Room TBD' // Placeholder room
+                room: 'Room TBD', // Placeholder room
+                clash,
             };
             return newTimetable;
         });
+
+        // Update the global state to reflect the change immediately for clash detection
+        setAllTimetables(prev => ({
+            ...prev,
+            [selectedItem]: {
+                ...(prev[selectedItem] || {}),
+                [day]: {
+                    ...(prev[selectedItem]?.[day] || {}),
+                    [periodTime]: { subject, room: 'Room TBD', clash }
+                }
+            }
+        }));
     }
   }
   
@@ -267,6 +311,14 @@ export function TimetableBuilder() {
             delete newTimetable[day][periodTime];
         }
         return newTimetable;
+    });
+     // Update the global state
+    setAllTimetables(prev => {
+        const newAllTimetables = { ...prev };
+        if (selectedItem && newAllTimetables[selectedItem]?.[day]?.[periodTime]) {
+            delete newAllTimetables[selectedItem][day][periodTime];
+        }
+        return newAllTimetables;
     });
   }
 
