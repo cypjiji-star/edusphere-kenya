@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { firestore, storage, auth } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc, getDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc, getDoc, writeBatch, getDocs, where, runTransaction } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -111,7 +111,7 @@ const enrolmentSchema = z.object({
   parentLastName: z.string().min(2, 'Parent\'s last name is required.'),
   parentRelationship: z.string({ required_error: 'Relationship is required.' }),
   parentEmail: z.string().email('Invalid email address.'),
-  parentPassword: z.string().min(8, 'Password must be at least 8 characters.'),
+  parentPassword: z.string().min(8, 'Password must be at least 8 characters.').optional(),
   parentPhone: z.string().min(10, 'A valid phone number is required.'),
   parentAltPhone: z.string().optional(),
   parentAddress: z.string().optional(),
@@ -183,7 +183,7 @@ export default function StudentEnrolmentPage() {
             admissionNumber: '',
             birthCertificateNumber: '',
             classId: '',
-            admissionYear: '',
+            admissionYear: new Date().getFullYear().toString(),
             amountPaid: '0',
             parentFirstName: '',
             parentLastName: '',
@@ -381,18 +381,61 @@ export default function StudentEnrolmentPage() {
         setAdmissionDocs(prev => prev.filter((_, i) => i !== index));
     };
 
+    const generateAdmissionNumber = async (schoolId: string, admissionYear: string) => {
+        const counterRef = doc(firestore, `schools/${schoolId}/counters/student_admissions`);
+        let nextNumber = 1;
+    
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const counterDoc = await transaction.get(counterRef);
+                if (!counterDoc.exists()) {
+                    transaction.set(counterRef, { count: 1 });
+                } else {
+                    nextNumber = counterDoc.data().count + 1;
+                    transaction.update(counterRef, { count: nextNumber });
+                }
+            });
+        } catch (error) {
+            console.error("Transaction failed: ", error);
+            // Fallback to a random number if transaction fails to avoid blocking enrolment
+            return `SCH-${admissionYear}-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+        
+        return `SCH-${admissionYear}-${String(nextNumber).padStart(3, '0')}`;
+    };
+
     async function onSubmit(values: EnrolmentFormValues) {
         if (!schoolId || !adminUser) {
             toast({ title: 'Error', description: 'School ID or Admin user is missing.', variant: 'destructive'});
             return;
         }
         setIsSubmitting(true);
+        
         try {
-            // Step 1: Create the parent user in Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(auth, values.parentEmail, values.parentPassword);
-            const parentUser = userCredential.user;
+            let parentUserId;
+            let parentIsNew = false;
 
-            // Step 2: Fetch fee structure for the selected class
+            // Step 1: Check if parent exists.
+            const parentQuery = query(collection(firestore, `schools/${schoolId}/parents`), where('email', '==', values.parentEmail));
+            const parentQuerySnapshot = await getDocs(parentQuery);
+
+            if (parentQuerySnapshot.empty) {
+                // Parent does not exist, create new auth user.
+                if (!values.parentPassword) {
+                    throw new Error('Password is required for new parent accounts.');
+                }
+                const userCredential = await createUserWithEmailAndPassword(auth, values.parentEmail, values.parentPassword);
+                parentUserId = userCredential.user.uid;
+                parentIsNew = true;
+            } else {
+                // Parent exists, use their ID.
+                parentUserId = parentQuerySnapshot.docs[0].id;
+            }
+
+            // Step 2: Generate Admission Number if not provided
+            const admissionNumber = values.admissionNumber || await generateAdmissionNumber(schoolId, values.admissionYear);
+
+            // Step 3: Fetch fee structure for the selected class
             const feeStructureRef = doc(firestore, `schools/${schoolId}/fee-structures`, values.classId);
             const feeStructureSnap = await getDoc(feeStructureRef);
             let totalFee = 0;
@@ -401,7 +444,7 @@ export default function StudentEnrolmentPage() {
                 totalFee = feeItems.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
             }
 
-            // Step 3: Upload files
+            // Step 4: Upload files
             let photoUrl = '';
             if (profilePhotoFile) {
                 const storageRef = ref(storage, `${schoolId}/profile_photos/${Date.now()}_${profilePhotoFile.name}`);
@@ -416,31 +459,34 @@ export default function StudentEnrolmentPage() {
                     return getDownloadURL(storageRef);
                 })
             );
-
-            // Step 4: Create Firestore documents
+            
+            // Step 5: Prepare Firestore Documents in a Batch
+            const batch = writeBatch(firestore);
             const studentName = `${values.studentFirstName} ${values.studentLastName}`;
             const parentName = `${values.parentFirstName} ${values.parentLastName}`;
             
-            const parentDocRef = doc(firestore, 'schools', schoolId, 'parents', parentUser.uid);
-            const parentData = {
-                id: parentUser.uid,
-                schoolId: schoolId,
-                name: parentName,
-                email: values.parentEmail,
-                phone: values.parentPhone,
-                altPhone: values.parentAltPhone,
-                address: values.parentAddress,
-                role: 'Parent',
-                status: 'Active',
-                createdAt: serverTimestamp(),
-                avatarUrl: `https://picsum.photos/seed/${values.parentEmail}/100`,
-            };
-             await setDoc(parentDocRef, parentData);
+            // Create parent document ONLY if they are new
+            if (parentIsNew) {
+                const parentDocRef = doc(firestore, 'schools', schoolId, 'parents', parentUserId);
+                batch.set(parentDocRef, {
+                    id: parentUserId,
+                    schoolId: schoolId,
+                    name: parentName,
+                    email: values.parentEmail,
+                    phone: values.parentPhone,
+                    altPhone: values.parentAltPhone || null,
+                    address: values.parentAddress || null,
+                    role: 'Parent',
+                    status: 'Active',
+                    createdAt: serverTimestamp(),
+                    avatarUrl: `https://picsum.photos/seed/${values.parentEmail}/100`,
+                });
+            }
 
             const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
             const amountPaid = Number(values.amountPaid) || 0;
             
-            const studentData = {
+            batch.set(studentDocRef, {
                 id: studentDocRef.id,
                 schoolId: schoolId,
                 name: studentName,
@@ -448,21 +494,21 @@ export default function StudentEnrolmentPage() {
                 lastName: values.studentLastName,
                 dateOfBirth: Timestamp.fromDate(values.dateOfBirth),
                 gender: values.gender,
-                admissionNumber: values.admissionNumber,
-                birthCertificateNumber: values.birthCertificateNumber,
-                nhifNumber: values.nhifNumber,
+                admissionNumber: admissionNumber,
+                birthCertificateNumber: values.birthCertificateNumber || null,
+                nhifNumber: values.nhifNumber || null,
                 classId: values.classId,
                 class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
                 admissionYear: values.admissionYear,
-                parentId: parentUser.uid,
+                parentId: parentUserId,
                 parentName: parentName,
                 parentRelationship: values.parentRelationship,
                 parentEmail: values.parentEmail,
                 parentPhone: values.parentPhone,
-                allergies: values.allergies,
-                medicalConditions: values.medicalConditions,
-                emergencyContactName: values.emergencyContactName,
-                emergencyContactPhone: values.emergencyContactPhone,
+                allergies: values.allergies || 'None',
+                medicalConditions: values.medicalConditions || 'None',
+                emergencyContactName: values.emergencyContactName || null,
+                emergencyContactPhone: values.emergencyContactPhone || null,
                 status: 'Approved',
                 createdAt: serverTimestamp(),
                 avatarUrl: photoUrl,
@@ -471,38 +517,34 @@ export default function StudentEnrolmentPage() {
                 amountPaid: amountPaid,
                 totalFee: totalFee,
                 balance: totalFee - amountPaid,
-            };
-            await setDoc(studentDocRef, studentData);
-
-            // Step 5: Log and notify
-            await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
-                title: 'New Student Enrolled',
-                description: `${studentName} has been enrolled and is now active in the system.`,
-                createdAt: serverTimestamp(),
-                read: false,
-                href: `/admin/users?schoolId=${schoolId}`,
             });
 
+            await batch.commit();
+
+            // Step 6: Log and notify
             await logAuditEvent({
                 schoolId,
                 action: 'STUDENT_ENROLLED',
                 actionType: 'User Management',
                 description: `New student ${studentName} enrolled.`,
                 user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-                details: `Class: ${studentData.class}, Parent: ${parentName}`,
-            });
-            await logAuditEvent({
-                schoolId,
-                action: 'PARENT_ACCOUNT_CREATED',
-                actionType: 'User Management',
-                description: `New parent account created for ${parentName}.`,
-                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-                details: `Email: ${parentData.email}, Linked Student: ${studentName}`,
+                details: `Class: ${classOptions.find(c => c.value === values.classId)?.label}, Parent: ${parentName}`,
             });
 
+            if (parentIsNew) {
+                await logAuditEvent({
+                    schoolId,
+                    action: 'PARENT_ACCOUNT_CREATED',
+                    actionType: 'User Management',
+                    description: `New parent account created for ${parentName}.`,
+                    user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                    details: `Email: ${values.parentEmail}, Linked Student: ${studentName}`,
+                });
+            }
+
             toast({
-                title: 'Enrolment Submitted & Parent Account Created',
-                description: `${studentName} has been submitted for enrolment and a portal account for ${parentName} has been created.`,
+                title: 'Enrolment Successful!',
+                description: `${studentName} has been enrolled and the parent account for ${parentName} is ${parentIsNew ? 'created' : 'linked'}.`,
             });
 
             form.reset();
@@ -516,6 +558,8 @@ export default function StudentEnrolmentPage() {
                 errorMessage = 'This parent email is already registered. Please use a different email or log in to their existing account to add another child.';
             } else if (error.code === 'auth/weak-password') {
                 errorMessage = 'The password is too weak. It must be at least 8 characters long.';
+            } else {
+                 errorMessage = error.message;
             }
             console.error("Error submitting enrolment:", error);
             toast({
@@ -727,7 +771,7 @@ export default function StudentEnrolmentPage() {
                             <Separator className="my-6" />
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={form.control} name="parentEmail" render={({ field }) => ( <FormItem><FormLabel>Parent's Login Email</FormLabel><FormControl><Input type="email" placeholder="parent@example.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                <FormField control={form.control} name="parentPassword" render={({ field }) => ( <FormItem><FormLabel>Set Initial Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                <FormField control={form.control} name="parentPassword" render={({ field }) => ( <FormItem><FormLabel>Set Initial Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormDescription>Only required for new parent accounts.</FormDescription><FormMessage /></FormItem> )}/>
                              </div>
                         </CardContent>
                     </Card>
@@ -853,7 +897,7 @@ export default function StudentEnrolmentPage() {
                     </Card>
                 </div>
             </div>
-             <CardFooter className="flex justify-end p-0 pt-6 gap-2">
+             <CardFooter className="flex flex-col md:flex-row md:justify-end p-0 pt-6 gap-2">
                 <Button type="button" variant="secondary" className="w-full md:w-auto" onClick={handleSaveDraft}>
                     Save as Draft
                 </Button>
