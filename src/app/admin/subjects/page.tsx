@@ -304,7 +304,7 @@ export default function ClassesAndSubjectsPage() {
         return load;
     }, [classAssignments]);
 
-    const OVER_ASSIGNED_THRESHOLD = 3;
+    const OVER_ASSIGNED_THRESHOLD = 5;
     
     const resetNewClassForm = () => {
         setNewClassName('');
@@ -555,7 +555,8 @@ export default function ClassesAndSubjectsPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
+                    {/* Desktop Table */}
+                    <div className="w-full overflow-auto rounded-lg border hidden md:block">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -685,6 +686,44 @@ export default function ClassesAndSubjectsPage() {
                             </TableBody>
                         </Table>
                     </div>
+                     {/* Mobile Cards */}
+                    <div className="grid grid-cols-1 gap-4 md:hidden">
+                        {classes.map(schoolClass => (
+                            <Card key={schoolClass.id}>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle>{schoolClass.name} {schoolClass.stream || ''}</CardTitle>
+                                        {schoolClass.status === 'Graduated' ? 
+                                            <Badge variant="outline" className="text-purple-600 border-purple-500"><GraduationCap className="mr-1 h-3 w-3"/>Graduated</Badge> : 
+                                            <Badge>Active</Badge>
+                                        }
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-sm space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <UserCheck className="h-4 w-4 text-muted-foreground"/>
+                                            <span>Class Teacher: {schoolClass.classTeacher.name}</span>
+                                        </div>
+                                         <div className="flex items-center gap-2">
+                                            <Users className="h-4 w-4 text-muted-foreground"/>
+                                            <span>Enrollment: {schoolClass.studentCount} / {schoolClass.capacity}</span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="flex justify-end">
+                                     <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" size="sm">
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </Button>
+                                        </DialogTrigger>
+                                        {/* DialogContent for mobile edit would be same as desktop */}
+                                    </Dialog>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
                 </CardContent>
             </Card>
         </TabsContent>
@@ -768,7 +807,8 @@ export default function ClassesAndSubjectsPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
+                    {/* Desktop Table */}
+                    <div className="w-full overflow-auto rounded-lg border hidden md:block">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -801,6 +841,34 @@ export default function ClassesAndSubjectsPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                    </div>
+                    {/* Mobile Cards */}
+                    <div className="grid grid-cols-1 gap-4 md:hidden">
+                        {subjects.map(subject => (
+                            <Card key={subject.id}>
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <CardTitle className="text-base">{subject.name}</CardTitle>
+                                        <Badge variant="outline">{subject.code}</Badge>
+                                    </div>
+                                    <CardDescription>{subject.department}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Label>Teachers</Label>
+                                     <div className="flex flex-wrap gap-1 mt-2">
+                                        {(subject.teachers || []).map(teacher => (
+                                            <Badge key={teacher} variant="secondary" className="font-normal">{teacher}</Badge>
+                                        ))}
+                                        {(subject.teachers || []).length === 0 && <p className="text-xs text-muted-foreground">No teachers assigned</p>}
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="flex justify-end">
+                                    <Button variant="outline" size="sm" onClick={() => setEditingSubject(subject)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
                 </CardContent>
             </Card>
@@ -845,7 +913,7 @@ export default function ClassesAndSubjectsPage() {
                     {currentClassForAssignment ? (
                     <TooltipProvider>
                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
+                            <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
                                 <div>
                                     <CardTitle className="text-lg">{currentClassForAssignment.name} {currentClassForAssignment.stream || ''}</CardTitle>
                                     <CardDescription>Class Teacher: {currentClassForAssignment.classTeacher.name}</CardDescription>
@@ -866,7 +934,7 @@ export default function ClassesAndSubjectsPage() {
                                         const isOverAssigned = assignment.teacher && (teacherWorkload[assignment.teacher] || 0) > OVER_ASSIGNED_THRESHOLD;
 
                                         return (
-                                        <div key={assignment.subject} className="flex items-center justify-between border-b py-3">
+                                        <div key={assignment.subject} className="flex flex-col gap-2 md:flex-row md:items-center justify-between border-b py-3">
                                             <span className="font-medium">{assignment.subject}</span>
                                             <div className="flex items-center gap-2">
                                                  {isOverAssigned && (
@@ -882,12 +950,12 @@ export default function ClassesAndSubjectsPage() {
                                                 <Popover>
                                                     <PopoverTrigger asChild>
                                                         {assignment.teacher ? (
-                                                            <Button variant="outline" size="sm" className="w-48 justify-start text-left">
+                                                            <Button variant="outline" size="sm" className="w-full md:w-48 justify-start text-left">
                                                                 <User className="mr-2 h-4 w-4 text-muted-foreground"/>
                                                                 <span className="truncate">{assignment.teacher}</span>
                                                             </Button>
                                                         ) : (
-                                                            <Button variant="destructive" size="sm" className="w-48 justify-start">
+                                                            <Button variant="destructive" size="sm" className="w-full md:w-48 justify-start">
                                                                 <AlertCircle className="mr-2 h-4 w-4" />
                                                                 Unassigned
                                                             </Button>
