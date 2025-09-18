@@ -105,6 +105,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 // Import the improved DateRangePicker
 import { DateRangePicker } from '@/components/ui/date-picker';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type GradeStatus = 'Graded' | 'Pending';
 
@@ -144,6 +145,7 @@ type GradingScaleItem = {
   grade: string;
   min: number;
   max: number;
+  isDefault?: boolean;
 };
 
 type SubjectPerformance = {
@@ -182,18 +184,18 @@ const getGradeFromScore = (score: number) => {
 };
 
 const initialGradingScale: GradingScaleItem[] = [
-  { grade: 'A', min: 80, max: 100 },
-  { grade: 'A-', min: 75, max: 79 },
-  { grade: 'B+', min: 70, max: 74 },
-  { grade: 'B', min: 65, max: 69 },
-  { grade: 'B-', min: 60, max: 64 },
-  { grade: 'C+', min: 55, max: 59 },
-  { grade: 'C', min: 50, max: 54 },
-  { grade: 'C-', min: 45, max: 49 },
-  { grade: 'D+', min: 40, max: 44 },
-  { grade: 'D', min: 35, max: 39 },
-  { grade: 'D-', min: 30, max: 34 },
-  { grade: 'E', min: 0, max: 29 },
+  { grade: 'A', min: 80, max: 100, isDefault: true },
+  { grade: 'A-', min: 75, max: 79, isDefault: true },
+  { grade: 'B+', min: 70, max: 74, isDefault: true },
+  { grade: 'B', min: 65, max: 69, isDefault: true },
+  { grade: 'B-', min: 60, max: 64, isDefault: true },
+  { grade: 'C+', min: 55, max: 59, isDefault: true },
+  { grade: 'C', min: 50, max: 54, isDefault: true },
+  { grade: 'C-', min: 45, max: 49, isDefault: true },
+  { grade: 'D+', min: 40, max: 44, isDefault: true },
+  { grade: 'D', min: 35, max: 39, isDefault: true },
+  { grade: 'D-', min: 30, max: 34, isDefault: true },
+  { grade: 'E', min: 0, max: 29, isDefault: true },
 ];
 
 function EditRequestsTab({ schoolId }: { schoolId: string }) {
@@ -329,6 +331,11 @@ export default function AdminGradesPage() {
   const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
   const [isSavingScale, setIsSavingScale] = React.useState(false);
   const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
+  
+  const [newExamTitle, setNewExamTitle] = React.useState('');
+  const [newExamClass, setNewExamClass] = React.useState<string>('');
+  const [newExamNotes, setNewExamNotes] = React.useState('');
+  const [isSavingExam, setIsSavingExam] = React.useState(false);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: undefined,
     to: undefined,
@@ -340,14 +347,8 @@ export default function AdminGradesPage() {
     return [`Term 1, ${year}`, `Term 2, ${year}`, `Term 3, ${year}`];
   }).flat();
   academicTerms.push(...[`Term 1, ${currentYear + 1}`, `Term 2, ${currentYear + 1}`, `Term 3, ${currentYear + 1}`]);
-
-  const [newExamTitle, setNewExamTitle] = React.useState('');
   const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[4]);
-  const [newExamClass, setNewExamClass] = React.useState<string>('');
-  const [newExamNotes, setNewExamNotes] = React.useState('');
-  const [isSavingExam, setIsSavingExam] = React.useState(false);
 
-  // Memoized handlers to stabilize props
   const handleDateChange = React.useCallback((range: DateRange | undefined) => {
     setDate(range);
   }, []);
@@ -544,16 +545,26 @@ export default function AdminGradesPage() {
     fetchGradebookData();
   }, [schoolId, selectedClassForRanking]);
 
-  const handleGradingScaleChange = (index: number, field: 'min' | 'max', value: string) => {
+  const handleGradingScaleChange = (index: number, field: 'min' | 'max' | 'grade', value: string) => {
     const newScale = [...gradingScale];
-    const numericValue = parseInt(value, 10);
-    newScale[index][field] = isNaN(numericValue) ? 0 : numericValue;
+    if (field === 'min' || field === 'max') {
+        const numericValue = parseInt(value, 10);
+        newScale[index][field] = isNaN(numericValue) ? 0 : numericValue;
+    } else {
+        newScale[index][field] = value;
+    }
     setGradingScale(newScale);
   };
   
+  const handleGradingScaleCheckboxChange = (index: number, checked: boolean) => {
+    const newScale = [...gradingScale];
+    newScale[index].isDefault = checked;
+    setGradingScale(newScale);
+  };
+
 
   const addGradingRow = () => {
-    setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0 }]);
+    setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0, isDefault: false }]);
   };
 
   const handleSaveScale = async () => {
@@ -1209,11 +1220,8 @@ export default function AdminGradesPage() {
                           <TableCell>
                             <Input
                               value={item.grade}
-                              onChange={(e) => {
-                                const newScale = [...gradingScale];
-                                newScale[index].grade = e.target.value;
-                                setGradingScale(newScale);
-                              }}
+                              onChange={(e) => handleGradingScaleChange(index, 'grade', e.target.value)}
+                              disabled={item.isDefault}
                             />
                           </TableCell>
                           <TableCell>
@@ -1221,6 +1229,7 @@ export default function AdminGradesPage() {
                               type="number"
                               value={item.min}
                               onChange={(e) => handleGradingScaleChange(index, 'min', e.target.value)}
+                              disabled={item.isDefault}
                             />
                           </TableCell>
                           <TableCell>
@@ -1228,6 +1237,7 @@ export default function AdminGradesPage() {
                               type="number"
                               value={item.max}
                               onChange={(e) => handleGradingScaleChange(index, 'max', e.target.value)}
+                              disabled={item.isDefault}
                             />
                           </TableCell>
                         </TableRow>
