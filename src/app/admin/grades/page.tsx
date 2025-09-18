@@ -80,7 +80,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -94,16 +94,28 @@ type Exam = {
     type: 'CAT' | 'Midterm' | 'Final' | 'Practical';
 };
 
+type StudentGrade = {
+    studentId: string;
+    studentName: string;
+    admNo: string;
+    avatarUrl: string;
+    scores: Record<string, number>;
+};
+
+type Ranking = {
+    position: number;
+    streamPosition: number;
+    name: string;
+    admNo: string;
+    avatarUrl: string;
+    total: number;
+    avg: number;
+    grade: string;
+};
+
 const mockClasses = ['Form 1', 'Form 2', 'Form 3', 'Form 4'];
 const mockSubjects = ['Mathematics', 'English', 'Kiswahili', 'Chemistry', 'Physics', 'Biology', 'History', 'Geography', 'CRE', 'Business Studies', 'Computer Science'];
 const examTypes: Exam['type'][] = ['CAT', 'Midterm', 'Final', 'Practical'];
-const mockStudents = [
-    { id: 'stu-001', name: 'John Doe', admNo: '1234', avatarUrl: 'https://picsum.photos/seed/student1/100', scores: { Mathematics: 85, English: 72, Chemistry: 65, Physics: 78, Biology: 81 } },
-    { id: 'stu-002', name: 'Jane Smith', admNo: '1235', avatarUrl: 'https://picsum.photos/seed/student2/100', scores: { Mathematics: 92, English: 88, Chemistry: 75, Physics: 85, Biology: 90 } },
-    { id: 'stu-003', name: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', scores: { Mathematics: 65, English: 58, Chemistry: 50, Physics: 61, Biology: 55 } },
-    { id: 'stu-004', name: 'Mary Anne', admNo: '1237', avatarUrl: 'https://picsum.photos/seed/student4/100', scores: { Mathematics: 98, English: 95, Chemistry: 91, Physics: 89, Biology: 94 } },
-];
-const gradebookSubjects = ['Mathematics', 'English', 'Chemistry', 'Physics', 'Biology'];
 
 const mockPendingGrades = [
     { id: 'grd-001', studentName: 'John Doe', admNo: '1234', class: 'Form 4', subject: 'Mathematics', score: 85, enteredBy: 'Mr. Otieno', flagged: false },
@@ -115,13 +127,6 @@ const mockGradeLog = [
     { id: 'log-001', timestamp: '2024-07-29 10:05 AM', user: 'Mr. Otieno', student: 'John Doe (1234)', action: 'Entered grade', details: 'Maths Midterm: 85' },
     { id: 'log-002', timestamp: '2024-07-29 10:06 AM', user: 'Mr. Otieno', student: 'Jane Smith (1235)', action: 'Entered grade', details: 'Maths Midterm: 92' },
     { id: 'log-003', timestamp: '2024-07-29 11:30 AM', user: 'Ms. Wanjiku (HOD)', student: 'John Doe (1234)', action: 'Approved grade', details: 'Maths Midterm: 85' },
-];
-
-const mockRanking = [
-    { position: 1, streamPosition: 1, name: 'Mary Anne', admNo: '1237', avatarUrl: 'https://picsum.photos/seed/student4/100', total: 467, avg: 93.4, grade: 'A' },
-    { position: 2, streamPosition: 2, name: 'Jane Smith', admNo: '1235', avatarUrl: 'https://picsum.photos/seed/student2/100', total: 435, avg: 87.0, grade: 'A-' },
-    { position: 3, streamPosition: 3, name: 'John Doe', admNo: '1234', avatarUrl: 'https://picsum.photos/seed/student1/100', total: 381, avg: 76.2, grade: 'B+' },
-    { position: 4, streamPosition: 4, name: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', total: 289, avg: 57.8, grade: 'C' },
 ];
 
 const subjectPerformanceData = [
@@ -151,8 +156,10 @@ const aiInsights = [
 ]
 
 
-function ReportCardDialog({ student, open, onOpenChange }: { student: typeof mockRanking[0] | null, open: boolean, onOpenChange: (open: boolean) => void }) {
-    if (!student) return null;
+function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { student: Ranking | null, studentGrades: StudentGrade[] | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!student || !studentGrades) return null;
+    
+    const studentData = studentGrades.find(s => s.admNo === student.admNo);
 
     const handleDownloadPdf = () => {
         const doc = new jsPDF();
@@ -205,7 +212,7 @@ function ReportCardDialog({ student, open, onOpenChange }: { student: typeof moc
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Object.entries(mockStudents.find(s => s.admNo === student.admNo)!.scores).map(([subject, score]) => (
+                            {studentData && Object.entries(studentData.scores).map(([subject, score]) => (
                                 <TableRow key={subject}>
                                     <TableCell>{subject}</TableCell>
                                     <TableCell className="text-center font-semibold">{score}</TableCell>
@@ -220,10 +227,10 @@ function ReportCardDialog({ student, open, onOpenChange }: { student: typeof moc
                         <Card>
                             <CardHeader><CardTitle className="text-base">Summary</CardTitle></CardHeader>
                             <CardContent className="space-y-2 text-sm">
-                                <div className="flex justify-between"><span className="font-semibold">Total Marks:</span><span>{student.total} / 500</span></div>
+                                <div className="flex justify-between"><span className="font-semibold">Total Marks:</span><span>{student.total} / {studentData ? Object.keys(studentData.scores).length * 100 : 'N/A'}</span></div>
                                 <div className="flex justify-between"><span className="font-semibold">Average:</span><span>{student.avg.toFixed(1)}%</span></div>
                                 <div className="flex justify-between"><span className="font-semibold">Mean Grade:</span><Badge>{student.grade}</Badge></div>
-                                <div className="flex justify-between"><span className="font-semibold">Class Rank:</span><span>{student.position} of 32</span></div>
+                                <div className="flex justify-between"><span className="font-semibold">Class Rank:</span><span>{student.position} of {studentGrades.length}</span></div>
                             </CardContent>
                         </Card>
                          <Card>
@@ -250,7 +257,9 @@ export default function AdminGradesPage() {
     const { toast } = useToast();
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
-    const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<typeof mockRanking[0] | null>(null);
+    const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
+    const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
+    const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
 
     // State for the create exam form
     const [examTitle, setExamTitle] = React.useState('');
@@ -264,12 +273,79 @@ export default function AdminGradesPage() {
         if (!schoolId) return;
 
         const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), orderBy('date', 'desc'));
-        const unsubscribe = onSnapshot(examsQuery, (snapshot) => {
+        const unsubscribeExams = onSnapshot(examsQuery, (snapshot) => {
             const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
             setExams(fetchedExams);
         });
 
-        return () => unsubscribe();
+        // Real-time listener for grades to update ranking
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
+        const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
+            const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number> }> = {};
+            const studentPromises = [];
+            
+            for (const doc of snapshot.docs) {
+                const gradeData = doc.data();
+                if (!gradeData.studentId || !gradeData.subject || isNaN(parseInt(gradeData.grade))) continue;
+
+                if (!gradesByStudent[gradeData.studentId]) {
+                    gradesByStudent[gradeData.studentId] = { studentId: gradeData.studentId, scores: {} };
+                    studentPromises.push(getDoc(gradeData.studentRef));
+                }
+                gradesByStudent[gradeData.studentId].scores[gradeData.subject] = parseInt(gradeData.grade);
+            }
+            
+            const studentDocs = await Promise.all(studentPromises);
+            const studentDataMap = new Map(studentDocs.map(doc => [doc.id, doc.data()]));
+            
+            const studentScores: StudentGrade[] = Object.values(gradesByStudent).map(data => {
+                const studentInfo = studentDataMap.get(data.studentId);
+                return {
+                    studentId: data.studentId,
+                    studentName: studentInfo?.name || 'Unknown',
+                    admNo: studentInfo?.admissionNumber || 'N/A',
+                    avatarUrl: studentInfo?.avatarUrl || '',
+                    scores: data.scores
+                }
+            });
+            
+            setStudentGrades(studentScores);
+
+            const calculatedRanking: Omit<Ranking, 'position' | 'streamPosition'>[] = studentScores.map(student => {
+                const subjectCount = Object.keys(student.scores).length;
+                const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
+                const avg = subjectCount > 0 ? total / subjectCount : 0;
+                let grade;
+                if (avg >= 80) grade = 'A';
+                else if (avg >= 65) grade = 'B';
+                else if (avg >= 50) grade = 'C';
+                else if (avg >= 40) grade = 'D';
+                else grade = 'E';
+
+                return {
+                    name: student.studentName,
+                    admNo: student.admNo,
+                    avatarUrl: student.avatarUrl,
+                    total,
+                    avg,
+                    grade,
+                };
+            });
+            
+            // Sort by total score and assign rank
+            const sortedRanking = calculatedRanking.sort((a, b) => b.total - a.total).map((student, index) => ({
+                ...student,
+                position: index + 1,
+                streamPosition: index + 1, // Placeholder for stream rank
+            }));
+            
+            setClassRanking(sortedRanking);
+        });
+
+        return () => {
+            unsubscribeExams();
+            unsubscribeGrades();
+        };
     }, [schoolId]);
 
     const handleCreateExam = async () => {
@@ -295,7 +371,7 @@ export default function AdminGradesPage() {
             
             await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'New Exam Scheduled',
-                description: `A new ${examType} exam, "${examTitle}", has been scheduled for your ${examClass} class on ${format(examDate, 'PPP')}.`,
+                description: `A new ${examType} exam, "${examTitle}", has been scheduled for ${examClass} on ${format(examDate, 'PPP')}.`,
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/teacher/assignments?schoolId=${schoolId}`,
@@ -338,7 +414,6 @@ export default function AdminGradesPage() {
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/parent/grades?schoolId=${schoolId}`,
-                // In a real app, this would be targeted, not a general notification
             });
             toast({
                 title: 'Results Published!',
@@ -355,7 +430,7 @@ export default function AdminGradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-        <ReportCardDialog student={selectedStudentForReport} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
+        <ReportCardDialog student={selectedStudentForReport} studentGrades={studentGrades} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades & Exams</h1>
         <p className="text-muted-foreground">Manage exams, grades, and academic reports.</p>
@@ -557,7 +632,7 @@ export default function AdminGradesPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Student</TableHead>
-                                        {gradebookSubjects.map(sub => (
+                                        {mockSubjects.slice(0, 5).map(sub => (
                                             <TableHead key={sub} className="text-center">{sub.substring(0,3).toUpperCase()}</TableHead>
                                         ))}
                                         <TableHead className="text-right font-bold">Total</TableHead>
@@ -565,27 +640,27 @@ export default function AdminGradesPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {mockStudents.map(student => {
+                                    {studentGrades.map(student => {
                                         const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
                                         const mean = total / Object.keys(student.scores).length;
                                         const grade = mean >= 80 ? 'A' : mean >= 65 ? 'B' : 'C';
 
                                         return (
-                                        <TableRow key={student.id}>
+                                        <TableRow key={student.studentId}>
                                             <TableCell>
                                                  <div className="flex items-center gap-3">
                                                     <Avatar className="h-9 w-9">
-                                                        <AvatarImage src={student.avatarUrl} alt={student.name} />
-                                                        <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                                                        <AvatarImage src={student.avatarUrl} alt={student.studentName} />
+                                                        <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
                                                     </Avatar>
                                                     <div>
-                                                        <span className="font-medium">{student.name}</span>
+                                                        <span className="font-medium">{student.studentName}</span>
                                                         <p className="text-xs text-muted-foreground">Adm: {student.admNo}</p>
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                             {gradebookSubjects.map(sub => (
-                                                <TableCell key={sub} className="text-center">{student.scores[sub as keyof typeof student.scores] || '—'}</TableCell>
+                                             {mockSubjects.slice(0, 5).map(sub => (
+                                                <TableCell key={sub} className="text-center">{student.scores[sub] || '—'}</TableCell>
                                             ))}
                                             <TableCell className="text-right font-bold">{total}</TableCell>
                                             <TableCell className="text-right font-bold">
@@ -765,7 +840,7 @@ export default function AdminGradesPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {mockRanking.map(student => (
+                                        {classRanking.map(student => (
                                             <TableRow key={student.admNo}>
                                                 <TableCell className="font-bold">{student.position}</TableCell>
                                                 <TableCell className="font-bold">{student.streamPosition}</TableCell>
