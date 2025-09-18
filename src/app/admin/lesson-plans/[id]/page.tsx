@@ -22,18 +22,41 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { LessonPlanForm } from '../new/lesson-plan-form';
+import * as React from 'react';
+import { firestore } from '@/lib/firebase';
+import { collection, doc, onSnapshot, orderBy, query, Timestamp } from 'firebase/firestore';
 
 
-const versionHistory = [
-    { version: 3, date: '2024-07-28 10:00 AM', author: 'Ms. Wanjiku', summary: 'Added new assessment method.' },
-    { version: 2, date: '2024-07-27 03:20 PM', author: 'Ms. Wanjiku', summary: 'Revised learning activities.' },
-    { version: 1, date: '2024-07-26 09:00 AM', author: 'Ms. Wanjiku', summary: 'Initial draft created.' },
-]
+type VersionHistoryItem = {
+    id: string;
+    version: number;
+    date: Timestamp;
+    author: string;
+    summary: string;
+};
 
 export default function EditLessonPlanPage({ params, searchParams }: { params: { id: string }, searchParams: { date?: string, schoolId: string }}) {
   const { id: lessonPlanId } = params;
   const { schoolId, date: prefilledDate } = searchParams;
-  const isEditMode = !!lessonPlanId;
+  const isEditMode = !!lessonPlanId && lessonPlanId !== 'new';
+  const [versionHistory, setVersionHistory] = React.useState<VersionHistoryItem[]>([]);
+
+  React.useEffect(() => {
+    if (!isEditMode || !schoolId) return;
+
+    const historyQuery = query(
+        collection(firestore, `schools/${schoolId}/lesson-plans/${lessonPlanId}/history`),
+        orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(historyQuery, (snapshot) => {
+        const historyData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as VersionHistoryItem));
+        setVersionHistory(historyData);
+    });
+
+    return () => unsubscribe();
+  }, [lessonPlanId, schoolId, isEditMode]);
+
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -103,9 +126,9 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {versionHistory.map((version) => (
-                                <div key={version.version} className="flex items-start gap-4">
+                                <div key={version.id} className="flex items-start gap-4">
                                     <Avatar>
-                                        <AvatarImage src="https://picsum.photos/seed/teacher-avatar/100" />
+                                        <AvatarImage src={`https://picsum.photos/seed/${version.author}/100`} />
                                         <AvatarFallback>{version.author.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1 space-y-1">
@@ -114,13 +137,16 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
                                                 Version {version.version}
                                                 <span className="font-normal text-muted-foreground"> by {version.author}</span>
                                             </p>
-                                            <p className="text-xs text-muted-foreground">{version.date}</p>
+                                            <p className="text-xs text-muted-foreground">{version.date.toDate().toLocaleString()}</p>
                                         </div>
                                         <p className="text-sm text-muted-foreground">{version.summary}</p>
                                     </div>
                                     <Button variant="outline" size="sm" disabled>Restore</Button>
                                 </div>
                             ))}
+                            {versionHistory.length === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-8">No version history found.</p>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
