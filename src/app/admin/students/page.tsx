@@ -93,6 +93,7 @@ type Transaction = {
     type: 'Charge' | 'Payment';
     amount: number;
     balance: number;
+    notes?: string;
 };
 
 type Incident = {
@@ -324,7 +325,8 @@ export default function StudentManagementPage() {
             {isLoading ? (
                 <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
             ) : (
-                <div className="w-full overflow-auto rounded-lg border">
+            <>
+                <div className="w-full overflow-auto rounded-lg border hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -362,6 +364,34 @@ export default function StudentManagementPage() {
                 </TableBody>
               </Table>
             </div>
+             <div className="grid grid-cols-1 gap-4 md:hidden">
+                {filteredStudents.map((student) => (
+                    <DialogTrigger asChild key={student.id}>
+                        <Card className="cursor-pointer" onClick={() => openStudentDialog(student)}>
+                            <CardHeader>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                            <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <CardTitle className="text-base">{student.name}</CardTitle>
+                                            <CardDescription>Adm: {student.admissionNumber}</CardDescription>
+                                        </div>
+                                    </div>
+                                    {getStatusBadge(student.status)}
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex justify-between items-center text-sm">
+                                <span>{student.class}</span>
+                                {getFeeStatusBadge(student.feeStatus)}
+                            </CardContent>
+                        </Card>
+                    </DialogTrigger>
+                ))}
+            </div>
+            </>
             )}
           </CardContent>
            <CardFooter>
@@ -462,8 +492,8 @@ export default function StudentManagementPage() {
                                                         <TableRow key={tx.id}>
                                                             <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
                                                             <TableCell>{tx.description}</TableCell>
-                                                            <TableCell className="text-right">{tx.type === 'Charge' ? formatCurrency(tx.amount) : '—'}</TableCell>
-                                                            <TableCell className="text-right text-green-600">{tx.type === 'Payment' ? formatCurrency(Math.abs(tx.amount)) : '—'}</TableCell>
+                                                            <TableCell className={`text-right ${tx.type === 'Charge' ? 'text-destructive' : ''}`}>{tx.type === 'Charge' ? formatCurrency(tx.amount) : '—'}</TableCell>
+                                                            <TableCell className={`text-right text-green-600`}>{tx.type === 'Payment' ? formatCurrency(Math.abs(tx.amount)) : '—'}</TableCell>
                                                              <TableCell className="text-right font-semibold">{formatCurrency(tx.balance)}</TableCell>
                                                         </TableRow>
                                                     ))}
