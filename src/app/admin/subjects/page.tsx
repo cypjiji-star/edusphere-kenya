@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -41,6 +40,17 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -102,6 +112,7 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
     const [selectedSubjects, setSelectedSubjects] = React.useState<string[]>(() => {
         return (classAssignments[schoolClass.id] || []).map(a => a.subject);
     });
+    const [isSaving, setIsSaving] = React.useState(false);
 
     const handleCheckboxChange = (subjectName: string, checked: boolean) => {
         setSelectedSubjects(prev => 
@@ -110,6 +121,7 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
     };
 
     const handleSaveChanges = async () => {
+        setIsSaving(true);
         const assignments = selectedSubjects.map(subjectName => {
             const existing = (classAssignments[schoolClass.id] || []).find(a => a.subject === subjectName);
             return existing || { subject: subjectName, teacher: null };
@@ -124,6 +136,8 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
         } catch (e) {
             console.error("Failed to save subject assignments:", e);
             toast({ title: 'Save Failed', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -153,7 +167,12 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <DialogClose asChild><Button onClick={handleSaveChanges}>Save</Button></DialogClose>
+                    <DialogClose asChild>
+                        <Button onClick={handleSaveChanges} disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save
+                        </Button>
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -263,6 +282,8 @@ export default function ClassesAndSubjectsPage() {
     // State for editing subject
     const [editingSubject, setEditingSubject] = React.useState<Subject | null>(null);
     const [selectedAssignmentClass, setSelectedAssignmentClass] = React.useState<string>('');
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [isSaving, setIsSaving] = React.useState(false);
 
 
     React.useEffect(() => {
@@ -274,6 +295,7 @@ export default function ClassesAndSubjectsPage() {
             if (!selectedAssignmentClass && fetchedClasses.length > 0) {
               setSelectedAssignmentClass(fetchedClasses[0].id);
             }
+            setIsLoading(false);
         });
         const unsubSubjects = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
             setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
@@ -322,9 +344,11 @@ export default function ClassesAndSubjectsPage() {
             return;
         }
 
+        setIsSaving(true);
         const teacher = teachers.find(t => t.id === newClassTeacherId);
         if (!teacher) {
             toast({ title: 'Invalid Teacher', description: 'Selected teacher could not be found.', variant: 'destructive' });
+            setIsSaving(false);
             return;
         }
 
@@ -345,12 +369,15 @@ export default function ClassesAndSubjectsPage() {
         } catch (error) {
             console.error('Error creating class:', error);
             toast({ title: 'Creation Failed', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
         }
     };
     
     const handleUpdateClass = async (classId: string, updates: Partial<SchoolClass>) => {
         if (!schoolId) return;
         
+        setIsSaving(true);
         try {
             const classRef = doc(firestore, 'schools', schoolId, 'classes', classId);
             await updateDoc(classRef, updates);
@@ -375,11 +402,13 @@ export default function ClassesAndSubjectsPage() {
         } catch (error) {
             console.error('Error updating class:', error);
             toast({ title: 'Update Failed', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
         }
     };
 
 
-    const handleExport = (type: 'PDF' | 'CSV' | 'Print', tab: 'classes' | 'subjects') => {
+    const handleExport = (type: 'PDF' | 'CSV' | 'Print', tab: 'classes' | 'subjects' | 'assignments') => {
         let headers: string[] = [];
         let body: (string | number)[][] = [];
         let title = '';
@@ -390,11 +419,17 @@ export default function ClassesAndSubjectsPage() {
             body = classes.map(c => [c.name, c.stream || '-', c.classTeacher.name, `${c.studentCount}/${c.capacity}`]);
             title = 'Class List';
             filename = 'class-list';
-        } else {
+        } else if (tab === 'subjects') {
             headers = ['Subject', 'Code', 'Department', 'Assigned Teachers'];
             body = subjects.map(s => [s.name, s.code, s.department, (s.teachers || []).join(', ')]);
             title = 'Subject List';
             filename = 'subject-list';
+        } else { // Assignments
+            const className = classes.find(c => c.id === selectedAssignmentClass)?.name || '';
+            headers = ['Subject', 'Assigned Teacher'];
+            body = (classAssignments[selectedAssignmentClass] || []).map(a => [a.subject, a.teacher || 'Unassigned']);
+            title = `Teacher Assignments for ${className}`;
+            filename = `assignments-${className.replace(/\s+/g, '-')}`;
         }
 
         if (type === 'Print') {
@@ -428,6 +463,7 @@ export default function ClassesAndSubjectsPage() {
 
     const handleAssignTeacher = async (classId: string, subject: string, teacherName: string) => {
         if (!schoolId) return;
+        setIsSaving(true);
         const currentAssignments = classAssignments[classId] || [];
         const updatedAssignments = currentAssignments.map(a => 
             a.subject === subject ? { ...a, teacher: teacherName } : a
@@ -443,14 +479,13 @@ export default function ClassesAndSubjectsPage() {
         } catch (error) {
             console.error("Failed to assign teacher:", error);
             toast({ title: 'Assignment Failed', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
         }
     };
     
     const handleDelete = async (collectionName: string, id: string, name: string) => {
         if (!schoolId) return;
-         if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-            return;
-        }
         try {
             await deleteDoc(doc(firestore, `schools/${schoolId}/${collectionName}`, id));
             toast({
@@ -468,6 +503,7 @@ export default function ClassesAndSubjectsPage() {
             toast({ title: 'Missing Information', variant: 'destructive' });
             return;
         }
+        setIsSaving(true);
         try {
             await addDoc(collection(firestore, `schools/${schoolId}/subjects`), {
                 name: newSubjectName,
@@ -485,17 +521,22 @@ export default function ClassesAndSubjectsPage() {
         } catch(e) {
             console.error(e);
             toast({ title: 'Creation Failed', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
         }
     }
     
     const handleUpdateSubject = async (id: string, data: Partial<Subject>) => {
         if (!schoolId) return;
+        setIsSaving(true);
         try {
             await updateDoc(doc(firestore, 'schools', schoolId, 'subjects', id), data);
             toast({ title: 'Subject Updated' });
         } catch (e) {
             console.error(e);
             toast({ title: 'Update Failed', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
         }
     };
     
@@ -576,7 +617,10 @@ export default function ClassesAndSubjectsPage() {
                                     <DialogFooter>
                                         <DialogClose asChild><Button variant="outline" onClick={resetNewClassForm}>Cancel</Button></DialogClose>
                                         <DialogClose asChild>
-                                            <Button onClick={handleCreateClass}>Save Class</Button>
+                                            <Button onClick={handleCreateClass} disabled={isSaving}>
+                                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                Save Class
+                                            </Button>
                                         </DialogClose>
                                     </DialogFooter>
                                 </DialogContent>
@@ -647,27 +691,29 @@ export default function ClassesAndSubjectsPage() {
                                                     </Button>
                                                 </DialogTrigger>
                                                 <DialogContent>
+                                                    <form onSubmit={(e) => {
+                                                        e.preventDefault();
+                                                        const formData = new FormData(e.currentTarget);
+                                                        const teacherId = formData.get('teacherId') as string;
+                                                        const teacher = teachers.find(t => t.id === teacherId);
+                                                        const updates: Partial<SchoolClass> = {
+                                                            name: formData.get('className') as string,
+                                                            stream: formData.get('stream') as string,
+                                                            capacity: Number(formData.get('capacity')),
+                                                            status: formData.get('status') as 'Active' | 'Graduated'
+                                                        };
+                                                        if (teacher) {
+                                                            updates.teacherId = teacherId;
+                                                            updates.classTeacher = { name: teacher.name, avatarUrl: teacher.avatarUrl };
+                                                        }
+                                                        handleUpdateClass(schoolClass.id, updates);
+                                                    }}>
                                                     <DialogHeader>
                                                         <DialogTitle>Edit Class: {schoolClass.name} {schoolClass.stream || ''}</DialogTitle>
                                                         <DialogDescription>
                                                             Update the details for this class.
                                                         </DialogDescription>
                                                     </DialogHeader>
-                                                    <form onSubmit={(e) => {
-                                                        e.preventDefault();
-                                                        const formData = new FormData(e.currentTarget);
-                                                        const teacherId = formData.get('teacherId') as string;
-                                                        const teacher = teachers.find(t => t.id === teacherId);
-                                                        const updates = {
-                                                            name: formData.get('className') as string,
-                                                            stream: formData.get('stream') as string,
-                                                            teacherId: teacherId,
-                                                            classTeacher: { name: teacher?.name, avatarUrl: teacher?.avatarUrl },
-                                                            capacity: Number(formData.get('capacity')),
-                                                            status: formData.get('status') as 'Active' | 'Graduated'
-                                                        };
-                                                        handleUpdateClass(schoolClass.id, updates);
-                                                    }}>
                                                     <div className="grid gap-4 py-4">
                                                         <div className="grid grid-cols-4 items-center gap-4">
                                                             <Label htmlFor="className" className="text-right">Class Name</Label>
@@ -708,17 +754,30 @@ export default function ClassesAndSubjectsPage() {
                                                         </div>
                                                     </div>
                                                     <DialogFooter className="justify-between">
-                                                         <DialogClose asChild>
-                                                            <Button type="button" variant="destructive" onClick={() => handleDelete('classes', schoolClass.id, `${schoolClass.name} ${schoolClass.stream || ''}`)}>
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Archive Class
-                                                            </Button>
-                                                        </DialogClose>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button type="button" variant="destructive">
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Archive Class
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>This will archive the class. This action cannot be easily undone.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => handleDelete('classes', schoolClass.id, `${schoolClass.name} ${schoolClass.stream || ''}`)}>Continue</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
                                                         <div className="flex gap-2">
                                                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                                                            <DialogClose asChild>
-                                                                <Button type="submit">Save Changes</Button>
-                                                            </DialogClose>
+                                                            <Button type="submit" disabled={isSaving}>
+                                                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                                Save Changes
+                                                            </Button>
                                                         </div>
                                                     </DialogFooter>
                                                     </form>
@@ -829,7 +888,10 @@ export default function ClassesAndSubjectsPage() {
                                      <DialogFooter>
                                         <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                                         <DialogClose asChild>
-                                            <Button onClick={handleCreateSubject}>Save Subject</Button>
+                                            <Button onClick={handleCreateSubject} disabled={isSaving}>
+                                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                Save Subject
+                                            </Button>
                                         </DialogClose>
                                     </DialogFooter>
                                 </DialogContent>
@@ -955,7 +1017,8 @@ export default function ClassesAndSubjectsPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {currentClassForAssignment ? (
+                    {isLoading ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> :
+                    currentClassForAssignment ? (
                     <TooltipProvider>
                         <Card>
                             <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
