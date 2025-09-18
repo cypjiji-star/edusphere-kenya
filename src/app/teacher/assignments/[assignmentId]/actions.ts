@@ -20,39 +20,48 @@ export async function saveGradeAction(
   }
 
   try {
-    const q = query(
-      collection(firestore, 'schools', schoolId, 'assignments', assignmentId, 'submissions'),
-      where('studentRef', '==', doc(firestore, 'schools', schoolId, 'students', studentId))
-    );
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      throw new Error('Submission not found for this student.');
-    }
-    
-    const submissionDoc = querySnapshot.docs[0];
-    const oldGrade = submissionDoc.data().grade || 'N/A';
-
-    await updateDoc(submissionDoc.ref, {
-      ...data,
-      status: 'Graded',
-    });
-
+    const gradeRef = doc(collection(firestore, `schools/${schoolId}/grades`));
     const studentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'students', studentId));
     const assignmentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'assignments', assignmentId));
+
+    if (!studentSnap.exists() || !assignmentSnap.exists()) {
+      throw new Error("Student or assignment not found.");
+    }
+    
     const studentData = studentSnap.data();
     const assignmentData = assignmentSnap.data();
 
+    const isEditing = !!data.submissionId;
+    const status = isEditing ? 'Pending Approval' : 'Approved';
+
+    await setDoc(gradeRef, {
+        grade: data.grade,
+        feedback: data.feedback,
+        examId: assignmentId, // Use assignmentId as examId for consistency
+        studentId: studentId,
+        studentRef: doc(firestore, 'schools', schoolId, 'students', studentId),
+        subject: assignmentData.subject || 'N/A',
+        classId: assignmentData.classId,
+        date: assignmentData.dueDate,
+        teacherName: actor.name,
+        status: status,
+    }, { merge: true });
+
+    const action = isEditing ? 'GRADE_UPDATED' : 'GRADE_ENTERED';
+    const description = isEditing ?
+        `Changed grade for ${studentData.name} to ${data.grade} in "${assignmentData.title}". Change is pending approval.` :
+        `Entered grade ${data.grade} for ${studentData.name} in "${assignmentData.title}".`;
+    
     await logAuditEvent({
         schoolId,
-        action: 'GRADE_UPDATED',
+        action,
         actionType: 'Academics',
         user: { id: actor.id, name: actor.name, role: 'Teacher' },
-        details: `Changed ${assignmentData?.subject || 'score'} for AdmNo: ${studentData?.admissionNumber || studentId}, ${studentData?.name || 'student'} from ${oldGrade} to ${data.grade} in "${assignmentData?.title || 'assignment'}".`,
+        details: description,
     });
 
     revalidatePath(`/teacher/assignments/${assignmentId}?schoolId=${schoolId}`);
-    return { success: true, message: 'Grade saved successfully!' };
+    return { success: true, message: 'Grade saved successfully!', status };
 
   } catch (error) {
     console.error("Error saving grade:", error);

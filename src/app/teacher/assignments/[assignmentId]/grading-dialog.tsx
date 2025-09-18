@@ -38,6 +38,7 @@ import { useAuth } from '@/context/auth-context';
 export const gradingSchema = z.object({
   grade: z.string().min(1, 'Grade is required.'),
   feedback: z.string().optional(),
+  submissionId: z.string().optional(), // To track if we're editing
 });
 
 export type GradingFormValues = z.infer<typeof gradingSchema>;
@@ -47,7 +48,7 @@ interface GradingDialogProps {
   assignmentId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onGradeSave: (studentId: string, grade: string) => void;
+  onGradeSave: (studentId: string, grade: string, status: 'Approved' | 'Pending Approval') => void;
 }
 
 export function GradingDialog({
@@ -75,6 +76,7 @@ export function GradingDialog({
       form.reset({
         grade: student.grade || '',
         feedback: student.feedback || '',
+        submissionId: student.submissionId
       });
     }
   }, [student, form]);
@@ -91,8 +93,8 @@ export function GradingDialog({
     const result = await saveGradeAction(schoolId, student.studentId, assignmentId, values, actor);
 
     setIsLoading(false);
-    if (result.success) {
-      onGradeSave(student.studentId, values.grade);
+    if (result.success && result.status) {
+      onGradeSave(student.studentId, values.grade, result.status);
       onOpenChange(false);
     }
   };

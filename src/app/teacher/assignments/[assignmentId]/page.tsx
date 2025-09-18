@@ -101,6 +101,7 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                 submittedDate: (data.submittedDate as Timestamp)?.toDate().toISOString(),
                 grade: data.grade,
                 feedback: data.feedback,
+                submissionId: doc.id,
             }
         }));
         setSubmissions(subs);
@@ -113,13 +114,13 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
     }
   }, [assignmentId, schoolId, toast]);
 
-  const handleGradeSave = (studentId: string, grade: string) => {
+  const handleGradeSave = (studentId: string, grade: string, status: 'Approved' | 'Pending Approval') => {
     setSubmissions(prev => 
       prev.map(s => s.studentId === studentId ? { ...s, grade, status: 'Graded' } : s)
     );
     toast({
       title: 'Grade Saved!',
-      description: `The grade for the submission has been successfully saved.`,
+      description: `The grade for the submission has been saved and is now ${status === 'Pending Approval' ? 'pending approval' : 'approved'}.`,
     });
   };
 

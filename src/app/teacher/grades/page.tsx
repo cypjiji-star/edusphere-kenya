@@ -28,6 +28,7 @@ import {
   X,
   AlertTriangle,
   Send,
+  RefreshCcw,
 } from 'lucide-react';
 import {
   Table,
@@ -68,7 +69,7 @@ type Exam = {
     className: string;
     subject: string;
     date: Timestamp;
-    status: 'Open' | 'Pending Approval' | 'Closed';
+    status: 'Open' | 'Pending Approval' | 'Closed' | 'Grading Complete';
     moderatorFeedback?: string;
 };
 
@@ -84,6 +85,7 @@ type StudentGradeEntry = {
     admNo: string;
     score: string;
     grade: string;
+    gradeStatus: 'Approved' | 'Pending Approval' | 'Unmarked';
     submissionId?: string;
     error?: string;
 };
@@ -91,10 +93,9 @@ type StudentGradeEntry = {
 const getCurrentTerm = (): string => {
   const today = new Date();
   const month = today.getMonth();
-  const year = today.getFullYear();
-  if (month >= 0 && month <= 3) return `term1-${year}`;
-  if (month >= 4 && month <= 7) return `term2-${year}`;
-  return `term3-${year}`;
+  if (month >= 0 && month <= 3) return `term1-${today.getFullYear()}`;
+  if (month >= 4 && month <= 7) return `term2-${today.getFullYear()}`;
+  return `term3-${today.getFullYear()}`;
 };
 
 const generateAcademicTerms = () => {
@@ -113,6 +114,7 @@ const getStatusBadge = (status: Exam['status']) => {
     switch(status) {
         case 'Open': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">🟢 Open</Badge>;
         case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">🟡 Pending Approval</Badge>;
+        case 'Grading Complete': return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">🔵 Grading Complete</Badge>;
         case 'Closed': return <Badge variant="destructive" className="bg-red-600">🔴 Closed</Badge>;
     }
 };
@@ -147,7 +149,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
 
         Promise.all([getDocs(studentsQuery), getDocs(gradesQuery)]).then(([studentsSnap, gradesSnap]) => {
-            const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade }]));
+            const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
             
             const studentData = studentsSnap.docs.map(doc => {
                 const data = doc.data();
@@ -160,6 +162,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                     admNo: data.admissionNumber || '',
                     score: score,
                     grade: score ? calculateGrade(Number(score)) : '',
+                    gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
                     submissionId: existingGrade?.submissionId,
                 }
             });
@@ -191,6 +194,9 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         if (!student) return;
 
         try {
+            const isEditing = !!student.submissionId;
+            const status = isEditing ? 'Pending Approval' : 'Approved';
+
             const gradeRef = student.submissionId ? doc(firestore, 'schools', schoolId, 'grades', student.submissionId) : doc(collection(firestore, 'schools', schoolId, 'grades'));
             await setDoc(gradeRef, {
                 grade: score,
@@ -201,12 +207,16 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 classId: exam.classId,
                 date: exam.date,
                 teacherName: teacher.name,
-                status: 'Pending Approval'
+                status: status
             }, { merge: true });
+            
+            toast({
+                title: 'Grade Saved!',
+                description: `The grade for ${student.studentName} is saved and ${status === 'Pending Approval' ? 'awaits approval' : 'is approved'}.`,
+            });
 
-            if (!student.submissionId) {
-                setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id } : s));
-            }
+            setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id, gradeStatus: status } : s));
+
         } catch (e) {
             console.error(e);
             toast({ title: 'Error', description: 'Failed to save grade.', variant: 'destructive'});
@@ -217,19 +227,19 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         setIsSaving(true);
         try {
             const examRef = doc(firestore, 'schools', schoolId, 'exams', exam.id);
-            await updateDoc(examRef, { status: 'Pending Approval' });
+            await updateDoc(examRef, { status: 'Grading Complete' });
             
             await logAuditEvent({
                 schoolId,
                 action: 'GRADES_SUBMITTED',
                 actionType: 'Academics',
                 user: { id: teacher.id, name: teacher.name, role: 'Teacher' },
-                details: `Submitted all grades for exam: "${exam.title}" - ${exam.className}.`,
+                details: `Finished grading for exam: "${exam.title}" - ${exam.className}.`,
             });
             
             toast({
-                title: 'Grades Submitted!',
-                description: 'All grades for this exam have been submitted for moderation.',
+                title: 'Grading Complete!',
+                description: 'All grades for this exam have been recorded. Any edits will require admin approval.',
             });
             onBack();
         } catch(e) {
@@ -271,8 +281,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
     const gradedCount = students.filter(s => s.score !== '' && !s.error).length;
     const totalStudents = students.length;
     const progress = totalStudents > 0 ? (gradedCount / totalStudents) * 100 : 0;
-    const allGraded = gradedCount === totalStudents;
-    const isLocked = exam.status !== 'Open';
+    const isLocked = exam.status === 'Closed';
     
     return (
         <Card>
@@ -282,35 +291,19 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 </Button>
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle className="font-headline text-2xl">{isLocked ? 'View Marks:' : 'Enter Marks:'} {exam.title}</CardTitle>
+                        <CardTitle className="font-headline text-2xl">Enter Marks: {exam.title}</CardTitle>
                         <CardDescription>{exam.className} - {exam.subject}</CardDescription>
                     </div>
                     {isLocked ? (
                         <Button variant="secondary" onClick={handleRequestUnlock}>
-                            <Send className="mr-2 h-4 w-4" />
+                            <RefreshCcw className="mr-2 h-4 w-4" />
                             Request Unlock
                         </Button>
                     ) : (
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button disabled={!allGraded || isSaving}>
-                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
-                                    Submit All Grades
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will submit all {gradedCount} grades for moderation. You will not be able to edit them after this point.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleSubmitAllGrades}>Confirm &amp; Submit</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                         <Button onClick={handleSubmitAllGrades} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
+                            Mark as Complete
+                        </Button>
                     )}
                 </div>
                  <div className="pt-4 space-y-2">
@@ -339,11 +332,12 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                 <TableHead className="w-[300px]">Student</TableHead>
                                 <TableHead className="w-[200px]">Mark / Score (out of 100)</TableHead>
                                 <TableHead className="w-[150px]">Auto-Grade</TableHead>
+                                <TableHead className="w-[150px]">Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                         {isLoading ? (
-                            <TableRow><TableCell colSpan={3} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
+                            <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
                         ) : filteredStudents.map((student, index) => (
                             <TableRow key={student.studentId}>
                                 <TableCell>
@@ -378,6 +372,14 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                     <Badge variant={!student.score || student.error ? "outline" : "default"} className="text-lg font-bold p-2 w-12 justify-center">
                                         {student.grade || '—'}
                                     </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {student.gradeStatus === 'Pending Approval' ? 
+                                        <Badge variant="secondary" className="bg-yellow-500 text-white">Pending</Badge> :
+                                    student.gradeStatus === 'Approved' ?
+                                        <Badge variant="default" className="bg-green-600">Approved</Badge> :
+                                        <Badge variant="outline">Unmarked</Badge>
+                                    }
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -422,6 +424,17 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                      <Badge variant={!student.score || student.error ? "outline" : "default"} className="text-lg font-bold p-2 w-16 justify-center block">
                                         {student.grade || '—'}
                                     </Badge>
+                                </div>
+                                <div className="space-y-2">
+                                     <Label>Status</Label>
+                                     <div>
+                                        {student.gradeStatus === 'Pending Approval' ? 
+                                            <Badge variant="secondary" className="bg-yellow-500 text-white">Pending</Badge> :
+                                        student.gradeStatus === 'Approved' ?
+                                            <Badge variant="default" className="bg-green-600">Approved</Badge> :
+                                            <Badge variant="outline">Unmarked</Badge>
+                                        }
+                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -723,11 +736,9 @@ export default function TeacherGradesPage() {
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {exam.status === 'Open' ? (
-                                                <Button size="sm" onClick={() => setSelectedExam(exam)}>Enter Marks</Button>
-                                            ) : (
-                                                <Button size="sm" onClick={() => setSelectedExam(exam)} variant="outline">View Results</Button>
-                                            )}
+                                            <Button size="sm" onClick={() => setSelectedExam(exam)}>
+                                                {exam.status === 'Open' ? 'Enter Marks' : 'View Results'}
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))

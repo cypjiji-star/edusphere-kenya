@@ -9,4 +9,5 @@ export type Submission = {
   submittedDate?: string;
   grade?: string;
   feedback?: string;
+  submissionId?: string; // Add this to track the submission document ID
 };
