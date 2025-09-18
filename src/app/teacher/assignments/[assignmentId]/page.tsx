@@ -48,6 +48,11 @@ import type { DocumentData } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
+export async function generateStaticParams() {
+    return [];
+}
+
+
 const getStatusBadge = (status: Submission['status']) => {
     switch(status) {
         case 'Graded': return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Graded</Badge>;

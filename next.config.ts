@@ -1,14 +1,19 @@
 
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // ✅ Recommended for stability
+  reactStrictMode: true,
+
+  // ✅ Ignore type + lint errors during build
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
+
+  // ✅ Disable Next.js image optimization (important for Capacitor)
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -44,6 +49,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  // ✅ Make sure we are using "output: export" for Capacitor
+  output: 'export',
 };
 
 export default nextConfig;

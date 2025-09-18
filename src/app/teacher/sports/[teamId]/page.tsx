@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -21,15 +22,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-  } from '@/components/ui/select';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload, Save, Trophy, Edit as EditIcon, PlusCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, UserPlus, Shield, Star, Trash2, Search, CalendarPlus, Upload, Save, Trophy, Edit, PlusCircle, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -49,17 +50,24 @@ import { firestore } from '@/lib/firebase';
 import { collection, doc, onSnapshot, query, where, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, setDoc, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
+
+export async function generateStaticParams() {
+    return [];
+}
+
+
 type TeamDetails = {
-    name: string;
-    coach: string;
+  name: string;
+  coach: string;
+  members?: number;
 }
 
 type StudentMember = {
-    id: string;
-    name: string;
-    class: string;
-    avatarUrl: string;
-    role: 'Member' | 'Captain' | 'Vice-Captain' | 'Treasurer';
+  id: string;
+  name: string;
+  class: string;
+  avatarUrl: string;
+  role: 'Member' | 'Captain' | 'Vice-Captain' | 'Treasurer';
 };
 
 const ROLES: StudentMember['role'][] = ['Member', 'Captain', 'Vice-Captain', 'Treasurer'];
@@ -79,6 +87,7 @@ type MediaHighlight = {
     caption: string;
     date: Timestamp;
 };
+
 
 export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: string }> }) {
   // Unwrap the params promise using React.use()
@@ -104,16 +113,19 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
 
     const teamRef = doc(firestore, 'schools', schoolId, 'teams', teamId);
     const unsubTeam = onSnapshot(teamRef, (docSnap) => {
-        if (docSnap.exists()) {
-            setTeamDetails(docSnap.data() as TeamDetails);
-        }
+      if (docSnap.exists()) {
+        setTeamDetails(docSnap.data() as TeamDetails);
+      }
     });
 
     const membersQuery = query(collection(firestore, 'schools', schoolId, 'teams', teamId, 'members'));
     const unsubMembers = onSnapshot(membersQuery, (snapshot) => {
-        const membersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentMember));
-        setMembers(membersData);
-        setIsLoading(false);
+      const membersData = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as StudentMember));
+      setMembers(membersData);
+      setIsLoading(false);
     });
 
     const eventsQuery = query(collection(firestore, 'schools', schoolId, 'teams', teamId, 'events'), orderBy('date', 'asc'));
@@ -150,14 +162,14 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
     if (!schoolId) return;
     const memberRef = doc(firestore, 'schools', schoolId, 'teams', teamId, 'members', studentId);
     try {
-        await updateDoc(memberRef, { role: newRole });
-        toast({
-            title: 'Role Updated',
-            description: 'The member\'s role has been changed.',
-        });
+      await updateDoc(memberRef, { role: newRole });
+      toast({
+        title: 'Role Updated',
+        description: 'The member\'s role has been changed.',
+      });
     } catch (e) {
-        console.error("Error updating role:", e);
-        toast({ variant: 'destructive', title: 'Update Failed'});
+      console.error("Error updating role:", e);
+      toast({ variant: 'destructive', title: 'Update Failed'});
     }
   };
   
@@ -257,7 +269,7 @@ export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: 
             </div>
             <div className="flex w-full md:w-auto items-center gap-2">
                 <Button asChild variant="outline" size="sm">
-                    <Link href={`/teacher/sports?schoolId=${schoolId}`}>
+                    <Link href={`/admin/sports?schoolId=${schoolId}`}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to All Teams
                     </Link>
