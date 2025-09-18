@@ -101,6 +101,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   useEffect(() => {
     if (!schoolId || !user) return;
 
+    // Fetch subjects taught by the teacher
     const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
     const subjectsUnsub = onSnapshot(subjectsQuery, (snapshot) => {
         const subjectData = new Set<string>();
@@ -110,6 +111,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         setSubjects(Array.from(subjectData));
     });
     
+    // Fetch classes assigned to the teacher
     const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user.uid));
     const classesUnsub = onSnapshot(classesQuery, (snapshot) => {
         const gradeData = new Set<string>();
