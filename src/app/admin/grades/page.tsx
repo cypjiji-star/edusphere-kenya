@@ -377,6 +377,80 @@ function RejectGradeDialog({ open, onOpenChange, onSubmit, grade }: { open: bool
     )
 }
 
+function EditExamDialog({ open, onOpenChange, exam, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, exam: Exam | null, onSave: (id: string, updates: Partial<Exam>) => void }) {
+    const [title, setTitle] = React.useState('');
+    const [date, setDate] = React.useState<Date | undefined>();
+    const [duration, setDuration] = React.useState('');
+    const [type, setType] = React.useState<Exam['type'] | undefined>();
+
+    React.useEffect(() => {
+        if (exam) {
+            setTitle(exam.title);
+            setDate(exam.date.toDate());
+            setDuration(String(exam.duration));
+            setType(exam.type);
+        }
+    }, [exam]);
+
+    if (!exam) return null;
+
+    const handleSave = () => {
+        onSave(exam.id, {
+            title,
+            date: Timestamp.fromDate(date!),
+            duration: Number(duration),
+            type,
+        });
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Exam Details</DialogTitle>
+                    <DialogDescription>Update the information for "{exam.title}".</DialogDescription>
+                </DialogHeader>
+                 <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-exam-title">Exam Title</Label>
+                        <Input id="edit-exam-title" value={title} onChange={e => setTitle(e.target.value)} />
+                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-exam-date">Date</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full justify-start font-normal">
+                                        <CalendarIcon className="mr-2 h-4 w-4"/>
+                                        {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} initialFocus/></PopoverContent>
+                            </Popover>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="edit-exam-duration">Duration (minutes)</Label>
+                            <Input id="edit-exam-duration" type="number" value={duration} onChange={e => setDuration(e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="edit-exam-type">Type</Label>
+                            <Select value={type} onValueChange={(v: Exam['type']) => setType(v)}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSave}>Save Changes</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function calculateGrade(score: number): string {
     if (isNaN(score) || score < 0 || score > 100) return '';
     if (score >= 80) return 'A';
@@ -715,6 +789,7 @@ export default function AdminGradesPage() {
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [selectedExamForGrading, setSelectedExamForGrading] = React.useState<Exam | null>(null);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+    const [editingExam, setEditingExam] = React.useState<Exam | null>(null);
     const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
     const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
     const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
@@ -1172,6 +1247,18 @@ export default function AdminGradesPage() {
             toast({ title: 'Error', description: 'Could not delete exam.', variant: 'destructive' });
         }
     };
+
+     const handleUpdateExam = async (id: string, updates: Partial<Exam>) => {
+        if (!schoolId) return;
+        try {
+            const examRef = doc(firestore, 'schools', schoolId, 'exams', id);
+            await updateDoc(examRef, updates);
+            toast({ title: "Exam Updated", description: "The exam details have been successfully updated."});
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Error', description: 'Could not update exam details.', variant: 'destructive' });
+        }
+    };
     
     if (selectedExamForGrading) {
         return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
@@ -1186,6 +1273,7 @@ export default function AdminGradesPage() {
     <div className="p-4 sm:p-6 lg:p-8">
         <RejectGradeDialog open={!!gradeToReject} onOpenChange={(open) => !open && setGradeToReject(null)} grade={gradeToReject} onSubmit={(feedback) => handleGradeModeration(gradeToReject!.id, gradeToReject!.studentId, gradeToReject!.studentName, gradeToReject!.subject, gradeToReject!.grade, 'Rejected', feedback)} />
         <ReportCardDialog student={selectedStudentForReport} studentGrades={studentGrades} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
+        <EditExamDialog exam={editingExam} open={!!editingExam} onOpenChange={(open) => !open && setEditingExam(null)} onSave={handleUpdateExam} />
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
         <p className="text-muted-foreground">Manage exams, grades, and academic reports.</p>
@@ -1408,8 +1496,7 @@ export default function AdminGradesPage() {
                                             <TableCell>{getStatusBadge(exam.status)}</TableCell>
                                             <TableCell className="text-right space-x-2">
                                                  <Button variant="outline" size="sm" onClick={() => setSelectedExamForGrading(exam)}>Enter Grades</Button>
-                                                <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
-                                                <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => setEditingExam(exam)}><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </TableCell>
                                         </TableRow>
