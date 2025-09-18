@@ -835,6 +835,23 @@ export default function TeacherGradesPage() {
         };
     }, [schoolId, selectedGradebookClass, user]);
 
+    const handlePrintResults = () => {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            const tableHtml = document.getElementById('class-ranking-table')?.outerHTML;
+            printWindow.document.write('<html><head><title>Class Ranking</title>');
+            // Basic styles for printing
+            printWindow.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } th { background-color: #f2f2f2; } </style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(`<h2>Class Ranking - ${classes.find(c => c.id === selectedReportClass)?.name} - ${selectedReportTerm}</h2>`);
+            if (tableHtml) {
+                printWindow.document.write(tableHtml);
+            }
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+    };
     
     if (selectedExamForGrading) {
         return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId!} teacher={{id: user!.uid, name: user!.displayName || 'Teacher'}} />;
@@ -995,4 +1012,5 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
+
 
