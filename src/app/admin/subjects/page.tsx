@@ -887,20 +887,23 @@ export default function ClassesAndSubjectsPage() {
                                                                 <span className="truncate">{assignment.teacher}</span>
                                                             </Button>
                                                         ) : (
-                                                            <Badge variant="destructive" className="cursor-pointer">
-                                                                <AlertCircle className="mr-2 h-4 w-4"/>
+                                                            <Button variant="destructive" size="sm" className="w-48 justify-start">
+                                                                <AlertCircle className="mr-2 h-4 w-4" />
                                                                 Unassigned
-                                                            </Badge>
+                                                            </Button>
                                                         )}
                                                     </PopoverTrigger>
                                                     <PopoverContent className="w-auto p-2">
                                                         <div className="space-y-2">
                                                             <p className="font-semibold text-sm">Assign Teacher</p>
-                                                            {availableTeachers.length > 0 ? availableTeachers.map(t => (
-                                                                <Button key={t} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacher(currentClassForAssignment.id, assignment.subject, t)}>
-                                                                    <UserCheck className="mr-2 h-4 w-4" /> {t}
+                                                            {availableTeachers.length > 0 ? availableTeachers.map(t => {
+                                                                const load = teacherWorkload[t] || 0;
+                                                                return (
+                                                                <Button key={t} variant="ghost" size="sm" className="w-full justify-between" onClick={() => handleAssignTeacher(currentClassForAssignment.id, assignment.subject, t)}>
+                                                                    <span><UserCheck className="mr-2 h-4 w-4 inline" /> {t}</span>
+                                                                    <Badge variant={load > OVER_ASSIGNED_THRESHOLD ? "destructive" : "secondary"}>{load} classes</Badge>
                                                                 </Button>
-                                                            )) : <p className="text-xs text-muted-foreground p-2">No qualified teachers found for this subject.</p>}
+                                                            )}) : <p className="text-xs text-muted-foreground p-2">No qualified teachers found for this subject.</p>}
                                                         </div>
                                                     </PopoverContent>
                                                 </Popover>
