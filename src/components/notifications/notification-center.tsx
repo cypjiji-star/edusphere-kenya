@@ -57,13 +57,13 @@ export type Notification = {
   userId?: string;
 };
 
-const categoryConfig: Record<NotificationCategory, { icon: React.ElementType, color: string }> = {
-  Academics: { icon: FileText, color: 'text-purple-500' },
-  Finance: { icon: CircleDollarSign, color: 'text-green-500' },
-  Communication: { icon: MessageCircle, color: 'text-blue-500' },
-  System: { icon: Settings, color: 'text-orange-500' },
-  Security: { icon: AlertTriangle, color: 'text-red-500' },
-  General: { icon: Bell, color: 'text-gray-500' },
+const categoryConfig: Record<NotificationCategory, { icon: React.ElementType, color: string, priority: number }> = {
+  Academics: { icon: FileText, color: 'text-purple-500', priority: 3 },
+  Finance: { icon: CircleDollarSign, color: 'text-green-500', priority: 3 },
+  Communication: { icon: MessageCircle, color: 'text-blue-500', priority: 4 },
+  System: { icon: Settings, color: 'text-orange-500', priority: 2 },
+  Security: { icon: AlertTriangle, color: 'text-red-500', priority: 1 },
+  General: { icon: Bell, color: 'text-gray-500', priority: 5 },
 };
 
 function NotificationItem({
@@ -136,13 +136,12 @@ export function NotificationCenter() {
     let q;
     const notificationsRef = collection(firestore, 'schools', schoolId, 'notifications');
     
-    // Construct the query based on user role
-    if (role === 'admin') {
+    if (role === 'admin' || role === 'developer') {
       q = query(notificationsRef, orderBy('createdAt', 'desc'), limit(50));
     } else if (role === 'teacher') {
-      q = query(
+       q = query(
         notificationsRef,
-        where('audience', 'in', ['all', 'teacher', 'parents-and-students']),
+        where('audience', 'in', ['all', 'teacher']),
         orderBy('createdAt', 'desc'),
         limit(50)
       );
@@ -150,7 +149,7 @@ export function NotificationCenter() {
       q = query(
         notificationsRef,
         or(
-            where('audience', 'in', ['all', 'parents-and-students']),
+            where('audience', 'in', ['all', 'parent', 'parents-and-students']),
             where('userId', '==', user.uid)
         ),
         orderBy('createdAt', 'desc'),
@@ -164,7 +163,26 @@ export function NotificationCenter() {
       const fetchedNotifications = snapshot.docs.map(
         (doc) => ({ id: doc.id, ...doc.data() } as Notification)
       );
-      setNotifications(fetchedNotifications);
+      
+      const sortedNotifications = fetchedNotifications.sort((a, b) => {
+        const aIsRead = a.readBy?.includes(user.uid);
+        const bIsRead = b.readBy?.includes(user.uid);
+        
+        if (aIsRead !== bIsRead) {
+          return aIsRead ? 1 : -1;
+        }
+
+        const aPriority = categoryConfig[a.category]?.priority || 99;
+        const bPriority = categoryConfig[b.category]?.priority || 99;
+
+        if (aPriority !== bPriority) {
+            return aPriority - bPriority;
+        }
+
+        return b.createdAt.seconds - a.createdAt.seconds;
+      });
+
+      setNotifications(sortedNotifications);
     }, (error) => {
         console.error("Error fetching notifications:", error);
     });
