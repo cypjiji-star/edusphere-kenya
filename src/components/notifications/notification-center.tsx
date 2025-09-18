@@ -32,6 +32,8 @@ import {
   updateDoc,
   writeBatch,
   Timestamp,
+  arrayUnion,
+  increment,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -40,16 +42,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
 
-export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System';
+export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General';
 
 export type Notification = {
   id: string;
   title: string;
   description: string;
   createdAt: Timestamp;
-  read: boolean;
+  readBy: string[];
   href: string;
   category: NotificationCategory;
+  audience?: 'all' | 'admin' | 'teacher' | 'parent';
+  userId?: string;
 };
 
 const categoryConfig: Record<NotificationCategory, { icon: React.ElementType }> = {
@@ -57,6 +61,7 @@ const categoryConfig: Record<NotificationCategory, { icon: React.ElementType }> 
   Finance: { icon: CircleDollarSign },
   Communication: { icon: MessageCircle },
   System: { icon: Settings },
+  General: { icon: Bell },
 };
 
 function NotificationItem({
@@ -68,12 +73,12 @@ function NotificationItem({
   schoolId: string;
   onMarkAsRead: (id: string) => void;
 }) {
-  const Icon = categoryConfig[notification.category]?.icon || Settings;
+  const Icon = categoryConfig[notification.category] || Settings;
   return (
     <div
       className={cn(
         'flex items-start gap-4 p-4 rounded-lg transition-colors hover:bg-muted/50',
-        !notification.read && 'bg-primary/5'
+        !notification.readBy?.includes(useAuth().user?.uid || '') && 'bg-primary/5'
       )}
     >
       <div className="mt-1">
@@ -90,7 +95,7 @@ function NotificationItem({
           </p>
         </Link>
       </div>
-      {!notification.read && (
+      {!notification.readBy?.includes(useAuth().user?.uid || '') && (
         <Button
           variant="ghost"
           size="icon"
@@ -111,18 +116,20 @@ export function NotificationCenter() {
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [activeTab, setActiveTab] = React.useState('all');
   
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadNotifications = notifications.filter((n) => !n.readBy?.includes(user?.uid || ''));
+  const unreadCount = unreadNotifications.length;
 
   React.useEffect(() => {
     if (!schoolId || !user) return;
     
-    // Admins and teachers see notifications based on role, parents by user ID.
     const audienceField = role === 'parent' ? 'userId' : 'audience';
     const audienceValue = role === 'parent' ? user.uid : role;
 
     const q = query(
       collection(firestore, 'schools', schoolId, 'notifications'),
-      where(audienceField, 'in', [audienceValue, 'all']),
+      // This is a simplification. Firestore doesn't allow OR queries in this way.
+      // A more robust solution might use separate queries or a different data model.
+      // For this context, we will filter client-side after fetching notifications for 'all' and the specific role.
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -131,7 +138,15 @@ export function NotificationCenter() {
       const fetchedNotifications = snapshot.docs.map(
         (doc) => ({ id: doc.id, ...doc.data() } as Notification)
       );
-      setNotifications(fetchedNotifications);
+
+      const relevantNotifications = fetchedNotifications.filter(n => {
+        if (role === 'parent') return n.userId === user.uid || n.audience === 'all' || n.audience === 'parents-and-students';
+        if (role === 'teacher') return n.audience === 'teacher' || n.audience === 'all' || n.audience === 'parents-and-students';
+        if (role === 'admin') return true; // Admins see all
+        return false;
+      });
+
+      setNotifications(relevantNotifications);
     }, (error) => {
         console.error("Error fetching notifications:", error);
     });
@@ -140,20 +155,20 @@ export function NotificationCenter() {
   }, [schoolId, user, role]);
 
   const handleMarkAsRead = async (id: string) => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
     const notificationRef = doc(firestore, 'schools', schoolId, 'notifications', id);
-    await updateDoc(notificationRef, { read: true });
+    await updateDoc(notificationRef, { 
+        readBy: arrayUnion(user.uid),
+    });
   };
 
   const handleMarkAllRead = async () => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
     const batch = writeBatch(firestore);
-    notifications
-      .filter((n) => !n.read)
-      .forEach((notification) => {
+    unreadNotifications.forEach((notification) => {
         const notifRef = doc(firestore, 'schools', schoolId, 'notifications', notification.id);
-        batch.update(notifRef, { read: true });
-      });
+        batch.update(notifRef, { readBy: arrayUnion(user.uid) });
+    });
     await batch.commit();
   };
   

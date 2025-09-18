@@ -89,7 +89,7 @@ export default function ParentAnnouncementsPage() {
     if (!schoolId || !currentUserId) return;
 
     // Prevent re-marking if already read
-    if (readBy.includes(currentUserId)) {
+    if (readBy?.includes(currentUserId)) {
         toast({ description: 'Already marked as read.' });
         return;
     }
@@ -207,8 +207,8 @@ export default function ParentAnnouncementsPage() {
                                     </CardTitle>
                                     <CardDescription>Posted: {ann.sentAt.toDate().toLocaleString()}</CardDescription>
                                 </div>
-                                <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category]?.color)}>
-                                    {announcementCategories[ann.category]?.label}
+                                <Badge className={cn('whitespace-nowrap', announcementCategories[ann.category as AnnouncementCategory]?.color)}>
+                                    {announcementCategories[ann.category as AnnouncementCategory]?.label}
                                 </Badge>
                             </CardHeader>
                             <CardContent className="space-y-4">

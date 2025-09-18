@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -49,6 +50,7 @@ type Announcement = {
     category: AnnouncementCategory;
     attachmentUrl?: string;
     attachmentName?: string;
+    readBy?: string[];
 };
 
 const announcementSchema = z.object({
