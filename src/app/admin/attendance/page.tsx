@@ -578,6 +578,11 @@ export default function AdminAttendancePage() {
 
   const studentTotalRecords = studentFilteredRecords.length;
   const studentAttendanceRate = studentTotalRecords > 0 ? Math.round(((studentSummaryStats.present + studentSummaryStats.late) / studentTotalRecords) * 100) : 0;
+  
+  const displayedStudents = allStudents.filter(s =>
+        s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+        s.admissionNumber?.includes(studentSearchTerm)
+    );
 
   if (!schoolId) {
     return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -868,7 +873,7 @@ export default function AdminAttendancePage() {
                         />
                         <CommandList>
                             <CommandEmpty>{studentSearchTerm ? "No students found." : "Start typing to search..."}</CommandEmpty>
-                            {studentSearchTerm && allStudents.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || s.admissionNumber?.includes(studentSearchTerm)).map(student => (
+                            {displayedStudents.map(student => (
                                 <CommandItem key={student.id} onSelect={() => { setSelectedStudent(student); setStudentSearchTerm(''); }}>
                                     <UserIcon className="mr-2" />
                                     <span>{student.name}</span>
