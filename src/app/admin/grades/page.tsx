@@ -163,18 +163,48 @@ function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { stud
 
     const handleDownloadPdf = () => {
         const doc = new jsPDF();
-        const reportCardElement = document.getElementById('report-card-content');
-        if (reportCardElement) {
-            doc.html(reportCardElement, {
-                callback: function (doc) {
-                    doc.save(`report-card-${student.admNo}.pdf`);
-                },
-                x: 10,
-                y: 10,
-                width: 180,
-                windowWidth: reportCardElement.scrollWidth,
-            });
-        }
+        
+        // This is a simplified version. A real implementation would use a more robust
+        // HTML-to-PDF library or a server-side generation service for better formatting.
+        doc.setFontSize(22);
+        doc.text(schoolInfo.name, 14, 22);
+        doc.setFontSize(12);
+        doc.text(schoolInfo.motto, 14, 30);
+        doc.setFontSize(16);
+        doc.text("Student Report Card", 105, 40, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.text(`Student: ${student.name}`, 14, 50);
+        doc.text(`Admission No: ${student.admNo}`, 14, 56);
+        doc.text(`Class: Form 4`, 14, 62); // Placeholder class
+
+        (doc as any).autoTable({
+            startY: 70,
+            head: [['Subject', 'Score', 'Grade', 'Comment']],
+            body: studentData ? Object.entries(studentData.scores).map(([subject, score]) => [
+                subject,
+                score,
+                score >= 80 ? 'A' : score >= 65 ? 'B' : 'C',
+                'Good progress.' // Placeholder comment
+            ]) : [],
+        });
+        
+        const finalY = (doc as any).lastAutoTable.finalY || 100;
+        
+        doc.setFontSize(10);
+        doc.text('Summary', 14, finalY + 10);
+        (doc as any).autoTable({
+            startY: finalY + 15,
+            theme: 'plain',
+            body: [
+                ['Total Marks:', `${student.total} / ${studentData ? Object.keys(studentData.scores).length * 100 : 'N/A'}`],
+                ['Average:', `${student.avg.toFixed(1)}%`],
+                ['Mean Grade:', student.grade],
+                ['Class Rank:', `${student.position} of ${studentGrades.length}`],
+            ],
+        });
+
+        doc.save(`report-card-${student.admNo}.pdf`);
     };
     
     return (
@@ -268,12 +298,12 @@ const getCurrentTerm = (): string => {
 const generateAcademicTerms = () => {
     const currentYear = new Date().getFullYear();
     const terms = [];
-    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
+    for (let year = currentYear - 2; year <= currentYear; year++) {
         terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
         terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
         terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
     }
-    return terms;
+    return terms.sort((a,b) => b.value.localeCompare(a.value));
 }
 
 export default function AdminGradesPage() {
@@ -300,7 +330,7 @@ export default function AdminGradesPage() {
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
     const [subjects, setSubjects] = React.useState<string[]>([]);
     const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<{subject: string; average: number}[]>([]);
-    const [academicTerms, setAcademicTerms] = React.useState(generateAcademicTerms());
+    const [academicTerms] = React.useState(generateAcademicTerms());
     
     // Gradebook state
     const [selectedGradebookClass, setSelectedGradebookClass] = React.useState<string>('');
@@ -474,32 +504,59 @@ export default function AdminGradesPage() {
             return;
         }
 
-        try {
-            const selectedClass = classes.find(c => c.id === examClassId);
+        const createExamForClass = async (classInfo: { id: string, name: string }) => {
             await addDoc(collection(firestore, `schools/${schoolId}/exams`), {
                 title: examTitle,
-                class: selectedClass?.name || 'Unknown Class',
-                classId: examClassId,
+                class: classInfo.name,
+                classId: classInfo.id,
                 subject: examSubject,
                 date: Timestamp.fromDate(examDate),
                 duration: Number(examDuration),
                 type: examType,
                 createdAt: serverTimestamp(),
             });
-            
+        };
+
+        try {
+            if (examClassId === 'all') {
+                const batch = writeBatch(firestore);
+                classes.forEach(classInfo => {
+                    const examRef = doc(collection(firestore, `schools/${schoolId}/exams`));
+                    batch.set(examRef, {
+                        title: examTitle,
+                        class: classInfo.name,
+                        classId: classInfo.id,
+                        subject: examSubject,
+                        date: Timestamp.fromDate(examDate),
+                        duration: Number(examDuration),
+                        type: examType,
+                        createdAt: serverTimestamp(),
+                    });
+                });
+                await batch.commit();
+                toast({
+                    title: 'Exams Created for All Classes',
+                    description: `The "${examTitle}" exam has been scheduled for all classes.`,
+                });
+            } else {
+                const selectedClass = classes.find(c => c.id === examClassId);
+                if (selectedClass) {
+                    await createExamForClass(selectedClass);
+                    toast({
+                        title: 'Exam Created',
+                        description: `The "${examTitle}" exam has been scheduled for ${selectedClass.name}.`,
+                    });
+                }
+            }
+
             await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'New Exam Scheduled',
-                description: `A new ${examType} exam, "${examTitle}", has been scheduled for ${selectedClass?.name} on ${format(examDate, 'PPP')}.`,
+                description: `A new ${examType} exam, "${examTitle}", has been scheduled for ${examClassId === 'all' ? 'all classes' : classes.find(c=>c.id === examClassId)?.name} on ${format(examDate, 'PPP')}.`,
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/teacher/assignments?schoolId=${schoolId}`,
             });
 
-            toast({
-                title: 'Exam Created & Notified',
-                description: 'The new exam has been scheduled and relevant teachers have been notified.',
-            });
-            
             setExamTitle('');
             setExamClassId('');
             setExamSubject('');
@@ -509,8 +566,8 @@ export default function AdminGradesPage() {
             setIsCreateDialogOpen(false);
 
         } catch (error) {
-            console.error("Error creating exam: ", error);
-            toast({ title: 'Error', description: 'Could not create the exam.', variant: 'destructive' });
+            console.error("Error creating exam(s): ", error);
+            toast({ title: 'Error', description: 'Could not create the exam(s).', variant: 'destructive' });
         }
     };
     
@@ -543,7 +600,7 @@ export default function AdminGradesPage() {
         try {
             await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'Exam Results Published!',
-                description: `The results for Form 4, Term 2 2024 exams are now available on the portal.`,
+                description: `The results for ${selectedReportTerm} are now available on the portal.`,
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/parent/grades?schoolId=${schoolId}`,
@@ -559,7 +616,21 @@ export default function AdminGradesPage() {
     };
     
     const handlePrintResults = () => {
-        window.print();
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            const tableHtml = document.getElementById('class-ranking-table')?.outerHTML;
+            printWindow.document.write('<html><head><title>Class Ranking</title>');
+            // Basic styles for printing
+            printWindow.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } th { background-color: #f2f2f2; } </style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(`<h2>Class Ranking - ${classes.find(c => c.id === selectedReportClass)?.name} - ${selectedReportTerm}</h2>`);
+            if (tableHtml) {
+                printWindow.document.write(tableHtml);
+            }
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
     };
 
     const handleDownloadAllReportCards = () => {
@@ -803,7 +874,10 @@ export default function AdminGradesPage() {
                                             <Label htmlFor="exam-class">Class</Label>
                                             <Select value={examClassId} onValueChange={setExamClassId}>
                                                 <SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger>
-                                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All Classes</SelectItem>
+                                                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                                </SelectContent>
                                             </Select>
                                         </div>
                                         <div className="space-y-2">
@@ -1074,7 +1148,7 @@ export default function AdminGradesPage() {
                                         <DialogHeader>
                                             <DialogTitle>Confirm Publication</DialogTitle>
                                             <DialogDescription>
-                                                This will make results for Form 4, Term 2 visible to all students and parents. Are you sure you want to proceed?
+                                                This will make results for the selected term visible to all students and parents. Are you sure you want to proceed?
                                             </DialogDescription>
                                         </DialogHeader>
                                         <DialogFooter>
@@ -1101,7 +1175,7 @@ export default function AdminGradesPage() {
                             <CardTitle>Class Ranking</CardTitle>
                         </CardHeader>
                         <CardContent>
-                             <div className="w-full overflow-auto rounded-lg border">
+                             <div className="w-full overflow-auto rounded-lg border" id="class-ranking-table">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
