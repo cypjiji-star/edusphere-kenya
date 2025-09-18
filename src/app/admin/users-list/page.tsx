@@ -139,15 +139,10 @@ export default function UserManagementListPage() {
         if (!schoolId) return;
         setClientReady(true);
         
-        const collectionsToListen = ['admins', 'teachers', 'parents'];
-        const unsubscribers = collectionsToListen.map(col => {
-            return onSnapshot(query(collection(firestore, `schools/${schoolId}/${col}`)), (snapshot) => {
-                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-                setAllUsers(prev => {
-                    const otherUsers = prev.filter(u => u.role?.toLowerCase() !== col.slice(0,-1));
-                    return [...otherUsers, ...usersData];
-                });
-            });
+        const q = query(collection(firestore, `schools/${schoolId}/users`));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setAllUsers(usersData);
         });
         
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
@@ -160,7 +155,7 @@ export default function UserManagementListPage() {
         });
 
         return () => {
-            unsubscribers.forEach(unsub => unsub());
+            unsubscribe();
             unsubRoles();
             unsubClasses();
         };
@@ -216,12 +211,7 @@ export default function UserManagementListPage() {
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
             const user = userCredential.user;
             
-            let collectionName = 'users';
-            if (newUserRole === 'Parent') collectionName = 'parents';
-            else if (newUserRole === 'Teacher') collectionName = 'teachers';
-            else if (newUserRole === 'Admin') collectionName = 'admins';
-            
-            const userDocRef = doc(firestore, 'schools', schoolId, collectionName, user.uid);
+            const userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
             
             const userData: any = {
                 id: user.uid,
@@ -304,13 +294,7 @@ export default function UserManagementListPage() {
             }
 
             // Step 2: Update Firestore document
-            let collectionName = 'users'; // Default
-            if (editingUser.role === 'Parent') collectionName = 'parents';
-            else if (editingUser.role === 'Admin') collectionName = 'admins';
-            else if (editingUser.role === 'Teacher') collectionName = 'teachers';
-
-
-            const userRef = doc(firestore, 'schools', schoolId, collectionName, editingUser.id);
+            const userRef = doc(firestore, 'schools', schoolId, 'users', editingUser.id);
             await updateDoc(userRef, updatedData);
 
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
@@ -336,13 +320,7 @@ export default function UserManagementListPage() {
           throw new Error(authResult.message);
         }
     
-        let collectionName;
-        if (userToDelete.role === 'Parent') collectionName = 'parents';
-        else if (userToDelete.role === 'Admin') collectionName = 'admins';
-        else if (userToDelete.role === 'Teacher') collectionName = 'teachers';
-        else collectionName = 'users';
-    
-        await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userToDelete.id));
+        await deleteDoc(doc(firestore, 'schools', schoolId, 'users', userToDelete.id));
     
         await logAuditEvent({
           schoolId,
@@ -751,4 +729,3 @@ export default function UserManagementListPage() {
         </div>
     );
 }
-

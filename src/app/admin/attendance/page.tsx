@@ -343,56 +343,54 @@ export default function AdminAttendancePage() {
       return;
     }
 
-    const fetchAllAttendance = async () => {
-      setIsLoading(true);
-      
-      try {
-        // Get all attendance records from the top-level attendance collection
-        const attendanceQuery = query(
-          collection(firestore, `schools/${schoolId}/attendance`),
-          orderBy('date', 'desc')
-        );
-        
-        const unsubscribe = onSnapshot(attendanceQuery, async (snapshot) => {
-          const records: AttendanceRecord[] = [];
-          
-          for (const doc of snapshot.docs) {
-            const data = doc.data();
-            
-            // Normalize the status to title case
-            const normalizedStatus = normalizeStatus(data.status || 'present');
-            
-            records.push({
-              id: doc.id,
-              studentId: data.studentId,
-              studentName: data.studentName,
-              studentAvatar: data.avatarUrl || `https://picsum.photos/seed/${data.studentId}/100`,
-              class: data.className,
-              teacher: data.teacher,
-              teacherId: data.teacherId, // Make sure teacherId is included
-              date: data.date,
-              status: normalizedStatus,
-            });
-          }
-          
-          setAllRecords(records);
-          setIsLoading(false);
-        });
-
-        return unsubscribe;
-
-      } catch (error) {
-        console.error('Error fetching attendance records:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load attendance records',
-          variant: 'destructive'
-        });
-        setIsLoading(false);
-      }
+    const getTermDates = (term: string) => {
+        const [termName, yearStr] = term.split('-');
+        const year = parseInt(yearStr, 10);
+        switch(termName) {
+            case 'term1': return { start: new Date(year, 0, 1), end: new Date(year, 3, 30) };
+            case 'term2': return { start: new Date(year, 4, 1), end: new Date(year, 7, 31) };
+            case 'term3': return { start: new Date(year, 8, 1), end: new Date(year, 11, 31) };
+            default: return null;
+        }
     };
-
-    const unsubscribePromise = fetchAllAttendance();
+    
+    const termRange = getTermDates(selectedTerm);
+    if (!termRange) {
+        setIsLoading(false);
+        return;
+    }
+    
+    setIsLoading(true);
+    const attendanceQuery = query(
+      collection(firestore, `schools/${schoolId}/attendance`),
+      where('date', '>=', termRange.start),
+      where('date', '<=', termRange.end),
+      orderBy('date', 'desc')
+    );
+    
+    const unsubscribe = onSnapshot(attendanceQuery, async (snapshot) => {
+      const records: AttendanceRecord[] = [];
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        records.push({
+          id: doc.id,
+          studentId: data.studentId,
+          studentName: data.studentName,
+          studentAvatar: data.avatarUrl || `https://picsum.photos/seed/${data.studentId}/100`,
+          class: data.className,
+          teacher: data.teacher,
+          teacherId: data.teacherId,
+          date: data.date,
+          status: normalizeStatus(data.status || 'present'),
+        });
+      }
+      setAllRecords(records);
+      setIsLoading(false);
+    }, (error) => {
+        console.error('Error fetching attendance records:', error);
+        toast({ title: 'Error', description: 'Failed to load attendance records', variant: 'destructive'});
+        setIsLoading(false);
+    });
 
     // Set up real-time listeners for teachers and classes
     const qTeachers = query(collection(firestore, 'schools', schoolId, 'teachers'));
@@ -426,39 +424,20 @@ export default function AdminAttendancePage() {
     });
 
     return () => {
-      unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+      unsubscribe();
       unsubTeachers();
       unsubClasses();
       unsubStudents();
       unsubCommLogs();
     };
-  }, [schoolId, toast]);
+  }, [schoolId, toast, selectedTerm]);
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
 
-    const getTermDates = (term: string) => {
-      const [termName, yearStr] = term.split('-');
-      const year = parseInt(yearStr, 10);
-      switch(termName) {
-        case 'term1': return { start: new Date(year, 0, 1), end: new Date(year, 3, 30) };
-        case 'term2': return { start: new Date(year, 4, 1), end: new Date(year, 7, 31) };
-        case 'term3': return { start: new Date(year, 8, 1), end: new Date(year, 11, 31) };
-        default: return null;
-      }
-    };
-    
-    const currentTermRange = getTermDates(selectedTerm);
-    if (!currentTermRange) return [];
-
-    const termRecords = allRecords.filter(record => {
-      const recordDate = record.date.toDate();
-      return recordDate >= currentTermRange.start && recordDate <= currentTermRange.end;
-    });
-
     const dailyData: Record<string, { present: number, total: number }> = {};
 
-    termRecords.forEach(record => {
+    allRecords.forEach(record => {
       const day = format(record.date.toDate(), 'MMM d');
       if (!dailyData[day]) {
         dailyData[day] = { present: 0, total: 0 };
@@ -477,7 +456,7 @@ export default function AdminAttendancePage() {
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-30); // Show last 30 days of the term
       
-  }, [allRecords, selectedTerm]);
+  }, [allRecords]);
   
   const handleCompare = () => {
     toast({
@@ -988,4 +967,3 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
-
