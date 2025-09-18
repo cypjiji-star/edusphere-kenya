@@ -71,20 +71,6 @@ export function FinanceSnapshot() {
     };
 
     fetchData();
-    
-    // For real-time updates on payments, we can add listeners here, but it can be performance-intensive.
-    // The current approach is a snapshot.
-    const studentsUnsubscribe = onSnapshot(query(collection(firestore, `schools/${schoolId}/students`)), (snapshot) => {
-        let totalPaidOverall = 0;
-        let totalSchoolFeesBilled = 0;
-        snapshot.forEach(doc => {
-            totalPaidOverall += doc.data().amountPaid || 0;
-            totalSchoolFeesBilled += doc.data().totalFee || 0;
-        });
-        setFinanceData({ totalCollected: totalPaidOverall, totalBilled: totalSchoolFeesBilled });
-    });
-
-    return () => studentsUnsubscribe();
 
   }, [schoolId]);
 
