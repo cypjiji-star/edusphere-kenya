@@ -281,58 +281,101 @@ export default function AdminLessonPlansPage() {
                 {isLoading ? (
                     <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
                 ) : (
-                <div className="w-full overflow-auto rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Lesson Topic</TableHead>
-                        <TableHead>Teacher</TableHead>
-                        <TableHead>Class & Subject</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredSubmissions.length > 0 ? (
-                        filteredSubmissions.map((submission) => (
-                          <TableRow key={submission.id}>
-                            <TableCell className="font-medium">{submission.topic}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src={submission.teacher?.avatarUrl} alt={submission.teacher?.name} />
-                                  <AvatarFallback>{submission.teacher?.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <span>{submission.teacher?.name || 'N/A'}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                                <div>{submission.class}</div>
-                                <div className="text-sm text-muted-foreground">{submission.subject}</div>
-                            </TableCell>
-                            <TableCell>{clientReady ? new Date(submission.date.toDate()).toLocaleDateString() : ''}</TableCell>
-                            <TableCell>{getStatusBadge(submission.status)}</TableCell>
-                            <TableCell className="text-right">
-                                <Button asChild variant="outline" size="sm">
-                                  <Link href={`/admin/lesson-plans/${submission.id}?schoolId=${schoolId}`}>
-                                      View Plan
-                                      <ArrowRight className="ml-2 h-4 w-4" />
-                                  </Link>
-                                </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
+                <>
+                    {/* Desktop Table */}
+                    <div className="w-full overflow-auto rounded-lg border hidden md:block">
+                    <Table>
+                        <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
-                            No lesson plans found for the selected filters.
-                          </TableCell>
+                            <TableHead>Lesson Topic</TableHead>
+                            <TableHead>Teacher</TableHead>
+                            <TableHead>Class & Subject</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                        </TableHeader>
+                        <TableBody>
+                        {filteredSubmissions.length > 0 ? (
+                            filteredSubmissions.map((submission) => (
+                            <TableRow key={submission.id}>
+                                <TableCell className="font-medium">{submission.topic}</TableCell>
+                                <TableCell>
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8">
+                                    <AvatarImage src={submission.teacher?.avatarUrl} alt={submission.teacher?.name} />
+                                    <AvatarFallback>{submission.teacher?.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <span>{submission.teacher?.name || 'N/A'}</span>
+                                </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div>{submission.class}</div>
+                                    <div className="text-sm text-muted-foreground">{submission.subject}</div>
+                                </TableCell>
+                                <TableCell>{clientReady ? new Date(submission.date.toDate()).toLocaleDateString() : ''}</TableCell>
+                                <TableCell>{getStatusBadge(submission.status)}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button asChild variant="outline" size="sm">
+                                    <Link href={`/admin/lesson-plans/${submission.id}?schoolId=${schoolId}`}>
+                                        View Plan
+                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Link>
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                                No lesson plans found for the selected filters.
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="grid grid-cols-1 gap-4 md:hidden">
+                        {filteredSubmissions.length > 0 ? (
+                            filteredSubmissions.map((submission) => (
+                                <Card key={submission.id}>
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between">
+                                            <CardTitle className="text-base">{submission.topic}</CardTitle>
+                                            {getStatusBadge(submission.status)}
+                                        </div>
+                                        <CardDescription>{submission.class} - {submission.subject}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Avatar className="h-6 w-6">
+                                                <AvatarImage src={submission.teacher?.avatarUrl} />
+                                                <AvatarFallback>{submission.teacher?.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span>{submission.teacher?.name}</span>
+                                            <span>&bull;</span>
+                                            <span>{clientReady ? new Date(submission.date.toDate()).toLocaleDateString() : ''}</span>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                         <Button asChild variant="outline" size="sm" className="w-full">
+                                            <Link href={`/admin/lesson-plans/${submission.id}?schoolId=${schoolId}`}>
+                                                View Plan
+                                                <ArrowRight className="ml-2 h-4 w-4" />
+                                            </Link>
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            ))
+                        ) : (
+                            <div className="text-center py-16 text-muted-foreground">
+                                <p>No lesson plans found.</p>
+                            </div>
+                        )}
+                    </div>
+                </>
                 )}
               </CardContent>
               <CardFooter>

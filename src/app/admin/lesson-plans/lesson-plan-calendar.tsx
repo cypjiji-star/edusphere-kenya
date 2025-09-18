@@ -74,7 +74,7 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
       <div className="border rounded-lg">
         <div className="grid grid-cols-7 text-center font-semibold text-sm text-muted-foreground border-b">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="py-2">{day}</div>
+            <div key={day} className="py-2 text-xs">{day}</div>
           ))}
         </div>
         <div className="grid grid-cols-7">
@@ -85,18 +85,18 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
                 <div
                   key={day.toString()}
                   className={cn(
-                    'h-40 p-2 border-t border-l flex flex-col',
+                    'h-28 md:h-40 p-1 md:p-2 border-t border-l flex flex-col',
                     !isSameMonth(day, monthStart) && 'bg-muted/50 text-muted-foreground',
                     isToday(day) && 'bg-accent/20'
                   )}
                 >
-                  <span className={cn('font-medium', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
+                  <span className={cn('font-medium text-xs', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
                   <div className="mt-1 space-y-1 overflow-y-auto">
                     {plansForDay.map(plan => (
                       <Link key={plan.id} href={`/admin/lesson-plans/${plan.id}`}>
                         <Badge 
                           className={cn(
-                            'w-full truncate text-white cursor-pointer',
+                            'w-full truncate text-white cursor-pointer text-[10px] md:text-xs',
                              statusColors[plan.teacher.name] || 'bg-gray-500'
                           )}
                           title={`${plan.topic} - ${plan.teacher.name}`}
