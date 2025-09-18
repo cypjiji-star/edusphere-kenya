@@ -70,7 +70,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   Select,
@@ -98,7 +97,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
@@ -486,7 +485,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 action: 'GRADES_SUBMITTED',
                 actionType: 'Academics',
                 user: { id: teacher.id, name: teacher.name, role: 'Teacher' },
-                details: `Finished grading for exam: "${exam.title}" - ${exam.className}.`,
+                details: `Finished grading for exam: "${exam.title}" - ${exam.class}.`,
             });
             
             toast({
@@ -870,7 +869,7 @@ export default function AdminGradesPage() {
                     subject: data.subject,
                     grade: data.grade,
                     teacherName: data.teacherName,
-                    assessmentTitle: data.assessmentTitle || examSnap?.data()?.title || 'N/A',
+                    assessmentTitle: examSnap?.data()?.title || 'N/A',
                     examId: data.examId
                 };
             }));
@@ -1268,7 +1267,7 @@ export default function AdminGradesPage() {
                                         <h4 className="font-medium">Step 2: Map Columns</h4>
                                     </div>
                                     <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="grid grid-cols-[1fr,150px] items-center gap-2">
                                             <Label>Admission No.</Label>
                                             <Select defaultValue="col1" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col1">Column A</SelectItem></SelectContent></Select>
