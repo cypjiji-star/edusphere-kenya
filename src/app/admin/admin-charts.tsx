@@ -50,19 +50,22 @@ export function FinanceSnapshot() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
-            const studentsSnapshot = await getDocs(studentsQuery);
+            const transactionsQuery = query(collection(firestore, `schools/${schoolId}/transactions`));
+            const querySnapshot = await getDocs(transactionsQuery);
 
-            let totalPaidOverall = 0;
-            let totalSchoolFeesBilled = 0;
+            let totalCollected = 0;
+            let totalBilled = 0;
 
-            for (const studentDoc of studentsSnapshot.docs) {
-                const studentData = studentDoc.data();
-                totalPaidOverall += studentData.amountPaid || 0;
-                totalSchoolFeesBilled += studentData.totalFee || 0;
-            }
+            querySnapshot.forEach(doc => {
+                const transaction = doc.data();
+                if (transaction.type === 'Payment') {
+                    totalCollected += Math.abs(transaction.amount);
+                } else if (transaction.type === 'Charge') {
+                    totalBilled += transaction.amount;
+                }
+            });
 
-            setFinanceData({ totalCollected: totalPaidOverall, totalBilled: totalSchoolFeesBilled });
+            setFinanceData({ totalCollected, totalBilled });
         } catch (error) {
             console.error("Error fetching finance data:", error);
         } finally {
