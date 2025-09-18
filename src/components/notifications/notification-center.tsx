@@ -13,6 +13,8 @@ import {
   Settings,
   X,
   AlertTriangle,
+  Send,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Sheet,
@@ -35,6 +37,8 @@ import {
   Timestamp,
   arrayUnion,
   or,
+  addDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -42,6 +46,8 @@ import { useAuth } from '@/context/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Textarea } from '../ui/textarea';
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
 
@@ -56,6 +62,26 @@ export type Notification = {
   audience?: 'all' | 'admin' | 'teacher' | 'parent' | 'parents-and-students';
   userId?: string;
 };
+
+type Conversation = {
+  id: string;
+  name: string;
+  avatar: string;
+  lastMessage: string;
+  timestamp: Timestamp;
+  unread: boolean;
+  participants: string[];
+  lastMessageSender?: string;
+};
+
+type Message = {
+  id?: string;
+  sender: string;
+  text: string;
+  timestamp: Timestamp | null;
+  read?: boolean;
+};
+
 
 const categoryConfig: Record<NotificationCategory, { icon: React.ElementType, color: string, priority: number }> = {
   Academics: { icon: FileText, color: 'text-purple-500', priority: 3 },
@@ -120,74 +146,133 @@ function NotificationItem({
   );
 }
 
+function ChatView({ conversation, schoolId, userId, onBack }: { conversation: Conversation; schoolId: string; userId: string; onBack: () => void; }) {
+    const [messages, setMessages] = React.useState<Message[]>([]);
+    const [reply, setReply] = React.useState('');
+    const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const messagesQuery = query(
+            collection(firestore, 'schools', schoolId, 'conversations', conversation.id, 'messages'),
+            orderBy('timestamp', 'asc')
+        );
+        const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+            setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)));
+        });
+        return unsubscribe;
+    }, [schoolId, conversation.id]);
+    
+    React.useEffect(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    const handleSendReply = async () => {
+        if (!reply.trim()) return;
+        const newReply = reply;
+        setReply('');
+        
+        await addDoc(collection(firestore, 'schools', schoolId, 'conversations', conversation.id, 'messages'), {
+            sender: userId,
+            text: newReply,
+            timestamp: serverTimestamp(),
+            read: false,
+        });
+
+        await updateDoc(doc(firestore, 'schools', schoolId, 'conversations', conversation.id), {
+            lastMessage: newReply,
+            timestamp: serverTimestamp(),
+            lastMessageSender: userId,
+            unread: true,
+        });
+    };
+
+    return (
+        <div className="flex flex-col h-full">
+            <header className="p-4 border-b flex items-center gap-4">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <Avatar className="h-9 w-9">
+                    <AvatarImage src={conversation.avatar} />
+                    <AvatarFallback>{conversation.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <h3 className="font-semibold">{conversation.name}</h3>
+            </header>
+            <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                    {messages.map(msg => (
+                        <div key={msg.id} className={cn('flex items-end gap-2', msg.sender === userId ? 'justify-end' : 'justify-start')}>
+                            <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", msg.sender === userId ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                                <p>{msg.text}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div ref={messagesEndRef} />
+            </ScrollArea>
+            <div className="p-4 border-t">
+                <div className="relative">
+                    <Textarea 
+                        placeholder="Type a reply..." 
+                        value={reply} 
+                        onChange={(e) => setReply(e.target.value)} 
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendReply(); } }}
+                        className="pr-12"
+                    />
+                    <Button size="icon" className="absolute right-2 bottom-2 h-8 w-8" onClick={handleSendReply}>
+                        <Send className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function NotificationCenter() {
   const { user, role } = useAuth();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
+  const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [activeTab, setActiveTab] = React.useState('all');
+  const [selectedConversation, setSelectedConversation] = React.useState<Conversation | null>(null);
   
   const unreadNotifications = notifications.filter((n) => !n.readBy?.includes(user?.uid || ''));
-  const unreadCount = unreadNotifications.length;
+  const unreadMessages = conversations.filter(c => c.unread && c.lastMessageSender !== user?.uid).length;
+  const unreadCount = unreadNotifications.length + unreadMessages;
 
   React.useEffect(() => {
     if (!schoolId || !user || !role || role === 'unknown') return;
 
-    let q;
+    // --- Notifications listener ---
+    let notifQuery;
     const notificationsRef = collection(firestore, 'schools', schoolId, 'notifications');
-    
     if (role === 'admin' || role === 'developer') {
-      q = query(notificationsRef, orderBy('createdAt', 'desc'), limit(50));
-    } else if (role === 'teacher') {
-       q = query(
-        notificationsRef,
-        where('audience', 'in', ['all', 'teacher']),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-    } else if (role === 'parent') {
-      q = query(
-        notificationsRef,
-        or(
-            where('audience', 'in', ['all', 'parent', 'parents-and-students']),
-            where('userId', '==', user.uid)
-        ),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
+      notifQuery = query(notificationsRef, orderBy('createdAt', 'desc'), limit(50));
     } else {
-      return;
+        const audiences = ['all', `${role}`, role === 'parent' ? 'parents-and-students' : ''];
+        notifQuery = query(
+            notificationsRef,
+            or(where('audience', 'in', audiences.filter(a => a)), where('userId', '==', user.uid)),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        );
     }
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedNotifications = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as Notification)
-      );
-      
-      const sortedNotifications = fetchedNotifications.sort((a, b) => {
-        const aIsRead = a.readBy?.includes(user.uid);
-        const bIsRead = b.readBy?.includes(user.uid);
-        
-        if (aIsRead !== bIsRead) {
-          return aIsRead ? 1 : -1;
-        }
-
-        const aPriority = categoryConfig[a.category]?.priority || 99;
-        const bPriority = categoryConfig[b.category]?.priority || 99;
-
-        if (aPriority !== bPriority) {
-            return aPriority - bPriority;
-        }
-
-        return b.createdAt.seconds - a.createdAt.seconds;
-      });
-
-      setNotifications(sortedNotifications);
-    }, (error) => {
-        console.error("Error fetching notifications:", error);
+    const unsubNotifs = onSnapshot(notifQuery, (snapshot) => {
+      const fetchedNotifications = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Notification));
+      setNotifications(fetchedNotifications);
     });
 
-    return () => unsubscribe();
+    // --- Messages listener ---
+    const convosQuery = query(collection(firestore, `schools/${schoolId}/conversations`), where('participants', 'array-contains', user.uid), orderBy('timestamp', 'desc'));
+    const unsubConvos = onSnapshot(convosQuery, (snapshot) => {
+        setConversations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation)));
+    });
+
+    return () => {
+        unsubNotifs();
+        unsubConvos();
+    };
   }, [schoolId, user, role]);
 
   const handleMarkAsRead = async (id: string) => {
@@ -210,8 +295,18 @@ export function NotificationCenter() {
   
   const filteredNotifications = notifications.filter(n => activeTab === 'all' || n.category === activeTab);
 
+  if (selectedConversation && schoolId && user) {
+      return (
+          <Sheet open={true} onOpenChange={(open) => !open && setSelectedConversation(null)}>
+               <SheetContent className="w-full sm:max-w-md p-0">
+                    <ChatView conversation={selectedConversation} schoolId={schoolId} userId={user.uid} onBack={() => setSelectedConversation(null)} />
+               </SheetContent>
+          </Sheet>
+      )
+  }
+
   return (
-    <Sheet>
+    <Sheet onOpenChange={(open) => !open && setSelectedConversation(null)}>
       <SheetTrigger asChild>
         <Button variant="outline" size="icon" className="relative rounded-full h-12 w-12 shadow-lg bg-background hover:bg-muted">
           <Bell className="h-6 w-6" />
@@ -225,10 +320,10 @@ export function NotificationCenter() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md p-0">
+      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
         <SheetHeader className="p-6 border-b">
           <SheetTitle className="flex items-center justify-between">
-            <span>Notifications</span>
+            <span>Communications</span>
              {unreadCount > 0 && (
                 <Button variant="link" size="sm" className="h-auto p-0" onClick={handleMarkAllRead}>
                     <CheckCheck className="mr-2 h-4 w-4"/>
@@ -237,19 +332,25 @@ export function NotificationCenter() {
             )}
           </SheetTitle>
         </SheetHeader>
-        <div className="h-[calc(100%-4rem)]">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-                <TabsList className="m-4">
-                    <TabsTrigger value="all">All</TabsTrigger>
-                    <TabsTrigger value="Academics">Academics</TabsTrigger>
-                    <TabsTrigger value="Finance">Finance</TabsTrigger>
-                    <TabsTrigger value="Communication">Comms</TabsTrigger>
-                    <TabsTrigger value="System">System</TabsTrigger>
+        <Tabs defaultValue="notifications" className="flex-1 flex flex-col">
+            <div className="px-4">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="notifications">
+                        Notifications
+                        {unreadNotifications.length > 0 && <span className="ml-2 h-2 w-2 rounded-full bg-primary"/>}
+                    </TabsTrigger>
+                    <TabsTrigger value="messages">
+                        Messages
+                        {unreadMessages > 0 && <span className="ml-2 h-2 w-2 rounded-full bg-primary"/>}
+                    </TabsTrigger>
                 </TabsList>
-                 <ScrollArea className="flex-1">
-                    <div className="p-4 pt-0 space-y-2">
-                        {filteredNotifications.length > 0 ? (
-                            filteredNotifications.map((notification) => (
+            </div>
+
+            <TabsContent value="notifications" className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full">
+                    <div className="p-4 pt-2 space-y-2">
+                        {notifications.length > 0 ? (
+                            notifications.map((notification) => (
                                 <NotificationItem
                                 key={notification.id}
                                 notification={notification}
@@ -260,13 +361,43 @@ export function NotificationCenter() {
                             ))
                         ) : (
                              <div className="text-center text-muted-foreground py-16">
-                                <p>No notifications in this category.</p>
+                                <p>No new notifications.</p>
                             </div>
                         )}
                     </div>
                  </ScrollArea>
-            </Tabs>
-        </div>
+            </TabsContent>
+            <TabsContent value="messages" className="flex-1 overflow-hidden">
+                 <ScrollArea className="h-full">
+                    <div className="p-4 pt-2 space-y-1">
+                        {conversations.length > 0 ? conversations.map((convo) => (
+                            <button key={convo.id} className="w-full text-left p-2 rounded-lg hover:bg-muted" onClick={() => setSelectedConversation(convo)}>
+                                <div className="flex items-start gap-3">
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={convo.avatar} />
+                                        <AvatarFallback>{convo.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 truncate">
+                                        <div className="flex justify-between items-center">
+                                            <p className="font-semibold text-sm truncate">{convo.name}</p>
+                                            <p className="text-xs text-muted-foreground">{convo.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        </div>
+                                        <p className={cn("text-sm truncate", convo.unread && convo.lastMessageSender !== user?.uid ? "font-bold text-foreground" : "text-muted-foreground")}>
+                                            {convo.lastMessage}
+                                        </p>
+                                    </div>
+                                     {convo.unread && convo.lastMessageSender !== user?.uid && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1.5 shrink-0"></div>}
+                                </div>
+                            </button>
+                        )) : (
+                            <div className="text-center text-muted-foreground py-16">
+                                <p>You have no messages.</p>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+            </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );
