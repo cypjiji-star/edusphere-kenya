@@ -29,7 +29,7 @@ export default function DeveloperLayout({
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
           <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
-            {children}
+            <Suspense>{children}</Suspense>
           </main>
         </SidebarInset>
       </SidebarProvider>
