@@ -88,6 +88,7 @@ type Exam = {
     id: string;
     title: string;
     class: string;
+    classId: string;
     subject: string;
     date: Timestamp;
     duration: number; // in minutes
@@ -253,14 +254,18 @@ export default function AdminGradesPage() {
 
     // State for the create exam form
     const [examTitle, setExamTitle] = React.useState('');
-    const [examClass, setExamClass] = React.useState('');
+    const [examClassId, setExamClassId] = React.useState('');
     const [examSubject, setExamSubject] = React.useState('');
     const [examDate, setExamDate] = React.useState<Date | undefined>();
     const [examDuration, setExamDuration] = React.useState('');
     const [examType, setExamType] = React.useState<Exam['type'] | undefined>();
-    const [classes, setClasses] = React.useState<string[]>([]);
+    const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
     const [subjects, setSubjects] = React.useState<string[]>([]);
     const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<{subject: string; average: number}[]>([]);
+    
+    // Gradebook state
+    const [selectedGradebookClass, setSelectedGradebookClass] = React.useState<string>('');
+    const [selectedGradebookExam, setSelectedGradebookExam] = React.useState<string>('');
 
 
     React.useEffect(() => {
@@ -274,7 +279,11 @@ export default function AdminGradesPage() {
         
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
         const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
-            setClasses(snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim()));
+            const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
+            setClasses(classData);
+            if (classData.length > 0 && !selectedGradebookClass) {
+                setSelectedGradebookClass(classData[0].id);
+            }
         });
         
         const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
@@ -375,10 +384,25 @@ export default function AdminGradesPage() {
             unsubscribeSubjects();
             unsubscribeLogs();
         };
-    }, [schoolId]);
+    }, [schoolId, selectedGradebookClass]);
+
+    const filteredGradebookExams = React.useMemo(() => {
+        return exams.filter(exam => exam.classId === selectedGradebookClass);
+    }, [exams, selectedGradebookClass]);
+
+    const gradebookStudents = React.useMemo(() => {
+        return studentGrades; // This would be further filtered by class if `studentGrades` wasn't already aggregated
+    }, [studentGrades, selectedGradebookClass]);
+    
+    const gradebookSubjects = React.useMemo(() => {
+        if (!selectedGradebookExam) return [];
+        const exam = exams.find(e => e.id === selectedGradebookExam);
+        return exam ? [exam.subject] : [];
+    }, [exams, selectedGradebookExam]);
+
 
     const handleCreateExam = async () => {
-        if (!schoolId || !examTitle || !examClass || !examSubject || !examDate || !examDuration || !examType) {
+        if (!schoolId || !examTitle || !examClassId || !examSubject || !examDate || !examDuration || !examType) {
             toast({
                 title: 'Missing Information',
                 description: 'Please fill out all exam details.',
@@ -388,9 +412,11 @@ export default function AdminGradesPage() {
         }
 
         try {
+            const selectedClass = classes.find(c => c.id === examClassId);
             await addDoc(collection(firestore, `schools/${schoolId}/exams`), {
                 title: examTitle,
-                class: examClass,
+                class: selectedClass?.name || 'Unknown Class',
+                classId: examClassId,
                 subject: examSubject,
                 date: Timestamp.fromDate(examDate),
                 duration: Number(examDuration),
@@ -400,7 +426,7 @@ export default function AdminGradesPage() {
             
             await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
                 title: 'New Exam Scheduled',
-                description: `A new ${examType} exam, "${examTitle}", has been scheduled for ${examClass} on ${format(examDate, 'PPP')}.`,
+                description: `A new ${examType} exam, "${examTitle}", has been scheduled for ${selectedClass?.name} on ${format(examDate, 'PPP')}.`,
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/teacher/assignments?schoolId=${schoolId}`,
@@ -413,7 +439,7 @@ export default function AdminGradesPage() {
             
             // Reset form and close dialog
             setExamTitle('');
-            setExamClass('');
+            setExamClassId('');
             setExamSubject('');
             setExamDate(undefined);
             setExamDuration('');
@@ -541,11 +567,17 @@ export default function AdminGradesPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-class">Class</Label>
-                                            <Select value={examClass} onValueChange={setExamClass}><SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger><SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                                            <Select value={examClassId} onValueChange={setExamClassId}>
+                                                <SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger>
+                                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                            </Select>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-subject">Subject</Label>
-                                            <Select value={examSubject} onValueChange={setExamSubject}><SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger><SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                            <Select value={examSubject} onValueChange={setExamSubject}>
+                                                <SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger>
+                                                <SelectContent>{subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -567,7 +599,10 @@ export default function AdminGradesPage() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-type">Type</Label>
-                                            <Select value={examType} onValueChange={(v: Exam['type']) => setExamType(v)}><SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger><SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+                                            <Select value={examType} onValueChange={(v: Exam['type']) => setExamType(v)}>
+                                                <SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger>
+                                                <SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
                                     <Separator/>
@@ -637,17 +672,17 @@ export default function AdminGradesPage() {
                         <CardTitle>Gradebook</CardTitle>
                         <CardDescription>View and manage student marks for different exams.</CardDescription>
                         <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
-                            <Select>
+                             <Select value={selectedGradebookClass} onValueChange={setSelectedGradebookClass}>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select a Class"/>
                                 </SelectTrigger>
-                                <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Select>
+                            <Select value={selectedGradebookExam} onValueChange={setSelectedGradebookExam} disabled={filteredGradebookExams.length === 0}>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select an Exam"/>
                                 </SelectTrigger>
-                                <SelectContent>{exams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}</SelectContent>
+                                <SelectContent>{filteredGradebookExams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                     </CardHeader>
@@ -657,17 +692,24 @@ export default function AdminGradesPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Student</TableHead>
-                                        {subjects.slice(0, 5).map(sub => (
-                                            <TableHead key={sub} className="text-center">{sub.substring(0,3).toUpperCase()}</TableHead>
+                                        {gradebookSubjects.map(sub => (
+                                            <TableHead key={sub} className="text-center">{sub}</TableHead>
                                         ))}
                                         <TableHead className="text-right font-bold">Total</TableHead>
                                         <TableHead className="text-right font-bold">Grade</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {studentGrades.map(student => {
-                                        const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
-                                        const mean = total / Object.keys(student.scores).length;
+                                    {gradebookStudents.map(student => {
+                                        let total = 0;
+                                        let subjectCount = 0;
+                                        gradebookSubjects.forEach(sub => {
+                                            if (student.scores[sub]) {
+                                                total += student.scores[sub];
+                                                subjectCount++;
+                                            }
+                                        });
+                                        const mean = subjectCount > 0 ? total / subjectCount : 0;
                                         const grade = mean >= 80 ? 'A' : mean >= 65 ? 'B' : 'C';
 
                                         return (
@@ -684,7 +726,7 @@ export default function AdminGradesPage() {
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                             {subjects.slice(0, 5).map(sub => (
+                                             {gradebookSubjects.map(sub => (
                                                 <TableCell key={sub} className="text-center">{student.scores[sub] || '—'}</TableCell>
                                             ))}
                                             <TableCell className="text-right font-bold">{total}</TableCell>
@@ -780,7 +822,7 @@ export default function AdminGradesPage() {
                                     <SelectValue placeholder="Select a Class"/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {classes.map(c => <SelectItem key={c} value={c.replace(' ','-').toLowerCase()}>{c}</SelectItem>)}
+                                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <Select defaultValue="term2-2024">
