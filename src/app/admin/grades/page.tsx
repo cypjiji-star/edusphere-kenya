@@ -102,6 +102,7 @@ type Exam = {
     duration: number; // in minutes
     type: 'CAT' | 'Midterm' | 'Final' | 'Practical';
     moderatorFeedback?: string;
+    status: 'Open' | 'Pending Approval' | 'Closed' | 'Grading Complete';
 };
 
 type GroupedExam = Exam & {
@@ -146,6 +147,7 @@ type PendingGrade = {
     grade: string;
     teacherName: string;
     assessmentTitle: string;
+    examId: string;
 };
 
 
@@ -496,6 +498,8 @@ export default function AdminGradesPage() {
             const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
                 const data = gradeDoc.data();
                 const studentSnap = await getDoc(data.studentRef);
+                const examSnap = data.examId ? await getDoc(doc(firestore, 'schools', schoolId, 'exams', data.examId)) : null;
+
                 return {
                     id: gradeDoc.id,
                     studentName: studentSnap.data()?.name || 'Unknown',
@@ -503,7 +507,8 @@ export default function AdminGradesPage() {
                     subject: data.subject,
                     grade: data.grade,
                     teacherName: data.teacherName,
-                    assessmentTitle: data.assessmentTitle || 'N/A'
+                    assessmentTitle: data.assessmentTitle || examSnap?.data()?.title || 'N/A',
+                    examId: data.examId
                 };
             }));
             setPendingGrades(pendingData);
@@ -622,6 +627,7 @@ export default function AdminGradesPage() {
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/teacher/assignments?schoolId=${schoolId}`,
+                category: 'Academics',
             });
 
             setExamTitle('');
@@ -644,6 +650,12 @@ export default function AdminGradesPage() {
         try {
             await updateDoc(gradeRef, { status: decision, moderatorFeedback: feedback || null });
             
+            const pendingGrade = pendingGrades.find(g => g.id === gradeId);
+            if (decision === 'Rejected' && pendingGrade?.examId) {
+                const examRef = doc(firestore, 'schools', schoolId, 'exams', pendingGrade.examId);
+                await updateDoc(examRef, { status: 'Open' });
+            }
+
             await logAuditEvent({
                 schoolId,
                 action: decision === 'Approved' ? 'GRADE_APPROVED' : 'GRADE_REJECTED',
@@ -675,7 +687,8 @@ export default function AdminGradesPage() {
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/parent/grades?schoolId=${schoolId}`,
-                audience: 'parents-and-students' 
+                audience: 'parents-and-students',
+                category: 'Academics',
             });
             toast({
                 title: 'Results Published!',

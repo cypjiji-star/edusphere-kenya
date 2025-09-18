@@ -192,6 +192,7 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
         await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
             title: 'Low Attendance Alert',
             description: `A reminder has been sent to you regarding low attendance in one of your classes.`,
+            category: 'Academics',
             createdAt: serverTimestamp(),
             read: false,
             href: `/teacher/attendance?schoolId=${schoolId}`,

@@ -56,15 +56,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, limit, updateDoc, doc, where } from 'firebase/firestore';
+import { NotificationCenter } from '@/components/notifications/notification-center';
+import { useAuth } from '@/context/auth-context';
 
-type Notification = {
-    id: string;
-    title: string;
-    description: string;
-    createdAt: any;
-    read: boolean;
-    href: string;
-};
 
 const navGroups = [
   {
@@ -126,85 +120,11 @@ const navGroups = [
   }
 ];
 
-
-function NotificationsPopover({ schoolId }: { schoolId: string }) {
-    const [notifications, setNotifications] = React.useState<Notification[]>([]);
-    const unreadCount = notifications.filter(n => !n.read).length;
-
-    React.useEffect(() => {
-        if (!schoolId) return;
-        const q = query(collection(firestore, 'schools', schoolId, 'notifications'), orderBy('createdAt', 'desc'), limit(10));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
-            setNotifications(fetchedNotifications);
-        });
-        return () => unsubscribe();
-    }, [schoolId]);
-    
-    const handleMarkAsRead = async (id: string) => {
-        if (!schoolId) return;
-        const notificationRef = doc(firestore, 'schools', schoolId, 'notifications', id);
-        await updateDoc(notificationRef, { read: true });
-    };
-
-    const handleMarkAllRead = async () => {
-        const unreadNotifications = notifications.filter(n => !n.read);
-        for (const notification of unreadNotifications) {
-            await handleMarkAsRead(notification.id);
-        }
-    };
-
-    return (
-        <Popover>
-            <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
-                    {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-4 w-4 text-xs items-center justify-center bg-primary text-primary-foreground">{unreadCount}</span>
-                        </span>
-                    )}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" align="end">
-                <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium">Notifications</h4>
-                    {unreadCount > 0 && (
-                        <Button variant="link" size="sm" className="h-auto p-0" onClick={handleMarkAllRead}>
-                            Mark all as read
-                        </Button>
-                    )}
-                </div>
-                <div className="space-y-4">
-                    {notifications.length > 0 ? notifications.map(notif => (
-                         <div key={notif.id} className={cn("flex items-start gap-3", !notif.read && "font-semibold")}>
-                             {!notif.read && <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                            <div className="flex-1 space-y-1">
-                                <Link href={`${notif.href}?schoolId=${schoolId}`} className="hover:underline text-sm">
-                                    <p>{notif.title}</p>
-                                    <p className={cn("text-xs", !notif.read ? "text-muted-foreground" : "text-muted-foreground/70")}>{notif.description}</p>
-                                </Link>
-                            </div>
-                            {!notif.read && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMarkAsRead(notif.id)}>
-                                    <Check className="h-4 w-4"/>
-                                </Button>
-                            )}
-                        </div>
-                    )) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">No new notifications.</p>
-                    )}
-                </div>
-            </PopoverContent>
-        </Popover>
-    )
-}
-
 export function AdminSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId') || '';
+  const { user } = useAuth();
   const isActive = (href: string) => pathname.startsWith(href);
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
 
@@ -277,7 +197,7 @@ export function AdminSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="flex items-center gap-2">
-        <NotificationsPopover schoolId={schoolId} />
+        <NotificationCenter />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
@@ -286,7 +206,7 @@ export function AdminSidebar() {
                 <AvatarFallback>A</AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <p className="text-sm font-medium">Admin User</p>
+                <p className="text-sm font-medium">{user?.displayName || 'Admin User'}</p>
                 <p className="text-xs text-muted-foreground">Administrator</p>
               </div>
               <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
@@ -295,9 +215,9 @@ export function AdminSidebar() {
           <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Admin User</p>
+                <p className="text-sm font-medium leading-none">{user?.displayName || 'Admin User'}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  admin@school.ac.ke
+                  {user?.email || 'admin@school.ac.ke'}
                 </p>
               </div>
             </DropdownMenuLabel>
