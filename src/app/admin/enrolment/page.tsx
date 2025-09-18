@@ -7,10 +7,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { firestore, storage, auth } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import * as XLSX from 'xlsx';
+
 
 import { cn } from '@/lib/utils';
 import {
@@ -87,6 +89,7 @@ import {
   KeyRound,
   CircleDollarSign,
   Contact,
+  ArrowRight,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -139,6 +142,16 @@ const getStatusBadge = (status: RecentEnrolment['status']) => {
     }
 }
 
+const requiredFields = [
+    { id: 'studentFirstName', label: 'Student First Name' },
+    { id: 'studentLastName', label: 'Student Last Name' },
+    { id: 'classId', label: 'Class ID' },
+    { id: 'parentFirstName', label: 'Parent First Name' },
+    { id: 'parentLastName', label: 'Parent Last Name' },
+    { id: 'parentEmail', label: 'Parent Email' },
+    { id: 'parentPhone', label: 'Parent Phone' },
+];
+
 export default function StudentEnrolmentPage() {
     const { toast } = useToast();
     const searchParams = useSearchParams();
@@ -156,6 +169,10 @@ export default function StudentEnrolmentPage() {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [classOptions, setClassOptions] = React.useState<{ value: string; label: string; }[]>([]);
 
+    // State for bulk import
+    const [fileHeaders, setFileHeaders] = React.useState<string[]>([]);
+    const [columnMapping, setColumnMapping] = React.useState<Record<string, string>>({});
+    const [parsedData, setParsedData] = React.useState<any[]>([]);
 
     const form = useForm<EnrolmentFormValues>({
         resolver: zodResolver(enrolmentSchema),
@@ -220,37 +237,129 @@ export default function StudentEnrolmentPage() {
         if (event.target.files && event.target.files[0]) {
             setBulkEnrolmentFile(event.target.files[0]);
             setIsFileProcessed(false);
+            setParsedData([]);
+            setFileHeaders([]);
+            setColumnMapping({});
         }
     };
     
     const handleRemoveBulkFile = () => {
         setBulkEnrolmentFile(null);
         setIsFileProcessed(false);
+        setParsedData([]);
+        setFileHeaders([]);
+        setColumnMapping({});
     };
 
     const handleProcessFile = () => {
+        if (!bulkEnrolmentFile) return;
         setIsProcessingFile(true);
-        setTimeout(() => {
-            setIsProcessingFile(false);
-            setIsFileProcessed(true);
-            toast({
-                title: 'File Processed',
-                description: 'Please map the columns from your file to the required fields.',
-            });
-        }, 1500);
-    }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                const headers = json[0] || [];
+                setFileHeaders(headers);
+
+                const records = json.slice(1).map(row => {
+                    const record: any = {};
+                    headers.forEach((header: string, index: number) => {
+                        record[header] = row[index];
+                    });
+                    return record;
+                });
+                setParsedData(records);
+
+                setIsFileProcessed(true);
+                toast({ title: 'File Processed', description: 'Please map the columns from your file to the required fields.' });
+            } catch (error) {
+                 toast({ title: 'Error Processing File', description: 'The file format might be incorrect.', variant: 'destructive' });
+            } finally {
+                setIsProcessingFile(false);
+            }
+        };
+        reader.readAsBinaryString(bulkEnrolmentFile);
+    };
+
+    const handleMappingChange = (fieldId: string, fileHeader: string) => {
+        setColumnMapping(prev => ({ ...prev, [fieldId]: fileHeader }));
+    };
     
-     const handleImportStudents = () => {
-        setIsBulkDialogOpen(false); // Close the dialog
-        toast({
-            title: 'Import Successful',
-            description: 'The students have been added to the enrolment queue.',
-        });
-        // Reset dialog state after closing
-        setTimeout(() => {
-            setBulkEnrolmentFile(null);
-            setIsFileProcessed(false);
-        }, 300);
+     const handleImportStudents = async () => {
+        if (parsedData.length === 0 || !schoolId || !adminUser) {
+            toast({ title: 'Error', description: 'No data to import or not authenticated.', variant: 'destructive' });
+            return;
+        }
+
+        setIsProcessingFile(true);
+        const batch = writeBatch(firestore);
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const record of parsedData) {
+            try {
+                const studentData = {
+                    studentFirstName: record[columnMapping['studentFirstName']],
+                    studentLastName: record[columnMapping['studentLastName']],
+                    classId: record[columnMapping['classId']],
+                    parentFirstName: record[columnMapping['parentFirstName']],
+                    parentLastName: record[columnMapping['parentLastName']],
+                    parentEmail: record[columnMapping['parentEmail']],
+                    parentPhone: record[columnMapping['parentPhone']],
+                };
+                
+                // Simple validation
+                if (!studentData.studentFirstName || !studentData.studentLastName || !studentData.parentEmail) {
+                    errorCount++;
+                    continue;
+                }
+                
+                const parentName = `${studentData.parentFirstName} ${studentData.parentLastName}`;
+                const studentName = `${studentData.studentFirstName} ${studentData.studentLastName}`;
+
+                const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
+                batch.set(studentDocRef, {
+                    id: studentDocRef.id,
+                    name: studentName,
+                    firstName: studentData.studentFirstName,
+                    lastName: studentData.studentLastName,
+                    classId: studentData.classId,
+                    class: classOptions.find(c => c.value === studentData.classId)?.label || 'N/A',
+                    parentName,
+                    parentEmail: studentData.parentEmail,
+                    parentPhone: studentData.parentPhone,
+                    status: 'Approved',
+                    createdAt: serverTimestamp(),
+                });
+                successCount++;
+            } catch (e) {
+                console.error("Error processing record for import:", e);
+                errorCount++;
+            }
+        }
+
+        try {
+            await batch.commit();
+            await logAuditEvent({
+                schoolId,
+                action: 'BULK_STUDENT_ENROLLED',
+                actionType: 'User Management',
+                description: `${successCount} students were enrolled via bulk import. ${errorCount} records failed.`,
+                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+            });
+            toast({ title: 'Import Complete', description: `${successCount} students imported. ${errorCount} failed.`});
+            setIsBulkDialogOpen(false);
+            handleRemoveBulkFile();
+        } catch (e) {
+             toast({ title: 'Import Failed', description: 'Could not commit changes to the database.', variant: 'destructive'});
+        } finally {
+            setIsProcessingFile(false);
+        }
     };
 
 
@@ -450,11 +559,11 @@ export default function StudentEnrolmentPage() {
               Bulk Enroll Students
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-4xl">
               <DialogHeader>
                   <DialogTitle>Import Students from CSV/Excel</DialogTitle>
                   <DialogDescription>
-                      Upload a file to bulk register new students.
+                      Upload a file to bulk register new students. Make sure your file has a header row.
                   </DialogDescription>
               </DialogHeader>
               <div className="grid gap-6 py-4">
@@ -478,72 +587,61 @@ export default function StudentEnrolmentPage() {
                                       <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
                                       <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
                                   </div>
-                                  <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} />
+                                  <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} accept=".csv, .xlsx, .xls" />
                               </Label>
                           )}
                       </div>
                   </div>
-                  <div className={cn("space-y-4", !isFileProcessed && "opacity-50")}>
-                      <div className="flex items-center gap-2">
-                          <Columns className="h-5 w-5 text-primary" />
-                          <h4 className="font-medium">Step 2: Map Columns</h4>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                              <Label>Full Name</Label>
-                              <Select defaultValue="col1" disabled={!isFileProcessed}>
-                                  <SelectTrigger><SelectValue/></SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="col1">Column A</SelectItem>
-                                      <SelectItem value="col2">Column B</SelectItem>
-                                      <SelectItem value="col3">Column C</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                          <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                              <Label>Admission No.</Label>
-                               <Select defaultValue="col2" disabled={!isFileProcessed}>
-                                  <SelectTrigger><SelectValue/></SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="col1">Column A</SelectItem>
-                                      <SelectItem value="col2">Column B</SelectItem>
-                                      <SelectItem value="col3">Column C</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                          <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                              <Label>Class</Label>
-                               <Select defaultValue="col3" disabled={!isFileProcessed}>
-                                  <SelectTrigger><SelectValue/></SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="col1">Column A</SelectItem>
-                                      <SelectItem value="col2">Column B</SelectItem>
-                                      <SelectItem value="col3">Column C</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                           <div className="grid grid-cols-[1fr,150px] items-center gap-2">
-                              <Label>Parent Name</Label>
-                               <Select disabled={!isFileProcessed}>
-                                  <SelectTrigger><SelectValue placeholder="Select column..."/></SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="col4">Column D</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                      </div>
-                  </div>
+                  {isFileProcessed && (
+                      <>
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                                <Columns className="h-5 w-5 text-primary" />
+                                <h4 className="font-medium">Step 2: Map Columns</h4>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {requiredFields.map(field => (
+                                    <div key={field.id} className="space-y-1">
+                                        <Label htmlFor={`map-${field.id}`}>{field.label}</Label>
+                                        <Select onValueChange={(value) => handleMappingChange(field.id, value)}>
+                                            <SelectTrigger id={`map-${field.id}`}><SelectValue placeholder="Select column..."/></SelectTrigger>
+                                            <SelectContent>
+                                                {fileHeaders.map(header => <SelectItem key={header} value={header}>{header}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <h4 className="font-medium">Step 3: Preview Data</h4>
+                            <div className="w-full overflow-auto rounded-lg border h-64">
+                                <Table>
+                                    <TableHeader><TableRow>{requiredFields.map(f => <TableHead key={f.id}>{f.label}</TableHead>)}</TableRow></TableHeader>
+                                    <TableBody>
+                                        {parsedData.slice(0, 5).map((row, index) => (
+                                            <TableRow key={index}>
+                                                {requiredFields.map(field => <TableCell key={field.id}>{row[columnMapping[field.id]] || ''}</TableCell>)}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                      </>
+                  )}
               </div>
               <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                 {isFileProcessed ? (
-                    <Button onClick={handleImportStudents}>
-                        <CheckCircle className="mr-2 h-4 w-4" /> Import Students
+                    <Button onClick={handleImportStudents} disabled={isProcessingFile}>
+                        {isProcessingFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4" />} 
+                        Import {parsedData.length} Students
                     </Button>
                 ) : (
                     <Button onClick={handleProcessFile} disabled={!bulkEnrolmentFile || isProcessingFile}>
-                        {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
+                        {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : <><ArrowRight className="mr-2 h-4 w-4"/>Next</>}
                     </Button>
                 )}
             </DialogFooter>
