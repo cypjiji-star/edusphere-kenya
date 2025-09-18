@@ -95,7 +95,7 @@ type Incident = {
   attachmentName?: string;
 };
 
-type TeacherStudent = { id: string; name: string; class: string; };
+type TeacherStudent = { id: string; name: string; class: string; allergies?: string; medicalConditions?: string; };
 
 const incidentSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
@@ -266,8 +266,8 @@ export default function AdminHealthPage() {
             return acc;
         }, {} as Record<string, number>);
 
-        const studentsWithAllergies = allStudents.filter(s => (s as any).allergies && (s as any).allergies.toLowerCase() !== 'none').length;
-        const studentsWithConditions = allStudents.filter(s => (s as any).medicalConditions && (s as any).medicalConditions.toLowerCase() !== 'none').length;
+        const studentsWithAllergies = allStudents.filter(s => s.allergies && s.allergies.toLowerCase() !== 'none').length;
+        const studentsWithConditions = allStudents.filter(s => s.medicalConditions && s.medicalConditions.toLowerCase() !== 'none').length;
 
         return {
             activeIncidents: incidents.filter(i => i.status === 'Reported' || i.status === 'Under Review').length,
@@ -410,7 +410,7 @@ export default function AdminHealthPage() {
                 </div>
                 
                 <Tabs defaultValue="dashboard">
-                    <TabsList className="mb-4 grid w-full grid-cols-5 md:w-auto md:inline-flex">
+                    <TabsList className="mb-4 grid w-full grid-cols-1 sm:grid-cols-5 md:w-auto md:inline-flex">
                         <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                         <TabsTrigger value="entry">New Entry</TabsTrigger>
                         <TabsTrigger value="log">Incident Log</TabsTrigger>
@@ -526,7 +526,7 @@ export default function AdminHealthPage() {
                                                     <FormField control={form.control} name="incidentTime" render={({ field }) => ( <FormItem> <FormLabel>Time</FormLabel> <FormControl> <Input type="time" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                                                 </div>
                                                 <FormField control={form.control} name="location" render={({ field }) => ( <FormItem> <FormLabel>Location</FormLabel> <FormControl> <Input placeholder="e.g., Science Lab, Playground" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                                                <FormField control={form.control} name="urgency" render={({ field }) => ( <FormItem> <FormLabel>Urgency Level</FormLabel> <FormControl> <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"> {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => ( <FormItem key={level} className="flex items-center space-x-2 space-y-0"> <FormControl> <RadioGroupItem value={level} id={`urgency-admin-${level}`} /> </FormControl> <FormLabel htmlFor={`urgency-admin-${level}`} className="font-normal"> <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge> </FormLabel> </FormItem> ))} </RadioGroup> </FormControl> <FormMessage /> </FormItem> )}/>
+                                                <FormField control={form.control} name="urgency" render={({ field }) => ( <FormItem> <FormLabel>Urgency Level</FormLabel> <FormControl> <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"> {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => ( <FormItem key={level} className="flex items-center space-x-2 space-y-0"> <FormControl> <RadioGroupItem value={level} id={`urgency-admin-${level}`} /> </FormControl> <Label htmlFor={`urgency-admin-${level}`} className="font-normal"> <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge> </Label> </FormItem> ))} </RadioGroup> </FormControl> <FormMessage /> </FormItem> )}/>
                                             </div>
                                             <div className="space-y-6">
                                                 <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Detailed Description</FormLabel> <FormControl> <Textarea placeholder="Describe the condition, diagnosis, or incident..." className="min-h-[120px]" {...field}/> </FormControl> <FormMessage /> </FormItem> )}/>
@@ -579,11 +579,33 @@ export default function AdminHealthPage() {
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                 <div className="w-full overflow-auto rounded-lg border">
+                                 <div className="w-full overflow-auto rounded-lg border hidden md:block">
                                     <Table>
                                         <TableHeader> <TableRow> <TableHead>Student</TableHead> <TableHead>Type</TableHead> <TableHead>Date</TableHead> <TableHead>Class</TableHead> <TableHead>Reported By</TableHead> <TableHead>Status</TableHead> <TableHead className="text-right">Actions</TableHead> </TableRow> </TableHeader>
                                         <TableBody> {filteredIncidents.map(incident => ( <DialogTrigger asChild key={incident.id}> <TableRow className="cursor-pointer" onClick={() => setSelectedIncident(incident)}> <TableCell> <div className="flex items-center gap-3"> <Avatar className="h-8 w-8"> <AvatarImage src={incident.studentAvatar} alt={incident.studentName} /> <AvatarFallback>{incident.studentName.charAt(0)}</AvatarFallback> </Avatar> <span className="font-medium">{incident.studentName}</span> </div> </TableCell> <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>{incident.type}</Badge></TableCell> <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell> <TableCell>{incident.class}</TableCell> <TableCell>{incident.reportedBy}</TableCell> <TableCell>{getStatusBadge(incident.status)}</TableCell> <TableCell className="text-right"><Button variant="ghost" size="sm">View Details</Button></TableCell> </TableRow> </DialogTrigger> ))} </TableBody>
                                     </Table>
+                                </div>
+                                <div className="grid grid-cols-1 gap-4 md:hidden">
+                                {filteredIncidents.map(incident => (
+                                    <DialogTrigger asChild key={incident.id}>
+                                    <Card className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
+                                        <CardHeader>
+                                            <div className="flex items-center justify-between">
+                                                <CardTitle className="text-base">{incident.studentName}</CardTitle>
+                                                <Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>{incident.type}</Badge>
+                                            </div>
+                                            <CardDescription>{incident.class} - Reported by {incident.reportedBy}</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-sm truncate text-muted-foreground">{incident.description}</p>
+                                        </CardContent>
+                                        <CardFooter className="flex justify-between items-center text-xs">
+                                            <span>{incident.date.toDate().toLocaleDateString()}</span>
+                                            {getStatusBadge(incident.status)}
+                                        </CardFooter>
+                                    </Card>
+                                    </DialogTrigger>
+                                ))}
                                 </div>
                             </CardContent>
                         </Card>
