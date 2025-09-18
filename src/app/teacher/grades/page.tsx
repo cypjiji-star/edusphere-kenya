@@ -307,7 +307,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleSubmitAllGrades}>Confirm & Submit</AlertDialogAction>
+                                    <AlertDialogAction onClick={handleSubmitAllGrades}>Confirm &amp; Submit</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
@@ -467,23 +467,34 @@ export default function TeacherGradesPage() {
     
     React.useEffect(() => {
         if (!schoolId || !user) return;
-
+        
         const classIdsQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user.uid));
+        
         const unsubClasses = onSnapshot(classIdsQuery, (classSnapshot) => {
-            const classIds = classSnapshot.docs.map(doc => doc.id);
+            const teacherClassIds = classSnapshot.docs.map(doc => doc.id);
             setTeacherClasses(classSnapshot.docs.map(d => ({id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim()})));
-            
-            if (classIds.length > 0) {
+
+            let examQueries: any[] = [];
+            if (teacherClassIds.length > 0) {
+                 examQueries.push(query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', teacherClassIds)));
+            }
+            if(teacherSubjects.length > 0) {
+                examQueries.push(query(collection(firestore, `schools/${schoolId}/exams`), where('subject', 'in', teacherSubjects)));
+            }
+
+            if (examQueries.length > 0) {
                 setIsLoading(true);
-                const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', classIds));
-                const unsubscribeExams = onSnapshot(examsQuery, (snapshot) => {
-                    const examsData = snapshot.docs.map(doc => {
-                        return { id: doc.id, ...doc.data() } as Exam;
+                // Since we can't do an OR query, we fetch both and merge
+                Promise.all(examQueries.map(q => getDocs(q))).then(results => {
+                    const examMap = new Map<string, Exam>();
+                    results.forEach(snapshot => {
+                        snapshot.docs.forEach(doc => {
+                             examMap.set(doc.id, { id: doc.id, ...doc.data() } as Exam);
+                        });
                     });
-                    setExams(examsData);
+                    setExams(Array.from(examMap.values()));
                     setIsLoading(false);
                 });
-                 return () => unsubscribeExams();
             } else {
                  setIsLoading(false);
                  setExams([]);
@@ -491,7 +502,7 @@ export default function TeacherGradesPage() {
         });
         
         return () => unsubClasses();
-    }, [schoolId, user]);
+    }, [schoolId, user, teacherSubjects]);
 
 
     const filteredExams = exams.filter(exam => {
@@ -688,93 +699,68 @@ export default function TeacherGradesPage() {
                                             <div className="font-medium">{exam.className}</div>
                                             <div className="text-sm text-muted-foreground">{exam.subject}</div>
                                         </TableCell>
-                                        <TableCell>{exam.date.toDate().toLocaleDateString()}</TableCell>
+                                        <TableCell>{exam.date?.toDate().toLocaleDateString()}</TableCell>
                                         <TableCell>{getStatusBadge(exam.status)}</TableCell>
                                         <TableCell>
-                                            {exam.moderatorFeedback && (
-                                                <Dialog>
-                                                    <DialogTrigger asChild>
-                                                        <Button variant="ghost" size="sm" className="text-yellow-500 hover:text-yellow-600">
-                                                            <AlertTriangle className="mr-2 h-4 w-4"/>View
-                                                        </Button>
-                                                    </DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader>
-                                                            <DialogTitle>Moderator Feedback</DialogTitle>
-                                                        </DialogHeader>
-                                                        <p className="py-4">{exam.moderatorFeedback}</p>
-                                                    </DialogContent>
-                                                </Dialog>
+                                            {exam.moderatorFeedback ? (
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="secondary" size="sm">View Feedback</Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Moderator Feedback</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                {exam.moderatorFeedback}
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Close</AlertDialogCancel>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            ) : (
+                                                <Badge variant="outline">No Feedback</Badge>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button variant="outline" size="sm" onClick={() => setSelectedExam(exam)} disabled={exam.status !== 'Open'}>
-                                                <Plus className="mr-2 h-4 w-4"/>
-                                                Enter Marks
-                                            </Button>
-                                            <Button variant="secondary" size="sm" disabled>
-                                                <File className="mr-2 h-4 w-4"/>
-                                                View Results
-                                            </Button>
+                                        <TableCell className="text-right">
+                                            <Button size="sm" onClick={() => setSelectedExam(exam)}>Enter Marks</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
-                                <TableRow><TableCell colSpan={6} className="h-24 text-center">No exams found for the selected filters.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-24 text-center">No exams assigned.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </div>
-                 {/* Mobile Cards */}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+                 <div className="grid grid-cols-1 gap-4 md:hidden">
                     {isLoading ? (
-                         <div className="col-span-full h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>
+                        <div className="col-span-full h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>
                     ) : filteredExams.length > 0 ? (
                         filteredExams.map(exam => (
                             <Card key={exam.id}>
                                 <CardHeader>
-                                    <div className="flex items-start justify-between">
-                                        <CardTitle className="text-base font-semibold">{exam.title}</CardTitle>
-                                        {getStatusBadge(exam.status)}
-                                    </div>
+                                    <CardTitle className="text-base">{exam.title}</CardTitle>
                                     <CardDescription>{exam.className} - {exam.subject}</CardDescription>
                                 </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">Due: {exam.date.toDate().toLocaleDateString()}</p>
-                                      {exam.moderatorFeedback && (
-                                        <Dialog>
-                                            <DialogTrigger asChild>
-                                                <Button variant="link" size="sm" className="p-0 h-auto mt-2 text-yellow-500 hover:text-yellow-600">
-                                                    <AlertTriangle className="mr-2 h-4 w-4"/>View Feedback
-                                                </Button>
-                                            </DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Moderator Feedback</DialogTitle>
-                                                </DialogHeader>
-                                                <p className="py-4">{exam.moderatorFeedback}</p>
-                                            </DialogContent>
-                                        </Dialog>
+                                <CardContent className="space-y-2">
+                                    <p className="text-sm">Date: {exam.date?.toDate().toLocaleDateString()}</p>
+                                    <p className="text-sm">Status: {exam.status}</p>
+                                    {exam.moderatorFeedback && (
+                                        <p className="text-sm text-yellow-500">Feedback: {exam.moderatorFeedback}</p>
                                     )}
+                                    <Button size="sm" className="w-full" onClick={() => setSelectedExam(exam)}>Enter Marks</Button>
                                 </CardContent>
-                                <CardFooter>
-                                    <Button variant="outline" size="sm" className="w-full" onClick={() => setSelectedExam(exam)} disabled={exam.status !== 'Open'}>
-                                        <Plus className="mr-2 h-4 w-4"/>
-                                        Enter Marks
-                                    </Button>
-                                </CardFooter>
                             </Card>
                         ))
                     ) : (
-                        <Card className="sm:col-span-2">
-                           <CardContent className="h-24 text-center flex items-center justify-center">
-                                No exams found for the selected filters.
-                            </CardContent>
-                        </Card>
+                        <div className="col-span-full h-24 text-center">No exams assigned.</div>
                     )}
                  </div>
             </CardContent>
         </Card>
     </div>
-  );
+  )
 }
+
