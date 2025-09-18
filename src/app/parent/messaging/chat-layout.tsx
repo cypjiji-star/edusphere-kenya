@@ -100,7 +100,8 @@ export function ParentChatLayout() {
     const convosQuery = query(
       collection(firestore, `schools/${schoolId}/conversations`),
       where('participants', 'array-contains', user.uid),
-      orderBy('timestamp', 'desc')
+      orderBy('timestamp', 'desc'),
+      limit(1)
     );
     
     const unsubConvos = onSnapshot(convosQuery, 
@@ -128,7 +129,16 @@ export function ParentChatLayout() {
     );
 
     const unsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
-        const convoMessages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+        const convoMessages = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                role: data.sender === user.uid ? 'user' : 'model',
+                content: data.text,
+                timestamp: data.timestamp,
+                senderName: data.senderName
+            } as Message;
+        });
         setMessages(convoMessages);
     });
 
@@ -189,7 +199,8 @@ export function ParentChatLayout() {
 
     if (chatState === 'ai') {
         setMessages(prev => [...prev, userMessage]);
-        const result = await supportChatbot({ history: [...messages, userMessage] });
+        const historyForAI = [...messages, userMessage].map(m => ({ role: m.role, content: m.content }));
+        const result = await supportChatbot({ history: historyForAI });
         const aiResponse: Message = {
             role: 'model',
             content: result.response,
@@ -260,10 +271,8 @@ export function ParentChatLayout() {
             <div ref={messagesEndRef} />
         </div>
         
-        {/* Typing Indicator Placeholder */}
         <div className="px-4 pb-2 h-6">
             {/* Logic to show typing indicator would go here */}
-            {/* <p className="text-xs text-slate-400 italic">Admin is typing...</p> */}
         </div>
 
         {chatState === 'ai' && (

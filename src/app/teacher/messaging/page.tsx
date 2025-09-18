@@ -1,4 +1,3 @@
-
 'use client';
 
 import { TeacherChatLayout } from './chat-layout';
@@ -10,5 +9,3 @@ export default function MessagingPage() {
     </div>
   );
 }
-
-    
