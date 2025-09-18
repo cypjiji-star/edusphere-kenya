@@ -61,7 +61,6 @@ const navGroups = [
       { href: '/teacher/students', label: 'Class Management', icon: Users, badgeKey: null },
       { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck, badgeKey: null },
       { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked, badgeKey: 'ungradedAssignments' },
-      { href: '/teacher/grades', label: 'Grades/Reports', icon: FileText, badgeKey: null },
       { href: '/teacher/payments', label: 'Class Funds', icon: CircleDollarSign, badgeKey: null },
       { href: '/teacher/sports', label: 'Sports', icon: Trophy, badgeKey: null },
       { href: '/teacher/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },

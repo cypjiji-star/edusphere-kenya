@@ -132,7 +132,7 @@ export default function TeacherDashboard() {
             title: "Avg. Last Exam Score",
             stat: `${avgScore}%`,
             icon: <Percent className="h-6 w-6 text-muted-foreground" />,
-            href: `/teacher/grades?schoolId=${schoolId}`,
+            href: `#`,
         }
     ];
 
