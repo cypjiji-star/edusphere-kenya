@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -45,99 +46,91 @@ export default function TeacherDashboard() {
         const teacherId = user.uid;
         setIsLoading(true);
 
-        let unsubAttendance: (() => void) | undefined;
+        const unsubscribers: (() => void)[] = [];
 
         try {
             const schoolRef = doc(firestore, 'schools', schoolId);
-            const unsubSchool = onSnapshot(schoolRef, 
-                (docSnap) => {
-                    if(docSnap.exists()) {
-                        setSchoolName(docSnap.data().name);
-                    }
-                },
-                (error) => {
-                    console.error("Error fetching school:", error);
-                }
-            );
+            unsubscribers.push(onSnapshot(schoolRef, (docSnap) => {
+                if(docSnap.exists()) setSchoolName(docSnap.data().name);
+            }));
             
             const userDocRef = doc(firestore, `schools/${schoolId}/users`, teacherId);
-            const unsubUser = onSnapshot(userDocRef, 
-                (docSnap) => {
-                    if (docSnap.exists()) {
-                        setTeacherName(docSnap.data().name || 'Teacher');
-                    }
-                },
-                (error) => {
-                    console.error("Error fetching user:", error);
-                }
-            );
+            unsubscribers.push(onSnapshot(userDocRef, (docSnap) => {
+                if (docSnap.exists()) setTeacherName(docSnap.data().name || 'Teacher');
+            }));
 
-            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('teacherId', '==', teacherId));
-            const unsubStudents = onSnapshot(studentsQuery, 
-                (snapshot) => {
-                    const studentCount = snapshot.size;
-                    setTotalStudents(studentCount);
-
-                    // Fetch attendance only after we have the student count
-                    if (studentCount > 0) {
-                        const today = new Date();
-                        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                        const attendanceQuery = query(
-                            collection(firestore, `schools/${schoolId}/attendance`), 
-                            where('teacherId', '==', teacherId),
-                            where('date', '>=', Timestamp.fromDate(startOfToday))
-                        );
-                        unsubAttendance = onSnapshot(attendanceQuery, 
-                            (attSnapshot) => {
-                                const presentCount = attSnapshot.docs.filter(r => r.data().status === 'present' || r.data().status === 'late').length;
-                                setAttendancePercentage(Math.round((presentCount / studentCount) * 100));
-                            },
-                            (error) => {
-                                console.error("Error fetching attendance:", error);
-                            }
-                        );
-                    } else {
-                         setAttendancePercentage(100);
-                    }
-                },
-                (error) => {
-                    console.error("Error fetching students:", error);
+            const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+            unsubscribers.push(onSnapshot(classesQuery, async (classesSnapshot) => {
+                const classIds = classesSnapshot.docs.map(doc => doc.id);
+                if (classIds.length === 0) {
+                    setTotalStudents(0);
+                    setAttendancePercentage(100);
+                    setAvgScore(0);
+                    setIsLoading(false);
+                    return;
                 }
-            );
-            
-            const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
-            const unsubAssignments = onSnapshot(assignmentsQuery, 
-                (snapshot) => {
-                    let ungradedCount = 0;
-                    snapshot.forEach(doc => {
-                        const assignment = doc.data();
-                        if (assignment.submissions < assignment.totalStudents) {
-                            ungradedCount++;
+
+                // Fetch students for these classes
+                const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+                const studentsSnapshot = await getDocs(studentsQuery);
+                const studentCount = studentsSnapshot.size;
+                const studentIds = studentsSnapshot.docs.map(doc => doc.id);
+                setTotalStudents(studentCount);
+
+                // Fetch attendance for today for these students
+                if (studentCount > 0) {
+                    const today = new Date();
+                    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    const attendanceQuery = query(
+                        collection(firestore, `schools/${schoolId}/attendance`), 
+                        where('studentId', 'in', studentIds),
+                        where('date', '>=', Timestamp.fromDate(startOfToday))
+                    );
+                    const attendanceSnapshot = await getDocs(attendanceQuery);
+                    const presentCount = attendanceSnapshot.docs.filter(r => ['present', 'late'].includes(r.data().status.toLowerCase())).length;
+                    setAttendancePercentage(Math.round((presentCount / studentCount) * 100));
+                } else {
+                    setAttendancePercentage(100);
+                }
+
+                // Calculate average score for these students
+                if (studentIds.length > 0) {
+                    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds));
+                    const gradesSnapshot = await getDocs(gradesQuery);
+                    let totalScore = 0;
+                    let gradeCount = 0;
+                    gradesSnapshot.forEach(doc => {
+                        const score = parseInt(doc.data().grade, 10);
+                        if (!isNaN(score)) {
+                            totalScore += score;
+                            gradeCount++;
                         }
                     });
-                    setUngradedAssignments(ungradedCount);
-                },
-                (error) => {
-                    console.error("Error fetching assignments:", error);
+                    setAvgScore(gradeCount > 0 ? Math.round(totalScore / gradeCount) : 0);
+                } else {
+                    setAvgScore(0);
                 }
-            );
+            }));
+            
+            const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
+            unsubscribers.push(onSnapshot(assignmentsQuery, (snapshot) => {
+                let ungradedCount = 0;
+                snapshot.forEach(doc => {
+                    const assignment = doc.data();
+                    if (assignment.submissions < assignment.totalStudents) ungradedCount++;
+                });
+                setUngradedAssignments(ungradedCount);
+            }));
 
-            // Mock average score
-            setAvgScore(78);
             setIsLoading(false);
-
-            return () => {
-                unsubSchool();
-                unsubUser();
-                unsubStudents();
-                unsubAssignments();
-                if (unsubAttendance) unsubAttendance();
-            };
 
         } catch (error) {
             console.error("Error setting up dashboard listeners:", error);
             setIsLoading(false);
         }
+
+        return () => unsubscribers.forEach(unsub => unsub());
+
     }, [schoolId, user]);
 
     const quickStats = React.useMemo(() => [
@@ -175,7 +168,7 @@ export default function TeacherDashboard() {
       </div>
 
        <div className="mb-8">
-          <MyAttendanceWidget schoolId={schoolId} />
+          <MyAttendanceWidget />
        </div>
 
        {isLoading ? (
@@ -225,14 +218,14 @@ export default function TeacherDashboard() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
-            <TimetableWidget schoolId={schoolId} isLoading={isLoading} />
-            <DashboardCharts schoolId={schoolId} isLoading={isLoading} />
-            <MessagesWidget schoolId={schoolId} isLoading={isLoading} />
+            <TimetableWidget />
+            <DashboardCharts />
+            <MessagesWidget />
         </div>
         <div className="lg:col-span-1 space-y-8">
-            <PendingTasksWidget schoolId={schoolId} isLoading={isLoading} />
-            <AbsentStudentsWidget schoolId={schoolId} isLoading={isLoading} />
-            <LibraryNoticesWidget schoolId={schoolId} isLoading={isLoading} />
+            <PendingTasksWidget />
+            <AbsentStudentsWidget />
+            <LibraryNoticesWidget />
         </div>
       </div>
     </div>

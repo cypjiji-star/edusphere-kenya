@@ -9,7 +9,7 @@ import { UserX, ArrowRight, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, Timestamp, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, Timestamp, onSnapshot, getDoc, doc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
@@ -30,23 +30,39 @@ export function AbsentStudentsWidget() {
     const { user } = useAuth();
 
     React.useEffect(() => {
-        if (!schoolId || !user) return;
+        if (!schoolId || !user) {
+            setIsLoading(false);
+            return;
+        }
         const teacherId = user.uid;
 
         setIsLoading(true);
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
 
-        const attendanceQuery = query(
-            collection(firestore, `schools/${schoolId}/attendance`),
-            where('date', '>=', Timestamp.fromDate(startOfToday)),
-            where('status', 'in', ['absent', 'late']),
-            where('teacherId', '==', teacherId)
-        );
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
 
-        const unsubscribe = onSnapshot(attendanceQuery, async (snapshot) => {
+        const unsubscribe = onSnapshot(classesQuery, async (classesSnapshot) => {
+            const classIds = classesSnapshot.docs.map(doc => doc.id);
+
+            if (classIds.length === 0) {
+                setAbsentStudents([]);
+                setIsLoading(false);
+                return;
+            }
+            
+            const today = new Date();
+            const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+
+            const attendanceQuery = query(
+                collection(firestore, `schools/${schoolId}/attendance`),
+                where('classId', 'in', classIds),
+                where('date', '>=', Timestamp.fromDate(startOfToday)),
+                where('status', 'in', ['absent', 'late'])
+            );
+
+            const attendanceSnapshot = await getDocs(attendanceQuery);
             const absentStudentData: AbsentStudent[] = [];
-            for (const attendanceDoc of snapshot.docs) {
+
+            for (const attendanceDoc of attendanceSnapshot.docs) {
                 const attendance = attendanceDoc.data();
                 if (attendance.studentId) {
                     const studentDocSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, attendance.studentId));
@@ -102,7 +118,7 @@ export function AbsentStudentsWidget() {
                 {absentStudents.length === 0 && (
                     <div className="text-center text-muted-foreground py-4">
                     <p className="font-semibold">Full Attendance!</p>
-                    <p className="text-sm">All students are marked as present today.</p>
+                    <p className="text-sm">All your students are marked as present today.</p>
                     </div>
                 )}
             </div>
