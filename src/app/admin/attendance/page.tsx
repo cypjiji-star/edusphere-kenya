@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -419,17 +420,19 @@ export default function AdminAttendancePage() {
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
-    
-    const termDates: Record<string, { start: Date, end: Date }> = {
-      'term1-2024': { start: new Date('2024-01-01'), end: new Date('2024-04-30') },
-      'term2-2024': { start: new Date('2024-05-01'), end: new Date('2024-08-31') },
-      'term3-2024': { start: new Date('2024-09-01'), end: new Date('2024-12-31') },
-      'term1-2025': { start: new Date('2025-01-01'), end: new Date('2025-04-30') },
-      'term2-2025': { start: new Date('2025-05-01'), end: new Date('2025-08-31') },
-      'term3-2025': { start: new Date('2025-09-01'), end: new Date('2025-12-31') },
-    };
-    const currentTermRange = termDates[selectedTerm];
 
+    const getTermDates = (term: string) => {
+      const [termName, yearStr] = term.split('-');
+      const year = parseInt(yearStr, 10);
+      switch(termName) {
+        case 'term1': return { start: new Date(year, 0, 1), end: new Date(year, 3, 30) };
+        case 'term2': return { start: new Date(year, 4, 1), end: new Date(year, 7, 31) };
+        case 'term3': return { start: new Date(year, 8, 1), end: new Date(year, 11, 31) };
+        default: return null;
+      }
+    };
+    
+    const currentTermRange = getTermDates(selectedTerm);
     if (!currentTermRange) return [];
 
     const termRecords = allRecords.filter(record => {
