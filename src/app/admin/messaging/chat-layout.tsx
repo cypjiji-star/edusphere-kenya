@@ -260,8 +260,7 @@ export function AdminChatLayout() {
   const isSender = (message: Message) => message.sender === user?.uid;
 
   return (
-    <div className="z-10 h-full w-full bg-[#1A1B1F] text-white rounded-lg overflow-hidden">
-      <div className="flex h-full">
+    <div className="flex h-full">
         <div className="flex flex-col w-full md:w-[320px] border-r border-slate-700/50 bg-slate-900/50">
           <div className="flex-shrink-0 p-4 border-b border-slate-700/50">
             <div className="flex items-center justify-between">
@@ -371,6 +370,5 @@ export function AdminChatLayout() {
           ) : (<div className="flex-col items-center justify-center h-full text-slate-400 hidden md:flex"><MessageCircle className="h-16 w-16" /><p className="mt-4 text-lg font-semibold">Select a conversation</p><p>Your messages will appear here.</p></div>)}
         </div>
       </div>
-    </div>
   );
 }

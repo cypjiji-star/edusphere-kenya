@@ -85,7 +85,7 @@ export function TeacherChatLayout() {
   
   // Real-time listener for messages
   React.useEffect(() => {
-    if (!conversationId || !schoolId) return;
+    if (!conversationId || !schoolId || !user) return;
 
     const messagesQuery = query(
       collection(firestore, `schools/${schoolId}/conversations/${conversationId}/messages`),
@@ -219,7 +219,7 @@ export function TeacherChatLayout() {
 
 
   return (
-    <div className="z-10 h-full w-full bg-[#1A1B1F] text-white rounded-lg overflow-hidden flex flex-col">
+    <div className="flex h-full flex-col">
        <div className="flex-shrink-0 p-4 border-b border-slate-700/50">
             <h2 className="text-xl font-bold font-headline flex items-center gap-2 text-slate-100">
                 <MessageCircle className="h-6 w-6 text-primary"/>
