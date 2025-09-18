@@ -249,6 +249,29 @@ function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { stud
     )
 }
 
+const getCurrentTerm = (): string => {
+  const today = new Date();
+  const month = today.getMonth(); // 0-11
+  const year = today.getFullYear();
+
+  if (month >= 0 && month <= 3) { // Jan - Apr
+    return `term1-${year}`;
+  } else if (month >= 4 && month <= 7) { // May - Aug
+    return `term2-${year}`;
+  } else { // Sep - Dec
+    return `term3-${year}`;
+  }
+};
+
+const academicTerms = [
+    { value: 'term1-2024', label: 'Term 1, 2024' },
+    { value: 'term2-2024', label: 'Term 2, 2024' },
+    { value: 'term3-2024', label: 'Term 3, 2024' },
+    { value: 'term1-2025', label: 'Term 1, 2025' },
+    { value: 'term2-2025', label: 'Term 2, 2025' },
+    { value: 'term3-2025', label: 'Term 3, 2025' },
+];
+
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
@@ -277,6 +300,8 @@ export default function AdminGradesPage() {
     // Gradebook state
     const [selectedGradebookClass, setSelectedGradebookClass] = React.useState<string>('');
     const [selectedGradebookExam, setSelectedGradebookExam] = React.useState<string>('');
+    const [selectedReportClass, setSelectedReportClass] = React.useState<string>('');
+    const [selectedReportTerm, setSelectedReportTerm] = React.useState<string>(getCurrentTerm());
 
 
     React.useEffect(() => {
@@ -292,8 +317,9 @@ export default function AdminGradesPage() {
         const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
             const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
             setClasses(classData);
-            if (classData.length > 0 && !selectedGradebookClass) {
-                setSelectedGradebookClass(classData[0].id);
+            if (classData.length > 0) {
+                if (!selectedGradebookClass) setSelectedGradebookClass(classData[0].id);
+                if (!selectedReportClass) setSelectedReportClass(classData[0].id);
             }
         });
         
@@ -359,7 +385,7 @@ export default function AdminGradesPage() {
             const sortedRanking = calculatedRanking.sort((a, b) => b.total - a.total).map((student, index) => ({
                 ...student,
                 position: index + 1,
-                streamPosition: index + 1,
+                streamPosition: index + 1, // Simplified logic for stream position
             }));
             
             setClassRanking(sortedRanking);
@@ -574,7 +600,7 @@ export default function AdminGradesPage() {
     <div className="p-4 sm:p-6 lg:p-8">
         <ReportCardDialog student={selectedStudentForReport} studentGrades={studentGrades} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
        <div className="mb-6">
-        <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades & Exams</h1>
+        <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
         <p className="text-muted-foreground">Manage exams, grades, and academic reports.</p>
        </div>
         <div className="grid gap-6 md:grid-cols-3 mb-6">
@@ -919,21 +945,18 @@ export default function AdminGradesPage() {
                          <CardTitle>Reports &amp; Analytics</CardTitle>
                         <CardDescription>Generate reports and analyze academic performance.</CardDescription>
                         <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
-                             <Select defaultValue="form-4">
+                             <Select value={selectedReportClass} onValueChange={setSelectedReportClass}>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select a Class"/>
                                 </SelectTrigger>
-                                <SelectContent>
-                                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                </SelectContent>
+                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                             </Select>
-                            <Select defaultValue="term2-2024">
+                            <Select value={selectedReportTerm} onValueChange={setSelectedReportTerm}>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select Term/Year"/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                                    <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                                    {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <div className="flex gap-2">
@@ -1046,5 +1069,6 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
 
 
