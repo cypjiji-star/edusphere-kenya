@@ -43,13 +43,16 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { views } from './timetable-data';
-import type { Subject as DraggableSubjectType } from './timetable-data';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, addDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
+type DraggableSubjectType = {
+    name: string;
+    teacher: string;
+    color: string;
+};
 
 type Period = { id: number; time: string; isBreak?: boolean; title?: string };
 type TimetableData = Record<string, Record<string, { subject: DraggableSubjectType; room: string; clash?: any }>>;
@@ -114,7 +117,7 @@ function DroppableCell({ day, periodId, children }: { day: string; periodId: num
 export function TimetableBuilder() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const [view, setView] = React.useState(views[0]);
+  const [view, setView] = React.useState('Class View');
   const [selectedItem, setSelectedItem] = React.useState<string | undefined>();
   const [timetable, setTimetable] = React.useState<TimetableData>({});
   const [periods, setPeriods] = React.useState<Period[]>([]);
@@ -177,6 +180,8 @@ export function TimetableBuilder() {
         }
         setIsLoading(false);
       });
+    } else {
+        setIsLoading(false);
     }
 
     return () => {
@@ -342,6 +347,11 @@ export function TimetableBuilder() {
                 <CardTitle>No Classes Found</CardTitle>
                 <CardDescription>Please add a class before creating a timetable.</CardDescription>
             </CardHeader>
+             <CardContent>
+                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                    <p className="text-muted-foreground">Go to "Classes & Subjects" to get started.</p>
+                </div>
+            </CardContent>
         </Card>
     );
   }
@@ -397,7 +407,7 @@ export function TimetableBuilder() {
                                         <SelectValue placeholder="Select view" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {views.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                        {['Class View', 'Teacher View', 'Room View'].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 {renderFilterDropdown()}
