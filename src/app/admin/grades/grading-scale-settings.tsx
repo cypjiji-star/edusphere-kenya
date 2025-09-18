@@ -53,34 +53,37 @@ const initialGradingScale: GradingScaleItem[] = [
 export function GradingScaleSettings({ schoolId }: { schoolId: string }) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>(initialGradingScale);
+  const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>([]);
   const [isSavingScale, setIsSavingScale] = React.useState(false);
 
   React.useEffect(() => {
     if (!schoolId) return;
 
-    const unsubGradingScale = onSnapshot(doc(firestore, `schools/${schoolId}/settings`, 'grading'), (docSnap) => {
+    const settingsRef = doc(firestore, `schools/${schoolId}/settings`, 'grading');
+    const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
       if (docSnap.exists() && docSnap.data().scale) {
         setGradingScale(docSnap.data().scale);
+      } else {
+        // If no settings are found in Firestore, initialize with default
+        setGradingScale(initialGradingScale);
       }
     });
-    
-    return () => unsubGradingScale();
+
+    return () => unsubscribe();
   }, [schoolId]);
 
-  const handleGradingScaleChange = (index: number, field: 'min' | 'max' | 'grade', value: string) => {
+  const handleGradingScaleChange = (index: number, field: 'min' | 'max' | 'grade', value: string | number) => {
     const newScale = [...gradingScale];
-    if (field === 'min' || field === 'max') {
-      newScale[index] = { ...newScale[index], [field]: parseInt(value, 10) || 0 };
+    if (field === 'grade') {
+        newScale[index] = { ...newScale[index], [field]: String(value) };
     } else {
-      newScale[index] = { ...newScale[index], [field]: value };
+        newScale[index] = { ...newScale[index], [field]: Number(value) };
     }
     setGradingScale(newScale);
   };
   
   const handleRemoveRow = (index: number) => {
-    const newScale = [...gradingScale];
-    newScale.splice(index, 1);
+    const newScale = gradingScale.filter((_, i) => i !== index);
     setGradingScale(newScale);
   }
 
