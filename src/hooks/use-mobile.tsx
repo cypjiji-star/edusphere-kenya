@@ -13,12 +13,12 @@ export function useIsMobile() {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     }
     
-    checkIsMobile(); // Check on initial mount
-    
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    mql.addEventListener("change", checkIsMobile);
-
-    return () => mql.removeEventListener("change", checkIsMobile);
+    // We only want to run this on the client
+    if (typeof window !== "undefined") {
+        checkIsMobile();
+        window.addEventListener("resize", checkIsMobile);
+        return () => window.removeEventListener("resize", checkIsMobile);
+    }
   }, [])
 
   return isMobile
