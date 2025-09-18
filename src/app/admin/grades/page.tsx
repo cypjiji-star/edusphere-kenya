@@ -31,6 +31,7 @@ import {
   FileDown,
   Download,
   User,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   Table,
@@ -76,6 +77,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { firestore } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 
 type Exam = {
@@ -83,17 +87,10 @@ type Exam = {
     title: string;
     class: string;
     subject: string;
-    date: Date;
+    date: Timestamp;
     duration: number; // in minutes
     type: 'CAT' | 'Midterm' | 'Final' | 'Practical';
 };
-
-const mockExams: Exam[] = [
-    { id: 'exm-001', title: 'Term 2 Midterm Exam', class: 'Form 4', subject: 'Mathematics', date: new Date('2024-07-15'), duration: 120, type: 'Midterm' },
-    { id: 'exm-002', title: 'CAT 1', class: 'Form 4', subject: 'Chemistry', date: new Date('2024-06-20'), duration: 45, type: 'CAT' },
-    { id: 'exm-003', title: 'End of Term Practical', class: 'Form 3', subject: 'Physics', date: new Date('2024-08-01'), duration: 90, type: 'Practical' },
-    { id: 'exm-004', title: 'Term 1 Final Exam', class: 'Form 2', subject: 'English', date: new Date('2024-04-10'), duration: 150, type: 'Final' },
-];
 
 const mockClasses = ['Form 1', 'Form 2', 'Form 3', 'Form 4'];
 const mockSubjects = ['Mathematics', 'English', 'Kiswahili', 'Chemistry', 'Physics', 'Biology', 'History', 'Geography', 'CRE', 'Business Studies', 'Computer Science'];
@@ -242,10 +239,91 @@ function ReportCardDialog({ student, open, onOpenChange }: { student: typeof moc
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const [exams, setExams] = React.useState(mockExams);
+    const { toast } = useToast();
+    const [exams, setExams] = React.useState<Exam[]>([]);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
     const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<typeof mockRanking[0] | null>(null);
 
+    // State for the create exam form
+    const [examTitle, setExamTitle] = React.useState('');
+    const [examClass, setExamClass] = React.useState('');
+    const [examSubject, setExamSubject] = React.useState('');
+    const [examDate, setExamDate] = React.useState<Date | undefined>();
+    const [examDuration, setExamDuration] = React.useState('');
+    const [examType, setExamType] = React.useState<Exam['type'] | undefined>();
+
+    React.useEffect(() => {
+        if (!schoolId) return;
+
+        const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), orderBy('date', 'desc'));
+        const unsubscribe = onSnapshot(examsQuery, (snapshot) => {
+            const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
+            setExams(fetchedExams);
+        });
+
+        return () => unsubscribe();
+    }, [schoolId]);
+
+    const handleCreateExam = async () => {
+        if (!schoolId || !examTitle || !examClass || !examSubject || !examDate || !examDuration || !examType) {
+            toast({
+                title: 'Missing Information',
+                description: 'Please fill out all exam details.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        try {
+            await addDoc(collection(firestore, `schools/${schoolId}/exams`), {
+                title: examTitle,
+                class: examClass,
+                subject: examSubject,
+                date: Timestamp.fromDate(examDate),
+                duration: Number(examDuration),
+                type: examType,
+                createdAt: serverTimestamp(),
+            });
+            
+            // Placeholder for finding the relevant teacher to notify
+            // This would require a more complex query to find the teacher for that subject and class.
+            const teacherToNotify = 'teacher-id-placeholder'; 
+
+            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+                title: 'New Exam Scheduled',
+                description: `A new ${examType} exam, "${examTitle}", has been scheduled for your ${examClass} class on ${format(examDate, 'PPP')}.`,
+                createdAt: serverTimestamp(),
+                read: false,
+                href: `/teacher/assignments?schoolId=${schoolId}`,
+                userId: teacherToNotify,
+            });
+
+            toast({
+                title: 'Exam Created',
+                description: 'The new exam has been scheduled and the teacher notified.',
+            });
+            
+            // Reset form and close dialog
+            setExamTitle('');
+            setExamClass('');
+            setExamSubject('');
+            setExamDate(undefined);
+            setExamDuration('');
+            setExamType(undefined);
+            setIsCreateDialogOpen(false);
+
+        } catch (error) {
+            console.error("Error creating exam: ", error);
+            toast({ title: 'Error', description: 'Could not create the exam.', variant: 'destructive' });
+        }
+    };
+    
+    const handleNotify = (exam: Exam) => {
+         toast({
+            title: 'Notification Sent',
+            description: `A reminder for the "${exam.title}" exam has been sent.`,
+        });
+    }
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -262,11 +340,11 @@ export default function AdminGradesPage() {
             <Card>
                 <CardHeader className="pb-2">
                     <CardDescription>Total Exams Created</CardDescription>
-                    <CardTitle className="text-4xl">12</CardTitle>
+                    <CardTitle className="text-4xl">{exams.length}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="text-xs text-muted-foreground">
-                        5 this term, 7 past terms
+                        {exams.filter(e => e.date.toDate() > new Date(new Date().setMonth(new Date().getMonth() - 3))).length} this term
                     </div>
                 </CardContent>
             </Card>
@@ -330,16 +408,16 @@ export default function AdminGradesPage() {
                                 <div className="py-4 space-y-6">
                                     <div className="space-y-2">
                                         <Label htmlFor="exam-title">Exam Title</Label>
-                                        <Input id="exam-title" placeholder="e.g., Form 4 Midterm Exam" />
+                                        <Input id="exam-title" placeholder="e.g., Form 4 Midterm Exam" value={examTitle} onChange={e => setExamTitle(e.target.value)} />
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-class">Class</Label>
-                                            <Select><SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger><SelectContent>{mockClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+                                            <Select value={examClass} onValueChange={setExamClass}><SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger><SelectContent>{mockClasses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-subject">Subject</Label>
-                                            <Select><SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger><SelectContent>{mockSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                                            <Select value={examSubject} onValueChange={setExamSubject}><SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger><SelectContent>{mockSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -349,31 +427,24 @@ export default function AdminGradesPage() {
                                                 <PopoverTrigger asChild>
                                                     <Button variant="outline" className="w-full justify-start font-normal">
                                                         <CalendarIcon className="mr-2 h-4 w-4"/>
-                                                        <span>Pick a date</span>
+                                                        {examDate ? format(examDate, 'PPP') : <span>Pick a date</span>}
                                                     </Button>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" initialFocus/></PopoverContent>
+                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={examDate} onSelect={setExamDate} initialFocus/></PopoverContent>
                                             </Popover>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-duration">Duration (minutes)</Label>
-                                            <Input id="exam-duration" type="number" placeholder="e.g., 120" />
+                                            <Input id="exam-duration" type="number" placeholder="e.g., 120" value={examDuration} onChange={e => setExamDuration(e.target.value)} />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="exam-type">Type</Label>
-                                            <Select><SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger><SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+                                            <Select value={examType} onValueChange={(v: Exam['type']) => setExamType(v)}><SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger><SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
                                         </div>
                                     </div>
                                     <Separator/>
                                     <div className="space-y-4">
                                         <h4 className="font-medium text-sm">Advanced Options</h4>
-                                        <div className="flex items-center justify-between rounded-lg border p-3">
-                                            <div>
-                                                <Label>Schedule Exam</Label>
-                                                <p className="text-xs text-muted-foreground">Add this exam to the school timetable and notify students.</p>
-                                            </div>
-                                            <Button variant="secondary" size="sm" disabled><Clock className="mr-2 h-4 w-4"/>Schedule</Button>
-                                        </div>
                                         <div className="flex items-center justify-between rounded-lg border p-3">
                                             <div>
                                                 <Label>Assign Invigilators</Label>
@@ -391,8 +462,8 @@ export default function AdminGradesPage() {
                                     </div>
                                 </div>
                                 <DialogFooter>
-                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                    <Button>Create Exam</Button>
+                                    <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                                    <Button onClick={handleCreateExam}>Create Exam</Button>
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
@@ -416,9 +487,10 @@ export default function AdminGradesPage() {
                                             <TableCell className="font-medium">{exam.title}</TableCell>
                                             <TableCell>{exam.class}</TableCell>
                                             <TableCell>{exam.subject}</TableCell>
-                                            <TableCell>{format(exam.date, 'PPP')}</TableCell>
+                                            <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
                                             <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
                                             <TableCell className="text-right space-x-2">
+                                                 <Button variant="outline" size="sm" onClick={() => handleNotify(exam)}><Clock className="mr-2 h-4 w-4"/>Schedule & Notify</Button>
                                                 <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Trash2 className="h-4 w-4 text-destructive"/></Button>
@@ -450,7 +522,7 @@ export default function AdminGradesPage() {
                                     <SelectValue placeholder="Select an Exam"/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {mockExams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}
+                                    {exams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
