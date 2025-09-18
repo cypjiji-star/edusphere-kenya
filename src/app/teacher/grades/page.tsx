@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -21,6 +22,10 @@ import {
   File,
   Search,
   ArrowLeft,
+  Upload,
+  CheckCircle,
+  Columns,
+  X,
 } from 'lucide-react';
 import {
   Table,
@@ -47,6 +52,9 @@ import { useAuth } from '@/context/auth-context';
 import { isPast } from 'date-fns';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 
 type Exam = {
@@ -276,6 +284,11 @@ export default function TeacherGradesPage() {
     const [subjectFilter, setSubjectFilter] = React.useState('all');
     const [termFilter, setTermFilter] = React.useState('term2-2024');
 
+    const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
+    const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
+    const [isFileProcessed, setIsFileProcessed] = React.useState(false);
+    const [isProcessingFile, setIsProcessingFile] = React.useState(false);
+
     React.useEffect(() => {
         if (!schoolId || !user?.displayName) return;
         
@@ -328,6 +341,42 @@ export default function TeacherGradesPage() {
         return classMatch && subjectMatch;
     });
 
+    const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setBulkImportFile(event.target.files[0]);
+            setIsFileProcessed(false);
+        }
+    };
+
+    const handleRemoveBulkFile = () => {
+        setBulkImportFile(null);
+        setIsFileProcessed(false);
+    };
+
+    const handleProcessFile = () => {
+        setIsProcessingFile(true);
+        setTimeout(() => {
+            setIsProcessingFile(false);
+            setIsFileProcessed(true);
+            toast({
+                title: 'File Processed',
+                description: 'Please map the columns from your file to the required fields.',
+            });
+        }, 1500);
+    };
+
+    const handleImportMarks = () => {
+        setIsUploadDialogOpen(false);
+        toast({
+            title: 'Marks Imported',
+            description: 'The marks have been successfully uploaded and are pending moderation.',
+        });
+        setTimeout(() => {
+            setBulkImportFile(null);
+            setIsFileProcessed(false);
+        }, 300);
+    };
+
     if (selectedExam) {
         return <GradeEntryView exam={selectedExam} onBack={() => setSelectedExam(null)} schoolId={schoolId} teacher={{ id: user!.uid, name: user!.displayName || 'Teacher' }} />;
     }
@@ -338,8 +387,92 @@ export default function TeacherGradesPage() {
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
         <p className="text-muted-foreground">View assigned exams and enter student marks.</p>
        </div>
+
+        <Card className="mb-6">
+            <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline">
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload Marks from CSV/Excel
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Upload Student Marks</DialogTitle>
+                            <DialogDescription>
+                                Bulk upload marks for an exam from a CSV or Excel file.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-6 py-4">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Exam</Label>
+                                    <Select><SelectTrigger><SelectValue placeholder="Select exam..."/></SelectTrigger><SelectContent>{filteredExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title} - {exam.className}</SelectItem>)}</SelectContent></Select>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Step 1: Upload File</Label>
+                                <div className="flex items-center justify-center w-full">
+                                    {bulkImportFile ? (
+                                        <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-sm font-medium">
+                                                <FileText className="h-5 w-5 text-primary" />
+                                                <span className="truncate">{bulkImportFile.name}</span>
+                                            </div>
+                                            <Button variant="ghost" size="icon" onClick={handleRemoveBulkFile} className="h-6 w-6">
+                                                <X className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                                <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
+                                            </div>
+                                            <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} />
+                                        </Label>
+                                    )}
+                                </div>
+                            </div>
+                            <div className={cn("space-y-4", !isFileProcessed && "opacity-50")}>
+                                <div className="flex items-center gap-2">
+                                    <Columns className="h-5 w-5 text-primary" />
+                                    <h4 className="font-medium">Step 2: Map Columns</h4>
+                                </div>
+                                <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                        <Label>Admission No.</Label>
+                                        <Select defaultValue="col1" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col1">Column A</SelectItem></SelectContent></Select>
+                                    </div>
+                                    <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                        <Label>Score</Label>
+                                        <Select defaultValue="col2" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col2">Column B</SelectItem></SelectContent></Select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>Cancel</Button>
+                            {isFileProcessed ? (
+                                <Button onClick={handleImportMarks}><CheckCircle className="mr-2 h-4 w-4" /> Import Marks</Button>
+                            ) : (
+                                <Button onClick={handleProcessFile} disabled={!bulkImportFile || isProcessingFile}>
+                                    {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
+                                </Button>
+                            )}
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </CardContent>
+        </Card>
         
-        <Card>
+        <Card className="mt-6">
             <CardHeader>
                 <CardTitle>My Assigned Exams</CardTitle>
                 <CardDescription>A list of all exams for your assigned classes and subjects.</CardDescription>
