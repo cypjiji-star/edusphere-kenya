@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -473,7 +474,7 @@ export default function TeacherGradesPage() {
     
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
-    const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>(([]);
+    const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
 
@@ -799,3 +800,4 @@ export default function TeacherGradesPage() {
     </div>
   )
 }
+
