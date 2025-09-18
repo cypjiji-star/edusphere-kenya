@@ -27,6 +27,7 @@ import {
   Columns,
   X,
   AlertTriangle,
+  Send,
 } from 'lucide-react';
 import {
   Table,
@@ -225,14 +226,33 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
             gradeInputRefs.current[index - 1]?.focus();
         }
     };
+
+    const handleRequestUnlock = async () => {
+        if (!schoolId) return;
+
+        await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+            title: 'Unlock Request',
+            description: `Teacher ${teacher.name} has requested to unlock grades for exam: "${exam.title}".`,
+            createdAt: serverTimestamp(),
+            read: false,
+            href: `/admin/grades?schoolId=${schoolId}&examId=${exam.id}`,
+            // We might want a way to target specific admins here in a real system
+        });
+
+        toast({
+            title: 'Request Sent',
+            description: 'The administrator has been notified of your request to unlock these grades.'
+        });
+    }
     
     const filteredStudents = students.filter(s => s.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const gradedCount = students.filter(s => s.score !== '' && !s.error).length;
+    const totalStudents = students.length;
     const progress = totalStudents > 0 ? (gradedCount / totalStudents) * 100 : 0;
     const allGraded = gradedCount === totalStudents;
-    const totalStudents = students.length;
-
+    const isLocked = exam.status !== 'Open';
+    
     return (
         <Card>
             <CardHeader>
@@ -244,26 +264,33 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                         <CardTitle className="font-headline text-2xl">Enter Marks: {exam.title}</CardTitle>
                         <CardDescription>{exam.className} - {exam.subject}</CardDescription>
                     </div>
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button disabled={!allGraded || isSaving}>
-                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
-                                Submit All Grades
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This will submit all {gradedCount} grades for moderation. You will not be able to edit them after this point.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleSubmitAllGrades}>Confirm & Submit</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    {isLocked ? (
+                        <Button variant="secondary" onClick={handleRequestUnlock}>
+                            <Send className="mr-2 h-4 w-4" />
+                            Request Unlock
+                        </Button>
+                    ) : (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button disabled={!allGraded || isSaving}>
+                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
+                                    Submit All Grades
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will submit all {gradedCount} grades for moderation. You will not be able to edit them after this point.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleSubmitAllGrades}>Confirm & Submit</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                 </div>
                  <div className="pt-4 space-y-2">
                     <div className="flex justify-between text-sm font-medium">
@@ -321,6 +348,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                             onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
                                             onKeyDown={(e) => handleKeyDown(e, index)}
                                             className={cn("w-32", student.error && "border-destructive focus-visible:ring-destructive")}
+                                            disabled={isLocked}
                                         />
                                         {student.error && <p className="text-xs text-destructive mt-1">{student.error}</p>}
                                     </div>
@@ -386,18 +414,10 @@ export default function TeacherGradesPage() {
                 const unsubscribeExams = onSnapshot(examsQuery, (snapshot) => {
                     const examsData = snapshot.docs.map(doc => {
                         const data = doc.data();
-                        const isDueDatePast = isPast(data.date?.toDate() || new Date());
-                        let status: Exam['status'] = 'Open';
-                        if (data.status === 'Pending Approval') {
-                            status = 'Pending Approval';
-                        } else if (isDueDatePast) {
-                            status = 'Closed';
-                        }
                         
                         return { 
                             id: doc.id, 
                             ...data,
-                            status: status
                         } as Exam
                     });
                     setExams(examsData);
