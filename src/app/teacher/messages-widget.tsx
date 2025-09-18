@@ -9,43 +9,51 @@ import { MessageCircle, ArrowRight, User, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import * as React from 'react';
-import { firestore } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { firestore, auth } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, Timestamp, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 type Conversation = {
   id: string;
   name: string;
   avatar: string;
-  icon: string;
   lastMessage: string;
   timestamp: Timestamp;
   unread: boolean;
+  participants: string[];
+  lastMessageSender?: string;
 };
 
 
-const getIconComponent = (iconName: string) => {
-    if (iconName === 'User') return User;
-    if (iconName === 'Users') return Users;
-    return MessageCircle;
+const getIconComponent = (participants: string[], currentUserId: string) => {
+    if (participants.length > 2) return Users;
+    // You might add logic here to differentiate between teacher/parent/admin if needed
+    return User;
 }
 
 export function MessagesWidget() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
-  const unreadCount = conversations.filter(m => m.unread).length;
+  const { user } = useAuth();
+  
+  const unreadCount = conversations.filter(c => c.unread && c.lastMessageSender !== user?.uid).length;
 
   React.useEffect(() => {
-    if (!schoolId) return;
-    const q = query(collection(firestore, `schools/${schoolId}/conversations`), orderBy('timestamp', 'desc'));
+    if (!schoolId || !user) return;
+    const q = query(
+      collection(firestore, `schools/${schoolId}/conversations`), 
+      where('participants', 'array-contains', user.uid),
+      orderBy('timestamp', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const convos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
         setConversations(convos);
     });
 
     return () => unsubscribe();
-  }, [schoolId]);
+  }, [schoolId, user]);
     
   return (
     <Card>
@@ -61,10 +69,10 @@ export function MessagesWidget() {
       <CardContent>
         <div className="space-y-4">
           {conversations.slice(0, 3).map((message, index) => {
-            const IconComponent = getIconComponent(message.icon);
+            const IconComponent = getIconComponent(message.participants, user?.uid || '');
             return (
               <div key={index} className="space-y-3">
-                <Link href={`/teacher/messaging?schoolId=${schoolId}`} className="block hover:bg-muted/50 p-2 rounded-lg">
+                <Link href={`/teacher/messaging?schoolId=${schoolId}`} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={message.avatar} alt={message.name} />
@@ -77,7 +85,7 @@ export function MessagesWidget() {
                       </div>
                       <p className="text-sm text-muted-foreground truncate">{message.lastMessage}</p>
                     </div>
-                    {message.unread && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1"></div>}
+                    {message.unread && message.lastMessageSender !== user?.uid && <div className="h-2.5 w-2.5 rounded-full bg-primary mt-1"></div>}
                   </div>
                 </Link>
                 {index < conversations.slice(0, 3).length - 1 && <Separator />}

@@ -11,6 +11,7 @@ import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, Timestamp, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type AbsentStudent = {
@@ -26,7 +27,7 @@ export function AbsentStudentsWidget() {
     const schoolId = searchParams.get('schoolId');
     const [absentStudents, setAbsentStudents] = React.useState<AbsentStudent[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
-    const user = auth.currentUser;
+    const { user } = useAuth();
 
     React.useEffect(() => {
         if (!schoolId || !user) return;

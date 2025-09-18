@@ -96,6 +96,8 @@ export default function TeacherPaymentsPage() {
     React.useEffect(() => {
         if (!schoolId || teacherClasses.length === 0) return;
         const classIds = teacherClasses.map(c => c.id);
+        if(classIds.length === 0) return;
+
         const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
         const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, classId: doc.data().classId }));
