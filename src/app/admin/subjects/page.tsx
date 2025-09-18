@@ -684,6 +684,13 @@ export default function ClassesAndSubjectsPage() {
                                             }
                                         </TableCell>
                                         <TableCell className="text-right space-x-2">
+                                            <ManageClassSubjectsDialog
+                                                schoolClass={schoolClass}
+                                                allSubjects={subjects}
+                                                schoolId={schoolId}
+                                                classAssignments={classAssignments}
+                                                setClassAssignments={setClassAssignments}
+                                            />
                                             <Dialog>
                                                 <DialogTrigger asChild>
                                                     <Button variant="ghost" size="sm">
@@ -795,7 +802,7 @@ export default function ClassesAndSubjectsPage() {
                             <Card key={schoolClass.id}>
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
-                                        <CardTitle>{schoolClass.name} {schoolClass.stream || ''}</CardTitle>
+                                        <CardTitle className="text-base">{schoolClass.name} {schoolClass.stream || ''}</CardTitle>
                                         {schoolClass.status === 'Graduated' ? 
                                             <Badge variant="outline" className="text-purple-600 border-purple-500"><GraduationCap className="mr-1 h-3 w-3"/>Graduated</Badge> : 
                                             <Badge>Active</Badge>
