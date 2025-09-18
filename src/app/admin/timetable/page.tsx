@@ -31,10 +31,37 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import * as React from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'next/navigation';
+import { firestore } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function TimetablePage() {
     const currentYear = new Date().getFullYear();
     const academicYears = Array.from({ length: 5 }, (_, i) => (currentYear + i).toString());
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
+    const { toast } = useToast();
+    const [timetableName, setTimetableName] = React.useState('');
+    const [academicYear, setAcademicYear] = React.useState(currentYear.toString());
+
+    const handleCreateTimetable = async () => {
+        if (!schoolId || !timetableName || !academicYear) {
+            toast({ title: "Missing Information", description: "Please provide a name and year.", variant: "destructive" });
+            return;
+        }
+
+        try {
+            const timetableId = `${timetableName.replace(/\s+/g, '-')}-${academicYear}`;
+            const timetableRef = doc(firestore, 'schools', schoolId, 'timetables', timetableId);
+            await setDoc(timetableRef, { name: timetableName, year: academicYear, createdAt: new Date() });
+            toast({ title: "Timetable Created", description: `You can now manage "${timetableName}".` });
+            setTimetableName('');
+        } catch (e) {
+            console.error("Error creating timetable:", e);
+            toast({ title: "Creation Failed", variant: "destructive" });
+        }
+    };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -63,11 +90,11 @@ export default function TimetablePage() {
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="timetable-name">Timetable Name</Label>
-                        <Input id="timetable-name" placeholder="e.g., 2024 Master Timetable" />
+                        <Input id="timetable-name" placeholder="e.g., 2024 Master Timetable" value={timetableName} onChange={e => setTimetableName(e.target.value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="academic-year">Academic Year</Label>
-                         <Select>
+                         <Select value={academicYear} onValueChange={setAcademicYear}>
                             <SelectTrigger id="academic-year">
                                 <SelectValue placeholder="Select year" />
                             </SelectTrigger>
@@ -78,23 +105,11 @@ export default function TimetablePage() {
                             </SelectContent>
                          </Select>
                     </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="timetable-status">Status</Label>
-                         <Select defaultValue="draft">
-                            <SelectTrigger id="timetable-status">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="published">Published</SelectItem>
-                            </SelectContent>
-                         </Select>
-                    </div>
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                     <DialogClose asChild>
-                        <Button>Create Timetable</Button>
+                        <Button onClick={handleCreateTimetable}>Create Timetable</Button>
                     </DialogClose>
                 </DialogFooter>
             </DialogContent>

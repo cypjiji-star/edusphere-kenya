@@ -165,7 +165,7 @@ export function TimetableBuilder() {
             const data = doc.data();
             return {
                 name: data.name,
-                teacher: data.teachers[0] || 'Unassigned', // Use first teacher or default
+                teacher: data.teachers?.[0] || 'Unassigned',
                 color: getColorForSubject(data.name),
             }
         });
@@ -202,15 +202,16 @@ export function TimetableBuilder() {
         setTimetable(allTimetables[selectedItem] || {});
     } else {
         const aggregatedTimetable: TimetableData = {};
-        for (const classId in allTimetables) {
+        Object.keys(allTimetables).forEach(classId => {
             const classTimetable = allTimetables[classId];
             const className = allClasses.find(c => c.id === classId)?.name || classId;
-            for (const day in classTimetable) {
+            Object.keys(classTimetable).forEach(day => {
                 if (!aggregatedTimetable[day]) {
                     aggregatedTimetable[day] = {};
                 }
-                for (const periodTime in classTimetable[day]) {
+                Object.keys(classTimetable[day]).forEach(periodTime => {
                     const lesson = classTimetable[day][periodTime];
+                    if (!lesson || !lesson.subject) return;
                     let match = false;
                     if (view === 'Teacher View' && lesson.subject.teacher === selectedItem) {
                         match = true;
@@ -220,9 +221,9 @@ export function TimetableBuilder() {
                     if (match) {
                         aggregatedTimetable[day][periodTime] = { ...lesson, className };
                     }
-                }
-            }
-        }
+                });
+            });
+        });
         setTimetable(aggregatedTimetable);
     }
 }, [selectedItem, allTimetables, view, allClasses]);
@@ -358,10 +359,10 @@ export function TimetableBuilder() {
   }
 
   const handleSave = async () => {
-    if (!selectedItem || !schoolId) return;
+    if (!selectedItem || !schoolId || view !== 'Class View') return;
     try {
         const timetableRef = doc(firestore, `schools/${schoolId}/timetables`, selectedItem);
-        await setDoc(timetableRef, {...timetable, schoolId: schoolId});
+        await setDoc(timetableRef, timetable, { merge: true });
         toast({
             title: 'Timetable Saved',
             description: `The timetable for the selected view has been saved.`,
@@ -410,8 +411,8 @@ export function TimetableBuilder() {
             name: newSubjectName,
             code: newSubjectCode,
             department: newSubjectDept,
-            teachers: [], // Initially no teachers assigned
-            classes: [], // Initially not assigned to any class
+            teachers: [],
+            classes: [],
         });
         toast({ title: 'Subject Added', description: `${newSubjectName} has been added to the list.`});
         setNewSubjectName('');
@@ -597,8 +598,9 @@ export function TimetableBuilder() {
                                                             </div>
                                                         )}
                                                         {period.isBreak ? (
-                                                            period.id === 4 ? <div className="h-full flex items-center justify-center bg-gray-100 rounded-md"><p className="text-xs font-semibold text-gray-500 transform -rotate-90">{period.title}</p></div> :
-                                                            <div className="h-full flex items-center justify-center bg-gray-200 rounded-md"><p className="font-semibold text-gray-600">{period.title}</p></div>
+                                                            <div className="h-full flex items-center justify-center bg-gray-200 rounded-md">
+                                                                <p className="font-semibold text-gray-600">{period.title}</p>
+                                                            </div>
                                                         ) : (
                                                             cellData ? (
                                                                 <div className={cn('p-2 rounded-md text-white h-full flex flex-col justify-between cursor-pointer', cellData.subject.color)}>
@@ -609,9 +611,28 @@ export function TimetableBuilder() {
                                                                     </div>
                                                                     {view === 'Class View' && (
                                                                         <div className="text-right">
-                                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white">
-                                                                                <Edit className="h-4 w-4" />
-                                                                            </Button>
+                                                                            <Dialog>
+                                                                                <DialogTrigger asChild>
+                                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white"><Edit className="h-4 w-4" /></Button>
+                                                                                </DialogTrigger>
+                                                                                <DialogContent>
+                                                                                    <DialogHeader>
+                                                                                        <DialogTitle>Edit Lesson</DialogTitle>
+                                                                                        <DialogDescription>Change the room for this lesson.</DialogDescription>
+                                                                                    </DialogHeader>
+                                                                                    <div className="py-4">
+                                                                                        <Label htmlFor="room-select">Room</Label>
+                                                                                        <Select defaultValue={cellData.room}>
+                                                                                            <SelectTrigger id="room-select"><SelectValue/></SelectTrigger>
+                                                                                            <SelectContent>{allRooms.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                                                                                        </Select>
+                                                                                    </div>
+                                                                                    <DialogFooter>
+                                                                                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                                                        <Button disabled>Save</Button>
+                                                                                    </DialogFooter>
+                                                                                </DialogContent>
+                                                                            </Dialog>
                                                                             <Button variant="ghost" size="icon" className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white" onClick={() => handleClearCell(day, period.time)}>
                                                                                 <Trash2 className="h-4 w-4" />
                                                                             </Button>
@@ -648,10 +669,21 @@ export function TimetableBuilder() {
                     </CardContent>
                     <CardFooter className="flex justify-end gap-2">
                         <Button variant="outline" onClick={() => setTimetable({})}>Clear Timetable</Button>
-                        <Button variant="secondary" onClick={handlePublish}>
-                            <Share className="mr-2 h-4 w-4" />
-                            Publish
-                        </Button>
+                        <Dialog>
+                            <DialogTrigger asChild><Button variant="secondary"><Share className="mr-2 h-4 w-4" />Publish</Button></DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Confirm Publish</DialogTitle>
+                                    <DialogDescription>
+                                        Are you sure you want to publish this timetable? This will make it visible to all teachers and students in this class.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <DialogClose asChild><Button onClick={handlePublish}>Yes, Publish</Button></DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                         <Button onClick={handleSave}>
                             <Save className="mr-2 h-4 w-4" />
                             Save Timetable
