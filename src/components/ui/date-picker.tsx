@@ -4,7 +4,6 @@ import * as React from 'react';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
-
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -27,18 +26,24 @@ export function DateRangePicker({
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
+  // Memoize defaultMonth to avoid unnecessary re-renders
+  const defaultMonth = React.useMemo(() => selected?.from, [selected?.from]);
+
+  // Memoize className to ensure stability
+  const buttonClassName = React.useMemo(
+    () =>
+      cn(
+        'w-full justify-start text-left font-normal',
+        !selected && 'text-muted-foreground'
+      ),
+    [selected]
+  );
+
   return (
     <div className={cn('grid gap-2', className)}>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button
-            id="date"
-            variant={'outline'}
-            className={cn(
-              'w-full justify-start text-left font-normal',
-              !selected && 'text-muted-foreground'
-            )}
-          >
+          <Button id="date" variant={'outline'} className={buttonClassName}>
             <CalendarIcon className="mr-2 h-4 w-4" />
             {selected?.from ? (
               selected.to ? (
@@ -58,15 +63,15 @@ export function DateRangePicker({
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={selected?.from}
+            defaultMonth={defaultMonth}
             selected={selected}
             onSelect={onSelect}
             numberOfMonths={2}
           />
           <div className="p-3 border-t">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="w-full"
               onClick={() => setIsOpen(false)}
             >

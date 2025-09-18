@@ -99,13 +99,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
-// Import the improved DateRangePicker
 import { DateRangePicker } from '@/components/ui/date-picker';
-import { Checkbox } from '@/components/ui/checkbox';
 
 type GradeStatus = 'Graded' | 'Pending';
 
@@ -332,23 +326,24 @@ export default function AdminGradesPage() {
   const [isSavingScale, setIsSavingScale] = React.useState(false);
   const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
   
-  const [newExamTitle, setNewExamTitle] = React.useState('');
-  const [newExamClass, setNewExamClass] = React.useState<string>('');
-  const [newExamNotes, setNewExamNotes] = React.useState('');
-  const [isSavingExam, setIsSavingExam] = React.useState(false);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: undefined,
     to: undefined,
   });
-
+  
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
     const year = currentYear - 1 + i;
     return [`Term 1, ${year}`, `Term 2, ${year}`, `Term 3, ${year}`];
   }).flat();
   academicTerms.push(...[`Term 1, ${currentYear + 1}`, `Term 2, ${currentYear + 1}`, `Term 3, ${currentYear + 1}`]);
+  
+  const [newExamTitle, setNewExamTitle] = React.useState('');
   const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[4]);
-
+  const [newExamClass, setNewExamClass] = React.useState<string>('');
+  const [newExamNotes, setNewExamNotes] = React.useState('');
+  const [isSavingExam, setIsSavingExam] = React.useState(false);
+  
   const handleDateChange = React.useCallback((range: DateRange | undefined) => {
     setDate(range);
   }, []);
@@ -360,7 +355,7 @@ export default function AdminGradesPage() {
   const handleClassChange = React.useCallback((value: string) => {
     setNewExamClass(value);
   }, []);
-
+  
   React.useEffect(() => {
     if (editingExam && editingExam.startDate && editingExam.endDate) {
       setNewExamTitle(editingExam.title);
@@ -371,7 +366,7 @@ export default function AdminGradesPage() {
       setDate({ from: newFrom, to: newTo });
       setNewExamNotes(editingExam.notes || '');
       setIsExamDialogOpen(true);
-    } else {
+    } else if (!editingExam) {
       setNewExamTitle('');
       setNewExamTerm(academicTerms[4]);
       setNewExamClass('');
@@ -546,22 +541,17 @@ export default function AdminGradesPage() {
   }, [schoolId, selectedClassForRanking]);
 
   const handleGradingScaleChange = (index: number, field: 'min' | 'max' | 'grade', value: string) => {
-    const newScale = [...gradingScale];
-    if (field === 'min' || field === 'max') {
-        const numericValue = parseInt(value, 10);
-        newScale[index][field] = isNaN(numericValue) ? 0 : numericValue;
-    } else {
-        newScale[index][field] = value;
-    }
-    setGradingScale(newScale);
+    setGradingScale(currentScale => {
+        const newScale = [...currentScale];
+        if (field === 'min' || field === 'max') {
+            const numericValue = parseInt(value, 10);
+            newScale[index] = { ...newScale[index], [field]: isNaN(numericValue) ? 0 : numericValue };
+        } else {
+            newScale[index] = { ...newScale[index], [field]: value };
+        }
+        return newScale;
+    });
   };
-  
-  const handleGradingScaleCheckboxChange = (index: number, checked: boolean) => {
-    const newScale = [...gradingScale];
-    newScale[index].isDefault = checked;
-    setGradingScale(newScale);
-  };
-
 
   const addGradingRow = () => {
     setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0, isDefault: false }]);
@@ -854,7 +844,7 @@ export default function AdminGradesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="exam-term">Academic Term</Label>
-                  <Select value={newExamTerm} onValueChange={(value) => handleTermChange(value)}>
+                  <Select value={newExamTerm} onValueChange={handleTermChange}>
                     <SelectTrigger id="exam-term">
                       <SelectValue />
                     </SelectTrigger>
@@ -867,7 +857,7 @@ export default function AdminGradesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Classes Involved</Label>
-                  <Select value={newExamClass} onValueChange={(value) => handleClassChange(value)}>
+                  <Select value={newExamClass} onValueChange={handleClassChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select classes..." />
                     </SelectTrigger>
@@ -1252,10 +1242,10 @@ export default function AdminGradesPage() {
               </div>
             </CardContent>
             <CardFooter>
-                <Button onClick={handleSaveScale} disabled={isSavingScale}>
-                    {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                    Save Scale
-                </Button>
+              <Button onClick={handleSaveScale} disabled={isSavingScale}>
+                {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                Save Scale
+              </Button>
             </CardFooter>
           </Card>
           <EditRequestsTab schoolId={schoolId || ''} />
