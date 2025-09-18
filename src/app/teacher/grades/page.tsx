@@ -39,27 +39,47 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { firestore, auth } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { firestore, auth } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { isPast } from 'date-fns';
 import { logAuditEvent } from '@/lib/audit-log.service';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { Progress } from '@/components/ui/progress';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Textarea } from '@/components/ui/textarea';
 
 
 type Exam = {
@@ -453,7 +473,7 @@ export default function TeacherGradesPage() {
     
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
-    const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
+    const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>(([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
 
