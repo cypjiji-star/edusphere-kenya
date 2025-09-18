@@ -30,6 +30,7 @@ import {
   Printer,
   FileDown,
   Download,
+  User,
 } from 'lucide-react';
 import {
   Table,
@@ -73,6 +74,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 type Exam = {
@@ -104,9 +107,9 @@ const mockStudents = [
 const gradebookSubjects = ['Mathematics', 'English', 'Chemistry', 'Physics', 'Biology'];
 
 const mockPendingGrades = [
-    { id: 'grd-001', studentName: 'John Doe', admNo: '1234', class: 'Form 4', subject: 'Mathematics', score: 85, enteredBy: 'Mr. Otieno' },
-    { id: 'grd-002', studentName: 'Jane Smith', admNo: '1235', class: 'Form 4', subject: 'Mathematics', score: 92, enteredBy: 'Mr. Otieno' },
-    { id: 'grd-003', studentName: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', scores: { Mathematics: 65, English: 58, Chemistry: 50, Physics: 61, Biology: 55 } },
+    { id: 'grd-001', studentName: 'John Doe', admNo: '1234', class: 'Form 4', subject: 'Mathematics', score: 85, enteredBy: 'Mr. Otieno', flagged: false },
+    { id: 'grd-002', studentName: 'Jane Smith', admNo: '1235', class: 'Form 4', subject: 'Mathematics', score: 92, enteredBy: 'Mr. Otieno', flagged: false },
+    { id: 'grd-003', studentName: 'Peter Jones', admNo: '1236', class: 'Form 4', subject: 'Mathematics', score: 25, enteredBy: 'Mr. Otieno', flagged: true },
 ];
 
 const mockGradeLog = [
@@ -116,10 +119,10 @@ const mockGradeLog = [
 ];
 
 const mockRanking = [
-    { position: 1, name: 'Mary Anne', admNo: '1237', total: 467, avg: 93.4, grade: 'A' },
-    { position: 2, name: 'Jane Smith', admNo: '1235', total: 435, avg: 87.0, grade: 'A-' },
-    { position: 3, name: 'John Doe', admNo: '1234', total: 381, avg: 76.2, grade: 'B+' },
-    { position: 4, name: 'Peter Jones', admNo: '1236', total: 289, avg: 57.8, grade: 'C' },
+    { position: 1, name: 'Mary Anne', admNo: '1237', avatarUrl: 'https://picsum.photos/seed/student4/100', total: 467, avg: 93.4, grade: 'A' },
+    { position: 2, name: 'Jane Smith', admNo: '1235', avatarUrl: 'https://picsum.photos/seed/student2/100', total: 435, avg: 87.0, grade: 'A-' },
+    { position: 3, name: 'John Doe', admNo: '1234', avatarUrl: 'https://picsum.photos/seed/student1/100', total: 381, avg: 76.2, grade: 'B+' },
+    { position: 4, name: 'Peter Jones', admNo: '1236', avatarUrl: 'https://picsum.photos/seed/student3/100', total: 289, avg: 57.8, grade: 'C' },
 ];
 
 const subjectPerformanceData = [
@@ -136,11 +139,113 @@ const chartConfig = {
   },
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
+const schoolInfo = {
+    name: "EduSphere High School",
+    motto: "Excellence & Integrity",
+    logoUrl: "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
+};
+
+
+function ReportCardDialog({ student, open, onOpenChange }: { student: typeof mockRanking[0] | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!student) return null;
+
+    const handleDownloadPdf = () => {
+        const doc = new jsPDF();
+        const reportCardElement = document.getElementById('report-card-content');
+        if (reportCardElement) {
+            doc.html(reportCardElement, {
+                callback: function (doc) {
+                    doc.save(`report-card-${student.admNo}.pdf`);
+                },
+                x: 10,
+                y: 10,
+                width: 180,
+                windowWidth: reportCardElement.scrollWidth,
+            });
+        }
+    };
+    
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-3xl">
+                <div id="report-card-content" className="p-8">
+                    <DialogHeader className="border-b pb-4 mb-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <Avatar className="h-16 w-16"><AvatarImage src={schoolInfo.logoUrl} /></Avatar>
+                                <div>
+                                    <DialogTitle className="text-2xl font-headline">{schoolInfo.name}</DialogTitle>
+                                    <DialogDescription className="italic">"{schoolInfo.motto}"</DialogDescription>
+                                </div>
+                            </div>
+                             <div className="text-right">
+                                <h3 className="font-bold text-lg">Student Report Card</h3>
+                                <p className="text-sm text-muted-foreground">Term 2, 2024</p>
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    <div className="grid grid-cols-3 gap-4 text-sm mb-6">
+                        <div><span className="font-semibold">Student:</span> {student.name}</div>
+                        <div><span className="font-semibold">Admission No:</span> {student.admNo}</div>
+                        <div><span className="font-semibold">Class:</span> Form 4</div>
+                    </div>
+
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Subject</TableHead>
+                                <TableHead className="text-center">Score</TableHead>
+                                <TableHead>Grade</TableHead>
+                                <TableHead>Comment</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.entries(mockStudents.find(s => s.admNo === student.admNo)!.scores).map(([subject, score]) => (
+                                <TableRow key={subject}>
+                                    <TableCell>{subject}</TableCell>
+                                    <TableCell className="text-center font-semibold">{score}</TableCell>
+                                    <TableCell>{score >= 80 ? 'A' : score >= 65 ? 'B' : 'C'}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground italic">Good progress.</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+
+                    <div className="mt-6 grid grid-cols-2 gap-4">
+                        <Card>
+                            <CardHeader><CardTitle className="text-base">Summary</CardTitle></CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="font-semibold">Total Marks:</span><span>{student.total} / 500</span></div>
+                                <div className="flex justify-between"><span className="font-semibold">Average:</span><span>{student.avg.toFixed(1)}%</span></div>
+                                <div className="flex justify-between"><span className="font-semibold">Mean Grade:</span><Badge>{student.grade}</Badge></div>
+                                <div className="flex justify-between"><span className="font-semibold">Class Rank:</span><span>{student.position} of 32</span></div>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader><CardTitle className="text-base">Comments</CardTitle></CardHeader>
+                            <CardContent className="space-y-4 text-sm">
+                                <div><Label>Class Teacher:</Label><p className="italic text-muted-foreground">A commendable effort this term. Keep focusing in class.</p></div>
+                                <div><Label>Principal:</Label><p className="italic text-muted-foreground">Satisfactory performance. Well done.</p></div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+                <DialogFooter className="border-t pt-4">
+                    <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
+                    <Button onClick={handleDownloadPdf}><Download className="mr-2 h-4 w-4"/>Download as PDF</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const [exams, setExams] = React.useState(mockExams);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+    const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<typeof mockRanking[0] | null>(null);
+
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -148,6 +253,7 @@ export default function AdminGradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+        <ReportCardDialog student={selectedStudentForReport} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades & Exams</h1>
         <p className="text-muted-foreground">Manage exams, grades, and academic reports.</p>
@@ -517,17 +623,26 @@ export default function AdminGradesPage() {
                                             <TableHead>Name</TableHead>
                                             <TableHead className="text-right">Total</TableHead>
                                             <TableHead className="text-right">Average</TableHead>
-                                            <TableHead className="text-right">Grade</TableHead>
+                                            <TableHead>Grade</TableHead>
+                                            <TableHead className="text-right">Report</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {mockRanking.map(student => (
                                             <TableRow key={student.admNo}>
                                                 <TableCell className="font-bold">{student.position}</TableCell>
-                                                <TableCell>{student.name}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="h-8 w-8"><AvatarImage src={student.avatarUrl}/><AvatarFallback>{student.name[0]}</AvatarFallback></Avatar>
+                                                        {student.name}
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell className="text-right">{student.total}</TableCell>
                                                 <TableCell className="text-right">{student.avg.toFixed(1)}</TableCell>
-                                                <TableCell className="text-right"><Badge>{student.grade}</Badge></TableCell>
+                                                <TableCell><Badge>{student.grade}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="outline" size="sm" onClick={() => setSelectedStudentForReport(student)}>View Report</Button>
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
