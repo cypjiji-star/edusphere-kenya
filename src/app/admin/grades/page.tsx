@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import {
   Card,
@@ -9,26 +10,26 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  FileText, 
-  PlusCircle, 
-  Trophy, 
-  Loader2, 
-  Printer, 
-  BarChart2, 
-  Settings, 
-  Edit, 
-  Copy, 
-  Archive, 
-  Search, 
-  Filter, 
-  ChevronDown, 
-  Lock, 
-  Unlock, 
-  Send, 
+import {
+  FileText,
+  PlusCircle,
+  Trophy,
+  Loader2,
+  Printer,
+  BarChart2,
+  Settings,
+  Edit,
+  Copy,
+  Archive,
+  Search,
+  Filter,
+  ChevronDown,
+  Lock,
+  Unlock,
+  Send,
   CheckCircle,
   Minus,
   TrendingUp,
@@ -36,7 +37,7 @@ import {
   FileDown,
   Mail,
   Save,
-  HelpCircle
+  HelpCircle,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ReportGenerator } from './report-generator';
@@ -61,17 +62,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { firestore, auth } from '@/lib/firebase';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  orderBy, 
-  Timestamp, 
-  addDoc, 
-  getDocs, 
-  where, 
-  DocumentData,
+import { firestore } from '@/lib/firebase';
+import {
+  collection,
+  query,
+  onSnapshot,
+  orderBy,
+  Timestamp,
+  addDoc,
+  getDocs,
+  where,
   doc,
   getDoc,
   updateDoc,
@@ -99,7 +99,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { GradeSummaryWidget } from './grade-summary-widget';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
-
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 // Import the improved DateRangePicker
 import { DateRangePicker } from '@/components/ui/date-picker';
 
@@ -141,41 +144,41 @@ type GradingScaleItem = {
   grade: string;
   min: number;
   max: number;
-}
+};
 
 type SubjectPerformance = {
-    name: string;
-    meanScore: number;
-    highestScore: number;
-    lowestScore: number;
-    numAs: number;
-    numEs: number;
+  name: string;
+  meanScore: number;
+  highestScore: number;
+  lowestScore: number;
+  numAs: number;
+  numEs: number;
 };
 
 type EditRequest = {
-    id: string;
-    teacherName: string;
-    assessmentTitle: string;
-    className: string;
-    reason: string;
-    status: 'pending' | 'approved' | 'denied';
-    requestedAt: Timestamp;
-    assessmentId: string;
+  id: string;
+  teacherName: string;
+  assessmentTitle: string;
+  className: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'denied';
+  requestedAt: Timestamp;
+  assessmentId: string;
 };
 
 const getGradeFromScore = (score: number) => {
-    if (score >= 80) return 'A';
-    if (score >= 75) return 'A-';
-    if (score >= 70) return 'B+';
-    if (score >= 65) return 'B';
-    if (score >= 60) return 'B-';
-    if (score >= 55) return 'C+';
-    if (score >= 50) return 'C';
-    if (score >= 45) return 'C-';
-    if (score >= 40) return 'D+';
-    if (score >= 35) return 'D';
-    if (score >= 30) return 'D-';
-    return 'E';
+  if (score >= 80) return 'A';
+  if (score >= 75) return 'A-';
+  if (score >= 70) return 'B+';
+  if (score >= 65) return 'B';
+  if (score >= 60) return 'B-';
+  if (score >= 55) return 'C+';
+  if (score >= 50) return 'C';
+  if (score >= 45) return 'C-';
+  if (score >= 40) return 'D+';
+  if (score >= 35) return 'D';
+  if (score >= 30) return 'D-';
+  return 'E';
 };
 
 const initialGradingScale: GradingScaleItem[] = [
@@ -191,129 +194,126 @@ const initialGradingScale: GradingScaleItem[] = [
   { grade: 'D', min: 35, max: 39 },
   { grade: 'D-', min: 30, max: 34 },
   { grade: 'E', min: 0, max: 29 },
-]
+];
 
 function EditRequestsTab({ schoolId }: { schoolId: string }) {
-    const [requests, setRequests] = React.useState<EditRequest[]>([]);
-    const [isLoading, setIsLoading] = React.useState(true);
-    const { toast } = useToast();
-    const { user } = useAuth();
+  const [requests, setRequests] = React.useState<EditRequest[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const { toast } = useToast();
+  const { user } = useAuth();
 
-    React.useEffect(() => {
-        const q = query(collection(firestore, `schools/${schoolId}/grade-edit-requests`), orderBy('requestedAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            setRequests(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as EditRequest)));
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, [schoolId]);
+  React.useEffect(() => {
+    const q = query(collection(firestore, `schools/${schoolId}/grade-edit-requests`), orderBy('requestedAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setRequests(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as EditRequest)));
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [schoolId]);
 
-    const handleRequestUpdate = async (requestId: string, assessmentId: string, newStatus: 'approved' | 'denied', requestDetails: EditRequest) => {
-        if (!user) {
-            toast({ title: 'Authentication Error', variant: 'destructive'});
-            return;
-        }
-
-        const batch = writeBatch(firestore);
-
-        const requestRef = doc(firestore, `schools/${schoolId}/grade-edit-requests`, requestId);
-        batch.update(requestRef, { status: newStatus });
-        
-        if (newStatus === 'approved') {
-            const assessmentRef = doc(firestore, `schools/${schoolId}/assessments`, assessmentId);
-            batch.update(assessmentRef, { status: 'Active' });
-        }
-
-        try {
-            await batch.commit();
-            await logAuditEvent({
-                schoolId,
-                actionType: 'Academics',
-                description: `Grade Edit Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
-                user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-                details: `Request from ${requestDetails.teacherName} for ${requestDetails.assessmentTitle} (${requestDetails.className}) was ${newStatus}.`,
-            });
-            toast({ title: `Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`, description: `The teacher has been notified.`});
-        } catch (e) {
-            console.error(e);
-            toast({ title: 'Action Failed', variant: 'destructive'});
-        }
-    };
-    
-    const getStatusBadge = (status: EditRequest['status']) => {
-        switch(status) {
-            case 'pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending</Badge>;
-            case 'approved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Approved</Badge>;
-            case 'denied': return <Badge variant="destructive">Denied</Badge>;
-        }
+  const handleRequestUpdate = async (requestId: string, assessmentId: string, newStatus: 'approved' | 'denied', requestDetails: EditRequest) => {
+    if (!user) {
+      toast({ title: 'Authentication Error', variant: 'destructive' });
+      return;
     }
 
-    if (isLoading) {
-      return (
-        <div className="flex justify-center p-8">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      );
+    const batch = writeBatch(firestore);
+
+    const requestRef = doc(firestore, `schools/${schoolId}/grade-edit-requests`, requestId);
+    batch.update(requestRef, { status: newStatus });
+
+    if (newStatus === 'approved') {
+      const assessmentRef = doc(firestore, `schools/${schoolId}/assessments`, assessmentId);
+      batch.update(assessmentRef, { status: 'Active' });
     }
-    
+
+    try {
+      await batch.commit();
+      await logAuditEvent({
+        schoolId,
+        actionType: 'Academics',
+        description: `Grade Edit Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+        user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        details: `Request from ${requestDetails.teacherName} for ${requestDetails.assessmentTitle} (${requestDetails.className}) was ${newStatus}.`,
+      });
+      toast({ title: `Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`, description: `The teacher has been notified.` });
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Action Failed', variant: 'destructive' });
+    }
+  };
+
+  const getStatusBadge = (status: EditRequest['status']) => {
+    switch (status) {
+      case 'pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending</Badge>;
+      case 'approved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Approved</Badge>;
+      case 'denied': return <Badge variant="destructive">Denied</Badge>;
+    }
+  };
+
+  if (isLoading) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Grade Edit Requests</CardTitle>
-                <CardDescription>Review and approve or deny requests from teachers to edit submitted grades.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="w-full overflow-auto rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Teacher</TableHead>
-                                <TableHead>Assessment</TableHead>
-                                <TableHead>Reason</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                         <TableBody>
-                            {requests.length > 0 ? requests.map(req => (
-                                <TableRow key={req.id}>
-                                    <TableCell className="font-medium">{req.teacherName}</TableCell>
-                                    <TableCell>{req.assessmentTitle}<br/><span className="text-xs text-muted-foreground">{req.className}</span></TableCell>
-                                    <TableCell className="text-muted-foreground italic max-w-sm">"{req.reason}"</TableCell>
-                                    <TableCell>{getStatusBadge(req.status)}</TableCell>
-                                    <TableCell className="text-right">
-                                        {req.status === 'pending' && (
-                                            <div className="flex gap-2 justify-end">
-                                                <Button size="sm" variant="destructive" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'denied', req)}>Deny</Button>
-                                                <Button size="sm" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'approved', req)}>Approve</Button>
-                                            </div>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">No pending edit requests.</TableCell>
-                                </TableRow>
-                            )}
-                         </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
+      <div className="flex justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
     );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Grade Edit Requests</CardTitle>
+        <CardDescription>Review and approve or deny requests from teachers to edit submitted grades.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="w-full overflow-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Teacher</TableHead>
+                <TableHead>Assessment</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {requests.length > 0 ? requests.map(req => (
+                <TableRow key={req.id}>
+                  <TableCell className="font-medium">{req.teacherName}</TableCell>
+                  <TableCell>{req.assessmentTitle}<br /><span className="text-xs text-muted-foreground">{req.className}</span></TableCell>
+                  <TableCell className="text-muted-foreground italic max-w-sm">"{req.reason}"</TableCell>
+                  <TableCell>{getStatusBadge(req.status)}</TableCell>
+                  <TableCell className="text-right">
+                    {req.status === 'pending' && (
+                      <div className="flex gap-2 justify-end">
+                        <Button size="sm" variant="destructive" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'denied', req)}>Deny</Button>
+                        <Button size="sm" onClick={() => handleRequestUpdate(req.id, req.assessmentId, 'approved', req)}>Approve</Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">No pending edit requests.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function AdminGradesPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const { user } = useAuth();
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: undefined,
-    to: undefined,
-  });
+  
   const [gradingScale, setGradingScale] = React.useState<GradingScaleItem[]>(initialGradingScale);
   const { toast } = useToast();
-  const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
+  const [classes, setClasses] = React.useState<{ id: string, name: string }[]>([]);
   const [activeTab, setActiveTab] = React.useState('exams');
   const [studentsForRanking, setStudentsForRanking] = React.useState<StudentGrade[]>([]);
   const [selectedClassForRanking, setSelectedClassForRanking] = React.useState<string>('');
@@ -323,13 +323,16 @@ export default function AdminGradesPage() {
   const [allExams, setAllExams] = React.useState<Exam[]>([]);
   const [isLoadingRanking, setIsLoadingRanking] = React.useState(true);
   const [examSearchTerm, setExamSearchTerm] = React.useState('');
-  
   const [selectedExam, setSelectedExam] = React.useState<Exam | null>(null);
   const [editingExam, setEditingExam] = React.useState<Exam | null>(null);
-  
   const [currentAssessments, setCurrentAssessments] = React.useState<Exam[]>([]);
   const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
   const [isSavingScale, setIsSavingScale] = React.useState(false);
+  const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  });
 
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -338,34 +341,43 @@ export default function AdminGradesPage() {
   }).flat();
   academicTerms.push(...[`Term 1, ${currentYear + 1}`, `Term 2, ${currentYear + 1}`, `Term 3, ${currentYear + 1}`]);
 
-  // State for the create/edit exam dialog
-  const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
   const [newExamTitle, setNewExamTitle] = React.useState('');
   const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[4]);
   const [newExamClass, setNewExamClass] = React.useState<string>('');
   const [newExamNotes, setNewExamNotes] = React.useState('');
   const [isSavingExam, setIsSavingExam] = React.useState(false);
 
+  // Memoized handlers to stabilize props
+  const handleDateChange = React.useCallback((range: DateRange | undefined) => {
+    setDate(range);
+  }, []);
+
+  const handleTermChange = React.useCallback((value: string) => {
+    setNewExamTerm(value);
+  }, []);
+
+  const handleClassChange = React.useCallback((value: string) => {
+    setNewExamClass(value);
+  }, []);
+
   React.useEffect(() => {
-    if (editingExam) {
-        setNewExamTitle(editingExam.title);
-        setNewExamTerm(editingExam.term);
-        setNewExamClass(editingExam.classId || '');
-        setDate({ 
-          from: editingExam.startDate.toDate(), 
-          to: editingExam.endDate.toDate() 
-        });
-        setNewExamNotes(editingExam.notes || '');
-        setIsExamDialogOpen(true);
+    if (editingExam && editingExam.startDate && editingExam.endDate) {
+      setNewExamTitle(editingExam.title);
+      setNewExamTerm(editingExam.term);
+      setNewExamClass(editingExam.classId || '');
+      const newFrom = editingExam.startDate.toDate();
+      const newTo = editingExam.endDate.toDate();
+      setDate({ from: newFrom, to: newTo });
+      setNewExamNotes(editingExam.notes || '');
+      setIsExamDialogOpen(true);
     } else {
-        // Reset form when not in edit mode
-        setNewExamTitle('');
-        setNewExamTerm(academicTerms[4]);
-        setNewExamClass('');
-        setDate({ from: undefined, to: undefined });
-        setNewExamNotes('');
+      setNewExamTitle('');
+      setNewExamTerm(academicTerms[4]);
+      setNewExamClass('');
+      setDate({ from: undefined, to: undefined });
+      setNewExamNotes('');
     }
-}, [editingExam, academicTerms]);
+  }, [editingExam, academicTerms]);
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -376,12 +388,11 @@ export default function AdminGradesPage() {
         const examsWithProgress: Exam[] = await Promise.all(snapshot.docs.map(async (examDoc) => {
           const exam = { id: examDoc.id, ...examDoc.data() } as Exam;
 
-          // Calculate progress
           const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('assessmentId', '==', exam.id));
           const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', exam.classId));
-          
+
           const [gradesSnap, studentsSnap] = await Promise.all([getDocs(gradesQuery), getDocs(studentsQuery)]);
-          
+
           const totalStudents = studentsSnap.size;
           const enteredGrades = gradesSnap.size;
 
@@ -395,9 +406,9 @@ export default function AdminGradesPage() {
     );
 
     const unsubClasses = onSnapshot(collection(firestore, `schools/${schoolId}/classes`), (snapshot) => {
-      const classList = snapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        name: `${doc.data().name || doc.data().className || ''} ${doc.data().stream || ''}`.trim() 
+      const classList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: `${doc.data().name || doc.data().className || ''} ${doc.data().stream || ''}`.trim(),
       }));
       setClasses(classList);
       if (classList.length > 0 && !selectedClassForRanking) {
@@ -406,9 +417,9 @@ export default function AdminGradesPage() {
     });
 
     const unsubGradingScale = onSnapshot(doc(firestore, `schools/${schoolId}/settings`, 'grading'), (docSnap) => {
-        if (docSnap.exists() && docSnap.data().scale) {
-            setGradingScale(docSnap.data().scale);
-        }
+      if (docSnap.exists() && docSnap.data().scale) {
+        setGradingScale(docSnap.data().scale);
+      }
     });
 
     return () => {
@@ -418,7 +429,6 @@ export default function AdminGradesPage() {
     };
   }, [schoolId, selectedClassForRanking]);
 
-  
   React.useEffect(() => {
     if (!selectedClassForRanking || !schoolId) {
       setStudentsForRanking([]);
@@ -430,10 +440,10 @@ export default function AdminGradesPage() {
       setIsLoadingRanking(true);
       try {
         const gradesQuery = query(
-          collection(firestore, `schools/${schoolId}/grades`), 
+          collection(firestore, `schools/${schoolId}/grades`),
           where('classId', '==', selectedClassForRanking)
         );
-        
+
         const gradesSnapshot = await getDocs(gradesQuery);
 
         if (gradesSnapshot.empty) {
@@ -443,50 +453,50 @@ export default function AdminGradesPage() {
           return;
         }
 
-        const studentGradesMap = new Map<string, {name: string, avatarUrl: string, rollNumber: string, className: string, grades: {subject: string, grade: number}[]}>();
+        const studentGradesMap = new Map<string, { name: string, avatarUrl: string, rollNumber: string, className: string, grades: { subject: string, grade: number }[] }>();
         const availableSubjects = new Set<string>();
 
         for (const gradeDoc of gradesSnapshot.docs) {
           const gradeData = gradeDoc.data();
           const studentId = gradeData.studentId;
-          
+
           if (!studentGradesMap.has(studentId)) {
             const studentRef = doc(firestore, 'schools', schoolId, 'students', studentId);
             const studentSnap = await getDoc(studentRef);
             if (studentSnap.exists()) {
-               studentGradesMap.set(studentId, {
-                  name: studentSnap.data().name || 'Unknown',
-                  avatarUrl: studentSnap.data().avatarUrl || '',
-                  rollNumber: studentSnap.data().admissionNumber || 'N/A',
-                  className: studentSnap.data().class || 'N/A',
-                  grades: [],
-               });
+              studentGradesMap.set(studentId, {
+                name: studentSnap.data().name || 'Unknown',
+                avatarUrl: studentSnap.data().avatarUrl || '',
+                rollNumber: studentSnap.data().admissionNumber || 'N/A',
+                className: studentSnap.data().class || 'N/A',
+                grades: [],
+              });
             }
           }
 
           const gradeValue = parseInt(gradeData.grade, 10);
           if (!isNaN(gradeValue)) {
             studentGradesMap.get(studentId)?.grades.push({
-                subject: gradeData.subject,
-                grade: gradeValue
+              subject: gradeData.subject,
+              grade: gradeValue,
             });
             if (gradeData.subject) {
               availableSubjects.add(gradeData.subject);
             }
           }
         }
-        
+
         setSubjectsForRanking(['All Subjects', ...Array.from(availableSubjects)]);
-        
+
         const rankedStudents: StudentGrade[] = Array.from(studentGradesMap.entries())
           .map(([studentId, data]) => {
-            const gradesToAverage = selectedSubjectForRanking === 'All Subjects' 
-              ? data.grades 
+            const gradesToAverage = selectedSubjectForRanking === 'All Subjects'
+              ? data.grades
               : data.grades.filter((g: any) => g.subject === selectedSubjectForRanking);
-            
+
             const numericScores = gradesToAverage.map((g: any) => g.grade);
             const average = numericScores.length > 0 ? Math.round(numericScores.reduce((a: number, b: number) => a + b, 0) / numericScores.length) : 0;
-            
+
             return {
               id: studentId,
               studentName: data.name,
@@ -504,115 +514,115 @@ export default function AdminGradesPage() {
         setStudentsForRanking(rankedStudents);
       } catch (error) {
         console.error('Error fetching student grades for ranking:', error);
-        toast({ 
-          variant: 'destructive', 
+        toast({
+          variant: 'destructive',
           title: 'Failed to fetch ranking data',
-          description: 'Please check your database structure and try again.'
+          description: 'Please check your database structure and try again.',
         });
       } finally {
         setIsLoadingRanking(false);
       }
     };
-    
+
     fetchStudentGradesForRanking();
   }, [selectedClassForRanking, selectedSubjectForRanking, schoolId, toast]);
 
-    React.useEffect(() => {
-        if (!schoolId || !selectedClassForRanking) {
-            setIsGradebookLoading(false);
-            return;
-        }
+  React.useEffect(() => {
+    if (!schoolId || !selectedClassForRanking) {
+      setIsGradebookLoading(false);
+      return;
+    }
 
-        const fetchGradebookData = async () => {
-            setIsGradebookLoading(true);
-            const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClassForRanking));
-            const assessmentsSnap = await getDocs(assessmentsQuery);
-            setCurrentAssessments(assessmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
-            setIsGradebookLoading(false);
-        };
+    const fetchGradebookData = async () => {
+      setIsGradebookLoading(true);
+      const assessmentsQuery = query(collection(firestore, 'schools', schoolId, 'assessments'), where('classId', '==', selectedClassForRanking));
+      const assessmentsSnap = await getDocs(assessmentsQuery);
+      setCurrentAssessments(assessmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+      setIsGradebookLoading(false);
+    };
 
-        fetchGradebookData();
-    }, [schoolId, selectedClassForRanking]);
-
+    fetchGradebookData();
+  }, [schoolId, selectedClassForRanking]);
 
   const handleGradingScaleChange = (index: number, field: 'min' | 'max', value: string) => {
     const newScale = [...gradingScale];
-    const numericValue = parseInt(value, 10) || 0;
-    newScale[index] = { ...newScale[index], [field]: numericValue };
+    const numericValue = parseInt(value, 10);
+    newScale[index][field] = isNaN(numericValue) ? 0 : numericValue;
     setGradingScale(newScale);
   };
+  
 
   const addGradingRow = () => {
     setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0 }]);
   };
-  
+
   const handleSaveScale = async () => {
     if (!schoolId || !user) {
-        toast({ title: 'School ID missing', variant: 'destructive'});
-        return;
+      toast({ title: 'School ID missing', variant: 'destructive' });
+      return;
     }
     setIsSavingScale(true);
     try {
-        const settingsRef = doc(firestore, `schools/${schoolId}/settings`, 'grading');
-        await setDoc(settingsRef, { scale: gradingScale }, { merge: true });
+      const settingsRef = doc(firestore, `schools/${schoolId}/settings`, 'grading');
+      await setDoc(settingsRef, { scale: gradingScale }, { merge: true });
 
-        await logAuditEvent({
-            schoolId,
-            actionType: 'Settings',
-            description: 'Grading Scale Updated',
-            user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-            details: 'The school-wide grading scale was modified.',
-        });
+      await logAuditEvent({
+        schoolId,
+        actionType: 'Settings',
+        description: 'Grading Scale Updated',
+        user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        details: 'The school-wide grading scale was modified.',
+      });
 
-        toast({
-            title: 'Grading Scale Saved',
-            description: 'The new grading scale has been applied school-wide.',
-        });
+      toast({
+        title: 'Grading Scale Saved',
+        description: 'The new grading scale has been applied school-wide.',
+      });
     } catch (e) {
-         toast({
-            title: 'Save Failed',
-            description: 'Could not save the new grading scale.',
-            variant: 'destructive',
-        });
-        console.error(e);
+      toast({
+        title: 'Save Failed',
+        description: 'Could not save the new grading scale.',
+        variant: 'destructive',
+      });
+      console.error(e);
     } finally {
-        setIsSavingScale(false);
+      setIsSavingScale(false);
     }
-  }
-  
+  };
+
   const handleCreateOrUpdateExam = async () => {
     if (!schoolId || !newExamTitle || !newExamClass || !date?.from || !user) {
       toast({ variant: 'destructive', title: 'Missing Information', description: 'Please fill out the title, class, and date range.' });
       return;
     }
     setIsSavingExam(true);
-    
+
     const endDate = date.to || date.from;
-    
+
     const examData = {
-        title: newExamTitle,
-        term: newExamTerm,
-        classId: newExamClass,
-        className: classes.find(c => c.id === newExamClass)?.name || 'N/A',
-        startDate: Timestamp.fromDate(date.from),
-        endDate: Timestamp.fromDate(endDate),
-        notes: newExamNotes,
-        status: editingExam ? editingExam.status : 'Draft',
-      };
-      
+      title: newExamTitle,
+      term: newExamTerm,
+      classId: newExamClass,
+      className: classes.find(c => c.id === newExamClass)?.name || 'N/A',
+      startDate: Timestamp.fromDate(date.from),
+      endDate: Timestamp.fromDate(endDate),
+      notes: newExamNotes,
+      status: editingExam ? editingExam.status : 'Draft',
+    };
+
     try {
       let action = 'Created';
       let description = `New Exam Scheduled: ${examData.title} for ${examData.className}`;
 
       if (editingExam) {
-          const examRef = doc(firestore, `schools/${schoolId}/assessments`, editingExam.id);
-          await updateDoc(examRef, examData);
-          toast({ title: 'Exam Updated', description: 'The exam schedule has been updated.' });
-          action = 'Updated';
-          description = `Exam Details Updated: ${examData.title}`;
+        const examRef = doc(firestore, `schools/${schoolId}/assessments`, editingExam.id);
+        await updateDoc(examRef, examData);
+        toast({ title: 'Exam Updated', description: 'The exam schedule has been updated.' });
+        action = 'Updated';
+        description = `Exam Details Updated: ${examData.title}`;
       } else {
-          await addDoc(collection(firestore, `schools/${schoolId}/assessments`), examData);
-          toast({ title: 'Exam Created', description: 'The new exam has been scheduled.' });
+        await addDoc(collection(firestore, `schools/${schoolId}/assessments`), examData);
+        toast({ title: 'Exam Created', description: 'The new exam has been scheduled.' });
       }
 
       await logAuditEvent({
@@ -620,12 +630,11 @@ export default function AdminGradesPage() {
         actionType: 'Academics',
         description,
         user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-        details: `Term: ${examData.term}, Dates: ${date.from.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
+        details: `Term: ${examData.term}, Dates: ${format(date.from, 'LLL dd, y')} - ${format(endDate, 'LLL dd, y')}`,
       });
 
       setEditingExam(null);
       setIsExamDialogOpen(false);
-
     } catch (e) {
       console.error(e);
       toast({ variant: 'destructive', title: 'Failed to save exam.' });
@@ -633,7 +642,7 @@ export default function AdminGradesPage() {
       setIsSavingExam(false);
     }
   };
-  
+
   const handleExportRanking = (type: 'PDF' | 'CSV') => {
     const className = classes.find(c => c.id === selectedClassForRanking)?.name;
     const doc = new jsPDF();
@@ -643,9 +652,9 @@ export default function AdminGradesPage() {
       `${student.overall}%`,
     ]);
     const tableHeaders = ['Rank', 'Student Name', 'Overall Grade'];
-    
+
     if (type === 'CSV') {
-      let csvContent = "data:text/csv;charset=utf-8," + tableHeaders.join(",") + "\n" 
+      let csvContent = "data:text/csv;charset=utf-8," + tableHeaders.join(",") + "\n"
         + tableData.map(e => e.join(",")).join("\n");
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
@@ -654,67 +663,67 @@ export default function AdminGradesPage() {
       document.body.appendChild(link);
       link.click();
     } else {
-        doc.text(`Class Ranking for ${className || 'Selected Class'} (${selectedSubjectForRanking})`, 14, 16);
-        (doc as any).autoTable({
-          startY: 22,
-          head: [tableHeaders],
-          body: tableData,
-        });
-        doc.save("class-ranking.pdf");
+      doc.text(`Class Ranking for ${className || 'Selected Class'} (${selectedSubjectForRanking})`, 14, 16);
+      (doc as any).autoTable({
+        startY: 22,
+        head: [tableHeaders],
+        body: tableData,
+      });
+      doc.save("class-ranking.pdf");
     }
 
     toast({
       title: 'Export Successful',
       description: `The class ranking has been downloaded as a ${type} file.`,
     });
-  }
-  
+  };
+
   const getGradeForStudent = (student: StudentGrade, assessmentId: string) => {
     const grade = student.grades?.find(g => g.assessmentId === assessmentId);
     return grade ? grade.grade : '—';
   };
 
-  const filteredExams = allExams.filter(exam => 
-      exam.title.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
-      exam.term.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
-      (exam.className && exam.className.toLowerCase().includes(examSearchTerm.toLowerCase()))
+  const filteredExams = allExams.filter(exam =>
+    exam.title.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
+    exam.term.toLowerCase().includes(examSearchTerm.toLowerCase()) ||
+    (exam.className && exam.className.toLowerCase().includes(examSearchTerm.toLowerCase()))
   );
-  
+
   const getStatusBadgeColor = (status: Exam['status']) => {
-    switch(status) {
-        case 'Draft': return 'bg-gray-500';
-        case 'Active': return 'bg-blue-500';
-        case 'Locked': return 'bg-yellow-500';
-        case 'Published': return 'bg-green-600';
-        default: return 'bg-gray-500';
+    switch (status) {
+      case 'Draft': return 'bg-gray-500';
+      case 'Active': return 'bg-blue-500';
+      case 'Locked': return 'bg-yellow-500';
+      case 'Published': return 'bg-green-600';
+      default: return 'bg-gray-500';
     }
-  }
-  
+  };
+
   const handleUpdateExamStatus = async (exam: Exam, newStatus: Exam['status']) => {
     if (!schoolId || !user) return;
     try {
-        const examRef = doc(firestore, `schools/${schoolId}/assessments`, exam.id);
-        await updateDoc(examRef, { status: newStatus });
+      const examRef = doc(firestore, `schools/${schoolId}/assessments`, exam.id);
+      await updateDoc(examRef, { status: newStatus });
 
-        await logAuditEvent({
-            schoolId,
-            actionType: 'Academics',
-            description: `Exam Status Changed to ${newStatus}`,
-            user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
-            details: `Exam: ${exam.title} (${exam.className})`,
-        });
+      await logAuditEvent({
+        schoolId,
+        actionType: 'Academics',
+        description: `Exam Status Changed to ${newStatus}`,
+        user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        details: `Exam: ${exam.title} (${exam.className})`,
+      });
 
-        toast({
-            title: `Exam Status Updated`,
-            description: `The exam is now ${newStatus}.`,
-        });
-    } catch(e) {
-        console.error(e);
-        toast({
-            title: 'Error',
-            description: 'Could not update the exam status.',
-            variant: 'destructive',
-        });
+      toast({
+        title: `Exam Status Updated`,
+        description: `The exam is now ${newStatus}.`,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: 'Error',
+        description: 'Could not update the exam status.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -726,21 +735,21 @@ export default function AdminGradesPage() {
 
   const renderExamActions = (exam: Exam) => {
     switch (exam.status) {
-        case 'Draft':
-            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Active')}><Unlock className="mr-2 h-4 w-4" /> Activate Grading</DropdownMenuItem>;
-        case 'Active':
-            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Locked')}><Lock className="mr-2 h-4 w-4" /> Lock Grading</DropdownMenuItem>;
-        case 'Locked':
-            return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Published')}><Send className="mr-2 h-4 w-4" /> Publish Results</DropdownMenuItem>;
-        case 'Published':
-             return <DropdownMenuItem disabled><CheckCircle className="mr-2 h-4 w-4" /> Published</DropdownMenuItem>;
-        default:
-            return null;
+      case 'Draft':
+        return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Active')}><Unlock className="mr-2 h-4 w-4" /> Activate Grading</DropdownMenuItem>;
+      case 'Active':
+        return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Locked')}><Lock className="mr-2 h-4 w-4" /> Lock Grading</DropdownMenuItem>;
+      case 'Locked':
+        return <DropdownMenuItem onClick={() => handleUpdateExamStatus(exam, 'Published')}><Send className="mr-2 h-4 w-4" /> Publish Results</DropdownMenuItem>;
+      case 'Published':
+        return <DropdownMenuItem disabled><CheckCircle className="mr-2 h-4 w-4" /> Published</DropdownMenuItem>;
+      default:
+        return null;
     }
   };
-  
+
   const topStudents = studentsForRanking.slice(0, 3);
-    
+
   const classAverage = React.useMemo(() => {
     if (studentsForRanking.length === 0) return 0;
     const total = studentsForRanking.reduce((acc, student) => acc + student.overall, 0);
@@ -749,7 +758,7 @@ export default function AdminGradesPage() {
 
   const subjectPerformance: SubjectPerformance[] = React.useMemo(() => {
     const subjectData: Record<string, { scores: number[] }> = {};
-    
+
     studentsForRanking.forEach(student => {
       student.grades?.forEach(grade => {
         if (grade.subject) {
@@ -796,465 +805,454 @@ export default function AdminGradesPage() {
 
   const handleShare = () => {
     toast({
-        title: "Sharing Report",
-        description: "An email with the performance overview has been sent to the Principal.",
+      title: "Sharing Report",
+      description: "An email with the performance overview has been sent to the Principal.",
     });
   };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-              <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-                  <FileText className="h-8 w-8 text-primary" />
-                  Grades &amp; Exams Management
-              </h1>
-              <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
-          </div>
-          <Dialog open={isExamDialogOpen} onOpenChange={(open) => {
-              setIsExamDialogOpen(open);
-              if (!open) setEditingExam(null);
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                  <PlusCircle className="mr-2 h-4 w-4"/>
-                  Create Exam
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-xl">
-              <DialogHeader>
-                  <DialogTitle>{editingExam ? 'Edit Exam Details' : 'Create New Exam'}</DialogTitle>
-                  <DialogDescription>{editingExam ? 'Update the details for this exam.' : 'Define a new examination schedule for a term.'}</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-6 py-4">
-                  <div className="space-y-2">
-                  <Label htmlFor="exam-title">Exam Title</Label>
-                  <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" value={newExamTitle} onChange={(e) => setNewExamTitle(e.target.value)} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                      <Label htmlFor="exam-term">Academic Term</Label>
-                      <Select value={newExamTerm} onValueChange={setNewExamTerm}>
-                      <SelectTrigger id="exam-term">
-                          <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {academicTerms.map(term => (
-                          <SelectItem key={term} value={term}>{term}</SelectItem>
-                          ))}
-                      </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="space-y-2">
-                      <Label>Classes Involved</Label>
-                      <Select value={newExamClass} onValueChange={setNewExamClass}>
-                      <SelectTrigger>
-                          <SelectValue placeholder="Select classes..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="All Classes">All Classes</SelectItem>
-                          {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                      </Select>
-                  </div>
-                  </div>
-                  <div className="space-y-2">
-                  <Label htmlFor="date-range">Date Range</Label>
-                  <DateRangePicker selected={date} onSelect={setDate} />
-                  </div>
-                  <div className="space-y-2">
-                  <Label htmlFor="exam-notes">Notes (Optional)</Label>
-                  <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers." value={newExamNotes} onChange={e => setNewExamNotes(e.target.value)} />
-                  </div>
-              </div>
-              <DialogFooter>
-                  <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                  <Button onClick={handleCreateOrUpdateExam} disabled={isSavingExam}>
-                    {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    {editingExam ? 'Save Changes' : 'Create Exam'}
-                  </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+            <FileText className="h-8 w-8 text-primary" />
+            Grades &amp; Exams Management
+          </h1>
+          <p className="text-muted-foreground">Oversee school-wide examination schedules, grade analysis, and reporting.</p>
         </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="exams">Exams</TabsTrigger>
-            <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
-            <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="exams">
-            <Card>
-              <CardHeader>
-                <CardTitle>Exam Management</CardTitle>
-                <CardDescription>Create and manage examination schedules for different terms and classes.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Search exams..."
-                      className="pl-8"
-                      value={examSearchTerm}
-                      onChange={(e) => setExamSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by class" />
+        <Dialog open={isExamDialogOpen} onOpenChange={(open) => {
+          setIsExamDialogOpen(open);
+          if (!open) setEditingExam(null);
+        }}>
+          <DialogTrigger asChild>
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create Exam
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{editingExam ? 'Edit Exam Details' : 'Create New Exam'}</DialogTitle>
+              <DialogDescription>{editingExam ? 'Update the details for this exam.' : 'Define a new examination schedule for a term.'}</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="exam-title">Exam Title</Label>
+                <Input id="exam-title" placeholder="e.g., Term 2 Mid-Term Exams" value={newExamTitle} onChange={(e) => setNewExamTitle(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="exam-term">Academic Term</Label>
+                  <Select value={newExamTerm} onValueChange={handleTermChange}>
+                    <SelectTrigger id="exam-term">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      {academicTerms.map(term => (
+                        <SelectItem key={term} value={term}>{term}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Classes Involved</Label>
+                  <Select value={newExamClass} onValueChange={handleClassChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select classes..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All Classes">All Classes</SelectItem>
                       {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="date-range">Date Range</Label>
+                <DateRangePicker selected={date} onSelect={handleDateChange} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="exam-notes">Notes (Optional)</Label>
+                <Textarea id="exam-notes" placeholder="Add any relevant instructions or notes for teachers." value={newExamNotes} onChange={e => setNewExamNotes(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+              <Button onClick={handleCreateOrUpdateExam} disabled={isSavingExam}>
+                {isSavingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingExam ? 'Save Changes' : 'Create Exam'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="exams">Exams</TabsTrigger>
+          <TabsTrigger value="ranking">Class Ranking</TabsTrigger>
+          <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="exams">
+          <Card>
+            <CardHeader>
+              <CardTitle>Exam Management</CardTitle>
+              <CardDescription>Create and manage examination schedules for different terms and classes.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search exams..."
+                    className="pl-8"
+                    value={examSearchTerm}
+                    onChange={(e) => setExamSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Exam Title</TableHead>
+                      <TableHead>Term</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead>Date Range</TableHead>
+                      <TableHead>Progress</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredExams.map((exam) => (
+                      <TableRow key={exam.id}>
+                        <TableCell className="font-medium">{exam.title}</TableCell>
+                        <TableCell>{exam.term}</TableCell>
+                        <TableCell>{exam.className}</TableCell>
+                        <TableCell>
+                          {exam.startDate.toDate().toLocaleDateString()} - {exam.endDate.toDate().toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={exam.progress} className="w-16" />
+                            <span className="text-sm">{exam.progress}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusBadgeColor(exam.status)}>
+                            {exam.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Settings className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setEditingExam(exam)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              {renderExamActions(exam)}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleArchiveExam(exam)}>
+                                <Archive className="mr-2 h-4 w-4" />
+                                Archive
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredExams.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          No exams found.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ranking">
+          <Card>
+            <CardHeader>
+              <CardTitle>Class Ranking</CardTitle>
+              <CardDescription>View and export student performance rankings.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 mb-4">
+                <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedSubjectForRanking} onValueChange={setSelectedSubjectForRanking}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjectsForRanking.map(subject => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2 ml-auto">
+                  <Button onClick={() => handleExportRanking('PDF')}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export PDF
+                  </Button>
+                  <Button onClick={() => handleExportRanking('CSV')}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
+              </div>
+              {isLoadingRanking ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {topStudents.map((student, index) => (
+                      <Card key={student.id}>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Trophy className={`h-6 w-6 ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-400' : 'text-orange-400'}`} />
+                            {student.studentName}
+                          </CardTitle>
+                          <CardDescription>Rank #{index + 1}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center gap-4">
+                            <Avatar>
+                              <AvatarImage src={student.avatarUrl} />
+                              <AvatarFallback>{student.studentName[0]}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{student.overall}% ({getGradeFromScore(student.overall)})</p>
+                              <p className="text-sm text-muted-foreground">{student.className}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  <div className="rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Rank</TableHead>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Roll Number</TableHead>
+                          <TableHead>Overall Grade</TableHead>
+                          <TableHead>Trend</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {studentsForRanking.map((student, index) => (
+                          <TableRow key={student.id}>
+                            <TableCell>{index + 1}</TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={student.avatarUrl} />
+                                  <AvatarFallback>{student.studentName[0]}</AvatarFallback>
+                                </Avatar>
+                                {student.studentName}
+                              </div>
+                            </TableCell>
+                            <TableCell>{student.rollNumber}</TableCell>
+                            <TableCell>{student.overall}% ({getGradeFromScore(student.overall)})</TableCell>
+                            <TableCell>
+                              {student.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                              {student.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                              {student.trend === 'stable' && <Minus className="h-4 w-4 text-gray-500" />}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" onClick={() => setSelectedStudentForDetails(student)}>
+                                <BarChart2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {studentsForRanking.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                              No students found for this class.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {selectedStudentForDetails && (
+                    <Card className="mt-6">
+                      <CardHeader>
+                        <CardTitle>Student Performance Details</CardTitle>
+                        <CardDescription>Detailed grades for {selectedStudentForDetails.studentName}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <GradeAnalysisCharts
+                          exam={null}
+                          onBack={() => setSelectedStudentForDetails(null)}
+                        />
+                      </CardContent>
+                      <CardFooter>
+                        <Button variant="outline" onClick={() => setSelectedStudentForDetails(null)}>Close</Button>
+                      </CardFooter>
+                    </Card>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="gradebook">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gradebook</CardTitle>
+              <CardDescription>View and manage student grades for selected class assessments.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 mb-4">
+                <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {isGradebookLoading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
                 <div className="rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Exam Title</TableHead>
-                        <TableHead>Term</TableHead>
-                        <TableHead>Class</TableHead>
-                        <TableHead>Date Range</TableHead>
-                        <TableHead>Progress</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>Student</TableHead>
+                        {currentAssessments.map(assessment => (
+                          <TableHead key={assessment.id}>{assessment.title}</TableHead>
+                        ))}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredExams.map((exam) => (
-                        <TableRow key={exam.id}>
-                          <TableCell className="font-medium">{exam.title}</TableCell>
-                          <TableCell>{exam.term}</TableCell>
-                          <TableCell>{exam.className}</TableCell>
+                      {studentsForRanking.map(student => (
+                        <TableRow key={student.id}>
+                          <TableCell className="font-medium">{student.studentName}</TableCell>
+                          {currentAssessments.map(assessment => (
+                            <TableCell key={assessment.id}>{getGradeForStudent(student, assessment.id)}</TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                      {studentsForRanking.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={currentAssessments.length + 1} className="h-24 text-center">
+                            No students or assessments found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle>Grading Settings</CardTitle>
+              <CardDescription>Configure the grading scale and other academic settings.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Grade</TableHead>
+                        <TableHead>Min Score</TableHead>
+                        <TableHead>Max Score</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gradingScale.map((item, index) => (
+                        <TableRow key={index}>
                           <TableCell>
-                            {exam.startDate.toDate().toLocaleDateString()} - {exam.endDate.toDate().toLocaleDateString()}
+                            <Input
+                              value={item.grade}
+                              onChange={(e) => {
+                                const newScale = [...gradingScale];
+                                newScale[index].grade = e.target.value;
+                                setGradingScale(newScale);
+                              }}
+                            />
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Progress value={exam.progress} className="w-16" />
-                              <span className="text-sm">{exam.progress}%</span>
-                            </div>
+                            <Input
+                              type="number"
+                              value={item.min}
+                              onChange={(e) => handleGradingScaleChange(index, 'min', e.target.value)}
+                            />
                           </TableCell>
                           <TableCell>
-                            <Badge className={getStatusBadgeColor(exam.status)}>
-                              {exam.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <Settings className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditingExam(exam)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                                {renderExamActions(exam)}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleArchiveExam(exam)}>
-                                  <Archive className="mr-2 h-4 w-4" />
-                                  Archive
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Input
+                              type="number"
+                              value={item.max}
+                              onChange={(e) => handleGradingScaleChange(index, 'max', e.target.value)}
+                            />
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="ranking">
-            <Card>
-              <CardHeader>
-                <CardTitle>Class Ranking</CardTitle>
-                <CardDescription>View and analyze student performance across classes and subjects.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                  <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
-                    <SelectTrigger className="w-full sm:w-[200px]">
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  
-                  <Select value={selectedSubjectForRanking} onValueChange={setSelectedSubjectForRanking}>
-                    <SelectTrigger className="w-full sm:w-[200px]">
-                      <SelectValue placeholder="Select subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subjectsForRanking.map(subject => (
-                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <div className="flex gap-2 ml-auto">
-                    <Button variant="outline" onClick={() => handleExportRanking('PDF')}>
-                      <FileDown className="mr-2 h-4 w-4" />
-                      PDF
-                    </Button>
-                    <Button variant="outline" onClick={() => handleExportRanking('CSV')}>
-                      <FileDown className="mr-2 h-4 w-4" />
-                      CSV
-                    </Button>
-                  </div>
-                </div>
-                
-                {isLoadingRanking ? (
-                  <div className="flex justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                ) : studentsForRanking.length > 0 ? (
-                  <div className="space-y-6">
-                    <GradeSummaryWidget 
-                      students={studentsForRanking} 
-                    />
-                    
-                    <div className="rounded-lg border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Rank</TableHead>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Overall Grade</TableHead>
-                            <TableHead>Trend</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {studentsForRanking.map((student, index) => (
-                            <TableRow key={student.id}>
-                              <TableCell className="font-medium">{index + 1}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarImage src={student.avatarUrl} />
-                                    <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <div className="font-medium">{student.studentName}</div>
-                                    <div className="text-sm text-muted-foreground">{student.rollNumber}</div>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <div className="font-bold text-lg">{student.overall}%</div>
-                                  <Badge variant="outline">{getGradeFromScore(student.overall)}</Badge>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {student.trend === 'up' ? (
-                                  <TrendingUp className="h-4 w-4 text-green-500" />
-                                ) : student.trend === 'down' ? (
-                                  <TrendingDown className="h-4 w-4 text-red-500" />
-                                ) : (
-                                  <Minus className="h-4 w-4 text-gray-500" />
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button variant="outline" size="sm" onClick={() => setSelectedStudentForDetails(student)}>
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center p-8 text-muted-foreground">
-                    No grade data available for the selected class.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="gradebook">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gradebook</CardTitle>
-                <CardDescription>Manage and review grades for current assessments.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isGradebookLoading ? (
-                  <div className="flex justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Select class" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <span className="text-sm text-muted-foreground">
-                        {currentAssessments.length} active assessments
-                      </span>
-                    </div>
-                    
-                    {currentAssessments.length > 0 ? (
-                      <div className="rounded-lg border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Assessment</TableHead>
-                              <TableHead>Term</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {currentAssessments.map((assessment) => (
-                              <TableRow key={assessment.id}>
-                                <TableCell className="font-medium">{assessment.title}</TableCell>
-                                <TableCell>{assessment.term}</TableCell>
-                                <TableCell>
-                                  {assessment.startDate.toDate().toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className={getStatusBadgeColor(assessment.status)}>
-                                    {assessment.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="outline" size="sm">
-                                    View Grades
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ) : (
-                      <div className="text-center p-8 text-muted-foreground">
-                        No active assessments for the selected class.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="settings">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Grading Scale</CardTitle>
-                  <CardDescription>Configure the school-wide grading scale for converting scores to grades.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="rounded-lg border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Grade</TableHead>
-                            <TableHead>Minimum Score</TableHead>
-                            <TableHead>Maximum Score</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {gradingScale.map((item, index) => (
-                            <TableRow key={index}>
-                              <TableCell>
-                                <Input
-                                  value={item.grade}
-                                  onChange={(e) => {
-                                    const newScale = [...gradingScale];
-                                    newScale[index].grade = e.target.value;
-                                    setGradingScale(newScale);
-                                  }}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  value={item.min}
-                                  onChange={(e) => handleGradingScaleChange(index, 'min', e.target.value)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  value={item.max}
-                                  onChange={(e) => handleGradingScaleChange(index, 'max', e.target.value)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                {index > 0 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      const newScale = gradingScale.filter((_, i) => i !== index);
-                                      setGradingScale(newScale);
-                                    }}
-                                  >
-                                    <Minus className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    
-                    <Button variant="outline" onClick={addGradingRow}>
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Add Grade Level
-                    </Button>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button onClick={handleSaveScale} disabled={isSavingScale}>
-                    {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                <Button onClick={addGradingRow}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Grade
+                </Button>
+              </div>
+            </CardContent>
+            <CardFooter>
+                <Button onClick={handleSaveScale} disabled={isSavingScale}>
+                    {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                     Save Scale
-                  </Button>
-                </CardFooter>
-              </Card>
-              
-              <EditRequestsTab schoolId={schoolId || ''} />
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Report Generation</CardTitle>
-                  <CardDescription>Generate comprehensive reports for academic performance analysis.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ReportGenerator/>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+                </Button>
+            </CardFooter>
+          </Card>
+          <EditRequestsTab schoolId={schoolId || ''} />
+        </TabsContent>
+      </Tabs>
+
+      <ReportGenerator/>
     </div>
   );
 }
