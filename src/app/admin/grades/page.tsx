@@ -407,7 +407,7 @@ export default function AdminGradesPage() {
             setSubjects(snapshot.docs.map(doc => doc.data().name));
         });
 
-        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved'));
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
         const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
             const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number> }> = {};
             const studentPromises = [];
@@ -415,6 +415,7 @@ export default function AdminGradesPage() {
             for (const doc of snapshot.docs) {
                 const gradeData = doc.data();
                 if (!gradeData.studentId || !gradeData.subject || isNaN(parseInt(gradeData.grade))) continue;
+                if (!gradeData.studentRef) continue;
 
                 if (!gradesByStudent[gradeData.studentId]) {
                     gradesByStudent[gradeData.studentId] = { studentId: gradeData.studentId, scores: {} };
@@ -598,6 +599,7 @@ export default function AdminGradesPage() {
                         duration: Number(examDuration),
                         type: examType,
                         createdAt: serverTimestamp(),
+                        status: 'Open',
                     });
                 }
             }
