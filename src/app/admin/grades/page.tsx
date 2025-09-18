@@ -100,6 +100,7 @@ import { GradeSummaryWidget } from './grade-summary-widget';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
 import { DateRangePicker } from '@/components/ui/date-picker';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type GradeStatus = 'Graded' | 'Pending';
 
@@ -229,7 +230,7 @@ function EditRequestsTab({ schoolId }: { schoolId: string }) {
         schoolId,
         actionType: 'Academics',
         description: `Grade Edit Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
-        user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
         details: `Request from ${requestDetails.teacherName} for ${requestDetails.assessmentTitle} (${requestDetails.className}) was ${newStatus}.`,
       });
       toast({ title: `Request ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`, description: `The teacher has been notified.` });
@@ -324,12 +325,8 @@ export default function AdminGradesPage() {
   const [currentAssessments, setCurrentAssessments] = React.useState<Exam[]>([]);
   const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
   const [isSavingScale, setIsSavingScale] = React.useState(false);
-  const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
   
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: undefined,
-    to: undefined,
-  });
+  const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
   
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
@@ -337,13 +334,17 @@ export default function AdminGradesPage() {
     return [`Term 1, ${year}`, `Term 2, ${year}`, `Term 3, ${year}`];
   }).flat();
   academicTerms.push(...[`Term 1, ${currentYear + 1}`, `Term 2, ${currentYear + 1}`, `Term 3, ${currentYear + 1}`]);
-  
+
   const [newExamTitle, setNewExamTitle] = React.useState('');
   const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[4]);
   const [newExamClass, setNewExamClass] = React.useState<string>('');
   const [newExamNotes, setNewExamNotes] = React.useState('');
   const [isSavingExam, setIsSavingExam] = React.useState(false);
-  
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  });
+
   const handleDateChange = React.useCallback((range: DateRange | undefined) => {
     setDate(range);
   }, []);
@@ -355,25 +356,26 @@ export default function AdminGradesPage() {
   const handleClassChange = React.useCallback((value: string) => {
     setNewExamClass(value);
   }, []);
-  
+
   React.useEffect(() => {
     if (editingExam && editingExam.startDate && editingExam.endDate) {
       setNewExamTitle(editingExam.title);
       setNewExamTerm(editingExam.term);
       setNewExamClass(editingExam.classId || '');
-      const newFrom = editingExam.startDate.toDate();
-      const newTo = editingExam.endDate.toDate();
-      setDate({ from: newFrom, to: newTo });
+      setDate({
+        from: editingExam.startDate.toDate(),
+        to: editingExam.endDate.toDate(),
+      });
       setNewExamNotes(editingExam.notes || '');
       setIsExamDialogOpen(true);
-    } else if (!editingExam) {
+    } else if (!isExamDialogOpen && !editingExam) {
       setNewExamTitle('');
       setNewExamTerm(academicTerms[4]);
       setNewExamClass('');
       setDate({ from: undefined, to: undefined });
       setNewExamNotes('');
     }
-  }, [editingExam, academicTerms]);
+  }, [editingExam, isExamDialogOpen, academicTerms]);
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -541,16 +543,14 @@ export default function AdminGradesPage() {
   }, [schoolId, selectedClassForRanking]);
 
   const handleGradingScaleChange = (index: number, field: 'min' | 'max' | 'grade', value: string) => {
-    setGradingScale(currentScale => {
-        const newScale = [...currentScale];
-        if (field === 'min' || field === 'max') {
-            const numericValue = parseInt(value, 10);
-            newScale[index] = { ...newScale[index], [field]: isNaN(numericValue) ? 0 : numericValue };
-        } else {
-            newScale[index] = { ...newScale[index], [field]: value };
-        }
-        return newScale;
-    });
+    const newScale = [...gradingScale];
+    if (field === 'min' || field === 'max') {
+      const numericValue = parseInt(value, 10);
+      newScale[index][field] = isNaN(numericValue) ? 0 : numericValue;
+    } else {
+      newScale[index][field] = value;
+    }
+    setGradingScale(newScale);
   };
 
   const addGradingRow = () => {
@@ -571,7 +571,7 @@ export default function AdminGradesPage() {
         schoolId,
         actionType: 'Settings',
         description: 'Grading Scale Updated',
-        user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
         details: 'The school-wide grading scale was modified.',
       });
 
@@ -612,14 +612,12 @@ export default function AdminGradesPage() {
     };
 
     try {
-      let action = 'Created';
       let description = `New Exam Scheduled: ${examData.title} for ${examData.className}`;
 
       if (editingExam) {
         const examRef = doc(firestore, `schools/${schoolId}/assessments`, editingExam.id);
         await updateDoc(examRef, examData);
         toast({ title: 'Exam Updated', description: 'The exam schedule has been updated.' });
-        action = 'Updated';
         description = `Exam Details Updated: ${examData.title}`;
       } else {
         await addDoc(collection(firestore, `schools/${schoolId}/assessments`), examData);
@@ -630,7 +628,7 @@ export default function AdminGradesPage() {
         schoolId,
         actionType: 'Academics',
         description,
-        user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
         details: `Term: ${examData.term}, Dates: ${format(date.from, 'LLL dd, y')} - ${format(endDate, 'LLL dd, y')}`,
       });
 
@@ -710,7 +708,7 @@ export default function AdminGradesPage() {
         schoolId,
         actionType: 'Academics',
         description: `Exam Status Changed to ${newStatus}`,
-        user: { id: user.uid, name: user.displayName || 'Admin', avatarUrl: user.photoURL || '' },
+        user: { id: user.uid, name: user.displayName || 'Admin', role: 'Admin' },
         details: `Exam: ${exam.title} (${exam.className})`,
       });
 
@@ -895,7 +893,7 @@ export default function AdminGradesPage() {
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="exams">
+        <TabsContent value="exams" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle>Exam Management</CardTitle>
@@ -993,7 +991,7 @@ export default function AdminGradesPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="ranking">
+        <TabsContent value="ranking" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle>Class Ranking</CardTitle>
@@ -1131,7 +1129,7 @@ export default function AdminGradesPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="gradebook">
+        <TabsContent value="gradebook" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle>Gradebook</CardTitle>
@@ -1187,7 +1185,7 @@ export default function AdminGradesPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings">
+        <TabsContent value="settings" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle>Grading Settings</CardTitle>
@@ -1243,16 +1241,20 @@ export default function AdminGradesPage() {
             </CardContent>
             <CardFooter>
               <Button onClick={handleSaveScale} disabled={isSavingScale}>
-                {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                {isSavingScale ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save Scale
               </Button>
             </CardFooter>
           </Card>
-          <EditRequestsTab schoolId={schoolId || ''} />
+          <div className="mt-4">
+            <EditRequestsTab schoolId={schoolId || ''} />
+          </div>
         </TabsContent>
       </Tabs>
 
-      <ReportGenerator/>
+      <ReportGenerator />
     </div>
   );
 }
+
+    
