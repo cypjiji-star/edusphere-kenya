@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 export type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
@@ -43,9 +44,6 @@ export type LessonPlan = {
   teacher?: { name: string };
 };
 
-const subjects = ['All Subjects', 'Biology', 'Chemistry', 'English', 'History', 'Mathematics', 'Physics'];
-const grades = ['All Grades', 'Grade 6', 'Form 1', 'Form 2', 'Form 3', 'Form 4'];
-
 const statusColors: Record<LessonPlanStatus, string> = {
     'Published': 'bg-blue-500',
     'Draft': 'bg-gray-500',
@@ -58,13 +56,18 @@ const statusColors: Record<LessonPlanStatus, string> = {
 export default function LessonPlansPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
+  
   const [allLessonPlans, setAllLessonPlans] = React.useState<LessonPlan[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
+  
+  const [subjects, setSubjects] = React.useState<string[]>(['All Subjects']);
+  const [grades, setGrades] = React.useState<string[]>(['All Grades']);
+
   const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
   const [filteredGrade, setFilteredGrade] = React.useState('All Grades');
   const [clientReady, setClientReady] = React.useState(false);
-  const user = auth.currentUser;
 
   React.useEffect(() => {
     if (!schoolId || !user) {
@@ -74,6 +77,19 @@ export default function LessonPlansPage() {
 
     setClientReady(true);
     const teacherId = user.uid;
+
+    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
+    const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
+        const subjectNames = snapshot.docs.map(doc => doc.data().name);
+        setSubjects(['All Subjects', ...subjectNames]);
+    });
+
+    const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
+    const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+        const classNames = snapshot.docs.map(doc => `${doc.data().name}`);
+        setGrades(['All Grades', ...new Set(classNames)]);
+    });
+
     const q = query(collection(firestore, `schools/${schoolId}/lesson-plans`), where('teacherId', '==', teacherId));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -85,7 +101,11 @@ export default function LessonPlansPage() {
         setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubSubjects();
+      unsubClasses();
+    };
   }, [schoolId, user]);
 
   const lessonPlans = allLessonPlans.filter(plan => 
@@ -192,7 +212,7 @@ export default function LessonPlansPage() {
                             </CardContent>
                             <CardFooter>
                                 <Button asChild variant="outline" className="w-full">
-                                    <Link href={`/teacher/lesson-plans/new?id=${plan.id}&schoolId=${schoolId}`}>
+                                    <Link href={`/teacher/lesson-plans/${plan.id}?schoolId=${schoolId}`}>
                                         View / Edit
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </Link>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -35,6 +36,7 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { firestore, auth } from '@/lib/firebase';
 import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where, writeBatch } from 'firebase/firestore';
+import { useAuth } from '@/context/auth-context';
 
 
 export const lessonPlanSchema = z.object({
@@ -63,7 +65,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(!!lessonPlanId);
-  const user = auth.currentUser;
+  const { user } = useAuth();
   
   const [subjects, setSubjects] = useState<string[]>([]);
   const [grades, setGrades] = useState<string[]>([]);
@@ -84,9 +86,22 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   });
 
   useEffect(() => {
-    if (!schoolId) return;
+    const restoredData = sessionStorage.getItem('restoredLessonPlan');
+    if (restoredData) {
+      const parsedData = JSON.parse(restoredData);
+      // Date might be a string, convert it back to a Date object
+      if (parsedData.date && typeof parsedData.date === 'string') {
+        parsedData.date = new Date(parsedData.date);
+      }
+      form.reset(parsedData);
+      sessionStorage.removeItem('restoredLessonPlan');
+    }
+  }, [form]);
 
-    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'));
+  useEffect(() => {
+    if (!schoolId || !user) return;
+
+    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
     const subjectsUnsub = onSnapshot(subjectsQuery, (snapshot) => {
         const subjectData = new Set<string>();
         snapshot.docs.forEach(doc => {
@@ -95,7 +110,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         setSubjects(Array.from(subjectData));
     });
     
-    const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
+    const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user.uid));
     const classesUnsub = onSnapshot(classesQuery, (snapshot) => {
         const gradeData = new Set<string>();
         snapshot.docs.forEach(doc => {
@@ -108,7 +123,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         subjectsUnsub();
         classesUnsub();
     }
-  }, [schoolId]);
+  }, [schoolId, user]);
 
    useEffect(() => {
     if (lessonPlanId && schoolId) {
@@ -140,17 +155,22 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         if (isEditMode && lessonPlanId) {
             const batch = writeBatch(firestore);
             const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
+            
+            const currentVersion = (await getDoc(docRef)).data()?.version || 1;
+
             batch.update(docRef, {
                 ...values,
-                teacherId: user.uid
+                teacherId: user.uid,
+                version: currentVersion + 1,
             });
             
             const historyRef = doc(collection(firestore, `schools/${schoolId}/lesson-plans/${lessonPlanId}/history`));
             batch.set(historyRef, {
-                version: (await getDoc(docRef)).data()?.version + 1 || 2,
+                version: currentVersion + 1,
                 date: serverTimestamp(),
                 author: user.displayName || 'User',
-                summary: 'Updated lesson plan details.'
+                summary: 'Updated lesson plan details.',
+                data: values,
             });
 
             await batch.commit();
@@ -163,6 +183,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
             // Create new lesson plan
             const docRef = await addDoc(collection(firestore, `schools/${schoolId}/lesson-plans`), {
                 ...values,
+                teacher: { name: user.displayName, avatarUrl: user.photoURL },
                 teacherId: user.uid,
                 status: 'Draft',
                 createdAt: serverTimestamp(),
@@ -174,7 +195,8 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
                 version: 1,
                 date: serverTimestamp(),
                 author: user.displayName || 'User',
-                summary: 'Initial draft created.'
+                summary: 'Initial draft created.',
+                data: values,
             });
             
             toast({

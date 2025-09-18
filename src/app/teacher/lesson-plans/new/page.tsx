@@ -26,12 +26,18 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
+import { firestore } from '@/lib/firebase';
+import { collection, doc, onSnapshot, orderBy, query, Timestamp } from 'firebase/firestore';
 
-const versionHistory = [
-    { version: 3, date: '2024-07-28 10:00 AM', author: 'Ms. Wanjiku', summary: 'Added new assessment method.', data: { topic: 'Photosynthesis & Respiration', subject: 'Biology', grade: 'Form 2', date: '2024-07-28', objectives: 'Students will be able to explain the Krebs cycle.', activities: '1. Lecture on Krebs Cycle\n2. Diagram drawing.', assessment: 'Label a diagram of the Krebs cycle.' } },
-    { version: 2, date: '2024-07-27 03:20 PM', author: 'Ms. Wanjiku', summary: 'Revised learning activities.', data: { topic: 'Photosynthesis & Respiration', subject: 'Biology', grade: 'Form 2', date: '2024-07-27', objectives: 'Students will understand the light-dependent reactions.', activities: '1. Watch video on light reactions.\n2. Group discussion.', assessment: 'Q&A session.' } },
-    { version: 1, date: '2024-07-26 09:00 AM', author: 'Ms. Wanjiku', summary: 'Initial draft created.', data: { topic: 'Photosynthesis', subject: 'Biology', grade: 'Form 2', date: '2024-07-26', objectives: 'Define Photosynthesis.', activities: 'Introductory lecture.', assessment: 'Define the term.' } },
-]
+
+type VersionHistoryItem = {
+    id: string;
+    version: number;
+    date: Timestamp;
+    author: string;
+    summary: string;
+    data: any;
+};
 
 export default function NewLessonPlanPage() {
   const searchParams = useSearchParams();
@@ -39,6 +45,38 @@ export default function NewLessonPlanPage() {
   const lessonPlanId = searchParams.get('id') || undefined;
   const prefilledDate = searchParams.get('date') || undefined;
   const isEditMode = !!lessonPlanId;
+  const [versionHistory, setVersionHistory] = React.useState<VersionHistoryItem[]>([]);
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = React.useState('editor');
+  const [formKey, setFormKey] = React.useState(Date.now()); // Used to force re-render of form
+
+  React.useEffect(() => {
+    if (!isEditMode || !schoolId || !lessonPlanId) return;
+
+    const historyQuery = query(
+        collection(firestore, `schools/${schoolId}/lesson-plans/${lessonPlanId}/history`),
+        orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(historyQuery, (snapshot) => {
+        const historyData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as VersionHistoryItem));
+        setVersionHistory(historyData);
+    });
+
+    return () => unsubscribe();
+  }, [lessonPlanId, schoolId, isEditMode]);
+
+  const handleRestore = (version: VersionHistoryItem) => {
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('restoredLessonPlan', JSON.stringify(version.data));
+    }
+    setFormKey(Date.now()); // Force re-render of LessonPlanForm
+    toast({
+        title: `Version ${version.version} Restored`,
+        description: 'The selected version has been loaded into the editor. Review and save to make it the current version.',
+    });
+    setActiveTab('editor');
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -72,15 +110,15 @@ export default function NewLessonPlanPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem disabled>
                     <Share2 className="mr-2" />
                     Share with a colleague
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem disabled>
                     <Copy className="mr-2" />
                     Copy to another class
                   </DropdownMenuItem>
-                   <DropdownMenuItem>
+                   <DropdownMenuItem disabled>
                     <FileDown className="mr-2" />
                     Print / Export as PDF
                   </DropdownMenuItem>
@@ -89,7 +127,7 @@ export default function NewLessonPlanPage() {
             )}
         </CardHeader>
         <CardContent>
-            <Tabs defaultValue="editor" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 {isEditMode && (
                     <TabsList className="mb-4">
                         <TabsTrigger value="editor">Editor</TabsTrigger>
@@ -98,7 +136,7 @@ export default function NewLessonPlanPage() {
                     </TabsList>
                 )}
                 <TabsContent value="editor">
-                     <LessonPlanForm lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} schoolId={schoolId!} />
+                     <LessonPlanForm key={formKey} lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} schoolId={schoolId!} />
                 </TabsContent>
                 <TabsContent value="history">
                     <Card>
@@ -108,9 +146,9 @@ export default function NewLessonPlanPage() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {versionHistory.map((version) => (
-                                <div key={version.version} className="flex items-start gap-4">
+                                <div key={version.id} className="flex items-start gap-4">
                                     <Avatar>
-                                        <AvatarImage src="https://picsum.photos/seed/teacher-avatar/100" />
+                                        <AvatarImage src={`https://picsum.photos/seed/${version.author}/100`} />
                                         <AvatarFallback>{version.author.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1 space-y-1">
@@ -119,13 +157,16 @@ export default function NewLessonPlanPage() {
                                                 Version {version.version}
                                                 <span className="font-normal text-muted-foreground"> by {version.author}</span>
                                             </p>
-                                            <p className="text-xs text-muted-foreground">{version.date}</p>
+                                            <p className="text-xs text-muted-foreground">{version.date?.toDate().toLocaleString()}</p>
                                         </div>
                                         <p className="text-sm text-muted-foreground">{version.summary}</p>
                                     </div>
-                                    <Button variant="outline" size="sm" disabled>Restore</Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleRestore(version)}>Restore</Button>
                                 </div>
                             ))}
+                            {versionHistory.length === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-8">No version history found.</p>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -133,7 +174,7 @@ export default function NewLessonPlanPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Permissions & Access Control</CardTitle>
-                            <CardDescription>Control who can view and edit this lesson plan.</CardDescription>
+                            <CardDescription>Control who can view and edit this lesson plan. (This is a mock UI, functionality is coming soon).</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
