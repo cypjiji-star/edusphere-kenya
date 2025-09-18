@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Send,
   ArrowLeft,
+  Trash2,
 } from 'lucide-react';
 import {
   Sheet,
@@ -39,6 +40,8 @@ import {
   or,
   addDoc,
   serverTimestamp,
+  deleteDoc,
+  getDocs,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -48,6 +51,17 @@ import { ScrollArea } from '../ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Textarea } from '../ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
 
@@ -95,12 +109,12 @@ const categoryConfig: Record<NotificationCategory, { icon: React.ElementType, co
 function NotificationItem({
   notification,
   schoolId,
-  onMarkAsRead,
+  onDismiss,
   currentUserId,
 }: {
   notification: Notification;
   schoolId: string;
-  onMarkAsRead: (id: string) => void;
+  onDismiss: (id: string) => void;
   currentUserId: string;
 }) {
   const config = categoryConfig[notification.category] || categoryConfig.General;
@@ -112,7 +126,7 @@ function NotificationItem({
     <div
       className={cn(
         'flex items-start gap-4 p-4 rounded-lg transition-colors hover:bg-muted/50 border-l-4',
-        isRead ? 'border-transparent' : 'border-primary',
+        'border-primary',
         isUrgent && !isRead && 'border-destructive',
         !isRead && 'bg-primary/5',
         isUrgent && 'bg-destructive/5'
@@ -132,21 +146,19 @@ function NotificationItem({
           </p>
         </Link>
       </div>
-      {!isRead && (
-        <Button
+      <Button
           variant="ghost"
           size="icon"
           className="h-7 w-7"
-          onClick={() => onMarkAsRead(notification.id)}
+          onClick={() => onDismiss(notification.id)}
         >
-          <Check className="h-4 w-4" />
-        </Button>
-      )}
+          <X className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
 
-function ChatView({ conversation, schoolId, userId, onBack }: { conversation: Conversation; schoolId: string; userId: string; onBack: () => void; }) {
+function ChatView({ conversation, schoolId, userId, onBack, onDelete }: { conversation: Conversation; schoolId: string; userId: string; onBack: () => void; onDelete: (conversationId: string) => void; }) {
     const [messages, setMessages] = React.useState<Message[]>([]);
     const [reply, setReply] = React.useState('');
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -188,15 +200,36 @@ function ChatView({ conversation, schoolId, userId, onBack }: { conversation: Co
 
     return (
         <div className="flex flex-col h-full">
-            <header className="p-4 border-b flex items-center gap-4">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <Avatar className="h-9 w-9">
-                    <AvatarImage src={conversation.avatar} />
-                    <AvatarFallback>{conversation.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <h3 className="font-semibold">{conversation.name}</h3>
+            <header className="p-4 border-b flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <Avatar className="h-9 w-9">
+                        <AvatarImage src={conversation.avatar} />
+                        <AvatarFallback>{conversation.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <h3 className="font-semibold">{conversation.name}</h3>
+                </div>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete this conversation for all participants. This action cannot be undone.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDelete(conversation.id)}>Delete Conversation</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </header>
             <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
@@ -275,31 +308,59 @@ export function NotificationCenter() {
     };
   }, [schoolId, user, role]);
 
-  const handleMarkAsRead = async (id: string) => {
-    if (!schoolId || !user) return;
-    const notificationRef = doc(firestore, 'schools', schoolId, 'notifications', id);
-    await updateDoc(notificationRef, { 
-        readBy: arrayUnion(user.uid),
-    });
+  const handleDismissNotification = async (id: string) => {
+    if (!schoolId) return;
+    await deleteDoc(doc(firestore, 'schools', schoolId, 'notifications', id));
   };
 
-  const handleMarkAllRead = async () => {
-    if (!schoolId || !user || unreadNotifications.length === 0) return;
+  const handleDismissAll = async () => {
+    if (!schoolId || !user || notifications.length === 0) return;
     const batch = writeBatch(firestore);
-    unreadNotifications.forEach((notification) => {
+    notifications.forEach((notification) => {
         const notifRef = doc(firestore, 'schools', schoolId, 'notifications', notification.id);
-        batch.update(notifRef, { readBy: arrayUnion(user.uid) });
+        batch.delete(notifRef);
     });
     await batch.commit();
   };
   
-  const filteredNotifications = notifications.filter(n => activeTab === 'all' || n.category === activeTab);
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!schoolId) return;
+    const convoRef = doc(firestore, 'schools', schoolId, 'conversations', conversationId);
+    
+    // Delete all messages in the subcollection first
+    const messagesRef = collection(convoRef, 'messages');
+    const messagesSnap = await getDocs(messagesRef);
+    const batch = writeBatch(firestore);
+    messagesSnap.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    // Then delete the conversation itself
+    await deleteDoc(convoRef);
+
+    setSelectedConversation(null); // Go back to conversation list
+  };
+  
+  const sortedNotifications = [...notifications].sort((a, b) => {
+    const aIsRead = a.readBy?.includes(user?.uid || '');
+    const bIsRead = b.readBy?.includes(user?.uid || '');
+    if (aIsRead !== bIsRead) return aIsRead ? 1 : -1;
+    
+    const aPriority = categoryConfig[a.category]?.priority || 99;
+    const bPriority = categoryConfig[b.category]?.priority || 99;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+
+    return b.createdAt.seconds - a.createdAt.seconds;
+  });
+
+  const filteredNotifications = sortedNotifications.filter(n => activeTab === 'all' || n.category === activeTab);
 
   if (selectedConversation && schoolId && user) {
       return (
           <Sheet open={true} onOpenChange={(open) => !open && setSelectedConversation(null)}>
                <SheetContent className="w-full sm:max-w-md p-0">
-                    <ChatView conversation={selectedConversation} schoolId={schoolId} userId={user.uid} onBack={() => setSelectedConversation(null)} />
+                    <ChatView conversation={selectedConversation} schoolId={schoolId} userId={user.uid} onBack={() => setSelectedConversation(null)} onDelete={handleDeleteConversation} />
                </SheetContent>
           </Sheet>
       )
@@ -324,10 +385,10 @@ export function NotificationCenter() {
         <SheetHeader className="p-6 border-b">
           <SheetTitle className="flex items-center justify-between">
             <span>Communications</span>
-             {unreadCount > 0 && (
-                <Button variant="link" size="sm" className="h-auto p-0" onClick={handleMarkAllRead}>
-                    <CheckCheck className="mr-2 h-4 w-4"/>
-                    Mark all as read
+             {notifications.length > 0 && (
+                <Button variant="link" size="sm" className="h-auto p-0 text-destructive" onClick={handleDismissAll}>
+                    <X className="mr-2 h-4 w-4"/>
+                    Dismiss All
                 </Button>
             )}
           </SheetTitle>
@@ -349,13 +410,13 @@ export function NotificationCenter() {
             <TabsContent value="notifications" className="flex-1 overflow-hidden">
                 <ScrollArea className="h-full">
                     <div className="p-4 pt-2 space-y-2">
-                        {notifications.length > 0 ? (
-                            notifications.map((notification) => (
+                        {filteredNotifications.length > 0 ? (
+                            filteredNotifications.map((notification) => (
                                 <NotificationItem
                                 key={notification.id}
                                 notification={notification}
                                 schoolId={schoolId!}
-                                onMarkAsRead={handleMarkAsRead}
+                                onDismiss={handleDismissNotification}
                                 currentUserId={user!.uid}
                                 />
                             ))
