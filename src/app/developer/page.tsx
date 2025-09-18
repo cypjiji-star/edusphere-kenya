@@ -31,8 +31,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { auth, firestore, firebaseConfig } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
-import { initialRolePermissions, initialPermissionStructure } from '@/app/admin/permissions/roles-data';
-import { periods as defaultPeriods } from '@/app/admin/timetable/timetable-data';
+import { initialRolePermissions } from '@/app/admin/permissions/roles-data';
+import { defaultPeriods } from '@/app/teacher/timetable/timetable-data';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 
