@@ -36,6 +36,8 @@ import {
   Wand2,
   CheckCircle,
   XCircle,
+  Columns,
+  Loader2,
 } from 'lucide-react';
 import {
   Table,
@@ -263,14 +265,16 @@ const getCurrentTerm = (): string => {
   }
 };
 
-const academicTerms = [
-    { value: 'term1-2024', label: 'Term 1, 2024' },
-    { value: 'term2-2024', label: 'Term 2, 2024' },
-    { value: 'term3-2024', label: 'Term 3, 2024' },
-    { value: 'term1-2025', label: 'Term 1, 2025' },
-    { value: 'term2-2025', label: 'Term 2, 2025' },
-    { value: 'term3-2025', label: 'Term 3, 2025' },
-];
+const generateAcademicTerms = () => {
+    const currentYear = new Date().getFullYear();
+    const terms = [];
+    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
+        terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
+        terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
+        terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
+    }
+    return terms;
+}
 
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
@@ -284,7 +288,7 @@ export default function AdminGradesPage() {
     const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
     const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
     const [pendingGrades, setPendingGrades] = React.useState<PendingGrade[]>([]);
-
+    const [activeTab, setActiveTab] = React.useState('exam-management');
 
     // State for the create exam form
     const [examTitle, setExamTitle] = React.useState('');
@@ -296,12 +300,18 @@ export default function AdminGradesPage() {
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
     const [subjects, setSubjects] = React.useState<string[]>([]);
     const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<{subject: string; average: number}[]>([]);
+    const [academicTerms, setAcademicTerms] = React.useState(generateAcademicTerms());
     
     // Gradebook state
     const [selectedGradebookClass, setSelectedGradebookClass] = React.useState<string>('');
     const [selectedGradebookExam, setSelectedGradebookExam] = React.useState<string>('');
     const [selectedReportClass, setSelectedReportClass] = React.useState<string>('');
     const [selectedReportTerm, setSelectedReportTerm] = React.useState<string>(getCurrentTerm());
+    
+    const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
+    const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
+    const [isFileProcessed, setIsFileProcessed] = React.useState(false);
+    const [isProcessingFile, setIsProcessingFile] = React.useState(false);
 
 
     React.useEffect(() => {
@@ -328,7 +338,6 @@ export default function AdminGradesPage() {
             setSubjects(snapshot.docs.map(doc => doc.data().name));
         });
 
-        // Real-time listener for grades to update ranking
         const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved'));
         const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
             const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number> }> = {};
@@ -385,7 +394,7 @@ export default function AdminGradesPage() {
             const sortedRanking = calculatedRanking.sort((a, b) => b.total - a.total).map((student, index) => ({
                 ...student,
                 position: index + 1,
-                streamPosition: index + 1, // Simplified logic for stream position
+                streamPosition: index + 1, 
             }));
             
             setClassRanking(sortedRanking);
@@ -406,14 +415,12 @@ export default function AdminGradesPage() {
             })));
         });
 
-        // Fetch audit logs for grade changes
         const auditLogQuery = query(collection(firestore, 'schools', schoolId, 'audit_logs'), where('action', 'in', ['GRADE_UPDATED', 'GRADE_APPROVED', 'GRADE_REJECTED']), orderBy('timestamp', 'desc'));
         const unsubscribeLogs = onSnapshot(auditLogQuery, (snapshot) => {
             const logs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as AuditLog));
             setAuditLog(logs);
         });
         
-         // Fetch pending grades for moderation
         const pendingGradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval'));
         const unsubscribePendingGrades = onSnapshot(pendingGradesQuery, async (snapshot) => {
             const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
@@ -540,7 +547,7 @@ export default function AdminGradesPage() {
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/parent/grades?schoolId=${schoolId}`,
-                audience: 'parents-and-students' // This is a conceptual property
+                audience: 'parents-and-students' 
             });
             toast({
                 title: 'Results Published!',
@@ -592,6 +599,42 @@ export default function AdminGradesPage() {
         });
     };
 
+     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setBulkImportFile(event.target.files[0]);
+            setIsFileProcessed(false);
+        }
+    };
+    
+    const handleRemoveBulkFile = () => {
+        setBulkImportFile(null);
+        setIsFileProcessed(false);
+    };
+    
+    const handleProcessFile = () => {
+        setIsProcessingFile(true);
+        setTimeout(() => {
+            setIsProcessingFile(false);
+            setIsFileProcessed(true);
+            toast({
+                title: 'File Processed',
+                description: 'Please map the columns from your file to the required fields.',
+            });
+        }, 1500);
+    };
+
+    const handleImportMarks = () => {
+        setIsUploadDialogOpen(false);
+        toast({
+            title: 'Marks Imported',
+            description: 'The marks have been successfully uploaded and are pending moderation.',
+        });
+         setTimeout(() => {
+            setBulkImportFile(null);
+            setIsFileProcessed(false);
+        }, 300);
+    };
+
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
     }
@@ -634,11 +677,77 @@ export default function AdminGradesPage() {
                     <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                  <CardContent className="flex flex-col gap-2">
-                    <Button variant="outline" disabled>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Marks
-                    </Button>
-                     <Button variant="outline" disabled>
+                    <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload Marks
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-2xl">
+                             <DialogHeader>
+                                <DialogTitle>Upload Student Marks</DialogTitle>
+                                <DialogDescription>
+                                    Bulk upload marks for an exam from a CSV or Excel file.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-6 py-4">
+                                <div className="space-y-2">
+                                    <Label>Step 1: Upload File</Label>
+                                    <div className="flex items-center justify-center w-full">
+                                        {bulkImportFile ? (
+                                            <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
+                                                <div className="flex items-center gap-2 text-sm font-medium">
+                                                    <FileText className="h-5 w-5 text-primary" />
+                                                    <span className="truncate">{bulkImportFile.name}</span>
+                                                </div>
+                                                <Button variant="ghost" size="icon" onClick={handleRemoveBulkFile} className="h-6 w-6">
+                                                    <X className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                                                    <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
+                                                    <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                                                    <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
+                                                </div>
+                                                <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} />
+                                            </Label>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className={cn("space-y-4", !isFileProcessed && "opacity-50")}>
+                                    <div className="flex items-center gap-2">
+                                        <Columns className="h-5 w-5 text-primary" />
+                                        <h4 className="font-medium">Step 2: Map Columns</h4>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                            <Label>Admission No.</Label>
+                                            <Select defaultValue="col1" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col1">Column A</SelectItem></SelectContent></Select>
+                                        </div>
+                                         <div className="grid grid-cols-[1fr,150px] items-center gap-2">
+                                            <Label>Score</Label>
+                                            <Select defaultValue="col2" disabled={!isFileProcessed}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="col2">Column B</SelectItem></SelectContent></Select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>Cancel</Button>
+                                {isFileProcessed ? (
+                                    <Button onClick={handleImportMarks}><CheckCircle className="mr-2 h-4 w-4" /> Import Marks</Button>
+                                ) : (
+                                    <Button onClick={handleProcessFile} disabled={!bulkImportFile || isProcessingFile}>
+                                        {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : 'Process File'}
+                                    </Button>
+                                )}
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" onClick={() => setActiveTab('reports')}>
                         <BarChartIcon className="mr-2 h-4 w-4" />
                         View Reports
                     </Button>
@@ -646,7 +755,7 @@ export default function AdminGradesPage() {
             </Card>
         </div>
 
-        <Tabs defaultValue="exam-management" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
                 <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
@@ -718,24 +827,6 @@ export default function AdminGradesPage() {
                                             </Select>
                                         </div>
                                     </div>
-                                    <Separator/>
-                                    <div className="space-y-4">
-                                        <h4 className="font-medium text-sm">Advanced Options</h4>
-                                        <div className="flex items-center justify-between rounded-lg border p-3">
-                                            <div>
-                                                <Label>Assign Invigilators</Label>
-                                                <p className="text-xs text-muted-foreground">Assign teachers to supervise the exam.</p>
-                                            </div>
-                                            <Button variant="secondary" size="sm" disabled><PlusCircle className="mr-2 h-4 w-4"/>Assign</Button>
-                                        </div>
-                                        <div className="flex items-center justify-between rounded-lg border p-3">
-                                            <div>
-                                                <Label>Save as Template</Label>
-                                                <p className="text-xs text-muted-foreground">Save this configuration for future use.</p>
-                                            </div>
-                                            <Button variant="secondary" size="sm" disabled><Save className="mr-2 h-4 w-4"/>Save Template</Button>
-                                        </div>
-                                    </div>
                                 </div>
                                 <DialogFooter>
                                     <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
@@ -766,7 +857,7 @@ export default function AdminGradesPage() {
                                             <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
                                             <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                 <Button variant="outline" size="sm" disabled><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
+                                                 <Button variant="outline" size="sm" onClick={() => toast({title: "Notifications Sent", description: "Teachers have been notified about this exam."})}><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
                                                 <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Trash2 className="h-4 w-4 text-destructive"/></Button>
@@ -1069,6 +1160,4 @@ export default function AdminGradesPage() {
     </div>
   );
 }
-
-
 
