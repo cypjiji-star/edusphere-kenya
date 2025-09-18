@@ -6,7 +6,7 @@ import * as React from 'react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 
 import { cn } from '@/lib/utils';
 import {
@@ -61,6 +61,9 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
@@ -111,6 +114,9 @@ export default function ParentAttendancePage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  const [absenceDate, setAbsenceDate] = React.useState<Date | undefined>(new Date());
+  const [absenceReason, setAbsenceReason] = React.useState('');
   
   // Fetch children associated with the logged-in parent
   React.useEffect(() => {
@@ -189,6 +195,36 @@ export default function ParentAttendancePage() {
     });
   };
   
+    const handleReportAbsence = async () => {
+    if (!selectedChild || !absenceDate || !absenceReason || !schoolId || !user) {
+        toast({ title: 'Missing Information', description: 'Please select a date and provide a reason.', variant: 'destructive' });
+        return;
+    }
+
+    try {
+        await addDoc(collection(firestore, 'schools', schoolId, 'absences'), {
+            studentId: selectedChild,
+            studentName: childrenData.find(c => c.id === selectedChild)?.name,
+            date: Timestamp.fromDate(absenceDate),
+            reason: absenceReason,
+            reportedBy: user.displayName || 'Parent',
+            reporterId: user.uid,
+            reportedAt: serverTimestamp(),
+            status: 'Pending',
+        });
+
+        toast({
+            title: "Absence Reported",
+            description: "The school has been notified of your child's absence.",
+        });
+        setAbsenceReason('');
+    } catch (error) {
+        console.error("Error reporting absence:", error);
+        toast({ title: 'Submission Failed', description: 'Could not report absence. Please try again.', variant: 'destructive' });
+    }
+  }
+
+
   if (!schoolId) {
     return <div className="p-8">Error: School ID is missing from URL.</div>
   }
@@ -253,6 +289,48 @@ export default function ParentAttendancePage() {
                                 <DropdownMenuItem onClick={handleExport}>Export as PDF</DropdownMenuItem>
                             </DropdownMenuContent>
                          </DropdownMenu>
+                         <Dialog>
+                            <DialogTrigger asChild>
+                                <Button className="w-full md:w-auto">Report an Absence</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Report Child's Absence</DialogTitle>
+                                    <DialogDescription>
+                                        Notify the school about your child's absence. This will be sent to the school office and class teacher.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label>Date of Absence</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                            <Button
+                                                variant={"outline"}
+                                                className={cn("w-full justify-start text-left font-normal", !absenceDate && "text-muted-foreground")}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {absenceDate ? format(absenceDate, "PPP") : <span>Pick a date</span>}
+                                            </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar mode="single" selected={absenceDate} onSelect={setAbsenceDate} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                        <div className="space-y-2">
+                                        <Label htmlFor="absence-reason">Reason for Absence</Label>
+                                        <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." value={absenceReason} onChange={(e) => setAbsenceReason(e.target.value)} />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                    <DialogClose asChild>
+                                        <Button onClick={handleReportAbsence}>Send Notification</Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </div>
             </CardHeader>

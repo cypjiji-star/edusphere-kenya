@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -15,6 +16,15 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import {
   Table,
   TableBody,
@@ -57,13 +67,13 @@ type Child = {
 type Incident = {
   id: string;
   date: Timestamp;
-  time: string;
-  location: string;
+  time?: string;
+  location?: string;
   type: 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
   description: string;
   reportedBy: string;
   status: 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
-  actionsTaken: string;
+  actionsTaken?: string;
   followUpNeeded?: string;
 };
 
@@ -371,7 +381,7 @@ export default function ParentHealthPage() {
                                             <TableRow>
                                                 <TableHead>Date</TableHead>
                                                 <TableHead>Type</TableHead>
-                                                <TableHead>Description</TableHead>
+                                                <TableHead>Reported By</TableHead>
                                                 <TableHead>Status</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -381,7 +391,7 @@ export default function ParentHealthPage() {
                                                     <TableRow className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
                                                         <TableCell className="font-medium">{incident.date.toDate().toLocaleDateString()}</TableCell>
                                                         <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'secondary'}>{incident.type}</Badge></TableCell>
-                                                        <TableCell className="text-muted-foreground max-w-xs truncate">{incident.description}</TableCell>
+                                                        <TableCell className="text-muted-foreground">{incident.reportedBy}</TableCell>
                                                         <TableCell><Badge variant="outline">{incident.status}</Badge></TableCell>
                                                     </TableRow>
                                                 </DialogTrigger>
@@ -450,11 +460,11 @@ export default function ParentHealthPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p className="font-medium text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4"/>Time</p>
-                                <p>{selectedIncident.time}</p>
+                                <p>{selectedIncident.time || 'Not specified'}</p>
                             </div>
                             <div>
                                 <p className="font-medium text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>Location</p>
-                                <p>{selectedIncident.location}</p>
+                                <p>{selectedIncident.location || 'Not specified'}</p>
                             </div>
                         </div>
                         <Separator />
@@ -465,7 +475,7 @@ export default function ParentHealthPage() {
                         <Separator />
                         <div>
                             <h4 className="font-semibold text-primary mb-2">Actions Taken by School Staff</h4>
-                            <p className="text-sm text-muted-foreground">{selectedIncident.actionsTaken}</p>
+                            <p className="text-sm text-muted-foreground">{selectedIncident.actionsTaken || 'No actions logged.'}</p>
                         </div>
                         {selectedIncident.followUpNeeded && (
                             <>

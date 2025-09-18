@@ -62,7 +62,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDoc, getDocs } from 'firebase/firestore';
 import type { DocumentData, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
@@ -243,11 +243,34 @@ export default function ParentGradesPage() {
           lowest = subjects[subjects.length - 1].name;
         }
 
+        const childClassId = childrenData.find(c => c.id === selectedChild)?.classId;
+        let rank = 'N/A';
+        let classSize = 0;
+
+        if (childClassId) {
+             const allStudentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', childClassId));
+             const allGradesSnapshot = await getDocs(allStudentsInClassQuery);
+             const studentTotals: Record<string, number> = {};
+             allGradesSnapshot.forEach(doc => {
+                 const data = doc.data();
+                 const score = parseInt(data.grade, 10);
+                 if (!isNaN(score)) {
+                     studentTotals[data.studentId] = (studentTotals[data.studentId] || 0) + score;
+                 }
+             });
+             const sortedStudents = Object.entries(studentTotals).sort(([, a], [, b]) => b - a);
+             classSize = sortedStudents.length;
+             const studentIndex = sortedStudents.findIndex(([studentId]) => studentId === selectedChild);
+             if (studentIndex !== -1) {
+                 rank = `${studentIndex + 1}`;
+             }
+        }
+
         setGradeData({
             summary: {
                 overall: `${overallAvg}%`,
-                rank: '5th', // This is a placeholder
-                classSize: 32, // This is a placeholder
+                rank: rank,
+                classSize: classSize,
                 trend: 'up', // This is a placeholder
                 trendValue: '2%', // This is a placeholder
                 highest: highest,
@@ -259,7 +282,7 @@ export default function ParentGradesPage() {
     });
 
     return () => unsubGrades();
-  }, [selectedChild, schoolId]);
+  }, [selectedChild, schoolId, childrenData]);
 
   const handleDownload = () => {
     toast({
