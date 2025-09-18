@@ -29,13 +29,7 @@ import { collection, doc, onSnapshot, orderBy, query, Timestamp } from 'firebase
 import { useToast } from '@/hooks/use-toast';
 
 
-// This function is required for static export with dynamic routes.
-// It tells Next.js which pages to generate at build time. We will return an empty array
-// as lesson plans are created dynamically and don't need to be pre-rendered.
-export async function generateStaticParams() {
-    return [];
-}
-
+export const dynamicParams = false;
 
 type VersionHistoryItem = {
     id: string;

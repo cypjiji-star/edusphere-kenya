@@ -50,12 +50,6 @@ import { firestore } from '@/lib/firebase';
 import { collection, doc, onSnapshot, query, where, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, setDoc, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
-
-export async function generateStaticParams() {
-    return [];
-}
-
-
 type TeamDetails = {
   name: string;
   coach: string;
@@ -89,9 +83,8 @@ type MediaHighlight = {
 };
 
 
-export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: string }> }) {
-  // Unwrap the params promise using React.use()
-  const { teamId } = React.use(params);
+export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
+  const { teamId } = params;
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');

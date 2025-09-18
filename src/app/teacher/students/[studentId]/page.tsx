@@ -17,13 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import React, { useEffect, useState } from 'react';
 
-// This function is required for static export with dynamic routes.
-// It tells Next.js which pages to generate at build time. We will return an empty array
-// as students are added dynamically.
-export async function generateStaticParams() {
-    return [];
-}
-
+export const dynamicParams = false;
 
 // Mock data fetching - in a real app, this would be an API call.
 const getStudentData = (studentId: string) => {
@@ -50,7 +44,7 @@ const getStudentData = (studentId: string) => {
 
 
 export default function StudentProfilePage({ params }: { params: { studentId: string } }) {
-  const { studentId } = React.use(params);
+  const { studentId } = params;
   const student = getStudentData(studentId);
   const [formattedDob, setFormattedDob] = useState('');
   const [clientReady, setClientReady] = useState(false);
