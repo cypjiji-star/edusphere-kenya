@@ -1,8 +1,7 @@
-
 'use client';
 
 import * as React from 'react';
-import { BarChart, Bar, CartesianGrid, XAxis, LabelList } from 'recharts';
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, LabelList } from 'recharts';
 import {
   Card,
   CardContent,
@@ -13,6 +12,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -41,7 +41,7 @@ import {
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, getDocs, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import type { Exam } from './page';
 import { Badge } from '@/components/ui/badge';
@@ -140,52 +140,65 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
     );
     const gradesSnapshot = await getDocs(gradesQuery);
     
-    const gradesData: DetailedGrade[] = await Promise.all(
-        gradesSnapshot.docs.map(async (gradeDoc) => {
-            const gradeData = gradeDoc.data();
-            const score = parseInt(gradeData.grade, 10);
-            
-            const studentSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, gradeData.studentId));
-            const studentData = studentSnap.data();
+    const gradesData: DetailedGrade[] = [];
+    for (const gradeDoc of gradesSnapshot.docs) {
+      const gradeData = gradeDoc.data();
+      const scoreNum = parseInt(gradeData.grade, 10);
+      if (isNaN(scoreNum)) continue;
+      
+      const studentSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, gradeData.studentId));
+      const studentData = studentSnap.exists() ? studentSnap.data() : null;
 
-            return {
-                studentId: gradeData.studentId,
-                studentName: studentData?.name || 'Unknown Student',
-                studentAvatar: studentData?.avatarUrl || '',
-                admissionNumber: studentData?.admissionNumber || 'N/A',
-                score: gradeData.grade,
-                grade: getGradeFromScore(score),
-                teacherName: gradeData.teacherName || 'N/A',
-            };
-        })
-    );
-    setDetailedGrades(gradesData.sort((a,b) => b.score > a.score ? 1 : -1));
+      gradesData.push({
+          studentId: gradeData.studentId,
+          studentName: studentData?.name || 'Unknown Student',
+          studentAvatar: studentData?.avatarUrl || '',
+          admissionNumber: studentData?.admissionNumber || 'N/A',
+          score: gradeData.grade,
+          grade: getGradeFromScore(scoreNum),
+          teacherName: gradeData.teacherName || 'N/A',
+      });
+    }
+    setDetailedGrades(gradesData.sort((a, b) => Number(b.score) - Number(a.score)));
   };
 
 
   React.useEffect(() => {
-    if (!schoolId || !exam) {
+    if (!schoolId || !exam?.id) {
       setIsLoading(false);
       return;
     }
 
-    const fetchDataForExam = async () => {
+    // Fetch classes and subjects once
+    const fetchStaticData = async () => {
+      try {
+        const [classesSnapshot, subjectsSnapshot] = await Promise.all([
+          getDocs(query(collection(firestore, `schools/${schoolId}/classes`))),
+          getDocs(query(collection(firestore, `schools/${schoolId}/subjects`))),
+        ]);
+        
+        const classesData = classesSnapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
+        const subjectsData = subjectsSnapshot.docs.map(doc => doc.data().name);
+        
+        setAllClasses(classesData);
+        setAllSubjects(subjectsData);
+      } catch (error) {
+        console.error('Error fetching static data:', error);
+      }
+    };
+
+    fetchStaticData();
+
+    // Set up real-time listener for grades
+    const gradesQuery = query(
+      collection(firestore, `schools/${schoolId}/grades`),
+      where('assessmentId', '==', exam.id)
+    );
+
+    const unsubscribe = onSnapshot(gradesQuery, (gradesSnapshot) => {
       try {
         setIsLoading(true);
-        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('assessmentId', '==', exam.id));
-        const gradesSnapshot = await getDocs(gradesQuery);
         
-        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
-        const classesSnapshot = await getDocs(classesQuery);
-        const classesData = classesSnapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
-        setAllClasses(classesData);
-        
-        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
-        const subjectsSnapshot = await getDocs(subjectsQuery);
-        const subjectsData = subjectsSnapshot.docs.map(doc => doc.data().name);
-        setAllSubjects(subjectsData);
-
-
         if (gradesSnapshot.empty) {
           setDistributionData([]);
           setSubjectPerformanceData([]);
@@ -198,23 +211,27 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         const gradeCounts: Record<string, number> = { 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 'C+': 0, 'C/C-': 0, 'D/E': 0 };
         const subjectScores: Record<string, { total: number, count: number }> = {};
         const classScores: Record<string, { total: number, count: number }> = {};
+        const subjectClassCounts: Record<string, Record<string, number>> = {};
         
-        for (const gradeDoc of gradesSnapshot.docs) {
+        gradesSnapshot.forEach((gradeDoc) => {
           const gradeData = gradeDoc.data();
           const score = parseInt(gradeData.grade, 10);
-          if (isNaN(score)) continue;
+          if (isNaN(score)) return;
 
           const subjectName = gradeData.subject || 'Unknown Subject';
           const className = gradeData.className || 'Unknown Class';
 
+          // Subject scores
           if (!subjectScores[subjectName]) subjectScores[subjectName] = { total: 0, count: 0 };
           subjectScores[subjectName].total += score;
           subjectScores[subjectName].count++;
 
+          // Class scores
           if (!classScores[className]) classScores[className] = { total: 0, count: 0 };
           classScores[className].total += score;
           classScores[className].count++;
 
+          // Grade counts
           if (score >= 80) gradeCounts['A']++;
           else if (score >= 75) gradeCounts['A-']++;
           else if (score >= 70) gradeCounts['B+']++;
@@ -223,14 +240,19 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
           else if (score >= 55) gradeCounts['C+']++;
           else if (score >= 45) gradeCounts['C/C-']++;
           else gradeCounts['D/E']++;
-        }
 
-        // Mock status grid data for now
-        const gridData: StatusGridData[] = classesData.map(c => ({
+          // Subject-Class counts for status
+          if (!subjectClassCounts[className]) subjectClassCounts[className] = {};
+          if (!subjectClassCounts[className][subjectName]) subjectClassCounts[className][subjectName] = 0;
+          subjectClassCounts[className][subjectName]++;
+        });
+
+        // Status grid based on actual counts
+        const gridData: StatusGridData[] = allClasses.map(c => ({
             className: c.name,
-            subjects: subjectsData.reduce((acc, subject) => {
-                const statuses: ('Complete' | 'In Progress' | 'Pending' | 'Flagged')[] = ['Complete', 'In Progress', 'Pending'];
-                acc[subject] = statuses[Math.floor(Math.random() * statuses.length)];
+            subjects: allSubjects.reduce((acc, subject) => {
+                const count = subjectClassCounts[c.name]?.[subject] || 0;
+                acc[subject] = count > 0 ? 'Complete' : 'Pending';
                 return acc;
             }, {} as Record<string, 'Complete' | 'In Progress' | 'Pending' | 'Flagged'>)
         }));
@@ -239,7 +261,7 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         const performance = Object.entries(subjectScores).map(([subject, data]) => ({
           subject: subject,
           avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
-          trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)] as 'up' | 'down' | 'stable',
+          trend: 'stable' as const,
         }));
 
         const classAvgs = Object.entries(classScores).map(([className, data]) => ({
@@ -257,14 +279,17 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
         });
 
       } catch (error) {
-        console.error('Error fetching exam data:', error);
+        console.error('Error processing exam data:', error);
       } finally {
         setIsLoading(false);
       }
-    };
+    }, (error) => {
+      console.error('Error listening to grades:', error);
+      setIsLoading(false);
+    });
 
-    fetchDataForExam();
-  }, [exam, schoolId]);
+    return () => unsubscribe();
+  }, [exam, schoolId, allClasses, allSubjects]);
 
 
   if (!exam) {
@@ -435,6 +460,7 @@ export function GradeAnalysisCharts({ exam, onBack }: GradeAnalysisChartsProps) 
                     tickMargin={10}
                     axisLine={false}
                   />
+                  <YAxis tickLine={false} tickMargin={10} />
                   <ChartTooltip
                     cursor={false}
                     content={<ChartTooltipContent indicator="dot" />}
