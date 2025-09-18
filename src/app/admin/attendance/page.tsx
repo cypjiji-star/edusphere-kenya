@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, getDocs, doc, getDoc, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs, doc, getDoc, orderBy, addDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -468,25 +468,31 @@ export default function AdminAttendancePage() {
   }
 
   const filteredRecords = React.useMemo(() => allRecords.filter(record => {
-      const recordDate = record.date.toDate();
-      
-      let isDateInRange = true;
-      if (date?.from) {
+    const recordDate = record.date.toDate();
+    let isDateInRange = true;
+
+    if (date?.from) {
         const fromDate = new Date(date.from);
         fromDate.setHours(0, 0, 0, 0);
 
-        const toDate = date.to ? new Date(date.to) : new Date(date.from);
-        toDate.setHours(23, 59, 59, 999);
-        
-        isDateInRange = recordDate >= fromDate && recordDate <= toDate;
-      }
+        if (date.to) {
+            const toDate = new Date(date.to);
+            toDate.setHours(23, 59, 59, 999);
+            isDateInRange = recordDate >= fromDate && recordDate <= toDate;
+        } else {
+            // If only 'from' is set, filter for that single day
+            const endOfDay = new Date(date.from);
+            endOfDay.setHours(23, 59, 59, 999);
+            isDateInRange = recordDate >= fromDate && recordDate <= endOfDay;
+        }
+    }
 
-      const matchesSearch = record.studentName && record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesClass = classFilter === 'All Classes' || record.class === classFilter;
-      const matchesTeacher = teacherFilter === 'All Teachers' || record.teacher === teacherFilter;
-      const matchesStatus = statusFilter === 'All Statuses' || record.status === statusFilter;
+    const matchesSearch = record.studentName && record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesClass = classFilter === 'All Classes' || record.class === classFilter;
+    const matchesTeacher = teacherFilter === 'All Teachers' || record.teacher === teacherFilter;
+    const matchesStatus = statusFilter === 'All Statuses' || record.status === statusFilter;
 
-      return isDateInRange && matchesSearch && matchesClass && matchesTeacher && matchesStatus;
+    return isDateInRange && matchesSearch && matchesClass && matchesTeacher && matchesStatus;
   }), [allRecords, date, searchTerm, classFilter, teacherFilter, statusFilter]);
   
   const handleExport = (type: 'PDF' | 'CSV') => {
