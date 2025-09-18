@@ -40,6 +40,7 @@ import {
   Loader2,
   Send,
   RefreshCcw,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Table,
@@ -204,15 +205,6 @@ const getStatusBadge = (status: Exam['status']) => {
         case 'Grading Complete': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Grading Complete</Badge>;
         default: return <Badge variant="outline">{status}</Badge>;
     }
-}
-
-function calculateGrade(score: number): string {
-    if (isNaN(score) || score < 0 || score > 100) return '';
-    if (score >= 80) return 'A';
-    if (score >= 65) return 'B';
-    if (score >= 50) return 'C';
-    if (score >= 40) return 'D';
-    return 'E';
 }
 
 
@@ -393,6 +385,15 @@ function RejectGradeDialog({ open, onOpenChange, onSubmit, grade }: { open: bool
             </DialogContent>
         </Dialog>
     )
+}
+
+function calculateGrade(score: number): string {
+    if (isNaN(score) || score < 0 || score > 100) return '';
+    if (score >= 80) return 'A';
+    if (score >= 65) return 'B';
+    if (score >= 50) return 'C';
+    if (score >= 40) return 'D';
+    return 'E';
 }
 
 function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBack: () => void, schoolId: string, teacher: { id: string, name: string } }) {
@@ -1039,3 +1040,5 @@ export default function TeacherGradesPage() {
     </div>
   )
 }
+
+  
