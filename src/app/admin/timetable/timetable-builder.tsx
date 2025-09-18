@@ -259,7 +259,7 @@ export function TimetableBuilder() {
     
     return (
         <Select value={selectedItem} onValueChange={setSelectedItem}>
-            <SelectTrigger className="w-full md:w-auto">
+            <SelectTrigger className="w-full sm:w-auto">
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
@@ -476,7 +476,7 @@ export function TimetableBuilder() {
                                 <CardTitle>Timetable for {selectedName}</CardTitle>
                                 <CardDescription>Drag subjects from the right panel and drop them into time slots.</CardDescription>
                             </div>
-                            <div className="flex w-full flex-wrap md:w-auto items-center gap-2">
+                            <div className="flex w-full flex-col sm:flex-row sm:flex-wrap md:w-auto items-center gap-2">
                                 <Select defaultValue={currentYear.toString()}>
                                     <SelectTrigger className="w-full sm:w-auto">
                                         <SelectValue placeholder="Select year" />
@@ -503,7 +503,7 @@ export function TimetableBuilder() {
                                 {renderFilterDropdown()}
                                 <Dialog>
                                     <DialogTrigger asChild>
-                                        <Button variant="outline">
+                                        <Button variant="outline" className="w-full sm:w-auto">
                                             <Settings className="mr-2 h-4 w-4" />
                                             Define Periods
                                         </Button>
@@ -548,7 +548,7 @@ export function TimetableBuilder() {
                                 </Dialog>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="outline">
+                                        <Button variant="outline" className="w-full sm:w-auto">
                                             Export / Print
                                             <ChevronDown className="ml-2 h-4 w-4" />
                                         </Button>
@@ -578,9 +578,9 @@ export function TimetableBuilder() {
                             <table className="w-full min-w-[800px]">
                                 <thead>
                                     <tr className="border-b bg-muted/50">
-                                        <th className="p-2 w-32 font-medium text-muted-foreground border-r">Time</th>
+                                        <th className="p-2 w-32 font-medium text-muted-foreground border-r text-center">Time</th>
                                         {days.map(day => (
-                                            <th key={day} className="p-2 font-medium text-muted-foreground">{day}</th>
+                                            <th key={day} className="p-2 font-medium text-muted-foreground text-center">{day}</th>
                                         ))}
                                     </tr>
                                 </thead>
@@ -751,3 +751,5 @@ export function TimetableBuilder() {
     </DndContext>
   );
 }
+
+    
