@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -39,19 +40,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2, TrendingUp, BarChart, History, HeartPulse, ShieldAlert, CheckCircle, XCircle, TrendingDown } from 'lucide-react';
-import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, Timestamp, getDocs, orderBy, doc } from 'firebase/firestore';
+import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2, TrendingUp, BarChart, History, HeartPulse, ShieldAlert, CheckCircle, XCircle, TrendingDown, Save } from 'lucide-react';
+import { firestore, auth } from '@/lib/firebase';
+import { collection, onSnapshot, query, where, Timestamp, getDocs, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 
 
 type Student = {
     id: string;
     name: string;
+    firstName: string;
+    lastName: string;
     admissionNumber: string;
     class: string;
     classId: string;
@@ -67,6 +72,9 @@ type Student = {
     nhifNumber?: string;
     parentEmail?: string;
     parentAddress?: string;
+    parentFirstName?: string;
+    parentLastName?: string;
+    parentRelationship?: 'Father' | 'Mother' | 'Guardian';
     emergencyContactName?: string;
     emergencyContactPhone?: string;
 };
@@ -148,6 +156,7 @@ const formatCurrency = (amount: number) => {
 export default function StudentManagementPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { toast } = useToast();
 
   const [students, setStudents] = React.useState<Student[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -158,6 +167,8 @@ export default function StudentManagementPage() {
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [selectedStudent, setSelectedStudent] = React.useState<SelectedStudentDetails | null>(null);
   const [isDialogLoading, setIsDialogLoading] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -178,6 +189,8 @@ export default function StudentManagementPage() {
         return {
           id: doc.id,
           name: data.name,
+          firstName: data.firstName,
+          lastName: data.lastName,
           admissionNumber: data.admissionNumber,
           class: data.class,
           classId: data.classId,
@@ -193,6 +206,9 @@ export default function StudentManagementPage() {
           nhifNumber: data.nhifNumber,
           parentEmail: data.parentEmail,
           parentAddress: data.parentAddress,
+          parentFirstName: data.parentFirstName,
+          parentLastName: data.parentLastName,
+          parentRelationship: data.parentRelationship,
           emergencyContactName: data.emergencyContactName,
           emergencyContactPhone: data.emergencyContactPhone,
         } as Student;
@@ -211,7 +227,7 @@ export default function StudentManagementPage() {
   const openStudentDialog = async (student: Student) => {
     if (!schoolId) return;
     setIsDialogLoading(true);
-    setSelectedStudent({ ...student, attendance: [], grades: [], transactions: [], incidents: [] }); // Set basic data immediately
+    setSelectedStudent({ ...student, attendance: [], grades: [], transactions: [], incidents: [] });
 
     const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
     const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
@@ -240,6 +256,40 @@ export default function StudentManagementPage() {
     });
     setIsDialogLoading(false);
   };
+  
+  const handleSaveChanges = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedStudent || !schoolId) return;
+    setIsSaving(true);
+    
+    const formData = new FormData(e.currentTarget);
+    const dataToUpdate = {
+        firstName: formData.get('firstName'),
+        lastName: formData.get('lastName'),
+        name: `${formData.get('firstName')} ${formData.get('lastName')}`,
+        status: formData.get('status'),
+        parentFirstName: formData.get('parentFirstName'),
+        parentLastName: formData.get('parentLastName'),
+        parentName: `${formData.get('parentFirstName')} ${formData.get('parentLastName')}`,
+        parentPhone: formData.get('parentContact'),
+        parentEmail: formData.get('parentEmail'),
+    };
+
+    const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedStudent.id);
+
+    try {
+        await updateDoc(studentRef, dataToUpdate);
+        toast({ title: "Profile Updated", description: "Student information has been successfully saved." });
+        setIsEditing(false);
+        // Optimistically update local state or re-fetch
+        setSelectedStudent(prev => prev ? { ...prev, ...dataToUpdate } : null);
+    } catch (error) {
+        console.error("Error updating student profile:", error);
+        toast({ title: "Update Failed", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
+  };
 
   const filteredStudents = students.filter(student => 
     (student.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -258,7 +308,12 @@ export default function StudentManagementPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <Dialog onOpenChange={(open) => !open && setSelectedStudent(null)}>
+      <Dialog onOpenChange={(open) => {
+          if (!open) {
+              setSelectedStudent(null);
+              setIsEditing(false);
+          }
+      }}>
         <div className="mb-6">
           <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
             <Users className="h-8 w-8 text-primary" />
@@ -291,11 +346,11 @@ export default function StudentManagementPage() {
               </div>
               <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                  <Select value={classFilter} onValueChange={setClassFilter}>
-                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="All Classes"/></SelectTrigger>
                     <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
                  <Select value={enrollmentStatusFilter} onValueChange={(v) => setEnrollmentStatusFilter(v as any)}>
-                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="All Statuses"/></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All Statuses">All Enrollment Statuses</SelectItem>
                         <SelectItem value="Active">Active</SelectItem>
@@ -304,7 +359,7 @@ export default function StudentManagementPage() {
                     </SelectContent>
                 </Select>
                 <Select value={feeStatusFilter} onValueChange={(v) => setFeeStatusFilter(v as any)}>
-                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="All Fee Statuses"/></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="All Fee Statuses">All Fee Statuses</SelectItem>
                         <SelectItem value="Paid">Paid</SelectItem>
@@ -417,36 +472,72 @@ export default function StudentManagementPage() {
                     </div>
                 </DialogHeader>
                  {isDialogLoading ? <div className="h-64 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
+                    <form onSubmit={handleSaveChanges}>
                     <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
                         <Tabs defaultValue="bio">
-                            <TabsList className="grid w-full grid-cols-4">
-                                <TabsTrigger value="bio">Bio Data</TabsTrigger>
-                                <TabsTrigger value="academics">Academics</TabsTrigger>
-                                <TabsTrigger value="finance">Finance</TabsTrigger>
-                                <TabsTrigger value="health">Health & Incidents</TabsTrigger>
-                            </TabsList>
+                            <div className="flex justify-between items-center">
+                                <TabsList>
+                                    <TabsTrigger value="bio">Bio Data</TabsTrigger>
+                                    <TabsTrigger value="academics">Academics</TabsTrigger>
+                                    <TabsTrigger value="finance">Finance</TabsTrigger>
+                                    <TabsTrigger value="health">Health & Incidents</TabsTrigger>
+                                </TabsList>
+                                {!isEditing && <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>}
+                            </div>
                             <TabsContent value="bio" className="mt-4">
                                 <Card>
                                     <CardHeader><CardTitle className="text-base">Personal Details</CardTitle></CardHeader>
                                     <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                                        <div className="space-y-1">
+                                            <Label htmlFor="firstName">First Name</Label>
+                                            {isEditing ? <Input name="firstName" id="firstName" defaultValue={selectedStudent.firstName} /> : <p>{selectedStudent.firstName}</p>}
+                                        </div>
+                                         <div className="space-y-1">
+                                            <Label htmlFor="lastName">Last Name</Label>
+                                            {isEditing ? <Input name="lastName" id="lastName" defaultValue={selectedStudent.lastName} /> : <p>{selectedStudent.lastName}</p>}
+                                        </div>
                                         <div><Label>Gender</Label><p>{selectedStudent.gender}</p></div>
                                         <div><Label>Date of Birth</Label><p>{selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : 'N/A'}</p></div>
                                         <div><Label>Birth Certificate No.</Label><p className="font-mono">{selectedStudent.birthCertificateNumber || 'N/A'}</p></div>
                                         <div><Label>NHIF Number</Label><p className="font-mono">{selectedStudent.nhifNumber || 'N/A'}</p></div>
+                                         <div className="space-y-1">
+                                            <Label htmlFor="status">Enrollment Status</Label>
+                                            {isEditing ? (
+                                                <Select name="status" defaultValue={selectedStudent.status}>
+                                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Active">Active</SelectItem>
+                                                        <SelectItem value="Inactive">Inactive</SelectItem>
+                                                        <SelectItem value="Graduated">Graduated</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : <p>{getStatusBadge(selectedStudent.status)}</p>}
+                                        </div>
                                     </CardContent>
                                 </Card>
                                 <Card className="mt-4">
                                     <CardHeader><CardTitle className="text-base">Parent / Guardian Details</CardTitle></CardHeader>
                                     <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                                        <div><Label>Name</Label><p>{selectedStudent.parentName}</p></div>
-                                        <div><Label>Primary Contact</Label><p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p></div>
-                                        <div><Label>Email Address</Label><p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentEmail || 'N/A'}</p></div>
-                                        <div><Label>Physical Address</Label><p>{selectedStudent.parentAddress || 'N/A'}</p></div>
-                                        <div><Label>Emergency Contact</Label><p>{selectedStudent.emergencyContactName || 'N/A'} ({selectedStudent.emergencyContactPhone || 'N/A'})</p></div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="parentFirstName">Parent First Name</Label>
+                                            {isEditing ? <Input name="parentFirstName" id="parentFirstName" defaultValue={selectedStudent.parentFirstName} /> : <p>{selectedStudent.parentFirstName}</p>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="parentLastName">Parent Last Name</Label>
+                                            {isEditing ? <Input name="parentLastName" id="parentLastName" defaultValue={selectedStudent.parentLastName} /> : <p>{selectedStudent.parentLastName}</p>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="parentContact">Parent Contact</Label>
+                                            {isEditing ? <Input name="parentContact" id="parentContact" defaultValue={selectedStudent.parentContact} /> : <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="parentEmail">Parent Email</Label>
+                                            {isEditing ? <Input name="parentEmail" id="parentEmail" type="email" defaultValue={selectedStudent.parentEmail} /> : <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentEmail || 'N/A'}</p>}
+                                        </div>
                                     </CardContent>
                                 </Card>
                             </TabsContent>
-                            <TabsContent value="academics" className="mt-4 space-y-4">
+                             <TabsContent value="academics" className="mt-4 space-y-4">
                                 <Card>
                                     <CardHeader><CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4 text-primary"/>Attendance History (Last 5)</CardTitle></CardHeader>
                                     <CardContent>
@@ -530,10 +621,21 @@ export default function StudentManagementPage() {
                             </TabsContent>
                         </Tabs>
                     </div>
+                     <DialogFooter>
+                        {isEditing ? (
+                            <>
+                                <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                    Save Changes
+                                </Button>
+                            </>
+                        ) : (
+                            <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
+                        )}
+                    </DialogFooter>
+                    </form>
                  )}
-                <DialogFooter>
-                    <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
-                </DialogFooter>
              </DialogContent>
         )}
       </Dialog>
