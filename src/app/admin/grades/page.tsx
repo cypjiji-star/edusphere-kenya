@@ -153,12 +153,6 @@ const schoolInfo = {
     logoUrl: "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
 };
 
-const aiInsights = [
-    { id: 'ai-1', level: 'warning', text: "A student's score of 25 in Mathematics is a significant outlier compared to their average of 60. Could be an entry error." },
-    { id: 'ai-2', level: 'info', text: "The average score for the Form 4 Chemistry CAT is 45%, which is 15% lower than the previous exam. Consider reviewing the exam's difficulty or class performance." },
-    { id: 'ai-3', level: 'info', text: "Teacher 'Mr. Otieno' has an average awarded score of 82%, which is consistently higher than the departmental average of 71%." },
-]
-
 
 function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { student: Ranking | null, studentGrades: StudentGrade[] | null, open: boolean, onOpenChange: (open: boolean) => void }) {
     if (!student || !studentGrades) return null;
@@ -520,6 +514,7 @@ export default function AdminGradesPage() {
                 createdAt: serverTimestamp(),
                 read: false,
                 href: `/parent/grades?schoolId=${schoolId}`,
+                audience: 'parents-and-students' // This is a conceptual property
             });
             toast({
                 title: 'Results Published!',
