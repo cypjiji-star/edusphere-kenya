@@ -26,37 +26,41 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+    DialogTrigger,
+    DialogClose,
+  } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { auth, firestore, firebaseConfig } from '@/lib/firebase';
-import { initializeApp, deleteApp } from 'firebase/app';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
+import { firestore, auth } from '@/lib/firebase';
 import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { initializeApp, deleteApp } from 'firebase/app';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
@@ -107,20 +111,8 @@ export default function UserManagementListPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const { user: adminUser } = useAuth();
-    const [adminUsers, setAdminUsers] = React.useState<User[]>([]);
-    const [teacherUsers, setTeacherUsers] = React.useState<User[]>([]);
-    const [parentUsers, setParentUsers] = React.useState<User[]>([]);
+    const [allUsers, setAllUsers] = React.useState<User[]>([]);
     
-    const allUsers = React.useMemo(() => {
-        const userMap = new Map<string, User>();
-        [...adminUsers, ...teacherUsers, ...parentUsers].forEach(user => {
-            if (user && user.id) {
-                userMap.set(user.id, user);
-            }
-        });
-        return Array.from(userMap.values());
-    }, [adminUsers, teacherUsers, parentUsers]);
-
     const [roles, setRoles] = React.useState<string[]>([]);
     const [classes, setClasses] = React.useState<{ id: string; name: string }[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -131,6 +123,9 @@ export default function UserManagementListPage() {
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = React.useState(false);
+    const [userToDelete, setUserToDelete] = React.useState<{ id: string, name: string, role: string } | null>(null);
+    const [editingUser, setEditingUser] = React.useState<User | null>(null);
+    const [isSaving, setIsSaving] = React.useState(false);
     
     // State for the create user dialog
     const [newUserRole, setNewUserRole] = React.useState<string>('');
@@ -144,16 +139,15 @@ export default function UserManagementListPage() {
         if (!schoolId) return;
         setClientReady(true);
         
-        const unsubAdmins = onSnapshot(query(collection(firestore, 'schools', schoolId, 'admins')), (snapshot) => {
-            setAdminUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
-        });
-
-        const unsubTeachers = onSnapshot(query(collection(firestore, `schools/${schoolId}/teachers`)), (snapshot) => {
-            setTeacherUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), role: 'Teacher' } as User)));
-        });
-        
-        const unsubParents = onSnapshot(query(collection(firestore, 'schools', schoolId, 'parents')), (snapshot) => {
-            setParentUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), role: 'Parent' } as User)));
+        const collectionsToListen = ['admins', 'teachers', 'parents'];
+        const unsubscribers = collectionsToListen.map(col => {
+            return onSnapshot(query(collection(firestore, `schools/${schoolId}/${col}`)), (snapshot) => {
+                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+                setAllUsers(prev => {
+                    const otherUsers = prev.filter(u => u.role?.toLowerCase() !== col.slice(0,-1));
+                    return [...otherUsers, ...usersData];
+                });
+            });
         });
         
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
@@ -166,9 +160,7 @@ export default function UserManagementListPage() {
         });
 
         return () => {
-            unsubAdmins();
-            unsubTeachers();
-            unsubParents();
+            unsubscribers.forEach(unsub => unsub());
             unsubRoles();
             unsubClasses();
         };
@@ -217,7 +209,7 @@ export default function UserManagementListPage() {
             return;
         }
 
-        const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
+        const secondaryApp = initializeApp(auth.app.options, `secondary-${Date.now()}`);
         const secondaryAuth = getAuth(secondaryApp);
 
         try {
@@ -284,37 +276,50 @@ export default function UserManagementListPage() {
         });
     };
     
-    const handleSaveChanges = async (user: User, updatedData: Partial<User>) => {
-        if (!schoolId) return;
+    const handleSaveChanges = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingUser || !schoolId) return;
 
+        const formData = new FormData(e.target as HTMLFormElement);
+        const updatedData: Partial<User> = {
+            name: formData.get('name') as string,
+            email: formData.get('email') as string,
+            role: formData.get('role') as string,
+            status: formData.get('status') as UserStatus,
+        };
+
+        setIsSaving(true);
         let authUpdates: { email?: string } = {};
-        if (updatedData.email && updatedData.email !== user.email) {
+        if (updatedData.email && updatedData.email !== editingUser.email) {
             authUpdates.email = updatedData.email;
         }
 
         try {
             // Step 1: Update Firebase Auth if email changed
             if (Object.keys(authUpdates).length > 0) {
-                const authResult = await updateUserAuthAction(user.id, authUpdates);
+                const authResult = await updateUserAuthAction(editingUser.id, authUpdates);
                 if (!authResult.success) {
                     throw new Error(authResult.message);
                 }
             }
 
             // Step 2: Update Firestore document
-            let collectionName = 'users';
-            if (user.role === 'Parent') collectionName = 'parents';
-            else if (user.role === 'Admin') collectionName = 'admins';
-            else if (user.role === 'Teacher') collectionName = 'teachers';
+            let collectionName = 'users'; // Default
+            if (editingUser.role === 'Parent') collectionName = 'parents';
+            else if (editingUser.role === 'Admin') collectionName = 'admins';
+            else if (editingUser.role === 'Teacher') collectionName = 'teachers';
 
 
-            const userRef = doc(firestore, 'schools', schoolId, collectionName, user.id);
+            const userRef = doc(firestore, 'schools', schoolId, collectionName, editingUser.id);
             await updateDoc(userRef, updatedData);
 
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
+            setEditingUser(null);
 
         } catch (e: any) {
             toast({ title: 'Error', description: e.message || 'Could not update user.', variant: 'destructive'});
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -322,38 +327,35 @@ export default function UserManagementListPage() {
         toast({ title: 'Password Reset Sent', description: 'A password reset link has been sent to the user\'s email.' });
     };
 
-    const handleDeleteUser = async (userId: string, userName: string, userRole: string) => {
-      if (!schoolId || !adminUser) return;
-      if (!window.confirm(`Are you sure you want to permanently delete the user "${userName}"? This will remove their login access and all associated data. This action cannot be undone.`)) {
-        return;
-      }
-    
+    const handleDeleteUser = async () => {
+      if (!userToDelete || !schoolId || !adminUser) return;
+      
       try {
-        const authResult = await deleteUserAction(userId, schoolId);
+        const authResult = await deleteUserAction(userToDelete.id, schoolId);
         if (!authResult.success && !authResult.message?.includes('user-not-found')) {
           throw new Error(authResult.message);
         }
     
         let collectionName;
-        if (userRole === 'Parent') collectionName = 'parents';
-        else if (userRole === 'Admin') collectionName = 'admins';
-        else if (userRole === 'Teacher') collectionName = 'teachers';
-        else collectionName = 'users'; // Fallback
+        if (userToDelete.role === 'Parent') collectionName = 'parents';
+        else if (userToDelete.role === 'Admin') collectionName = 'admins';
+        else if (userToDelete.role === 'Teacher') collectionName = 'teachers';
+        else collectionName = 'users';
     
-        await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userId));
+        await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userToDelete.id));
     
         await logAuditEvent({
           schoolId,
           action: 'USER_DELETED',
           actionType: 'Security',
-          description: `User account for ${userName} permanently deleted.`,
+          description: `User account for ${userToDelete.name} permanently deleted.`,
           user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-          details: `Deleted User ID: ${userId}, Role: ${userRole}`,
+          details: `Deleted User ID: ${userToDelete.id}, Role: ${userToDelete.role}`,
         });
     
         toast({
           title: 'User Deleted',
-          description: `The user account for ${userName} has been permanently deleted.`,
+          description: `The user account for ${userToDelete.name} has been permanently deleted.`,
           variant: 'destructive',
         });
       } catch (e: any) {
@@ -363,6 +365,8 @@ export default function UserManagementListPage() {
           description: e.message || 'Could not delete the user account. Please check the logs or contact support.',
           variant: 'destructive',
         });
+      } finally {
+          setUserToDelete(null);
       }
     };
 
@@ -418,77 +422,9 @@ export default function UserManagementListPage() {
                                             {user.lastLogin && user.lastLogin !== 'Never' ? (user.lastLogin as Timestamp).toDate().toLocaleDateString() : 'Never'}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="ghost" size="sm">
-                                                        <Edit className="mr-2 h-4 w-4" /> Edit
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent className="sm:max-w-xl">
-                                                    <DialogHeader>
-                                                        <DialogTitle>Edit User: {user.name}</DialogTitle>
-                                                        <DialogDescription>Update user details, role, and status.</DialogDescription>
-                                                    </DialogHeader>
-                                                    <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                                                         <div className="grid grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <Label htmlFor="name">Full Name</Label>
-                                                                <Input id="name" defaultValue={user.name} />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label htmlFor="email">Email</Label>
-                                                                <Input id="email" type="email" defaultValue={user.email} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                             <div className="space-y-2">
-                                                                <Label htmlFor="role">Role</Label>
-                                                                <Select defaultValue={user.role}>
-                                                                    <SelectTrigger id="role">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label htmlFor="status">Account Status</Label>
-                                                                <Select defaultValue={user.status}>
-                                                                    <SelectTrigger id="status">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {statuses.filter(s => s !== 'All Statuses').map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                        </div>
-                                                        <Separator />
-                                                        <div className="space-y-4">
-                                                            <h4 className="font-semibold text-base">Administrative Actions</h4>
-                                                            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
-                                                                <Button variant="outline" onClick={handleSendPasswordReset}>
-                                                                    <KeyRound className="mr-2 h-4 w-4" />
-                                                                    Send Password Reset
-                                                                </Button>
-                                                                <DialogClose asChild>
-                                                                    <Button variant="destructive" onClick={() => handleDeleteUser(user.id, user.name, user.role)}>
-                                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                                        Delete User
-                                                                    </Button>
-                                                                </DialogClose>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <DialogFooter>
-                                                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                                                        <DialogClose asChild>
-                                                            <Button onClick={() => handleSaveChanges(user, {})}>Save Changes</Button>
-                                                        </DialogClose>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
+                                            <Button variant="ghost" size="sm" onClick={() => setEditingUser(user)}>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -517,6 +453,88 @@ export default function UserManagementListPage() {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
+            <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will permanently delete the user <span className="font-bold">{userToDelete?.name}</span> and all associated data. This action cannot be undone.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteUser}>Delete User</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit User: {editingUser?.name}</DialogTitle>
+                        <DialogDescription>Update user details, role, and status.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSaveChanges}>
+                    <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                            <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="name">Full Name</Label>
+                                <Input id="name" name="name" defaultValue={editingUser?.name} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input id="email" name="email" type="email" defaultValue={editingUser?.email} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                <Label htmlFor="role">Role</Label>
+                                <Select name="role" defaultValue={editingUser?.role}>
+                                    <SelectTrigger id="role">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="status">Account Status</Label>
+                                <Select name="status" defaultValue={editingUser?.status}>
+                                    <SelectTrigger id="status">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {statuses.filter(s => s !== 'All Statuses').map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <Separator />
+                        <div className="space-y-4">
+                            <h4 className="font-semibold text-base">Administrative Actions</h4>
+                            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
+                                <Button type="button" variant="outline" onClick={handleSendPasswordReset}>
+                                    <KeyRound className="mr-2 h-4 w-4" />
+                                    Send Password Reset
+                                </Button>
+                                <Button type="button" variant="destructive" onClick={() => setUserToDelete(editingUser)}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete User
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
             <div className="mb-6">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                 <Users className="h-8 w-8 text-primary" />
@@ -733,3 +751,4 @@ export default function UserManagementListPage() {
         </div>
     );
 }
+

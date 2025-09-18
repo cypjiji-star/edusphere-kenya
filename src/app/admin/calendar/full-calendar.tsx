@@ -44,6 +44,17 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { Calendar } from '@/components/ui/calendar';
@@ -80,6 +91,7 @@ export function FullCalendar() {
   const [view, setView] = React.useState<CalendarView>('month');
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null);
+  const [eventToDelete, setEventToDelete] = React.useState<CalendarEvent | null>(null);
 
   const [newEventTitle, setNewEventTitle] = React.useState('');
   const [newEventDate, setNewEventDate] = React.useState<Date | undefined>(new Date());
@@ -251,15 +263,25 @@ export function FullCalendar() {
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!schoolId) return;
-    await deleteDoc(doc(firestore, 'schools', schoolId, 'calendar-events', eventId));
-    setSelectedEvent(null);
-    toast({
-        title: "Event Deleted",
-        description: "The event has been removed from the calendar.",
-        variant: "destructive",
-    })
+  const handleDeleteEvent = async () => {
+    if (!eventToDelete || !schoolId) return;
+    try {
+        await deleteDoc(doc(firestore, 'schools', schoolId, 'calendar-events', eventToDelete.id));
+        setSelectedEvent(null);
+        setEventToDelete(null);
+        toast({
+            title: "Event Deleted",
+            description: "The event has been removed from the calendar.",
+            variant: "destructive",
+        })
+    } catch (e) {
+        console.error("Error deleting event:", e);
+        toast({
+            title: 'Error',
+            description: 'Could not delete the event.',
+            variant: 'destructive',
+        });
+    }
   };
 
   const renderHeader = () => (
@@ -420,31 +442,30 @@ export function FullCalendar() {
             eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map((day, dayIndex) => {
               const eventsForDay = events.filter(e => isSameDay(e.date, day));
               return (
-                <DialogTrigger key={day.toString()} asChild>
-                    <div
-                      onClick={() => eventsForDay.length > 0 && setSelectedEvent(eventsForDay[0])}
-                      className={cn(
+                <div
+                    key={day.toString()}
+                    className={cn(
                         'h-24 md:h-32 p-1 md:p-2 border-t border-l flex flex-col',
                         !isSameMonth(day, monthStart) && 'bg-muted/50 text-muted-foreground',
-                        isToday(day) && 'bg-accent/20 relative',
-                        eventsForDay.length > 0 && 'cursor-pointer hover:bg-muted/50'
-                      )}
+                        isToday(day) && 'bg-accent/20 relative'
+                    )}
                     >
-                        {isToday(day) && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
-                      <span className={cn('font-medium text-xs md:text-sm', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
-                       <div className="mt-1 space-y-1 overflow-y-auto">
-                            {eventsForDay.map(event => (
+                    {isToday(day) && <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />}
+                    <span className={cn('font-medium text-xs md:text-sm', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
+                    <div className="mt-1 space-y-1 overflow-y-auto">
+                        {eventsForDay.map(event => (
+                            <DialogTrigger asChild key={event.id}>
                                 <Badge 
-                                    key={event.id}
-                                    className={cn('w-full truncate text-white text-[10px] md:text-xs', eventColors[event.type])}
+                                    onClick={() => setSelectedEvent(event)}
+                                    className={cn('w-full truncate text-white text-[10px] md:text-xs cursor-pointer', eventColors[event.type])}
                                     title={event.title}
                                 >
                                     {event.title}
                                 </Badge>
-                            ))}
-                       </div>
+                            </DialogTrigger>
+                        ))}
                     </div>
-                </DialogTrigger>
+                </div>
               );
             })
           )}
@@ -540,7 +561,27 @@ export function FullCalendar() {
   
 
   return (
-    <Dialog onOpenChange={(open) => !open && setSelectedEvent(null)}>
+    <Dialog onOpenChange={(open) => {
+        if (!open) {
+            setSelectedEvent(null);
+            setEventToDelete(null);
+        }
+    }}>
+      <AlertDialog open={!!eventToDelete} onOpenChange={(open) => !open && setEventToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the event.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteEvent}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {renderHeader()}
       {view === 'month' && renderMonthView()}
       {view === 'week' && renderWeekView()}
@@ -575,7 +616,7 @@ export function FullCalendar() {
                     <Edit className="mr-2 h-4 w-4"/>
                     Edit Event
                 </Button>
-                <Button variant="destructive" onClick={() => handleDeleteEvent(selectedEvent.id)}>
+                <Button variant="destructive" onClick={() => setEventToDelete(selectedEvent)}>
                     <Trash2 className="mr-2 h-4 w-4"/>
                     Delete Event
                 </Button>

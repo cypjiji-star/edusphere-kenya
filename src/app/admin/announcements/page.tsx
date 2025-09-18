@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive, Tag, Loader2, X, BarChart2 } from 'lucide-react';
+import { Megaphone, Send, History, Bell, Calendar as CalendarIcon, Clock, Paperclip, Eye, CheckCircle, Users, ArrowRight, Languages, ChevronDown, FileDown, Archive, Tag, Loader2, X, BarChart2, MoreVertical, Trash2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -26,6 +26,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
@@ -37,6 +38,17 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
@@ -44,7 +56,7 @@ import { translateText } from '@/ai/flows/translate-text';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp, getDocs, where, increment, arrayUnion, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp, getDocs, where, increment, arrayUnion, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -151,6 +163,7 @@ export default function AdminAnnouncementsPage() {
   const [selectedAnnouncementForStats, setSelectedAnnouncementForStats] = React.useState<Announcement | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [totalUserCount, setTotalUserCount] = React.useState(0);
+  const [announcementToDelete, setAnnouncementToDelete] = React.useState<string | null>(null);
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -232,6 +245,28 @@ export default function AdminAnnouncementsPage() {
   const handleViewStats = (announcement: Announcement) => {
     setSelectedAnnouncementForStats(announcement);
   };
+
+  const handleDeleteAnnouncement = async () => {
+    if (!announcementToDelete || !schoolId) return;
+
+    try {
+        await deleteDoc(doc(firestore, 'schools', schoolId, 'announcements', announcementToDelete));
+        toast({
+            title: 'Announcement Deleted',
+            description: 'The announcement has been successfully removed.',
+            variant: 'destructive'
+        });
+    } catch (error) {
+        console.error("Error deleting announcement:", error);
+        toast({
+            title: 'Error',
+            description: 'Could not delete the announcement. Please try again.',
+            variant: 'destructive'
+        });
+    } finally {
+        setAnnouncementToDelete(null);
+    }
+};
 
   const handleExport = () => {
     const doc = new jsPDF();
@@ -342,6 +377,20 @@ export default function AdminAnnouncementsPage() {
         open={!!selectedAnnouncementForStats} 
         onOpenChange={(open) => !open && setSelectedAnnouncementForStats(null)} 
     />
+    <AlertDialog open={!!announcementToDelete} onOpenChange={(open) => !open && setAnnouncementToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the announcement.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAnnouncement}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     <div className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Megaphone className="h-8 w-8 text-primary"/>School-Wide Announcements</h1>
@@ -349,11 +398,11 @@ export default function AdminAnnouncementsPage() {
        </div>
        
         <Tabs defaultValue="all" className="w-full">
-            <TabsList>
+            <TabsList className="mb-4">
                 <TabsTrigger value="all">All Announcements</TabsTrigger>
                 <TabsTrigger value="compose">Compose New</TabsTrigger>
             </TabsList>
-            <TabsContent value="all" className="mt-4">
+            <TabsContent value="all">
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
@@ -391,9 +440,27 @@ export default function AdminAnnouncementsPage() {
                                                 <p className="text-xs text-muted-foreground">To: {ann.audience}</p>
                                             </div>
                                         </div>
-                                        <Badge className={cn(announcementCategories[ann.category]?.color, 'ml-auto')}>
-                                            {announcementCategories[ann.category]?.label}
-                                        </Badge>
+                                        <div className="flex items-center gap-2">
+                                            <Badge className={cn(announcementCategories[ann.category]?.color)}>
+                                                {announcementCategories[ann.category]?.label}
+                                            </Badge>
+                                             <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <MoreVertical className="h-4 w-4"/>
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuItem onClick={() => handleViewStats(ann)}>
+                                                        <BarChart2 className="mr-2 h-4 w-4" />View Stats
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator/>
+                                                    <DropdownMenuItem className="text-destructive" onSelect={() => setAnnouncementToDelete(ann.id)}>
+                                                        <Trash2 className="mr-2 h-4 w-4" />Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </div>
 
                                     <p className="text-sm leading-relaxed pl-12">{ann.content}</p>
@@ -409,7 +476,7 @@ export default function AdminAnnouncementsPage() {
                                             <span className="font-medium">{ann.totalRecipients > 0 ? Math.round((ann.readCount / ann.totalRecipients) * 100) : 0}% view rate</span>
                                         </div>
                                          <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => handleViewStats(ann)}>
-                                            View Stats
+                                            View Detailed Stats
                                             <ArrowRight className="ml-1 h-3 w-3" />
                                         </Button>
                                     </div>
@@ -419,7 +486,7 @@ export default function AdminAnnouncementsPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-            <TabsContent value="compose" className="mt-4">
+            <TabsContent value="compose">
                  <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                 <Card>
@@ -646,4 +713,3 @@ export default function AdminAnnouncementsPage() {
   );
 }
 
-    
