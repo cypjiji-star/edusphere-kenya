@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Settings,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Sheet,
@@ -42,7 +43,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
 
-export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General';
+export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
 
 export type Notification = {
   id: string;
@@ -56,12 +57,13 @@ export type Notification = {
   userId?: string;
 };
 
-const categoryConfig: Record<NotificationCategory, { icon: React.ElementType }> = {
-  Academics: { icon: FileText },
-  Finance: { icon: CircleDollarSign },
-  Communication: { icon: MessageCircle },
-  System: { icon: Settings },
-  General: { icon: Bell },
+const categoryConfig: Record<NotificationCategory, { icon: React.ElementType, color: string }> = {
+  Academics: { icon: FileText, color: 'text-purple-500' },
+  Finance: { icon: CircleDollarSign, color: 'text-green-500' },
+  Communication: { icon: MessageCircle, color: 'text-blue-500' },
+  System: { icon: Settings, color: 'text-orange-500' },
+  Security: { icon: AlertTriangle, color: 'text-red-500' },
+  General: { icon: Bell, color: 'text-gray-500' },
 };
 
 function NotificationItem({
@@ -75,17 +77,23 @@ function NotificationItem({
   onMarkAsRead: (id: string) => void;
   currentUserId: string;
 }) {
-  const Icon = categoryConfig[notification.category] || Settings;
+  const config = categoryConfig[notification.category] || categoryConfig.General;
+  const Icon = config.icon;
   const isRead = notification.readBy?.includes(currentUserId);
+  const isUrgent = notification.category === 'Security';
+
   return (
     <div
       className={cn(
-        'flex items-start gap-4 p-4 rounded-lg transition-colors hover:bg-muted/50',
-        !isRead && 'bg-primary/5'
+        'flex items-start gap-4 p-4 rounded-lg transition-colors hover:bg-muted/50 border-l-4',
+        isRead ? 'border-transparent' : 'border-primary',
+        isUrgent && !isRead && 'border-destructive',
+        !isRead && 'bg-primary/5',
+        isUrgent && 'bg-destructive/5'
       )}
     >
       <div className="mt-1">
-        <Icon className="h-5 w-5 text-muted-foreground" />
+        <Icon className={cn('h-5 w-5', isUrgent ? 'text-destructive' : 'text-muted-foreground')} />
       </div>
       <div className="flex-1 space-y-1">
         <Link href={`${notification.href}?schoolId=${schoolId}`}>
@@ -130,10 +138,8 @@ export function NotificationCenter() {
     
     // Construct the query based on user role
     if (role === 'admin') {
-      // Admin sees all notifications
       q = query(notificationsRef, orderBy('createdAt', 'desc'), limit(50));
     } else if (role === 'teacher') {
-      // Teacher sees 'all' and 'teacher' targeted notifications
       q = query(
         notificationsRef,
         where('audience', 'in', ['all', 'teacher', 'parents-and-students']),
@@ -141,7 +147,6 @@ export function NotificationCenter() {
         limit(50)
       );
     } else if (role === 'parent') {
-      // Parent sees notifications for 'all', 'parents-and-students', or their specific userId
       q = query(
         notificationsRef,
         or(
@@ -152,7 +157,6 @@ export function NotificationCenter() {
         limit(50)
       );
     } else {
-      // No role or unknown role, don't fetch anything
       return;
     }
 
