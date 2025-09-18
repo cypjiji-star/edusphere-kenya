@@ -39,6 +39,9 @@ import {
   Columns,
   Loader2,
   Send,
+  RefreshCcw,
+  ArrowLeft,
+  Search,
 } from 'lucide-react';
 import {
   Table,
@@ -58,6 +61,17 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   Select,
   SelectContent,
@@ -85,11 +99,12 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
 
 
 type Exam = {
@@ -118,6 +133,18 @@ type StudentGrade = {
     avatarUrl: string;
     scores: Record<string, number>;
 };
+
+type StudentGradeEntry = {
+    studentId: string;
+    studentName: string;
+    avatarUrl: string;
+    admNo: string;
+    score: string;
+    grade: string;
+    gradeStatus: 'Unmarked' | 'Pending Approval' | 'Approved';
+    submissionId?: string;
+    error?: string;
+}
 
 type Ranking = {
     position: number;
@@ -149,6 +176,11 @@ type PendingGrade = {
     assessmentTitle: string;
     examId: string;
 };
+
+type TeacherClass = {
+    id: string;
+    name: string;
+}
 
 
 const examTypes: Exam['type'][] = ['CAT', 'Midterm', 'Final', 'Practical'];
@@ -346,12 +378,343 @@ function RejectGradeDialog({ open, onOpenChange, onSubmit, grade }: { open: bool
     )
 }
 
+function calculateGrade(score: number): string {
+    if (isNaN(score) || score < 0 || score > 100) return '';
+    if (score >= 80) return 'A';
+    if (score >= 65) return 'B';
+    if (score >= 50) return 'C';
+    if (score >= 40) return 'D';
+    return 'E';
+}
+
+function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBack: () => void, schoolId: string, teacher: { id: string, name: string } }) {
+    const { toast } = useToast();
+    const [students, setStudents] = React.useState<StudentGradeEntry[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [isSaving, setIsSaving] = React.useState(false);
+    const [searchTerm, setSearchTerm] = React.useState('');
+    const gradeInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+
+    React.useEffect(() => {
+        setIsLoading(true);
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
+        const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
+
+        Promise.all([getDocs(studentsQuery), getDocs(gradesQuery)]).then(([studentsSnap, gradesSnap]) => {
+            const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
+            
+            const studentData = studentsSnap.docs.map(doc => {
+                const data = doc.data();
+                const existingGrade = gradesMap.get(doc.id);
+                const score = existingGrade?.score || '';
+                return {
+                    studentId: doc.id,
+                    studentName: data.name,
+                    avatarUrl: data.avatarUrl || '',
+                    admNo: data.admissionNumber || '',
+                    score: score,
+                    grade: score ? calculateGrade(Number(score)) : '',
+                    gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
+                    submissionId: existingGrade?.submissionId,
+                }
+            });
+            setStudents(studentData);
+            gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
+            setIsLoading(false);
+        });
+    }, [exam, schoolId]);
+    
+    const handleScoreChange = (studentId: string, score: string) => {
+        let error = undefined;
+        const scoreNum = Number(score);
+        if (score && (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100)) {
+            error = 'Score must be between 0 and 100.';
+        }
+
+        setStudents(prev => prev.map(s => 
+            s.studentId === studentId 
+            ? { ...s, score, grade: calculateGrade(scoreNum), error } 
+            : s
+        ));
+    };
+
+    const handleSaveGrade = async (studentId: string, score: string, index: number) => {
+        const scoreNum = Number(score);
+        if (!score || isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100) return;
+
+        const student = students.find(s => s.studentId === studentId);
+        if (!student) return;
+
+        try {
+            const isEditing = !!student.submissionId;
+            const status = isEditing ? 'Pending Approval' : 'Approved';
+
+            const gradeRef = student.submissionId ? doc(firestore, 'schools', schoolId, 'grades', student.submissionId) : doc(collection(firestore, 'schools', schoolId, 'grades'));
+            await setDoc(gradeRef, {
+                grade: score,
+                examId: exam.id,
+                studentId: student.studentId,
+                studentRef: doc(firestore, 'schools', schoolId, 'students', student.studentId),
+                subject: exam.subject,
+                classId: exam.classId,
+                date: exam.date,
+                teacherName: teacher.name,
+                status: status
+            }, { merge: true });
+            
+            toast({
+                title: 'Grade Saved!',
+                description: `The grade for ${student.studentName} is saved and ${status === 'Pending Approval' ? 'awaits approval' : 'is approved'}.`,
+            });
+
+            setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id, gradeStatus: status } : s));
+
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Error', description: 'Failed to save grade.', variant: 'destructive'});
+        }
+    };
+
+    const handleSubmitAllGrades = async () => {
+        setIsSaving(true);
+        try {
+            const examRef = doc(firestore, 'schools', schoolId, 'exams', exam.id);
+            await updateDoc(examRef, { status: 'Grading Complete' });
+            
+            await logAuditEvent({
+                schoolId,
+                action: 'GRADES_SUBMITTED',
+                actionType: 'Academics',
+                user: { id: teacher.id, name: teacher.name, role: 'Teacher' },
+                details: `Finished grading for exam: "${exam.title}" - ${exam.className}.`,
+            });
+            
+            toast({
+                title: 'Grading Complete!',
+                description: 'All grades for this exam have been recorded. Any edits will require admin approval.',
+            });
+            onBack();
+        } catch(e) {
+            toast({ title: 'Error', description: 'Failed to submit grades.', variant: 'destructive'});
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+        if (e.key === 'Enter' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            gradeInputRefs.current[index + 1]?.focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            gradeInputRefs.current[index - 1]?.focus();
+        }
+    };
+
+    const handleRequestUnlock = async () => {
+        if (!schoolId) return;
+
+        await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+            title: 'Unlock Request',
+            description: `Teacher ${teacher.name} has requested to unlock grades for exam: "${exam.title}".`,
+            createdAt: serverTimestamp(),
+            read: false,
+            href: `/admin/grades?schoolId=${schoolId}&examId=${exam.id}`,
+        });
+
+        toast({
+            title: 'Request Sent',
+            description: 'The administrator has been notified of your request to unlock these grades.'
+        });
+    }
+    
+    const filteredStudents = students.filter(s => s.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const gradedCount = students.filter(s => s.score !== '' && !s.error).length;
+    const totalStudents = students.length;
+    const progress = totalStudents > 0 ? (gradedCount / totalStudents) * 100 : 0;
+    const isLocked = exam.status === 'Closed';
+    
+    return (
+        <Card>
+            <CardHeader>
+                <Button variant="outline" size="sm" onClick={onBack} className="mb-4 w-fit">
+                    <ArrowLeft className="mr-2 h-4 w-4"/> Back to Exams
+                </Button>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle className="font-headline text-2xl">Enter Marks: {exam.title}</CardTitle>
+                        <CardDescription>{exam.class} - {exam.subject}</CardDescription>
+                    </div>
+                    {isLocked ? (
+                        <Button variant="secondary" onClick={handleRequestUnlock}>
+                            <RefreshCcw className="mr-2 h-4 w-4" />
+                            Request Unlock
+                        </Button>
+                    ) : (
+                         <Button onClick={handleSubmitAllGrades} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
+                            Mark as Complete
+                        </Button>
+                    )}
+                </div>
+                 <div className="pt-4 space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                        <Label>Grading Progress</Label>
+                        <span>{gradedCount} / {totalStudents} Students</span>
+                    </div>
+                    <Progress value={progress} />
+                 </div>
+                 <div className="relative w-full md:max-w-sm mt-4">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Search students..."
+                        className="w-full bg-background pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </CardHeader>
+            <CardContent>
+                 <div className="w-full overflow-auto rounded-lg border hidden md:block">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[300px]">Student</TableHead>
+                                <TableHead className="w-[200px]">Mark / Score (out of 100)</TableHead>
+                                <TableHead className="w-[150px]">Auto-Grade</TableHead>
+                                <TableHead className="w-[150px]">Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {isLoading ? (
+                            <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
+                        ) : filteredStudents.map((student, index) => (
+                            <TableRow key={student.studentId}>
+                                <TableCell>
+                                     <div className="flex items-center gap-3">
+                                        <Avatar className="h-9 w-9">
+                                            <AvatarImage src={student.avatarUrl} alt={student.studentName} />
+                                            <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <span className="font-medium">{student.studentName}</span>
+                                            <p className="text-xs text-muted-foreground">Adm: {student.admNo}</p>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="relative">
+                                        <Input
+                                            ref={el => gradeInputRefs.current[index] = el}
+                                            type="number"
+                                            placeholder="Enter score"
+                                            value={student.score}
+                                            onChange={(e) => handleScoreChange(student.studentId, e.target.value)}
+                                            onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
+                                            onKeyDown={(e) => handleKeyDown(e, index)}
+                                            className={cn("w-32", student.error && "border-destructive focus-visible:ring-destructive")}
+                                            disabled={isLocked}
+                                        />
+                                        {student.error && <p className="text-xs text-destructive mt-1">{student.error}</p>}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant={!student.score || student.error ? "outline" : "default"} className="text-lg font-bold p-2 w-12 justify-center">
+                                        {student.grade || '—'}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {student.gradeStatus === 'Pending Approval' ? 
+                                        <Badge variant="secondary" className="bg-yellow-500 text-white">Pending</Badge> :
+                                    student.gradeStatus === 'Approved' ?
+                                        <Badge variant="default" className="bg-green-600">Approved</Badge> :
+                                        <Badge variant="outline">Unmarked</Badge>
+                                    }
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                 </div>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+                    {isLoading ? (
+                         <div className="col-span-full h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>
+                    ) : filteredStudents.map((student, index) => (
+                        <Card key={student.studentId}>
+                             <CardHeader>
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={student.avatarUrl} alt={student.studentName} />
+                                        <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <CardTitle className="text-base">{student.studentName}</CardTitle>
+                                        <CardDescription>Adm: {student.admNo}</CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor={`score-${student.studentId}`}>Score (out of 100)</Label>
+                                    <Input
+                                        id={`score-${student.studentId}`}
+                                        ref={el => gradeInputRefs.current[index] = el}
+                                        type="number"
+                                        placeholder="Enter score"
+                                        value={student.score}
+                                        onChange={(e) => handleScoreChange(student.studentId, e.target.value)}
+                                        onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
+                                        className={cn(student.error && "border-destructive focus-visible:ring-destructive")}
+                                        disabled={isLocked}
+                                    />
+                                    {student.error && <p className="text-xs text-destructive mt-1">{student.error}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                     <Label>Auto-Grade</Label>
+                                     <Badge variant={!student.score || student.error ? "outline" : "default"} className="text-lg font-bold p-2 w-16 justify-center block">
+                                        {student.grade || '—'}
+                                    </Badge>
+                                </div>
+                                <div className="space-y-2">
+                                     <Label>Status</Label>
+                                     <div>
+                                        {student.gradeStatus === 'Pending Approval' ? 
+                                            <Badge variant="secondary" className="bg-yellow-500 text-white">Pending</Badge> :
+                                        student.gradeStatus === 'Approved' ?
+                                            <Badge variant="default" className="bg-green-600">Approved</Badge> :
+                                            <Badge variant="outline">Unmarked</Badge>
+                                        }
+                                     </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                 </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+const getStatusBadge = (status: Exam['status']) => {
+    switch (status) {
+        case 'Open': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600">Open</Badge>;
+        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending Approval</Badge>;
+        case 'Closed': return <Badge variant="outline">Closed</Badge>;
+        case 'Grading Complete': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Grading Complete</Badge>;
+        default: return <Badge variant="outline">{status}</Badge>;
+    }
+}
+
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
     const { user: adminUser } = useAuth();
+    
     const [exams, setExams] = React.useState<Exam[]>([]);
+    const [selectedExamForGrading, setSelectedExamForGrading] = React.useState<Exam | null>(null);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
     const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
     const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
@@ -810,6 +1173,10 @@ export default function AdminGradesPage() {
             toast({ title: 'Error', description: 'Could not delete exam.', variant: 'destructive' });
         }
     };
+    
+    if (selectedExamForGrading) {
+        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
+    }
 
 
     if (!schoolId) {
@@ -1028,7 +1395,7 @@ export default function AdminGradesPage() {
                                         <TableHead>Class</TableHead>
                                         <TableHead>Subject</TableHead>
                                         <TableHead>Date</TableHead>
-                                        <TableHead>Type</TableHead>
+                                        <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -1039,9 +1406,9 @@ export default function AdminGradesPage() {
                                             <TableCell>{exam.class}</TableCell>
                                             <TableCell>{exam.subject}</TableCell>
                                             <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
-                                            <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
+                                            <TableCell>{getStatusBadge(exam.status)}</TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button variant="outline" size="sm" onClick={() => toast({title: "Notifications Sent", description: "Teachers have been notified about this exam."})}><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
+                                                 <Button variant="outline" size="sm" onClick={() => setSelectedExamForGrading(exam)}>Enter Grades</Button>
                                                 <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
@@ -1344,5 +1711,3 @@ export default function AdminGradesPage() {
     </div>
   );
 }
-
-    
