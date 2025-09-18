@@ -20,7 +20,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select';
+  } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
@@ -56,6 +56,8 @@ export default function SettingsPage() {
     
     // States for all settings
     const [feeAlertsEnabled, setFeeAlertsEnabled] = React.useState(true);
+    const [attendanceAlerts, setAttendanceAlerts] = React.useState(true);
+    const [systemAlerts, setSystemAlerts] = React.useState(true);
     const [reminderSchedule, setReminderSchedule] = React.useState('weekly');
     const [reminderDay, setReminderDay] = React.useState('monday');
     const [reminderThreshold, setReminderThreshold] = React.useState(7);
