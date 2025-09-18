@@ -147,11 +147,14 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
 
         const recordsInPeriod = records.filter(record => {
             const recordDate = record.date.toDate();
+            // Refined date filtering logic
             if (dateRange?.from && !dateRange.to) { // Single day selected
                 return recordDate.toDateString() === dateRange.from.toDateString();
             }
-            const isDateInRange = dateRange?.from && dateRange?.to ? recordDate >= dateRange.from && recordDate <= dateRange.to : true;
-            return isDateInRange;
+            if(dateRange?.from && dateRange?.to) {
+                return recordDate >= dateRange.from && recordDate <= dateRange.to;
+            }
+            return false;
         });
 
         const classData: Record<string, { present: number, total: number, teacher: string, teacherId?: string }> = {};
