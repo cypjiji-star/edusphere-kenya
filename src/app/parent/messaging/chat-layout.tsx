@@ -58,8 +58,6 @@ export function ParentChatLayout() {
   const { toast } = useToast();
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   
-  const [allUsers, setAllUsers] = React.useState<{id: string, name: string, role: string, class?: string}[]>([]);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -67,32 +65,6 @@ export function ParentChatLayout() {
   React.useEffect(() => {
     scrollToBottom();
   }, [messages]);
-  
-   React.useEffect(() => {
-    if (!schoolId) return;
-    
-    const fetchUsers = async () => {
-      const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
-      const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
-      const parentsQuery = query(collection(firestore, `schools/${schoolId}/parents`));
-
-      const [usersSnap, studentsSnap, parentsSnap] = await Promise.all([
-        getDocs(usersQuery),
-        getDocs(studentsQuery),
-        getDocs(parentsQuery),
-      ]);
-
-      const combinedUsers = [
-        ...usersSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-        ...studentsSnap.docs.map(d => ({ id: d.id, ...d.data(), role: 'Student' })),
-        ...parentsSnap.docs.map(d => ({ id: d.id, ...d.data(), role: 'Parent' })),
-      ].map(u => ({ id: u.id, name: u.name, role: u.role, class: u.class }));
-
-      setAllUsers(combinedUsers as {id: string, name: string, role: string, class?: string}[]);
-    }
-    fetchUsers();
-  }, [schoolId]);
-
 
   React.useEffect(() => {
     if (!schoolId || !user) return;
