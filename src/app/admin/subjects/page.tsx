@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck, FileDown, Printer, ChevronDown, GraduationCap } from 'lucide-react';
+import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck, FileDown, Printer, ChevronDown, GraduationCap, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -112,7 +113,7 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
 
         try {
             const assignmentRef = doc(firestore, 'schools', schoolId, 'class-assignments', schoolClass.id);
-            await setDoc(assignmentRef, { assignments, schoolId: schoolId });
+            await setDoc(assignmentRef, { assignments });
             // Optimistic update
             setClassAssignments(prev => ({ ...prev, [schoolClass.id]: assignments }));
         } catch (e) {
@@ -218,7 +219,7 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                     </div>
                 </div>
                 <DialogFooter className="justify-between">
-                    <Button variant="destructive" onClick={() => { onDelete(subject.id, subject.name); onOpenChange(false); }}>
+                     <Button variant="destructive" onClick={() => { onDelete(subject.id, subject.name); onOpenChange(false); }}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Subject
                     </Button>
@@ -271,7 +272,7 @@ export default function ClassesAndSubjectsPage() {
         const unsubSubjects = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
             setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
         });
-        const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'teachers')), (snapshot) => {
+        const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher')), (snapshot) => {
             setTeachers(snapshot.docs.map(d => ({ id: d.id, name: d.data().name, avatarUrl: d.data().avatarUrl } as Teacher)));
         });
         const unsubAssignments = onSnapshot(collection(firestore, 'schools', schoolId, 'class-assignments'), (snapshot) => {
@@ -330,7 +331,6 @@ export default function ClassesAndSubjectsPage() {
                 capacity: Number(newClassCapacity),
                 studentCount: 0,
                 status: 'Active',
-                schoolId: schoolId,
                 createdAt: serverTimestamp(),
             });
 
@@ -389,7 +389,7 @@ export default function ClassesAndSubjectsPage() {
 
         try {
             const assignmentRef = doc(firestore, `schools/${schoolId}/class-assignments`, classId);
-            await setDoc(assignmentRef, { assignments: updatedAssignments, schoolId: schoolId }, { merge: true });
+            await setDoc(assignmentRef, { assignments: updatedAssignments }, { merge: true });
             toast({
                 title: 'Teacher Assigned',
                 description: `${teacherName} has been assigned to teach ${subject} in this class.`
@@ -429,7 +429,6 @@ export default function ClassesAndSubjectsPage() {
                 department: newSubjectDept,
                 teachers: newSubjectTeachers,
                 classes: [],
-                schoolId: schoolId,
                 createdAt: serverTimestamp(),
             });
             toast({ title: 'Subject Created' });
