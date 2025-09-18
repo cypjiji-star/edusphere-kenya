@@ -101,6 +101,12 @@ type Exam = {
     type: 'CAT' | 'Midterm' | 'Final' | 'Practical';
 };
 
+type GroupedExam = Exam & {
+    isGrouped?: boolean;
+    subjectCount?: number;
+    groupedIds?: string[];
+};
+
 type StudentGrade = {
     studentId: string;
     studentName: string;
@@ -490,6 +496,34 @@ export default function AdminGradesPage() {
         const exam = exams.find(e => e.id === selectedGradebookExam);
         return exam ? [exam.subject] : [];
     }, [exams, selectedGradebookExam]);
+    
+    const groupedExams = React.useMemo(() => {
+        const groups = new Map<string, Exam[]>();
+        exams.forEach(exam => {
+            const key = `${exam.title}|${exam.classId}|${exam.date.toMillis()}`;
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key)!.push(exam);
+        });
+
+        const allSubjectsCount = subjects.length;
+
+        return Array.from(groups.values()).map(group => {
+            const representative = group[0];
+            if (group.length > 1) {
+                return {
+                    ...representative,
+                    id: group.map(g => g.id).join(','), // Combine IDs for unique key & deletion
+                    isGrouped: true,
+                    subjectCount: group.length,
+                    subject: group.length === allSubjectsCount ? 'All Subjects' : `${group.length} subjects`,
+                    groupedIds: group.map(g => g.id),
+                };
+            }
+            return representative;
+        });
+    }, [exams, subjects.length]);
 
 
     const handleCreateExam = async () => {
@@ -702,15 +736,25 @@ export default function AdminGradesPage() {
         }, 300);
     };
     
-    const handleDeleteExam = async (examId: string) => {
-      if (!schoolId || !window.confirm('Are you sure you want to delete this exam? This action cannot be undone.')) return;
-      try {
-        await deleteDoc(doc(firestore, `schools/${schoolId}/exams`, examId));
-        toast({ title: 'Exam Deleted', description: 'The exam has been removed.', variant: 'destructive'});
-      } catch (error) {
-        console.error("Error deleting exam:", error);
-        toast({ title: 'Error', description: 'Could not delete exam.', variant: 'destructive'});
-      }
+    const handleDeleteExam = async (exam: GroupedExam) => {
+        if (!schoolId) return;
+        const examIdsToDelete = exam.isGrouped ? exam.groupedIds! : [exam.id];
+
+        if (!window.confirm(`Are you sure you want to delete this exam entry? This will delete ${examIdsToDelete.length} exam(s) and cannot be undone.`)) return;
+
+        const batch = writeBatch(firestore);
+        examIdsToDelete.forEach(id => {
+            const examRef = doc(firestore, `schools/${schoolId}/exams`, id);
+            batch.delete(examRef);
+        });
+
+        try {
+            await batch.commit();
+            toast({ title: 'Exam Deleted', description: 'The exam has been removed.', variant: 'destructive' });
+        } catch (error) {
+            console.error("Error deleting exam:", error);
+            toast({ title: 'Error', description: 'Could not delete exam.', variant: 'destructive' });
+        }
     };
 
 
@@ -934,7 +978,7 @@ export default function AdminGradesPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {exams.map(exam => (
+                                    {groupedExams.map(exam => (
                                         <TableRow key={exam.id}>
                                             <TableCell className="font-medium">{exam.title}</TableCell>
                                             <TableCell>{exam.class}</TableCell>
@@ -945,7 +989,7 @@ export default function AdminGradesPage() {
                                                 <Button variant="outline" size="sm" onClick={() => toast({title: "Notifications Sent", description: "Teachers have been notified about this exam."})}><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
                                                 <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(exam.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
