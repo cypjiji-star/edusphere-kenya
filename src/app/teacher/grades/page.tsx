@@ -282,7 +282,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 </Button>
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle className="font-headline text-2xl">Enter Marks: {exam.title}</CardTitle>
+                        <CardTitle className="font-headline text-2xl">{isLocked ? 'View Marks:' : 'Enter Marks:'} {exam.title}</CardTitle>
                         <CardDescription>{exam.className} - {exam.subject}</CardDescription>
                     </div>
                     {isLocked ? (
@@ -484,7 +484,6 @@ export default function TeacherGradesPage() {
 
             if (examQueries.length > 0) {
                 setIsLoading(true);
-                // Since we can't do an OR query, we fetch both and merge
                 Promise.all(examQueries.map(q => getDocs(q))).then(results => {
                     const examMap = new Map<string, Exam>();
                     results.forEach(snapshot => {
@@ -724,7 +723,11 @@ export default function TeacherGradesPage() {
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button size="sm" onClick={() => setSelectedExam(exam)}>Enter Marks</Button>
+                                            {exam.status === 'Open' ? (
+                                                <Button size="sm" onClick={() => setSelectedExam(exam)}>Enter Marks</Button>
+                                            ) : (
+                                                <Button size="sm" onClick={() => setSelectedExam(exam)} variant="outline">View Results</Button>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -746,11 +749,13 @@ export default function TeacherGradesPage() {
                                 </CardHeader>
                                 <CardContent className="space-y-2">
                                     <p className="text-sm">Date: {exam.date?.toDate().toLocaleDateString()}</p>
-                                    <p className="text-sm">Status: {exam.status}</p>
+                                    <p className="text-sm flex items-center gap-2">Status: {getStatusBadge(exam.status)}</p>
                                     {exam.moderatorFeedback && (
                                         <p className="text-sm text-yellow-500">Feedback: {exam.moderatorFeedback}</p>
                                     )}
-                                    <Button size="sm" className="w-full" onClick={() => setSelectedExam(exam)}>Enter Marks</Button>
+                                    <Button size="sm" className="w-full" onClick={() => setSelectedExam(exam)}>
+                                        {exam.status === 'Open' ? 'Enter Marks' : 'View Results'}
+                                    </Button>
                                 </CardContent>
                             </Card>
                         ))
@@ -764,3 +769,4 @@ export default function TeacherGradesPage() {
   )
 }
 
+    
