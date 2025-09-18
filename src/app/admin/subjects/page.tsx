@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -26,7 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck, FileDown, Printer, ChevronDown, GraduationCap, Loader2 } from 'lucide-react';
+import { Shapes, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, AlertCircle, UserCheck, FileDown, Printer, ChevronDown, GraduationCap, Loader2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -706,9 +707,9 @@ export default function ClassesAndSubjectsPage() {
                                             <span>Class Teacher: {schoolClass.classTeacher.name}</span>
                                         </div>
                                          <div className="flex items-center gap-2">
-                                            <Users className="h-4 w-4 text-muted-foreground"/>
-                                            <span>Enrollment: {schoolClass.studentCount} / {schoolClass.capacity}</span>
-                                        </div>
+                                             <Users className="h-4 w-4 text-muted-foreground"/>
+                                             <span>Enrollment: {schoolClass.studentCount} / {schoolClass.capacity}</span>
+                                         </div>
                                     </div>
                                 </CardContent>
                                 <CardFooter className="flex justify-end">
