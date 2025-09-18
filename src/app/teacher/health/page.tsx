@@ -12,7 +12,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,10 +39,8 @@ import {
   } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { HeartPulse, Search, ShieldAlert, Stethoscope, User, Phone, FileText, CalendarIcon, Siren, Send, Paperclip, Loader2, X } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { HeartPulse, Search, CalendarIcon, Siren, Send, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -61,7 +58,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
@@ -370,9 +367,9 @@ export default function TeacherHealthPage() {
                                                                         <FormControl>
                                                                             <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
                                                                         </FormControl>
-                                                                        <FormLabel htmlFor={`urgency-teacher-${level}`} className="font-normal">
+                                                                        <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
                                                                             <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                                        </FormLabel>
+                                                                        </Label>
                                                                     </FormItem>
                                                                 ))}
                                                             </RadioGroup>
@@ -482,4 +479,5 @@ export default function TeacherHealthPage() {
             </div>
         </Dialog>
     );
-}
+
+    
