@@ -39,6 +39,7 @@ import {
   Columns,
   Loader2,
   Send,
+  RefreshCcw,
 } from 'lucide-react';
 import {
   Table,
@@ -58,6 +59,17 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   Select,
   SelectContent,
@@ -120,6 +132,18 @@ type StudentGrade = {
     scores: Record<string, number>;
 };
 
+type StudentGradeEntry = {
+    studentId: string;
+    studentName: string;
+    avatarUrl: string;
+    admNo: string;
+    score: string;
+    grade: string;
+    gradeStatus: 'Unmarked' | 'Pending Approval' | 'Approved';
+    submissionId?: string;
+    error?: string;
+}
+
 type Ranking = {
     position: number;
     streamPosition: number;
@@ -151,6 +175,11 @@ type PendingGrade = {
     examId: string;
 };
 
+type TeacherClass = {
+    id: string;
+    name: string;
+}
+
 
 const examTypes: Exam['type'][] = ['CAT', 'Midterm', 'Final', 'Practical'];
 
@@ -166,6 +195,25 @@ const schoolInfo = {
     motto: "Excellence & Integrity",
     logoUrl: "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
 };
+
+const getStatusBadge = (status: Exam['status']) => {
+    switch (status) {
+        case 'Open': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600">Open</Badge>;
+        case 'Pending Approval': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending Approval</Badge>;
+        case 'Closed': return <Badge variant="outline">Closed</Badge>;
+        case 'Grading Complete': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Grading Complete</Badge>;
+        default: return <Badge variant="outline">{status}</Badge>;
+    }
+}
+
+function calculateGrade(score: number): string {
+    if (isNaN(score) || score < 0 || score > 100) return '';
+    if (score >= 80) return 'A';
+    if (score >= 65) return 'B';
+    if (score >= 50) return 'C';
+    if (score >= 40) return 'D';
+    return 'E';
+}
 
 
 function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { student: Ranking | null, studentGrades: StudentGrade[] | null, open: boolean, onOpenChange: (open: boolean) => void }) {
