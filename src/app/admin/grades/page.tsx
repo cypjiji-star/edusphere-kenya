@@ -524,6 +524,47 @@ export default function AdminGradesPage() {
             toast({ title: 'Failed to publish results.', variant: 'destructive' });
         }
     };
+    
+    const handlePrintResults = () => {
+        window.print();
+    };
+
+    const handleDownloadAllReportCards = () => {
+        const doc = new jsPDF();
+        
+        classRanking.forEach((student, index) => {
+            if (index > 0) {
+                doc.addPage();
+            }
+            const studentData = studentGrades.find(s => s.admNo === student.admNo);
+            
+            doc.text(`${schoolInfo.name} Report Card`, 14, 22);
+            doc.text(`Student: ${student.name}`, 14, 30);
+            doc.text(`Admission No: ${student.admNo}`, 14, 36);
+
+            (doc as any).autoTable({
+                startY: 45,
+                head: [['Subject', 'Score', 'Grade']],
+                body: studentData ? Object.entries(studentData.scores).map(([subject, score]) => [
+                    subject,
+                    score,
+                    score >= 80 ? 'A' : score >= 65 ? 'B' : 'C'
+                ]) : [],
+            });
+
+            const finalY = (doc as any).lastAutoTable.finalY;
+            doc.text(`Total Marks: ${student.total}`, 14, finalY + 10);
+            doc.text(`Average: ${student.avg.toFixed(1)}%`, 14, finalY + 16);
+            doc.text(`Mean Grade: ${student.grade}`, 14, finalY + 22);
+            doc.text(`Class Rank: ${student.position} of ${classRanking.length}`, 14, finalY + 28);
+        });
+
+        doc.save('all-report-cards.pdf');
+        toast({
+            title: "Bulk Download Started",
+            description: "All report cards are being downloaded as a single PDF.",
+        });
+    };
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -922,8 +963,8 @@ export default function AdminGradesPage() {
                                         </DialogFooter>
                                     </DialogContent>
                                 </Dialog>
-                                <Button variant="secondary" disabled><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
-                                <Button variant="secondary" disabled><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
+                                <Button variant="secondary" onClick={handlePrintResults}><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
+                                <Button variant="secondary" onClick={handleDownloadAllReportCards}><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
                             </div>
                         </div>
                     </CardHeader>
@@ -1005,4 +1046,5 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
 
