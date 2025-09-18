@@ -293,6 +293,19 @@ export default function AdminAnnouncementsPage() {
         
         await addDoc(collection(firestore, 'schools', schoolId, 'announcements'), newAnnouncement);
         
+        let notificationAudience = 'all';
+        if (values.audience.includes('Parent')) notificationAudience = 'parent';
+        if (values.audience.includes('Staff')) notificationAudience = 'teacher';
+
+        await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+            title: `New Announcement: ${values.title}`,
+            description: values.message.substring(0, 100),
+            createdAt: serverTimestamp(),
+            category: 'Communication',
+            href: '/parent/announcements',
+            audience: notificationAudience,
+        });
+
         form.reset();
         setAttachedFile(null);
         

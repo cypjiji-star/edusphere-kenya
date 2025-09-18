@@ -329,7 +329,7 @@ export default function UserManagementListPage() {
       }
     
       try {
-        const authResult = await deleteUserAction(userId);
+        const authResult = await deleteUserAction(userId, schoolId);
         if (!authResult.success && !authResult.message?.includes('user-not-found')) {
           throw new Error(authResult.message);
         }
