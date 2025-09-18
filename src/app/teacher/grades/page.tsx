@@ -69,6 +69,7 @@ type Exam = {
     subject: string;
     date: Timestamp;
     status: 'Open' | 'Pending Approval' | 'Closed';
+    moderatorFeedback?: string;
 };
 
 type TeacherClass = {
@@ -86,6 +87,27 @@ type StudentGradeEntry = {
     submissionId?: string;
     error?: string;
 };
+
+const getCurrentTerm = (): string => {
+  const today = new Date();
+  const month = today.getMonth();
+  const year = today.getFullYear();
+  if (month >= 0 && month <= 3) return `term1-${year}`;
+  if (month >= 4 && month <= 7) return `term2-${year}`;
+  return `term3-${year}`;
+};
+
+const generateAcademicTerms = () => {
+    const currentYear = new Date().getFullYear();
+    const terms = [];
+    for (let year = currentYear - 2; year <= currentYear; year++) {
+        terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
+        terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
+        terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
+    }
+    return terms.sort((a,b) => b.value.localeCompare(a.value));
+};
+
 
 const getStatusBadge = (status: Exam['status']) => {
     switch(status) {
@@ -382,7 +404,8 @@ export default function TeacherGradesPage() {
 
     const [classFilter, setClassFilter] = React.useState('all');
     const [subjectFilter, setSubjectFilter] = React.useState('all');
-    const [termFilter, setTermFilter] = React.useState('term2-2024');
+    const [academicTerms] = React.useState(generateAcademicTerms());
+    const [termFilter, setTermFilter] = React.useState(getCurrentTerm());
 
     const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
     const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
@@ -599,8 +622,7 @@ export default function TeacherGradesPage() {
                             <SelectValue placeholder="Filter by term..." />
                         </SelectTrigger>
                         <SelectContent>
-                             <SelectItem value="term2-2024">Term 2, 2024</SelectItem>
-                             <SelectItem value="term1-2024">Term 1, 2024</SelectItem>
+                            {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
@@ -614,12 +636,13 @@ export default function TeacherGradesPage() {
                                 <TableHead>Class &amp; Subject</TableHead>
                                 <TableHead>Exam Date</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead>Feedback</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
                             ) : filteredExams.length > 0 ? (
                                 filteredExams.map(exam => (
                                     <TableRow key={exam.id}>
@@ -630,6 +653,23 @@ export default function TeacherGradesPage() {
                                         </TableCell>
                                         <TableCell>{exam.date.toDate().toLocaleDateString()}</TableCell>
                                         <TableCell>{getStatusBadge(exam.status)}</TableCell>
+                                        <TableCell>
+                                            {exam.moderatorFeedback && (
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="ghost" size="sm" className="text-yellow-500 hover:text-yellow-600">
+                                                            <AlertTriangle className="mr-2 h-4 w-4"/>View
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Moderator Feedback</DialogTitle>
+                                                        </DialogHeader>
+                                                        <p className="py-4">{exam.moderatorFeedback}</p>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-right space-x-2">
                                             <Button variant="outline" size="sm" onClick={() => setSelectedExam(exam)} disabled={exam.status !== 'Open'}>
                                                 <Plus className="mr-2 h-4 w-4"/>
@@ -643,7 +683,7 @@ export default function TeacherGradesPage() {
                                     </TableRow>
                                 ))
                             ) : (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No exams found for the selected filters.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-24 text-center">No exams found for the selected filters.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

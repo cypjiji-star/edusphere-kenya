@@ -38,6 +38,7 @@ import {
   XCircle,
   Columns,
   Loader2,
+  Send,
 } from 'lucide-react';
 import {
   Table,
@@ -88,6 +89,7 @@ import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orde
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
+import { Textarea } from '@/components/ui/textarea';
 
 
 type Exam = {
@@ -99,6 +101,7 @@ type Exam = {
     date: Timestamp;
     duration: number; // in minutes
     type: 'CAT' | 'Midterm' | 'Final' | 'Practical';
+    moderatorFeedback?: string;
 };
 
 type GroupedExam = Exam & {
@@ -310,6 +313,37 @@ const generateAcademicTerms = () => {
     return terms.sort((a,b) => b.value.localeCompare(a.value));
 }
 
+function RejectGradeDialog({ open, onOpenChange, onSubmit, grade }: { open: boolean, onOpenChange: (open: boolean) => void, onSubmit: (feedback: string) => void, grade: PendingGrade | null }) {
+    const [feedback, setFeedback] = React.useState('');
+    if (!grade) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reject Grade Submission</DialogTitle>
+                    <DialogDescription>
+                        Provide feedback to the teacher explaining why the grade for {grade.studentName} in {grade.subject} is being rejected. The teacher will be able to edit and resubmit.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="feedback-input">Feedback</Label>
+                    <Textarea
+                        id="feedback-input"
+                        placeholder="e.g., Please double check this score, it seems unusually low..."
+                        value={feedback}
+                        onChange={(e) => setFeedback(e.target.value)}
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={() => onSubmit(feedback)} disabled={!feedback}>Reject &amp; Send Feedback</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
@@ -346,6 +380,7 @@ export default function AdminGradesPage() {
     const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
+    const [gradeToReject, setGradeToReject] = React.useState<PendingGrade | null>(null);
 
 
     React.useEffect(() => {
@@ -601,24 +636,28 @@ export default function AdminGradesPage() {
         }
     };
     
-    const handleGradeModeration = async (gradeId: string, studentId: string, studentName: string, subject: string, grade: string, decision: 'Approved' | 'Rejected') => {
+    const handleGradeModeration = async (gradeId: string, studentId: string, studentName: string, subject: string, grade: string, decision: 'Approved' | 'Rejected', feedback?: string) => {
         if (!schoolId || !adminUser) return;
         const gradeRef = doc(firestore, `schools/${schoolId}/grades`, gradeId);
         try {
-            await updateDoc(gradeRef, { status: decision });
+            await updateDoc(gradeRef, { status: decision, moderatorFeedback: feedback || null });
             
             await logAuditEvent({
                 schoolId,
                 action: decision === 'Approved' ? 'GRADE_APPROVED' : 'GRADE_REJECTED',
                 actionType: 'Academics',
                 user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-                details: `${decision} grade of ${grade} for ${studentName} in ${subject}.`,
+                details: `${decision} grade of ${grade} for ${studentName} in ${subject}. Feedback: ${feedback || 'N/A'}`,
             });
             
             toast({
                 title: `Grade ${decision}`,
                 description: `The grade has been successfully ${decision.toLowerCase()}.`,
             });
+
+            if (decision === 'Rejected') {
+                setGradeToReject(null);
+            }
         } catch (e) {
             toast({ title: 'Error', description: 'Could not update grade status.', variant: 'destructive' });
         }
@@ -764,6 +803,7 @@ export default function AdminGradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+        <RejectGradeDialog open={!!gradeToReject} onOpenChange={(open) => !open && setGradeToReject(null)} grade={gradeToReject} onSubmit={(feedback) => handleGradeModeration(gradeToReject!.id, gradeToReject!.studentId, gradeToReject!.studentName, gradeToReject!.subject, gradeToReject!.grade, 'Rejected', feedback)} />
         <ReportCardDialog student={selectedStudentForReport} studentGrades={studentGrades} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
@@ -1114,7 +1154,7 @@ export default function AdminGradesPage() {
                                                 <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Approved')}>
                                                     <CheckCircle className="mr-2 h-4 w-4"/>Approve
                                                 </Button>
-                                                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Rejected')}>
+                                                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => setGradeToReject(grade)}>
                                                     <XCircle className="mr-2 h-4 w-4"/>Reject
                                                 </Button>
                                             </TableCell>
