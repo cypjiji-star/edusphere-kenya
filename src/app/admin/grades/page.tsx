@@ -331,15 +331,14 @@ export default function AdminGradesPage() {
   const [isGradebookLoading, setIsGradebookLoading] = React.useState(true);
   const [isSavingScale, setIsSavingScale] = React.useState(false);
   
-  const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
-  
   const currentYear = new Date().getFullYear();
   const academicTerms = Array.from({ length: 2 }, (_, i) => {
     const year = currentYear - 1 + i;
     return [`Term 1, ${year}`, `Term 2, ${year}`, `Term 3, ${year}`];
   }).flat();
   academicTerms.push(...[`Term 1, ${currentYear + 1}`, `Term 2, ${currentYear + 1}`, `Term 3, ${currentYear + 1}`]);
-
+  
+  const [isExamDialogOpen, setIsExamDialogOpen] = React.useState(false);
   const [newExamTitle, setNewExamTitle] = React.useState('');
   const [newExamTerm, setNewExamTerm] = React.useState(academicTerms[4]);
   const [newExamClass, setNewExamClass] = React.useState<string>('');
@@ -357,6 +356,7 @@ export default function AdminGradesPage() {
   const handleClassChange = React.useCallback((value: string) => {
     setNewExamClass(value);
   }, []);
+
 
   React.useEffect(() => {
     if (editingExam && editingExam.startDate && editingExam.endDate) {
@@ -552,7 +552,12 @@ export default function AdminGradesPage() {
     }
     setGradingScale(newScale);
   };
-  
+
+  const handleCheckboxChange = (index: number, checked: boolean) => {
+    const newScale = [...gradingScale];
+    newScale[index] = { ...newScale[index], isDefault: checked };
+    setGradingScale(newScale);
+  }
 
   const addGradingRow = () => {
     setGradingScale([...gradingScale, { grade: 'New', min: 0, max: 0, isDefault: false }]);
@@ -947,7 +952,7 @@ export default function AdminGradesPage() {
                     onChange={(e) => setExamSearchTerm(e.target.value)}
                   />
                 </div>
-                <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                <Select value={selectedClassForRanking} onValueChange={(value) => setSelectedClassForRanking(value)}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Filter by class" />
                   </SelectTrigger>
@@ -1035,7 +1040,7 @@ export default function AdminGradesPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-4">
-                <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                <Select value={selectedClassForRanking} onValueChange={(value) => setSelectedClassForRanking(value)}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Select class" />
                   </SelectTrigger>
@@ -1173,7 +1178,7 @@ export default function AdminGradesPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-4">
-                <Select value={selectedClassForRanking} onValueChange={setSelectedClassForRanking}>
+                <Select value={selectedClassForRanking} onValueChange={(value) => setSelectedClassForRanking(value)}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Select class" />
                   </SelectTrigger>
@@ -1298,3 +1303,5 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+
+    
