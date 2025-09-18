@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -9,110 +10,21 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  ArrowLeft,
-  BookOpen,
-  Share2,
-  Copy,
-  FileDown,
-  ChevronDown,
-  Users,
-  Eye,
-} from 'lucide-react';
+import { ArrowLeft, BookOpen } from 'lucide-react';
 import Link from 'next/link';
-import { LessonPlanForm } from './lesson-plan-form';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { LessonPlanForm } from '../new/lesson-plan-form';
 import { useSearchParams } from 'next/navigation';
-
-const versionHistory = [
-  {
-    version: 3,
-    date: '2024-07-28 10:00 AM',
-    author: 'Ms. Wanjiku',
-    summary: 'Added new assessment method.',
-    data: {
-      topic: 'Photosynthesis & Respiration',
-      subject: 'Biology',
-      grade: 'Form 2',
-      date: '2024-07-28',
-      objectives: 'Students will be able to explain the Krebs cycle.',
-      activities: '1. Lecture on Krebs Cycle\n2. Diagram drawing.',
-      assessment: 'Label a diagram of the Krebs cycle.',
-    },
-  },
-  {
-    version: 2,
-    date: '2024-07-27 03:20 PM',
-    author: 'Ms. Wanjiku',
-    summary: 'Revised learning activities.',
-    data: {
-      topic: 'Photosynthesis & Respiration',
-      subject: 'Biology',
-      grade: 'Form 2',
-      date: '2024-07-27',
-      objectives: 'Students will understand the light-dependent reactions.',
-      activities: '1. Watch video on light reactions.\n2. Group discussion.',
-      assessment: 'Q&A session.',
-    },
-  },
-  {
-    version: 1,
-    date: '2024-07-26 09:00 AM',
-    author: 'Ms. Wanjiku',
-    summary: 'Initial draft created.',
-    data: {
-      topic: 'Photosynthesis',
-      subject: 'Biology',
-      grade: 'Form 2',
-      date: '2024-07-26',
-      objectives: 'Define Photosynthesis.',
-      activities: 'Introductory lecture.',
-      assessment: 'Define the term.',
-    },
-  },
-];
 
 export default function NewLessonPlanPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const lessonPlanId = searchParams.get('id') || undefined;
   const prefilledDate = searchParams.get('date') || undefined;
-  const isEditMode = !!lessonPlanId;
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = React.useState('editor');
-  const [formKey, setFormKey] = React.useState(Date.now()); // Used to force re-render of form
-
-  const handleRestore = (versionData: Record<string, any>) => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem(
-        'restoredLessonPlan',
-        JSON.stringify(versionData)
-      );
-    }
-    setFormKey(Date.now()); // Force re-render of LessonPlanForm
-    toast({
-      title: 'Version Restored',
-      description: 'The selected version has been loaded into the editor.',
-    });
-    setActiveTab('editor');
-  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/teacher/lesson-plans?schoolId=${schoolId ?? ''}`}>
+          <Link href={`/admin/lesson-plans?schoolId=${schoolId}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to All Lesson Plans
           </Link>
@@ -120,170 +32,25 @@ export default function NewLessonPlanPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between">
+        <CardHeader>
           <div>
             <CardTitle className="font-headline text-2xl flex items-center gap-2">
               <BookOpen className="h-6 w-6 text-primary" />
-              {isEditMode ? 'Edit Lesson Plan' : 'Lesson Plan Builder'}
+              Lesson Plan Builder
             </CardTitle>
             <CardDescription>
-              {isEditMode
-                ? 'Update the details for your existing lesson plan.'
-                : 'Fill in the details below. Use the AI Assistant to help generate content.'}
+              Fill in the details below. Use the AI Assistant to help generate content.
             </CardDescription>
           </div>
-
-          {isEditMode && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" aria-label="Share and actions menu">
-                  Share / Actions
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem>
-                  <Share2 className="mr-2" />
-                  Share with a colleague
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Copy className="mr-2" />
-                  Copy to another class
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <FileDown className="mr-2" />
-                  Print / Export as PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
         </CardHeader>
-
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {isEditMode && (
-              <TabsList className="mb-4">
-                <TabsTrigger value="editor">Editor</TabsTrigger>
-                <TabsTrigger value="history">Version History</TabsTrigger>
-                <TabsTrigger value="permissions">Permissions</TabsTrigger>
-              </TabsList>
-            )}
-
-            {/* Editor Tab */}
-            <TabsContent value="editor">
-              {schoolId ? (
-                <LessonPlanForm
-                  key={formKey}
-                  lessonPlanId={lessonPlanId}
-                  prefilledDate={prefilledDate}
-                  schoolId={schoolId}
-                />
-              ) : (
-                <p className="text-red-500 text-sm">
+          {schoolId ? (
+            <LessonPlanForm prefilledDate={prefilledDate} schoolId={schoolId} />
+          ) : (
+             <p className="text-red-500 text-sm">
                   Error: School ID is missing.
-                </p>
-              )}
-            </TabsContent>
-
-            {/* Version History Tab */}
-            <TabsContent value="history">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Version History</CardTitle>
-                  <CardDescription>
-                    Review and restore previous versions of this lesson plan.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {versionHistory.map((version) => (
-                    <div key={version.version} className="flex items-start gap-4">
-                      <Avatar>
-                        <AvatarImage src="https://picsum.photos/seed/teacher-avatar/100" />
-                        <AvatarFallback>
-                          {version.author.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">
-                            Version {version.version}
-                            <span className="font-normal text-muted-foreground">
-                              {' '}
-                              by {version.author}
-                            </span>
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {version.date}
-                          </p>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {version.summary}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRestore(version.data)}
-                      >
-                        Restore
-                      </Button>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Permissions Tab */}
-            <TabsContent value="permissions">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Permissions & Access Control</CardTitle>
-                  <CardDescription>
-                    Control who can view and edit this lesson plan.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold">
-                      Editing Permissions (Collaboration)
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Grant editing rights to other teachers to collaborate on
-                      this plan.
-                    </p>
-                    <div className="flex items-center space-x-2 p-3 rounded-md border">
-                      <Users className="h-5 w-5 text-primary" />
-                      <div className="flex-1">
-                        <p className="font-medium">Allow co-teachers to edit</p>
-                      </div>
-                      <Switch id="edit-perms" />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold">
-                      Viewing Permissions (Sharing)
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Shared lesson plans will appear as "read-only" for other
-                      teachers unless they are granted editing rights above.
-                    </p>
-                    <div className="flex items-center space-x-2 p-3 rounded-md border">
-                      <Eye className="h-5 w-5 text-primary" />
-                      <div className="flex-1">
-                        <p className="font-medium">
-                          Share with all Science Department teachers
-                        </p>
-                      </div>
-                      <Switch id="view-perms" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+             </p>
+          )}
         </CardContent>
       </Card>
     </div>

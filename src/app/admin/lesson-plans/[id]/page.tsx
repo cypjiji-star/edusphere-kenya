@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -25,6 +26,7 @@ import { LessonPlanForm } from '../new/lesson-plan-form';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
 import { collection, doc, onSnapshot, orderBy, query, Timestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 
 type VersionHistoryItem = {
@@ -33,6 +35,7 @@ type VersionHistoryItem = {
     date: Timestamp;
     author: string;
     summary: string;
+    data: any;
 };
 
 export default function EditLessonPlanPage({ params, searchParams }: { params: { id: string }, searchParams: { date?: string, schoolId: string }}) {
@@ -40,6 +43,9 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
   const { schoolId, date: prefilledDate } = searchParams;
   const isEditMode = !!lessonPlanId && lessonPlanId !== 'new';
   const [versionHistory, setVersionHistory] = React.useState<VersionHistoryItem[]>([]);
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = React.useState('editor');
+  const [formKey, setFormKey] = React.useState(Date.now()); // Used to force re-render of form
 
   React.useEffect(() => {
     if (!isEditMode || !schoolId) return;
@@ -57,6 +63,19 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
     return () => unsubscribe();
   }, [lessonPlanId, schoolId, isEditMode]);
 
+  const handleRestore = (version: VersionHistoryItem) => {
+    // We'll use session storage to pass the data to the form component
+    // This is a simple way to trigger a re-render with new default values
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('restoredLessonPlan', JSON.stringify(version.data));
+    }
+    setFormKey(Date.now()); // Force re-render of LessonPlanForm
+    toast({
+        title: `Version ${version.version} Restored`,
+        description: 'The selected version has been loaded into the editor. Review and save to make it the current version.',
+    });
+    setActiveTab('editor');
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -107,7 +126,7 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
             )}
         </CardHeader>
         <CardContent>
-            <Tabs defaultValue="editor" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 {isEditMode && (
                     <TabsList className="mb-4">
                         <TabsTrigger value="editor">Editor</TabsTrigger>
@@ -116,7 +135,7 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
                     </TabsList>
                 )}
                 <TabsContent value="editor">
-                     <LessonPlanForm lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} schoolId={schoolId} />
+                     <LessonPlanForm key={formKey} lessonPlanId={lessonPlanId} prefilledDate={prefilledDate} schoolId={schoolId} />
                 </TabsContent>
                 <TabsContent value="history">
                     <Card>
@@ -141,7 +160,7 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
                                         </div>
                                         <p className="text-sm text-muted-foreground">{version.summary}</p>
                                     </div>
-                                    <Button variant="outline" size="sm" disabled>Restore</Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleRestore(version)}>Restore</Button>
                                 </div>
                             ))}
                             {versionHistory.length === 0 && (

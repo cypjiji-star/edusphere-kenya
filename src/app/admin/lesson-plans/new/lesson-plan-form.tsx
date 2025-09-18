@@ -34,8 +34,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
-import { firestore } from '@/lib/firebase';
-import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot } from 'firebase/firestore';
+import { firestore, auth } from '@/lib/firebase';
+import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, getDocs, writeBatch } from 'firebase/firestore';
 
 
 export const lessonPlanSchema = z.object({
@@ -64,6 +64,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(!!lessonPlanId);
+  const user = auth.currentUser;
   
   const [subjects, setSubjects] = React.useState<string[]>([]);
   const [grades, setGrades] = React.useState<string[]>([]);
@@ -84,32 +85,49 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   });
 
   useEffect(() => {
+    const restoredData = sessionStorage.getItem('restoredLessonPlan');
+    if (restoredData) {
+      const parsedData = JSON.parse(restoredData);
+      // Date might be a string, convert it back to a Date object
+      if (parsedData.date && typeof parsedData.date === 'string') {
+        parsedData.date = new Date(parsedData.date);
+      }
+      form.reset(parsedData);
+      sessionStorage.removeItem('restoredLessonPlan');
+    }
+  }, [form]);
+
+  useEffect(() => {
     if (!schoolId) return;
 
-    const subjectsUnsub = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
+    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'));
+    const subjectsUnsub = onSnapshot(subjectsQuery, (snapshot) => {
         const subjectData = new Set<string>();
-        const gradeData = new Set<string>();
         snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            if (data.name) subjectData.add(data.name);
-            if (data.classes) {
-              data.classes.forEach((c: string) => gradeData.add(c.split(' ')[0]));
-            }
+            if (doc.data().name) subjectData.add(doc.data().name);
         });
         setSubjects(Array.from(subjectData));
+    });
+    
+    const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'));
+    const classesUnsub = onSnapshot(classesQuery, (snapshot) => {
+        const gradeData = new Set<string>();
+        snapshot.docs.forEach(doc => {
+            gradeData.add(doc.data().name);
+        });
         setGrades(Array.from(gradeData));
     });
 
     return () => {
         subjectsUnsub();
+        classesUnsub();
     }
   }, [schoolId]);
 
    useEffect(() => {
     if (lessonPlanId && schoolId) {
-      const fetchLessonPlan = async () => {
-        const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
-        const docSnap = await getDoc(docRef);
+      const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           form.reset({
@@ -117,37 +135,69 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
             date: data.date.toDate(),
           });
         }
-      }
-      fetchLessonPlan();
-      setIsEditMode(true);
+      });
+       setIsEditMode(true);
+      return () => unsubscribe();
     }
   }, [lessonPlanId, form, schoolId]);
   
   const formState = useWatch({ control: form.control });
 
   async function onSubmit(values: LessonPlanFormValues) {
+    if (!user) {
+        toast({variant: 'destructive', title: 'You must be logged in.'});
+        return;
+    }
     setIsLoading(true);
 
     try {
         if (isEditMode && lessonPlanId) {
-            // Update existing lesson plan
+            const batch = writeBatch(firestore);
             const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
-            await updateDoc(docRef, {
+            
+            const currentVersion = (await getDoc(docRef)).data()?.version || 1;
+
+            batch.update(docRef, {
                 ...values,
-                teacherId: 'teacher-wanjiku' // Placeholder
+                teacherId: user.uid,
+                version: currentVersion + 1,
             });
+            
+            const historyRef = doc(collection(firestore, `schools/${schoolId}/lesson-plans/${lessonPlanId}/history`));
+            batch.set(historyRef, {
+                version: currentVersion + 1,
+                date: serverTimestamp(),
+                author: user.displayName || 'User',
+                summary: 'Updated lesson plan details.',
+                data: values,
+            });
+
+            await batch.commit();
+
             toast({
                 title: `Lesson Plan Updated!`,
                 description: `"${values.topic}" has been successfully updated.`,
             });
         } else {
             // Create new lesson plan
-            await addDoc(collection(firestore, `schools/${schoolId}/lesson-plans`), {
+            const docRef = await addDoc(collection(firestore, `schools/${schoolId}/lesson-plans`), {
                 ...values,
-                teacherId: 'teacher-wanjiku', // Placeholder
+                teacher: { name: user.displayName, avatarUrl: user.photoURL },
+                teacherId: user.uid,
                 status: 'Draft',
                 createdAt: serverTimestamp(),
+                version: 1,
             });
+            
+             const historyRef = doc(collection(firestore, `schools/${schoolId}/lesson-plans/${docRef.id}/history`));
+             await setDoc(historyRef, {
+                version: 1,
+                date: serverTimestamp(),
+                author: user.displayName || 'User',
+                summary: 'Initial draft created.',
+                data: values,
+            });
+            
             toast({
                 title: `Lesson Plan Saved!`,
                 description: `"${values.topic}" has been successfully saved.`,
