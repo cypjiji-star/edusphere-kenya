@@ -84,7 +84,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, query, onSnapshot, orderBy, getDocs, where, getDoc, doc, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
@@ -124,7 +124,7 @@ type AuditLog = {
   id: string;
   timestamp: Timestamp;
   user: { id: string; name: string };
-  student: string;
+  student?: string;
   action: string;
   details: string;
 };
@@ -634,6 +634,18 @@ export default function AdminGradesPage() {
             setIsFileProcessed(false);
         }, 300);
     };
+    
+    const handleDeleteExam = async (examId: string) => {
+      if (!schoolId || !window.confirm('Are you sure you want to delete this exam? This action cannot be undone.')) return;
+      try {
+        await deleteDoc(doc(firestore, `schools/${schoolId}/exams`, examId));
+        toast({ title: 'Exam Deleted', description: 'The exam has been removed.', variant: 'destructive'});
+      } catch (error) {
+        console.error("Error deleting exam:", error);
+        toast({ title: 'Error', description: 'Could not delete exam.', variant: 'destructive'});
+      }
+    };
+
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing from URL.</div>
@@ -857,10 +869,10 @@ export default function AdminGradesPage() {
                                             <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
                                             <TableCell><Badge variant="outline">{exam.type}</Badge></TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                 <Button variant="outline" size="sm" onClick={() => toast({title: "Notifications Sent", description: "Teachers have been notified about this exam."})}><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
+                                                <Button variant="outline" size="sm" onClick={() => toast({title: "Notifications Sent", description: "Teachers have been notified about this exam."})}><Clock className="mr-2 h-4 w-4"/>Schedule &amp; Notify</Button>
                                                 <Button variant="ghost" size="icon" disabled><Copy className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" disabled><Edit className="h-4 w-4"/></Button>
-                                                <Button variant="ghost" size="icon" disabled><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(exam.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -1160,4 +1172,3 @@ export default function AdminGradesPage() {
     </div>
   );
 }
-
