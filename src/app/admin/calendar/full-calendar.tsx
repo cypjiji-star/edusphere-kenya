@@ -180,18 +180,25 @@ export function FullCalendar() {
     }
 
     if (notifyStaff || notifyParents) {
-        let notificationMessage = '';
-        if (notifyStaff && notifyParents) {
-            notificationMessage = 'Notifications sent to All Staff and All Parents.';
-        } else if (notifyStaff) {
-            notificationMessage = 'Notification sent to All Staff.';
-        } else if (notifyParents) {
-            notificationMessage = 'Notification sent to All Parents.';
+        let notificationAudience = '';
+        if (notifyStaff && notifyParents) notificationAudience = 'all';
+        else if (notifyStaff) notificationAudience = 'teacher';
+        else if (notifyParents) notificationAudience = 'parent';
+        
+        if (notificationAudience) {
+            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+                title: editingEvent ? `Event Updated: ${eventData.title}` : `New Event: ${eventData.title}`,
+                description: eventData.description.substring(0, 100),
+                createdAt: serverTimestamp(),
+                category: 'Communication',
+                href: '/parent/calendar',
+                audience: notificationAudience,
+            });
+            toast({
+                title: 'Notifications Sent',
+                description: `Event notification sent to relevant users.`,
+            });
         }
-        toast({
-            title: 'Notifications Sent',
-            description: notificationMessage,
-        });
     }
 
     resetForm();
@@ -579,4 +586,3 @@ export function FullCalendar() {
   );
 }
 
-    

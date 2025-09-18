@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -126,7 +125,7 @@ export default function PermissionsPage() {
             const updated = { ...rolesData };
              for (const roleName in updated) {
                 if(currentPermissions[roleName]) {
-                    updated[roleName].userCount = currentPermissions[roleName].userCount;
+                    updated[roleName].userCount = currentPermissions[roleName].userCount || 0;
                 }
             }
             return updated;
@@ -233,7 +232,7 @@ export default function PermissionsPage() {
   }
     
   const renderPermissions = (role: string) => {
-    const isReadOnly = role === 'Admin';
+    const isReadOnly = rolePermissions[role]?.isCore;
     
     return permissionStructure.map((category, index) => (
       <div key={category.title}>
@@ -370,4 +369,3 @@ export default function PermissionsPage() {
   );
 }
 
-    

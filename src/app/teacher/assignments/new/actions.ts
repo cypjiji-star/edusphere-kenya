@@ -19,10 +19,6 @@ export async function createAssignmentAction(
     return { success: false, message: 'School ID is missing.' };
   }
 
-  // The Zod schema is now in the form component, but we can re-validate here on the server
-  // for an extra layer of security if needed, or trust the client-side validation.
-  // For simplicity, we'll trust the client validation which is already happening.
-
   try {
     // 1. Get all students for the selected class
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', data.classId));

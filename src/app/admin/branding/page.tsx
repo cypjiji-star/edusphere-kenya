@@ -63,13 +63,6 @@ const defaultTheme = {
     bodyFont: googleFonts[4].family,
 };
 
-const versionHistory = [
-    { version: 4, date: '2024-07-28', author: 'Admin User', summary: 'Summer Theme', theme: { primaryColor: '#db2777', accentColor: '#fde047', backgroundColor: '#fdf4ff', headlineFont: googleFonts[1].family, bodyFont: googleFonts[0].family } },
-    { version: 3, date: '2024-06-15', author: 'Admin User', summary: 'Updated Primary Color', theme: { primaryColor: '#16a34a', accentColor: '#fb923c', backgroundColor: '#1e293b', headlineFont: googleFonts[1].family, bodyFont: googleFonts[2].family } },
-    { version: 2, date: '2024-05-01', author: 'Principal Jane', summary: 'Initial Branding Setup', theme: { primaryColor: '#2563eb', accentColor: '#f59e0b', backgroundColor: '#0f172a', headlineFont: googleFonts[1].family, bodyFont: googleFonts[4].family } },
-    { version: 1, date: '2024-04-20', author: 'System', summary: 'Default Theme', theme: defaultTheme },
-];
-
 export default function BrandingPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
@@ -127,14 +120,6 @@ export default function BrandingPage() {
         setBodyFont(theme.bodyFont);
     };
 
-    const handleRestore = (version: typeof versionHistory[0]) => {
-        applyTheme(version.theme);
-        toast({
-            title: 'Theme Restored',
-            description: `You are now previewing "${version.summary}".`,
-        });
-    };
-    
     const handleReset = () => {
         applyTheme(defaultTheme);
          toast({
@@ -240,135 +225,121 @@ export default function BrandingPage() {
       </div>
 
        <Tabs defaultValue="customize">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3">
                 <TabsTrigger value="customize">Customize</TabsTrigger>
                 <TabsTrigger value="manage">Manage</TabsTrigger>
-                <TabsTrigger value="preview">Live Preview</TabsTrigger>
+                <TabsTrigger value="preview" className="hidden md:inline-flex">Live Preview</TabsTrigger>
             </TabsList>
-            <TabsContent value="customize" className="space-y-6 mt-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>School Logo & Media</CardTitle>
-                        <CardDescription>Upload your school's logo, cover image, and favicon.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Form {...form}>
-                        <form className="space-y-6">
-                        <div className="space-y-2">
-                            <Label>School Logo</Label>
-                            <div className="flex items-center gap-4">
-                                <Avatar className="h-16 w-16">
-                                    <AvatarImage src={logoUrl} />
-                                    <AvatarFallback>SL</AvatarFallback>
-                                </Avatar>
-                                <Button asChild variant="outline" className="w-full">
-                                    <Label htmlFor="logo-upload" className="cursor-pointer">
-                                        {isUploadingLogo ? (
-                                            <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Uploading...</>
-                                        ) : (
-                                            <><Upload className="mr-2 h-4 w-4" />Upload New Logo</>
-                                        )}
-                                    </Label>
-                                </Button>
-                                <Input id="logo-upload" type="file" className="hidden" accept="image/*" onChange={handleLogoChange} disabled={isUploadingLogo} />
-                            </div>
-                            <FormDescription>Recommended format: PNG or SVG.</FormDescription>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Login Page Cover Image</Label>
-                            <Card className="overflow-hidden max-w-sm">
-                                <CardContent className="p-0">
-                                    <div className="relative aspect-video w-full">
-                                        <Image src={coverImageUrl} alt="Cover Image Preview" fill className="object-cover" />
-                                    </div>
-                                </CardContent>
-                                <CardFooter className="p-2 bg-muted/50">
-                                    <Button asChild variant="secondary" size="sm" className="w-full">
-                                        <Label htmlFor="cover-image-upload" className="cursor-pointer">
-                                            {isUploadingCover ? (
-                                                <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Uploading...</>
-                                            ) : (
-                                                <><Upload className="mr-2 h-4 w-4" />Upload New Cover Image</>
-                                            )}
-                                        </Label>
-                                    </Button>
-                                    <Input id="cover-image-upload" type="file" className="hidden" accept="image/*" onChange={handleCoverImageChange} disabled={isUploadingCover} />
-                                </CardFooter>
-                            </Card>
-                            <FormDescription>This image is shown on the dashboard login page (1920x1080px recommended).</FormDescription>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>School Favicon</Label>
-                            <div className="flex items-center gap-4">
-                                <div className="h-10 w-10 flex items-center justify-center bg-muted rounded-md">
-                                    <Avatar className="h-8 w-8">
+            <TabsContent value="customize" className="mt-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>School Logo & Media</CardTitle>
+                            <CardDescription>Upload your school's logo and cover image.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <form className="space-y-6">
+                            <div className="space-y-2">
+                                <Label>School Logo</Label>
+                                <div className="flex items-center gap-4">
+                                    <Avatar className="h-16 w-16">
                                         <AvatarImage src={logoUrl} />
                                         <AvatarFallback>SL</AvatarFallback>
                                     </Avatar>
+                                    <Button asChild variant="outline" className="w-full">
+                                        <Label htmlFor="logo-upload" className="cursor-pointer">
+                                            {isUploadingLogo ? (
+                                                <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Uploading...</>
+                                            ) : (
+                                                <><Upload className="mr-2 h-4 w-4" />Upload New Logo</>
+                                            )}
+                                        </Label>
+                                    </Button>
+                                    <Input id="logo-upload" type="file" className="hidden" accept="image/*" onChange={handleLogoChange} disabled={isUploadingLogo} />
                                 </div>
-                                <Button variant="outline" className="w-full" disabled>
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Upload Favicon
-                                </Button>
+                                <FormDescription>Recommended format: PNG or SVG.</FormDescription>
                             </div>
-                            <FormDescription>An icon for the browser tab. Recommended format: .ico or .png (32x32px).</FormDescription>
-                        </div>
-                        </form>
-                        </Form>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Color Scheme</CardTitle>
-                        <CardDescription>Customize the look and feel of the portal.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <ColorPicker label="Primary Color" color={primaryColor} setColor={setPrimaryColor} />
-                        <ColorPicker label="Accent Color" color={accentColor} setColor={setAccentColor} />
-                        <ColorPicker label="Background Color" color={backgroundColor} setColor={setBackgroundColor} />
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Type className="h-5 w-5 text-primary"/>Typography</CardTitle>
-                        <CardDescription>Select fonts for headings and body text.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="headline-font">Headline Font</Label>
-                            <Select value={headlineFont} onValueChange={setHeadlineFont}>
-                                <SelectTrigger id="headline-font"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {googleFonts.map(font => (
-                                        <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
-                                            {font.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="body-font">Body Font</Label>
-                            <Select value={bodyFont} onValueChange={setBodyFont}>
-                                <SelectTrigger id="body-font"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {googleFonts.map(font => (
-                                        <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
-                                            {font.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <div className="space-y-2">
+                                <Label>Login Page Cover Image</Label>
+                                <Card className="overflow-hidden w-full">
+                                    <CardContent className="p-0">
+                                        <div className="relative aspect-video w-full">
+                                            <Image src={coverImageUrl} alt="Cover Image Preview" fill className="object-cover" />
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter className="p-2 bg-muted/50">
+                                        <Button asChild variant="secondary" size="sm" className="w-full">
+                                            <Label htmlFor="cover-image-upload" className="cursor-pointer">
+                                                {isUploadingCover ? (
+                                                    <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Uploading...</>
+                                                ) : (
+                                                    <><Upload className="mr-2 h-4 w-4" />Upload New Cover Image</>
+                                                )}
+                                            </Label>
+                                        </Button>
+                                        <Input id="cover-image-upload" type="file" className="hidden" accept="image/*" onChange={handleCoverImageChange} disabled={isUploadingCover} />
+                                    </CardFooter>
+                                </Card>
+                                <FormDescription>This image is shown on the dashboard login page (1920x1080px recommended).</FormDescription>
+                            </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Color Scheme</CardTitle>
+                                <CardDescription>Customize the look and feel of the portal.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <ColorPicker label="Primary Color" color={primaryColor} setColor={setPrimaryColor} />
+                                <ColorPicker label="Accent Color" color={accentColor} setColor={setAccentColor} />
+                                <ColorPicker label="Background Color" color={backgroundColor} setColor={setBackgroundColor} />
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Type className="h-5 w-5 text-primary"/>Typography</CardTitle>
+                                <CardDescription>Select fonts for headings and body text.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="headline-font">Headline Font</Label>
+                                    <Select value={headlineFont} onValueChange={setHeadlineFont}>
+                                        <SelectTrigger id="headline-font"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {googleFonts.map(font => (
+                                                <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
+                                                    {font.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="body-font">Body Font</Label>
+                                    <Select value={bodyFont} onValueChange={setBodyFont}>
+                                        <SelectTrigger id="body-font"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {googleFonts.map(font => (
+                                                <SelectItem key={font.name} value={font.family} style={{ fontFamily: font.family }}>
+                                                    {font.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
             </TabsContent>
-            <TabsContent value="manage" className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TabsContent value="manage" className="mt-6">
                 <Card>
                     <CardHeader>
                         <CardTitle>Save Changes</CardTitle>
                     </CardHeader>
-                    <CardContent className="flex flex-col items-stretch space-y-2">
+                    <CardContent className="flex flex-col items-stretch space-y-2 max-w-sm">
                         <Button className="w-full" onClick={handleSaveTheme} disabled={isLoading}>
                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
                             Apply &amp; Save Theme
@@ -378,25 +349,9 @@ export default function BrandingPage() {
                             Reset to Default
                         </Button>
                     </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary"/>Branding History</CardTitle>
-                        <CardDescription>Review and restore previous branding versions.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {versionHistory.map(version => (
-                                <div key={version.version} className="flex items-center justify-between text-sm">
-                                    <div>
-                                        <p className="font-medium">Version {version.version} - <span className="font-normal text-muted-foreground">{version.summary}</span></p>
-                                        <p className="text-xs text-muted-foreground">Saved by {version.author} on {version.date}</p>
-                                    </div>
-                                    <Button variant="ghost" size="sm" onClick={() => handleRestore(version)}>Restore</Button>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
+                    <CardFooter>
+                        <p className="text-sm text-muted-foreground">Changes will be applied globally and may require a page reload.</p>
+                    </CardFooter>
                 </Card>
             </TabsContent>
              <TabsContent value="preview" className="mt-6">
@@ -449,4 +404,3 @@ export default function BrandingPage() {
   );
 }
 
-    

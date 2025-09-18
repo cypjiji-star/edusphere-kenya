@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -602,7 +601,7 @@ export default function AdminAttendancePage() {
       </div>
       
        <Tabs defaultValue="overview">
-        <TabsList className="mb-4 grid grid-cols-1 md:grid-cols-3 md:w-auto">
+        <TabsList className="mb-4 grid grid-cols-1 sm:grid-cols-3 w-full sm:w-auto">
             <TabsTrigger value="overview">School-wide Overview</TabsTrigger>
             <TabsTrigger value="student">Student Analytics</TabsTrigger>
             <TabsTrigger value="comms">Communication Log</TabsTrigger>
@@ -670,7 +669,7 @@ export default function AdminAttendancePage() {
                                 <TrendingUp className="h-6 w-6 text-primary" />
                                 <div>
                                     <CardTitle>Attendance Trends</CardTitle>
-                                    <CardDescription>Daily attendance rate for the selected period.</CardDescription>
+                                    <CardDescription>Daily attendance rate for the selected term.</CardDescription>
                                 </div>
                             </div>
                             <div className="flex w-full md:w-auto items-center gap-2">
@@ -990,4 +989,3 @@ export default function AdminAttendancePage() {
   );
 }
 
-    

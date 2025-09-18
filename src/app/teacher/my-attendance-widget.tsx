@@ -82,6 +82,7 @@ export function MyAttendanceWidget() {
             createdAt: serverTimestamp(),
             category: 'General',
             href: `/admin/attendance?schoolId=${schoolId}`,
+            audience: 'admin',
         });
         
         toast({
@@ -141,7 +142,7 @@ export function MyAttendanceWidget() {
         return { icon: AlertTriangle, text: 'You are marked Absent', badgeVariant: 'destructive', badgeClass: '' };
       case 'Pending':
       default:
-        return { icon: Clock, text: 'Your attendance is Pending', badgeVariant: 'secondary', badgeClass: 'bg-yellow-500 hover:bg-yellow-600' };
+        return { icon: Clock, text: 'Your attendance is Pending', badgeVariant: 'secondary', badgeClass: 'bg-yellow-500 hover:bg-yellow-500' };
     }
   };
   

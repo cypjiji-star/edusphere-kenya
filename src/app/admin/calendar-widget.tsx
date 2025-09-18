@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -56,13 +55,17 @@ import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, onSnaps
 import { useSearchParams } from 'next/navigation';
 
 
-type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event';
+type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event' | 'event' | 'holiday' | 'exam' | 'meeting';
 
-const eventTypeColors: Record<EventType, string> = {
+const eventTypeColors: Record<string, string> = {
     Meeting: 'bg-purple-500',
+    meeting: 'bg-purple-500',
     Exam: 'bg-red-600',
+    exam: 'bg-red-600',
     Holiday: 'bg-green-600',
+    holiday: 'bg-green-600',
     Event: 'bg-blue-500',
+    event: 'bg-blue-500',
 };
 
 type UpcomingEvent = {
@@ -100,12 +103,15 @@ export function CalendarWidget() {
   }, [schoolId]);
 
   const handleQuickAdd = async () => {
-    if (!schoolId) return;
+    if (!schoolId || !newEventTitle) {
+        toast({ title: 'Please enter a title for the event.', variant: 'destructive'});
+        return;
+    };
 
     try {
         await addDoc(collection(firestore, 'schools', schoolId, 'calendar-events'), {
             title: newEventTitle,
-            type: newEventType,
+            type: newEventType.toLowerCase(),
             date: Timestamp.fromDate(scheduledDate || new Date()),
             createdAt: serverTimestamp(),
         });
@@ -151,7 +157,7 @@ export function CalendarWidget() {
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{event.title}</p>
                     <Badge
-                      className={`mt-1 text-white ${eventTypeColors[event.type]}`}
+                      className={`mt-1 text-white capitalize ${eventTypeColors[event.type]}`}
                     >
                       {event.type}
                     </Badge>
@@ -279,4 +285,3 @@ export function CalendarWidget() {
   );
 }
 
-    
