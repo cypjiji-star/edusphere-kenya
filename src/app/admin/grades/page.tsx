@@ -33,6 +33,7 @@ import {
   User,
   ShieldAlert,
   Bell,
+  Wand2,
 } from 'lucide-react';
 import {
   Table,
@@ -107,7 +108,7 @@ const gradebookSubjects = ['Mathematics', 'English', 'Chemistry', 'Physics', 'Bi
 const mockPendingGrades = [
     { id: 'grd-001', studentName: 'John Doe', admNo: '1234', class: 'Form 4', subject: 'Mathematics', score: 85, enteredBy: 'Mr. Otieno', flagged: false },
     { id: 'grd-002', studentName: 'Jane Smith', admNo: '1235', class: 'Form 4', subject: 'Mathematics', score: 92, enteredBy: 'Mr. Otieno', flagged: false },
-    { id: 'grd-003', studentName: 'Peter Jones', admNo: '1236', class: 'Form 4', subject: 'Mathematics', score: 25, enteredBy: 'Mr. Otieno', flagged: true },
+    { id: 'grd-003', studentName: 'Peter Jones', admNo: '1236', class: 'Form 4', subject: 'Mathematics', score: 25, enteredBy: 'Mr. Otieno', flagged: true, flagReason: "Score is >3 standard deviations below student's average." },
 ];
 
 const mockGradeLog = [
@@ -142,6 +143,12 @@ const schoolInfo = {
     motto: "Excellence & Integrity",
     logoUrl: "https://i.postimg.cc/0r1RGZvk/android-launchericon-512-512.png",
 };
+
+const aiInsights = [
+    { id: 'ai-1', level: 'warning', text: "Peter Jones' score of 25 in Mathematics is a significant outlier compared to his average of 60. Could be an entry error." },
+    { id: 'ai-2', level: 'info', text: "The average score for the Form 4 Chemistry CAT is 45%, which is 15% lower than the previous exam. Consider reviewing the exam's difficulty or class performance." },
+    { id: 'ai-3', level: 'info', text: "Teacher 'Mr. Otieno' has an average awarded score of 82%, which is consistently higher than the departmental average of 71%." },
+]
 
 
 function ReportCardDialog({ student, open, onOpenChange }: { student: typeof mockRanking[0] | null, open: boolean, onOpenChange: (open: boolean) => void }) {
@@ -593,6 +600,20 @@ export default function AdminGradesPage() {
                 </Card>
             </TabsContent>
             <TabsContent value="moderation" className="mt-4 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Wand2 className="h-5 w-5 text-primary"/>AI-Assisted Grading Insights</CardTitle>
+                        <CardDescription>AI-powered analysis to detect potential grading anomalies, patterns, or inconsistencies.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {aiInsights.map(insight => (
+                            <div key={insight.id} className={cn("p-4 rounded-lg flex items-start gap-3", insight.level === 'warning' ? 'bg-destructive/10 border border-destructive/20' : 'bg-muted/50')}>
+                                <AlertTriangle className={cn("h-5 w-5 flex-shrink-0 mt-0.5", insight.level === 'warning' ? 'text-destructive' : 'text-blue-500')} />
+                                <p className={cn("text-sm", insight.level === 'warning' ? 'text-destructive-foreground' : 'text-muted-foreground')}>{insight.text}</p>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
                  <Card>
                     <CardHeader>
                         <CardTitle>Grade Approval Queue</CardTitle>
@@ -617,7 +638,7 @@ export default function AdminGradesPage() {
                                             <TableCell>{grade.subject}</TableCell>
                                             <TableCell className="font-semibold flex items-center gap-2">
                                                 {grade.score}
-                                                {grade.flagged && <AlertTriangle className="h-4 w-4 text-destructive" title="Flagged: Abnormal score"/>}
+                                                {grade.flagged && <AlertTriangle className="h-4 w-4 text-destructive" title={grade.flagReason || "Flagged: Abnormal score"}/>}
                                             </TableCell>
                                             <TableCell>{grade.enteredBy}</TableCell>
                                             <TableCell className="text-right space-x-2">
