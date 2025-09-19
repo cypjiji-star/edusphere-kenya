@@ -1282,6 +1282,10 @@ export default function AdminGradesPage() {
             });
             
             toast({ title: 'Exam Deleted', description: 'The exam has been removed.', variant: 'destructive' });
+            
+            // Optimistically update UI
+            setExams(prevExams => prevExams.filter(e => !examIdsToDelete.includes(e.id)));
+            
         } catch (error) {
             console.error("Error deleting exam:", error);
             toast({ title: 'Error', description: 'Could not delete exam.', variant: 'destructive' });
