@@ -23,6 +23,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <head>
+        {/* Favicon */}
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
         {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
