@@ -72,6 +72,8 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { CommandList } from '@/components/ui/command';
+import { useAuth } from '@/context/auth-context';
+import { logAuditEvent } from '@/lib/audit-log.service';
 
 
 type SchoolClass = {
@@ -297,10 +299,28 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                     </div>
                 </div>
                 <DialogFooter className="justify-between">
-                     <Button variant="destructive" onClick={() => { onDelete(subject.id, subject.name); onOpenChange(false); }}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Subject
-                    </Button>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" onClick={(e) => e.preventDefault()}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Subject
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                This will permanently delete the subject "{subject.name}". This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => { onDelete(subject.id, subject.name); onOpenChange(false); }}>
+                                Continue
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                     <div>
                         <Button variant="outline" className="mr-2" onClick={() => onOpenChange(false)}>Cancel</Button>
                         <Button onClick={handleSave}>Save Changes</Button>
@@ -315,6 +335,7 @@ export default function ClassesAndSubjectsPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
+    const { user: adminUser } = useAuth();
     const [classes, setClasses] = React.useState<SchoolClass[]>([]);
     const [subjects, setSubjects] = React.useState<Subject[]>([]);
     const [teachers, setTeachers] = React.useState<Teacher[]>([]);
@@ -428,13 +449,24 @@ export default function ClassesAndSubjectsPage() {
         }
     };
     
-    const handleUpdateClass = async (classId: string, updates: Partial<SchoolClass>) => {
-        if (!schoolId) return;
+    const handleUpdateClass = async (classId: string, updates: Partial<SchoolClass>, originalTeacherId: string) => {
+        if (!schoolId || !adminUser) return;
         
         setIsSaving(true);
         try {
             const classRef = doc(firestore, 'schools', schoolId, 'classes', classId);
             await updateDoc(classRef, updates);
+
+            // Log if teacher was changed
+            if (updates.teacherId && updates.teacherId !== originalTeacherId) {
+                await logAuditEvent({
+                    schoolId,
+                    action: 'CLASS_TEACHER_REASSIGNED',
+                    actionType: 'Academics',
+                    user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                    details: `Class "${updates.name || 'Unknown'}" reassigned from old teacher to ${updates.classTeacher?.name}.`
+                });
+            }
 
             // If class is marked as Graduated, update all students in that class
             if (updates.status === 'Graduated') {
@@ -542,9 +574,6 @@ export default function ClassesAndSubjectsPage() {
     
     const handleDelete = async (collectionName: string, id: string, name: string) => {
         if (!schoolId) return;
-        if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-            return;
-        }
         try {
             await deleteDoc(doc(firestore, `schools/${schoolId}/${collectionName}`, id));
             toast({
@@ -799,7 +828,7 @@ export default function ClassesAndSubjectsPage() {
                                                             updates.teacherId = teacherId;
                                                             updates.classTeacher = { name: teacher.name, avatarUrl: teacher.avatarUrl };
                                                         }
-                                                        handleUpdateClass(schoolClass.id, updates);
+                                                        handleUpdateClass(schoolClass.id, updates, schoolClass.teacherId);
                                                     }}>
                                                     <DialogHeader>
                                                         <DialogTitle>Edit Class: {schoolClass.name} {schoolClass.stream || ''}</DialogTitle>
@@ -1221,4 +1250,3 @@ export default function ClassesAndSubjectsPage() {
     </div>
   );
 }
-
