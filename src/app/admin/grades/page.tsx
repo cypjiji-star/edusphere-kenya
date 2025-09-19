@@ -1261,7 +1261,7 @@ export default function AdminGradesPage() {
     };
     
     if (selectedExamForGrading) {
-        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
+        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId!} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
     }
 
 
@@ -1388,7 +1388,7 @@ export default function AdminGradesPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 h-auto">
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
                 <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
                 <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
@@ -1687,7 +1687,7 @@ export default function AdminGradesPage() {
                                     {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                                 <Dialog>
                                     <DialogTrigger asChild>
                                         <Button variant="secondary">
@@ -1797,5 +1797,6 @@ export default function AdminGradesPage() {
     </div>
   );
 }
+    
 
     
