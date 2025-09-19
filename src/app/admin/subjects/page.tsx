@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -66,7 +65,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc, writeBatch, getDocs, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc, writeBatch, getDocs, getDoc, arrayUnion } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { MultiSelect } from '@/components/ui/multi-select';
 import jsPDF from 'jspdf';
@@ -253,8 +252,8 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Subject
                     </Button>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <div>
+                        <Button variant="outline" className="mr-2" onClick={() => onOpenChange(false)}>Cancel</Button>
                         <Button onClick={handleSave}>Save Changes</Button>
                     </div>
                 </DialogFooter>
@@ -492,24 +491,15 @@ export default function ClassesAndSubjectsPage() {
     const handleAssignTeacherToSubject = async (subjectId: string, teacherName: string) => {
         if (!schoolId) return;
         setIsSaving(true);
-        const subjectRef = doc(firestore, `schools/${schoolId}/subjects`, subjectId);
+        const subjectRef = doc(firestore, 'schools', schoolId, 'subjects', subjectId);
         try {
-            const subjectDoc = await getDoc(subjectRef);
-            if (!subjectDoc.exists()) {
-                throw new Error("Subject not found");
-            }
-            const currentTeachers = subjectDoc.data().teachers || [];
-            if (!currentTeachers.includes(teacherName)) {
-                await updateDoc(subjectRef, {
-                    teachers: [...currentTeachers, teacherName]
-                });
-                toast({ title: 'Teacher Assigned', description: `${teacherName} can now teach this subject.` });
-            } else {
-                 toast({ title: 'Already Assigned', description: `${teacherName} is already assigned to this subject.`, variant: 'default' });
-            }
+            await updateDoc(subjectRef, {
+                teachers: arrayUnion(teacherName)
+            });
+            toast({ title: 'Teacher Assigned', description: `${teacherName} can now teach this subject.` });
         } catch (error) {
             console.error("Error assigning teacher to subject:", error);
-            toast({ title: 'Assignment Failed', variant: 'destructive'});
+            toast({ title: 'Assignment Failed', variant: 'destructive' });
         } finally {
             setIsSaving(false);
         }
@@ -1176,3 +1166,5 @@ export default function ClassesAndSubjectsPage() {
     </div>
   );
 }
+
+    
