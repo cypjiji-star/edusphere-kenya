@@ -35,7 +35,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         {/* PWA Icons */}
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
