@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -179,6 +180,51 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
     )
 }
 
+function AssignTeacherDialog({ subject, teachers, open, onOpenChange, onSave }: { subject: Subject | null, teachers: Teacher[], open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, teacherNames: string[]) => void }) {
+    const [selectedTeacherIds, setSelectedTeacherIds] = React.useState<string[]>([]);
+    
+    React.useEffect(() => {
+        if (subject && teachers) {
+            const currentTeacherIds = (subject.teachers || [])
+                .map(name => teachers.find(t => t.name === name)?.id)
+                .filter((id): id is string => !!id);
+            setSelectedTeacherIds(currentTeacherIds);
+        }
+    }, [subject, teachers]);
+    
+    if (!subject) return null;
+
+    const teacherOptions = teachers.map(t => ({ value: t.id, label: t.name }));
+
+    const handleSave = () => {
+        const teacherNames = selectedTeacherIds.map(id => teachers.find(t => t.id === id)?.name).filter(Boolean) as string[];
+        onSave(subject.id, teacherNames);
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Assign Teachers to {subject.name}</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                     <MultiSelect
+                        options={teacherOptions}
+                        selected={selectedTeacherIds}
+                        onChange={setSelectedTeacherIds}
+                        placeholder="Search and select teachers..."
+                    />
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button onClick={handleSave}>Save Changes</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDelete, teacherOptions }: { subject: Subject | null, teachers: Teacher[], open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Subject>) => void, onDelete: (id: string, name: string) => void, teacherOptions: {value: string; label: string;}[] }) {
     const [name, setName] = React.useState('');
     const [code, setCode] = React.useState('');
@@ -285,6 +331,7 @@ export default function ClassesAndSubjectsPage() {
     
     // State for editing subject
     const [editingSubject, setEditingSubject] = React.useState<Subject | null>(null);
+    const [assigningTeacherSubject, setAssigningTeacherSubject] = React.useState<Subject | null>(null);
     const [selectedAssignmentClass, setSelectedAssignmentClass] = React.useState<string>('');
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
@@ -482,23 +529,6 @@ export default function ClassesAndSubjectsPage() {
             });
         } catch (error) {
             console.error("Failed to assign teacher:", error);
-            toast({ title: 'Assignment Failed', variant: 'destructive' });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleAssignTeacherToSubject = async (subjectId: string, teacherName: string) => {
-        if (!schoolId) return;
-        setIsSaving(true);
-        const subjectRef = doc(firestore, 'schools', schoolId, 'subjects', subjectId);
-        try {
-            await updateDoc(subjectRef, {
-                teachers: arrayUnion(teacherName)
-            });
-            toast({ title: 'Teacher Assigned', description: `${teacherName} can now teach this subject.` });
-        } catch (error) {
-            console.error("Error assigning teacher to subject:", error);
             toast({ title: 'Assignment Failed', variant: 'destructive' });
         } finally {
             setIsSaving(false);
@@ -970,23 +1000,10 @@ export default function ClassesAndSubjectsPage() {
                                                     <Badge key={teacher} variant="secondary" className="font-normal">{teacher}</Badge>
                                                 ))}
                                                 {(subject.teachers || []).length === 0 && (
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Button variant="outline" size="sm">
-                                                                <UserPlus className="mr-2 h-4 w-4" />
-                                                                Assign Teacher
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-2">
-                                                            <div className="space-y-1">
-                                                                {teachers.map(t => (
-                                                                    <Button key={t.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacherToSubject(subject.id, t.name)}>
-                                                                        <UserCheck className="mr-2 h-4 w-4 inline" /> {t.name}
-                                                                    </Button>
-                                                                ))}
-                                                            </div>
-                                                        </PopoverContent>
-                                                    </Popover>
+                                                    <Button variant="outline" size="sm" onClick={() => setAssigningTeacherSubject(subject)}>
+                                                        <UserPlus className="mr-2 h-4 w-4" />
+                                                        Assign Teacher
+                                                    </Button>
                                                 )}
                                             </div>
                                         </TableCell>
@@ -1163,8 +1180,16 @@ export default function ClassesAndSubjectsPage() {
             onDelete={handleDelete}
             teacherOptions={teacherOptions}
         />
+        <AssignTeacherDialog
+            subject={assigningTeacherSubject}
+            teachers={teachers}
+            open={!!assigningTeacherSubject}
+            onOpenChange={(open) => !open && setAssigningTeacherSubject(null)}
+            onSave={(id, teacherNames) => handleUpdateSubject(id, { teachers: teacherNames })}
+        />
     </div>
   );
 }
 
     
+
