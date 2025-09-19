@@ -1,4 +1,5 @@
 
+      
 
 'use client';
 
@@ -733,15 +734,15 @@ export default function TeacherGradesPage() {
     
     const [selectedGradebookClass, setSelectedGradebookClass] = React.useState<string>('');
     const [selectedReportClass, setSelectedReportClass] = React.useState<string>('');
-    const [selectedReportTerm, setSelectedReportTerm] = React.useState<string>(getCurrentTerm());
+    const [selectedReportTerm, setSelectedReportTerm] = React.useState(getCurrentTerm());
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
 
 
     React.useEffect(() => {
         if (!schoolId || !user) return;
-
+    
         const teacherId = user.uid;
-
+    
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
         const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
             const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
@@ -749,17 +750,22 @@ export default function TeacherGradesPage() {
             if (classData.length > 0) {
                 if (!selectedGradebookClass) setSelectedGradebookClass(classData[0].id);
                 if (!selectedReportClass) setSelectedReportClass(classData[0].id);
-                
-                const classIds = classData.map(c => c.id);
-                const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', classIds));
-                const unsubscribeExams = onSnapshot(examsQuery, (examSnapshot) => {
-                    const fetchedExams = examSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
-                    setExams(fetchedExams);
-                });
-                return () => unsubscribeExams();
             }
         });
-        
+    
+        // This listener will now handle exam updates in real-time
+        const classIds = classes.map(c => c.id);
+        let unsubscribeExams = () => {};
+        if (classIds.length > 0) {
+            const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', classIds));
+            unsubscribeExams = onSnapshot(examsQuery, (examSnapshot) => {
+                const fetchedExams = examSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
+                setExams(fetchedExams);
+            });
+        } else {
+            setExams([]);
+        }
+
         const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
         const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
             const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number> }> = {};
@@ -838,10 +844,10 @@ export default function TeacherGradesPage() {
             })));
         });
 
-
         return () => {
             unsubscribeGrades();
             unsubscribeClasses();
+            unsubscribeExams();
         };
     }, [schoolId, selectedGradebookClass, user]);
 
@@ -1024,3 +1030,6 @@ export default function TeacherGradesPage() {
 }
 
 
+
+
+    
