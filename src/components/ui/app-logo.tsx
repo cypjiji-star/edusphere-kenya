@@ -1,4 +1,6 @@
 
+"use client";
+
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
@@ -16,8 +18,8 @@ export function AppLogo({ className }: { className?: string }) {
       <path d="M340 249V317L256 361L172 317V249L256 293L340 249Z" fill="white"/>
       <defs>
       <linearGradient id="paint0_linear_1_12" x1="256" y1="56" x2="256" y2="448" gradientUnits="userSpaceOnUse">
-      <stop stop-color="white" stop-opacity="0.2"/>
-      <stop offset="1" stop-color="white" stop-opacity="0"/>
+      <stop stopColor="white" stopOpacity="0.2"/>
+      <stop offset="1" stopColor="white" stopOpacity="0"/>
       </linearGradient>
       </defs>
     </svg>
