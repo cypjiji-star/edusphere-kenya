@@ -50,7 +50,7 @@ const navItems = [
     { href: '/parent/timetable', label: 'Timetable', icon: Calendar, badgeKey: null },
     { href: '/parent/fees', label: 'Fees & Payments', icon: CircleDollarSign, badgeKey: null },
     { href: '/parent/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },
-    { href: '/parent/messaging', label: 'Messages', icon: MessageCircle, badgeKey: 'unreadMessages' },
+    { href: '/parent/support', label: 'Support & Feedback', icon: HelpCircle, badgeKey: null },
     { href: '/parent/calendar', label: 'Events Calendar', icon: Calendar, badgeKey: null },
 ];
 
@@ -163,7 +163,11 @@ export function ParentSidebar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled><Settings className="mr-2" />Profile & Settings</DropdownMenuItem>
-            <DropdownMenuItem disabled><HelpCircle className="mr-2" />Support</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/parent/support?schoolId=${schoolId}`} onClick={handleLinkClick}>
+                <HelpCircle className="mr-2" />Support
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
                 <Link href="/" onClick={handleLinkClick}>

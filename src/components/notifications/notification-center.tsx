@@ -15,6 +15,7 @@ import {
   Send,
   Loader2,
   Sparkles,
+  User,
 } from 'lucide-react';
 import {
   Sheet,
@@ -37,6 +38,8 @@ import {
   Timestamp,
   arrayUnion,
   or,
+  serverTimestamp,
+  addDoc,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -133,16 +136,46 @@ function NotificationItem({
 
 function AiChatTab() {
   const [messages, setMessages] = React.useState<Message[]>([
-    { role: 'model', content: 'Hello! I am the EduSphere AI assistant. How can I help you with school administration today?' }
+    { role: 'model', content: 'Hello! I am the EduSphere AI assistant. How can I help you?' }
   ]);
   const [input, setInput] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [isEscalated, setIsEscalated] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+  
+  const handleEscalate = async () => {
+    if (!schoolId || !user || isEscalated) return;
+    
+    setIsLoading(true);
+    const escalationMessage: Message = { role: 'model', content: aiEscalationMessage };
+    
+    try {
+        await addDoc(collection(firestore, `schools/${schoolId}/support-chats`), {
+            userId: user.uid,
+            userName: user.displayName || 'User',
+            userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
+            messages: [...messages, escalationMessage],
+            isEscalated: true,
+            lastMessage: "Conversation escalated to admin.",
+            lastUpdate: serverTimestamp()
+        });
+
+        setIsEscalated(true);
+        setMessages(prev => [...prev, escalationMessage]);
+
+    } catch (error) {
+        console.error("Error escalating chat:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  }
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,11 +189,11 @@ function AiChatTab() {
     try {
         const result = await supportChatbot({ history: [...messages, userMessage] });
         if (result.response === aiEscalationMessage) {
-            setIsEscalated(true);
+            await handleEscalate();
+        } else {
+            const aiMessage: Message = { role: 'model', content: result.response };
+            setMessages(prev => [...prev, aiMessage]);
         }
-        const aiMessage: Message = { role: 'model', content: result.response };
-        setMessages(prev => [...prev, aiMessage]);
-
     } catch (error) {
         console.error("Error with AI chatbot:", error);
         const errorMessage: Message = { role: 'model', content: 'Sorry, I encountered an error. Please try again.' };
@@ -195,19 +228,25 @@ function AiChatTab() {
             {isEscalated && (
                 <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-500/50 rounded-lg text-center text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4"/>
-                    A human agent has been notified and will join this chat shortly.
+                    A human agent has been notified and will respond on the Admin messaging page.
                 </div>
             )}
             <div ref={messagesEndRef} />
          </div>
        </ScrollArea>
-       <div className="p-4 border-t">
+       <div className="p-4 border-t space-y-2">
           <form onSubmit={handleSendMessage} className="flex w-full items-center gap-2">
               <Input placeholder="Type your message..." value={input} onChange={(e) => setInput(e.target.value)} disabled={isEscalated} />
               <Button type="submit" size="icon" disabled={isLoading || isEscalated}>
                   <Send className="h-4 w-4" />
               </Button>
           </form>
+          {!isEscalated && (
+            <Button variant="outline" size="sm" className="w-full" onClick={handleEscalate}>
+                <User className="mr-2 h-4 w-4" />
+                Talk to an Admin
+            </Button>
+          )}
        </div>
     </div>
   );
@@ -313,10 +352,12 @@ export function NotificationCenter() {
                         Notifications
                         {unreadCount > 0 && <span className="ml-2 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">{unreadCount}</span>}
                     </TabsTrigger>
-                    <TabsTrigger value="messages">
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        AI Support
-                    </TabsTrigger>
+                    {role !== 'admin' && (
+                        <TabsTrigger value="messages">
+                            <MessageCircle className="mr-2 h-4 w-4" />
+                            AI Support
+                        </TabsTrigger>
+                    )}
                 </TabsList>
             </SheetHeader>
             <TabsContent value="notifications" className="flex-1 mt-0">
@@ -340,9 +381,11 @@ export function NotificationCenter() {
                     </div>
                 </ScrollArea>
             </TabsContent>
-            <TabsContent value="messages" className="flex-1 mt-0 h-full">
-                <AiChatTab />
-            </TabsContent>
+            {role !== 'admin' && (
+              <TabsContent value="messages" className="flex-1 mt-0 h-full">
+                  <AiChatTab />
+              </TabsContent>
+            )}
         </Tabs>
       </SheetContent>
     </Sheet>

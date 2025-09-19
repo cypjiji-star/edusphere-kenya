@@ -207,7 +207,6 @@ export default function TeacherDashboard() {
         <div className="lg:col-span-2 space-y-8">
             <TimetableWidget />
             <DashboardCharts />
-            <MessagesWidget />
         </div>
         <div className="lg:col-span-1 space-y-8">
             <PendingTasksWidget />
