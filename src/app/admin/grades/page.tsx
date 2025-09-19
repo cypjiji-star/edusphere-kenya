@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -519,10 +520,8 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         if (!student) return;
 
         try {
-            const isEditing = !!student.submissionId;
-            const status = isEditing ? 'Pending Approval' : 'Approved';
-
             const gradeRef = student.submissionId ? doc(firestore, 'schools', schoolId, 'grades', student.submissionId) : doc(collection(firestore, 'schools', schoolId, 'grades'));
+            
             await setDoc(gradeRef, {
                 grade: score,
                 examId: exam.id,
@@ -532,15 +531,15 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 classId: exam.classId,
                 date: exam.date,
                 teacherName: teacher.name,
-                status: status
+                status: 'Pending Approval' // Always set to pending for admin review
             }, { merge: true });
             
             toast({
                 title: 'Grade Saved!',
-                description: `The grade for ${student.studentName} is saved and ${status === 'Pending Approval' ? 'awaits approval' : 'is approved'}.`,
+                description: `The grade for ${student.studentName} is saved and awaits admin approval.`,
             });
 
-            setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id, gradeStatus: status } : s));
+            setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id, gradeStatus: 'Pending Approval' } : s));
 
         } catch (e) {
             console.error(e);

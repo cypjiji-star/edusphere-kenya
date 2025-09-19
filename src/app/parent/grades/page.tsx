@@ -204,7 +204,11 @@ export default function ParentGradesPage() {
     if (!selectedChild || !schoolId) return;
     setIsLoading(true);
 
-    const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('studentId', '==', selectedChild));
+    const gradesQuery = query(
+        collection(firestore, 'schools', schoolId, 'grades'), 
+        where('studentId', '==', selectedChild),
+        where('status', '==', 'Approved') // Only fetch approved grades
+    );
     const unsubGrades = onSnapshot(gradesQuery, async (gradesSnapshot) => {
         const gradesBySubject: Record<string, { scores: number[], teacher: string }> = {};
         
@@ -248,7 +252,7 @@ export default function ParentGradesPage() {
         let classSize = 0;
 
         if (childClassId) {
-             const allStudentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', childClassId));
+             const allStudentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', childClassId), where('status', '==', 'Approved'));
              const allGradesSnapshot = await getDocs(allStudentsInClassQuery);
              const studentTotals: Record<string, number> = {};
              allGradesSnapshot.forEach(doc => {
@@ -454,3 +458,4 @@ export default function ParentGradesPage() {
     </>
   );
 }
+

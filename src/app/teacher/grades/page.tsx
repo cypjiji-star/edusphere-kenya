@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -445,10 +446,8 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         if (!student) return;
 
         try {
-            const isEditing = !!student.submissionId;
-            const status = isEditing ? 'Pending Approval' : 'Approved';
-
             const gradeRef = student.submissionId ? doc(firestore, 'schools', schoolId, 'grades', student.submissionId) : doc(collection(firestore, 'schools', schoolId, 'grades'));
+            
             await setDoc(gradeRef, {
                 grade: score,
                 examId: exam.id,
@@ -458,15 +457,15 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 classId: exam.classId,
                 date: exam.date,
                 teacherName: teacher.name,
-                status: status
+                status: 'Pending Approval' // Always set to pending for admin review
             }, { merge: true });
             
             toast({
                 title: 'Grade Saved!',
-                description: `The grade for ${student.studentName} is saved and ${status === 'Pending Approval' ? 'awaits approval' : 'is approved'}.`,
+                description: `The grade for ${student.studentName} is saved and awaits admin approval.`,
             });
 
-            setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id, gradeStatus: status } : s));
+            setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id, gradeStatus: 'Pending Approval' } : s));
 
         } catch (e) {
             console.error(e);
@@ -478,19 +477,19 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         setIsSaving(true);
         try {
             const examRef = doc(firestore, 'schools', schoolId, 'exams', exam.id);
-            await updateDoc(examRef, { status: 'Grading Complete' });
+            await updateDoc(examRef, { status: 'Pending Approval' }); // Change status to Pending Approval for the whole exam
             
             await logAuditEvent({
                 schoolId,
-                action: 'GRADES_SUBMITTED',
+                action: 'GRADES_SUBMITTED_FOR_APPROVAL',
                 actionType: 'Academics',
                 user: { id: teacher.id, name: teacher.name, role: 'Teacher' },
-                details: `Finished grading for exam: "${exam.title}" - ${exam.class}.`,
+                details: `Grades for exam: "${exam.title}" - ${exam.class} submitted for admin approval.`,
             });
             
             toast({
-                title: 'Grading Complete!',
-                description: 'All grades for this exam have been recorded. Any edits will require admin approval.',
+                title: 'Grades Submitted!',
+                description: 'All grades for this exam have been submitted for moderation.',
             });
             onBack();
         } catch(e) {
@@ -532,7 +531,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
     const gradedCount = students.filter(s => s.score !== '' && !s.error).length;
     const totalStudents = students.length;
     const progress = totalStudents > 0 ? (gradedCount / totalStudents) * 100 : 0;
-    const isLocked = exam.status === 'Closed';
+    const isLocked = exam.status === 'Closed' || exam.status === 'Grading Complete';
     
     return (
         <Card>
@@ -553,7 +552,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                     ) : (
                          <Button onClick={handleSubmitAllGrades} disabled={isSaving}>
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
-                            Mark as Complete
+                            Submit for Approval
                         </Button>
                     )}
                 </div>
@@ -1012,3 +1011,4 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
+
