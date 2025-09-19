@@ -190,7 +190,7 @@ export default function AdminDashboard() {
         <p className="text-muted-foreground">School-wide overview and management.</p>
       </div>
       
-       <div className="space-y-8">
+       <div className="space-y-8 overflow-auto">
             <div>
                 <h2 className="text-xl font-semibold mb-4">Key Metrics</h2>
                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
        </div>
 
        <div className="mt-8 grid gap-8 lg:grid-cols-3">
-         <div className="lg:col-span-1 space-y-8">
+         <div className="lg:col-span-1 space-y-8 overflow-auto">
             <SecurityAlertsWidget schoolId={schoolId} />
             <Card>
                 <CardHeader>
@@ -268,7 +268,7 @@ export default function AdminDashboard() {
             </Card>
             <CalendarWidget />
          </div>
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-8 overflow-auto">
             <Link href={`/admin/fees?schoolId=${schoolId}`}>
                 <FinanceSnapshot />
             </Link>
