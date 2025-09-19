@@ -176,7 +176,11 @@ type PendingGrade = {
     teacherName: string;
     assessmentTitle: string;
     examId: string;
+    className: string;
 };
+
+type GroupedPendingGrades = Record<string, Record<string, PendingGrade[]>>;
+
 
 type TeacherClass = {
     id: string;
@@ -795,6 +799,7 @@ export default function AdminGradesPage() {
     const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
     const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
     const [pendingGrades, setPendingGrades] = React.useState<PendingGrade[]>([]);
+    const [groupedPendingGrades, setGroupedPendingGrades] = React.useState<GroupedPendingGrades>({});
     const [activeTab, setActiveTab] = React.useState('exam-management');
 
     // State for the create exam form
@@ -945,6 +950,7 @@ export default function AdminGradesPage() {
         
         const pendingGradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval'));
         const unsubscribePendingGrades = onSnapshot(pendingGradesQuery, async (snapshot) => {
+            const classMap = new Map(classes.map(c => [c.id, c.name]));
             const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
                 const data = gradeDoc.data();
                 const studentSnap = await getDoc(data.studentRef);
@@ -958,10 +964,24 @@ export default function AdminGradesPage() {
                     grade: data.grade,
                     teacherName: data.teacherName,
                     assessmentTitle: examSnap?.data()?.title || 'N/A',
-                    examId: data.examId
+                    examId: data.examId,
+                    className: classMap.get(data.classId) || 'Unknown Class',
                 };
             }));
             setPendingGrades(pendingData);
+
+            // Grouping logic
+            const grouped: GroupedPendingGrades = {};
+            for (const grade of pendingData) {
+                if (!grouped[grade.className]) {
+                    grouped[grade.className] = {};
+                }
+                if (!grouped[grade.className][grade.studentName]) {
+                    grouped[grade.className][grade.studentName] = [];
+                }
+                grouped[grade.className][grade.studentName].push(grade);
+            }
+            setGroupedPendingGrades(grouped);
         });
 
         return () => {
@@ -972,7 +992,7 @@ export default function AdminGradesPage() {
             unsubscribeLogs();
             unsubscribePendingGrades();
         };
-    }, [schoolId, selectedGradebookClass, selectedReportClass]);
+    }, [schoolId, selectedGradebookClass, selectedReportClass, classes]);
 
     const filteredGradebookExams = React.useMemo(() => {
         return exams.filter(exam => exam.classId === selectedGradebookClass);
@@ -1657,39 +1677,72 @@ export default function AdminGradesPage() {
                         <CardDescription>Review and approve grade entries submitted by teachers.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Student</TableHead>
-                                        <TableHead>Subject</TableHead>
-                                        <TableHead>Grade</TableHead>
-                                        <TableHead>Submitted By</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {pendingGrades.length > 0 ? pendingGrades.map(grade => (
-                                        <TableRow key={grade.id}>
-                                            <TableCell>{grade.studentName}</TableCell>
-                                            <TableCell>{grade.subject}</TableCell>
-                                            <TableCell className="font-bold">{grade.grade}</TableCell>
-                                            <TableCell>{grade.teacherName}</TableCell>
-                                            <TableCell className="text-right space-x-2">
-                                                <Button size="sm" variant="secondary" className="bg-green-600 hover:bg-green-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Approved')}>
-                                                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
-                                                </Button>
-                                                <Button size="sm" variant="destructive" onClick={() => setGradeToReject(grade)}>
-                                                    <XCircle className="mr-2 h-4 w-4" /> Reject
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    )) : (
-                                        <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">The approval queue is empty.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
+                       {Object.keys(groupedPendingGrades).length > 0 ? (
+                            <Accordion type="multiple" className="w-full space-y-4">
+                                {Object.entries(groupedPendingGrades).map(([className, students]) => (
+                                    <Card key={className}>
+                                        <AccordionItem value={className} className="border-b-0">
+                                            <AccordionTrigger className="p-4 bg-muted/50 rounded-t-lg">
+                                                <div className="flex items-center gap-2">
+                                                    <Users className="h-5 w-5 text-primary" />
+                                                    <span className="font-semibold">{className}</span>
+                                                    <Badge variant="secondary">{Object.values(students).reduce((acc, stud) => acc + stud.length, 0)} pending</Badge>
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="p-0">
+                                                <Accordion type="multiple" className="w-full">
+                                                    {Object.entries(students).map(([studentName, grades]) => (
+                                                        <AccordionItem key={studentName} value={studentName} className="border-t">
+                                                            <AccordionTrigger className="px-6 py-3 hover:bg-muted/30">
+                                                                <div className="flex items-center gap-2">
+                                                                    <User className="h-4 w-4" />
+                                                                    <span className="font-medium">{studentName}</span>
+                                                                </div>
+                                                            </AccordionTrigger>
+                                                            <AccordionContent className="px-6 pb-4">
+                                                                <Table>
+                                                                    <TableHeader>
+                                                                        <TableRow>
+                                                                            <TableHead>Subject</TableHead>
+                                                                            <TableHead>Grade</TableHead>
+                                                                            <TableHead>Submitted By</TableHead>
+                                                                            <TableHead className="text-right">Actions</TableHead>
+                                                                        </TableRow>
+                                                                    </TableHeader>
+                                                                    <TableBody>
+                                                                        {grades.map(grade => (
+                                                                            <TableRow key={grade.id}>
+                                                                                <TableCell>{grade.subject}</TableCell>
+                                                                                <TableCell className="font-bold">{grade.grade}</TableCell>
+                                                                                <TableCell>{grade.teacherName}</TableCell>
+                                                                                <TableCell className="text-right space-x-2">
+                                                                                    <Button size="sm" variant="secondary" className="bg-green-600 hover:bg-green-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Approved')}>
+                                                                                        <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                                                                                    </Button>
+                                                                                    <Button size="sm" variant="destructive" onClick={() => setGradeToReject(grade)}>
+                                                                                        <XCircle className="mr-2 h-4 w-4" /> Reject
+                                                                                    </Button>
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        ))}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </AccordionContent>
+                                                        </AccordionItem>
+                                                    ))}
+                                                </Accordion>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    </Card>
+                                ))}
+                            </Accordion>
+                       ) : (
+                           <div className="text-center text-muted-foreground py-16">
+                             <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
+                             <p className="font-semibold">The approval queue is empty.</p>
+                             <p>All submitted grades have been moderated.</p>
+                           </div>
+                       )}
                     </CardContent>
                  </Card>
                  <Card>
