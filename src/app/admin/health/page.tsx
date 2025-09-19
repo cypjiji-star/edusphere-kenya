@@ -579,33 +579,11 @@ export default function AdminHealthPage() {
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                 <div className="w-full overflow-auto rounded-lg border hidden md:block">
+                                 <div className="w-full overflow-auto rounded-lg border">
                                     <Table>
                                         <TableHeader> <TableRow> <TableHead>Student</TableHead> <TableHead>Type</TableHead> <TableHead>Date</TableHead> <TableHead>Class</TableHead> <TableHead>Reported By</TableHead> <TableHead>Status</TableHead> <TableHead className="text-right">Actions</TableHead> </TableRow> </TableHeader>
                                         <TableBody> {filteredIncidents.map(incident => ( <DialogTrigger asChild key={incident.id}> <TableRow className="cursor-pointer" onClick={() => setSelectedIncident(incident)}> <TableCell> <div className="flex items-center gap-3"> <Avatar className="h-8 w-8"> <AvatarImage src={incident.studentAvatar} alt={incident.studentName} /> <AvatarFallback>{incident.studentName.charAt(0)}</AvatarFallback> </Avatar> <span className="font-medium">{incident.studentName}</span> </div> </TableCell> <TableCell><Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>{incident.type}</Badge></TableCell> <TableCell>{incident.date.toDate().toLocaleDateString()}</TableCell> <TableCell>{incident.class}</TableCell> <TableCell>{incident.reportedBy}</TableCell> <TableCell>{getStatusBadge(incident.status)}</TableCell> <TableCell className="text-right"><Button variant="ghost" size="sm">View Details</Button></TableCell> </TableRow> </DialogTrigger> ))} </TableBody>
                                     </Table>
-                                </div>
-                                <div className="grid grid-cols-1 gap-4 md:hidden">
-                                {filteredIncidents.map(incident => (
-                                    <DialogTrigger asChild key={incident.id}>
-                                    <Card className="cursor-pointer" onClick={() => setSelectedIncident(incident)}>
-                                        <CardHeader>
-                                            <div className="flex items-center justify-between">
-                                                <CardTitle className="text-base">{incident.studentName}</CardTitle>
-                                                <Badge variant={incident.type === 'Health' ? 'destructive' : 'outline'}>{incident.type}</Badge>
-                                            </div>
-                                            <CardDescription>{incident.class} - Reported by {incident.reportedBy}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm truncate text-muted-foreground">{incident.description}</p>
-                                        </CardContent>
-                                        <CardFooter className="flex justify-between items-center text-xs">
-                                            <span>{incident.date.toDate().toLocaleDateString()}</span>
-                                            {getStatusBadge(incident.status)}
-                                        </CardFooter>
-                                    </Card>
-                                    </DialogTrigger>
-                                ))}
                                 </div>
                             </CardContent>
                         </Card>
@@ -713,4 +691,3 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
-
