@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -924,7 +925,9 @@ export default function AdminGradesPage() {
             }
 
             setRankedClasses(finalRankings);
-            setClassRanking(finalRankings[selectedReportClass] || []);
+            if(selectedReportClass) {
+              setClassRanking(finalRankings[selectedReportClass] || []);
+            }
 
             const perfData: Record<string, { total: number, count: number }> = {};
             studentScores.forEach(student => {
@@ -970,7 +973,6 @@ export default function AdminGradesPage() {
             }));
             setPendingGrades(pendingData);
 
-            // Grouping logic
             const grouped: GroupedPendingGrades = {};
             for (const grade of pendingData) {
                 if (!grouped[grade.className]) {
@@ -1911,3 +1913,4 @@ export default function AdminGradesPage() {
     
     
     
+
