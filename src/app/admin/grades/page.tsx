@@ -788,8 +788,8 @@ export default function AdminGradesPage() {
     
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [selectedExamForGrading, setSelectedExamForGrading] = React.useState<Exam | null>(null);
-    const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
     const [editingExam, setEditingExam] = React.useState<Exam | null>(null);
+    const [examToDelete, setExamToDelete] = React.useState<GroupedExam | null>(null);
     const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
     const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
     const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
@@ -1258,11 +1258,9 @@ export default function AdminGradesPage() {
         }, 300);
     };
     
-    const handleDeleteExam = async (exam: GroupedExam) => {
-        if (!schoolId || !adminUser) return;
-        const examIdsToDelete = exam.isGrouped ? exam.groupedIds! : [exam.id];
-
-        if (!window.confirm(`Are you sure you want to delete this exam entry? This will delete ${examIdsToDelete.length} exam(s) and cannot be undone.`)) return;
+    const handleDeleteExam = async () => {
+        if (!examToDelete || !schoolId || !adminUser) return;
+        const examIdsToDelete = examToDelete.isGrouped ? examToDelete.groupedIds! : [examToDelete.id];
 
         const batch = writeBatch(firestore);
         examIdsToDelete.forEach(id => {
@@ -1278,13 +1276,14 @@ export default function AdminGradesPage() {
                 action: 'EXAM_DELETED',
                 actionType: 'Academics',
                 user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-                details: `Deleted exam: "${exam.title}" for class ${exam.class}. Deleted ${examIdsToDelete.length} subject entries.`,
+                details: `Deleted exam: "${examToDelete.title}" for class ${examToDelete.class}. Deleted ${examIdsToDelete.length} subject entries.`,
             });
             
             toast({ title: 'Exam Deleted', description: 'The exam has been removed.', variant: 'destructive' });
             
             // Optimistically update UI
             setExams(prevExams => prevExams.filter(e => !examIdsToDelete.includes(e.id)));
+            setExamToDelete(null);
             
         } catch (error) {
             console.error("Error deleting exam:", error);
@@ -1315,6 +1314,20 @@ export default function AdminGradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+        <AlertDialog open={!!examToDelete} onOpenChange={(open) => !open && setExamToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action will permanently delete the exam entry for "{examToDelete?.title}" ({examToDelete?.subject}). This cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteExam}>Delete Exam</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
         <RejectGradeDialog open={!!gradeToReject} onOpenChange={(open) => !open && setGradeToReject(null)} grade={gradeToReject} onSubmit={(feedback) => handleGradeModeration(gradeToReject!.id, gradeToReject!.studentId, gradeToReject!.studentName, gradeToReject!.subject, gradeToReject!.grade, 'Rejected', feedback)} />
         <ReportCardDialog student={selectedStudentForReport} studentGrades={studentGrades} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
         <EditExamDialog exam={editingExam} open={!!editingExam} onOpenChange={(open) => !open && setEditingExam(null)} onSave={handleUpdateExam} />
@@ -1454,7 +1467,7 @@ export default function AdminGradesPage() {
                                     {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                            <Dialog>
                                 <DialogTrigger asChild>
                                     <Button>
                                         <PlusCircle className="mr-2 h-4 w-4"/>
@@ -1551,7 +1564,7 @@ export default function AdminGradesPage() {
                                             <TableCell className="text-right space-x-2">
                                                  <Button variant="outline" size="sm" onClick={() => setSelectedExamForGrading(exam)}>Enter Grades</Button>
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingExam(exam)}><Edit className="h-4 w-4"/></Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => setExamToDelete(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
