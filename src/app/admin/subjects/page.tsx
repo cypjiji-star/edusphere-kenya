@@ -209,12 +209,14 @@ function AssignTeacherDialog({ subject, teachers, open, onOpenChange, onSave }: 
                     <DialogTitle>Assign Teachers to {subject.name}</DialogTitle>
                 </DialogHeader>
                 <div className="py-4">
-                     <MultiSelect
-                        options={teacherOptions}
-                        selected={selectedTeacherIds}
-                        onChange={setSelectedTeacherIds}
-                        placeholder="Search and select teachers..."
-                    />
+                     <CommandList>
+                        <MultiSelect
+                            options={teacherOptions}
+                            selected={selectedTeacherIds}
+                            onChange={setSelectedTeacherIds}
+                            placeholder="Search and select teachers..."
+                        />
+                     </CommandList>
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
@@ -294,7 +296,7 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                     </div>
                 </div>
                 <DialogFooter className="justify-between">
-                     <Button variant="destructive" onClick={() => { onDelete(subject.id, subject.name); onOpenChange(false); }}>
+                     <Button variant="destructive" onClick={() => onDelete(subject.id, subject.name)}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Subject
                     </Button>
@@ -532,6 +534,9 @@ export default function ClassesAndSubjectsPage() {
     
     const handleDelete = async (collectionName: string, id: string, name: string) => {
         if (!schoolId) return;
+        if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+            return;
+        }
         try {
             await deleteDoc(doc(firestore, `schools/${schoolId}/${collectionName}`, id));
             toast({
@@ -1210,5 +1215,6 @@ export default function ClassesAndSubjectsPage() {
 }
 
     
+
 
 
