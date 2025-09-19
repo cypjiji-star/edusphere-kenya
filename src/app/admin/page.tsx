@@ -269,9 +269,7 @@ export default function AdminDashboard() {
             <CalendarWidget />
          </div>
           <div className="lg:col-span-2 space-y-8 overflow-auto">
-            <Link href={`/admin/fees?schoolId=${schoolId}`}>
-                <FinanceSnapshot />
-            </Link>
+            <FinanceSnapshot />
             <PerformanceSnapshot />
           </div>
       </div>

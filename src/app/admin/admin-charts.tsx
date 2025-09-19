@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   ChartContainer,
@@ -147,6 +148,14 @@ export function FinanceSnapshot() {
             </>
           )}
         </CardContent>
+         <CardFooter>
+            <Button variant="outline" asChild className="w-full">
+                <Link href={`/admin/fees?schoolId=${schoolId}`}>
+                    View Details
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+            </Button>
+        </CardFooter>
       </Card>
   );
 }
@@ -228,15 +237,15 @@ export function PerformanceSnapshot() {
             </BarChart>
             </ChartContainer>
         )}
-         <div className="mt-4 flex justify-end">
-            <Button variant="link" asChild>
+        </CardContent>
+        <CardFooter>
+            <Button variant="outline" asChild className="w-full">
                 <Link href={`/admin/grades?schoolId=${schoolId}`}>
                     View Detailed Reports
                     <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
             </Button>
-        </div>
-      </CardContent>
+        </CardFooter>
     </Card>
   );
 }
