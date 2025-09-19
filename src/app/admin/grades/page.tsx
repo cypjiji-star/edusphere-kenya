@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -1258,7 +1259,7 @@ export default function AdminGradesPage() {
     };
     
     const handleDeleteExam = async (exam: GroupedExam) => {
-        if (!schoolId) return;
+        if (!schoolId || !adminUser) return;
         const examIdsToDelete = exam.isGrouped ? exam.groupedIds! : [exam.id];
 
         if (!window.confirm(`Are you sure you want to delete this exam entry? This will delete ${examIdsToDelete.length} exam(s) and cannot be undone.`)) return;
@@ -1271,6 +1272,15 @@ export default function AdminGradesPage() {
 
         try {
             await batch.commit();
+
+            await logAuditEvent({
+                schoolId,
+                action: 'EXAM_DELETED',
+                actionType: 'Academics',
+                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                details: `Deleted exam: "${exam.title}" for class ${exam.class}. Deleted ${examIdsToDelete.length} subject entries.`,
+            });
+            
             toast({ title: 'Exam Deleted', description: 'The exam has been removed.', variant: 'destructive' });
         } catch (error) {
             console.error("Error deleting exam:", error);
@@ -1827,5 +1837,6 @@ export default function AdminGradesPage() {
 }
     
 
+    
     
     
