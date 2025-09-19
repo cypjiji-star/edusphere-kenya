@@ -186,37 +186,24 @@ export default function TeacherDashboard() {
                 ))}
             </div>
        ) : (
-            <>
-                {totalStudents === 0 ? (
-                    <div className="text-center py-8 border rounded-lg">
-                        <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                        <h3 className="font-medium text-lg mb-2">No students assigned</h3>
-                        <p className="text-muted-foreground mb-4">
-                            You haven't been assigned any students yet.
-                        </p>
-                        <Button variant="outline">Contact Administrator</Button>
-                    </div>
-                ) : (
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                        {quickStats.map((stat) => (
-                            <Link href={stat.href} key={stat.title} aria-label={`View ${stat.title}`}>
-                            <Card className="hover:bg-muted/50 transition-colors">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                                    {stat.icon}
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{stat.stat}</div>
-                                </CardContent>
-                            </Card>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-            </>
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {quickStats.map((stat) => (
+                <Link href={stat.href} key={stat.title} aria-label={`View ${stat.title}`}>
+                  <Card className="hover:bg-muted/50 transition-colors">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                        {stat.icon}
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stat.stat}</div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
        )}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-3">
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
             <TimetableWidget />
             <DashboardCharts />

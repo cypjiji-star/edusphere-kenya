@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -15,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardCheck, FileText, Megaphone, Percent, User, Users, Loader2, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
 import { isPast } from 'date-fns';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
