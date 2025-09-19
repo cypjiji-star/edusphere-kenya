@@ -488,6 +488,29 @@ export default function ClassesAndSubjectsPage() {
             setIsSaving(false);
         }
     };
+
+    const handleAssignTeacherToSubject = async (subjectId: string, teacherName: string) => {
+        if (!schoolId) return;
+        setIsSaving(true);
+        const subjectRef = doc(firestore, `schools/${schoolId}/subjects`, subjectId);
+        try {
+            const subjectDoc = await getDoc(subjectRef);
+            const currentTeachers = subjectDoc.data()?.teachers || [];
+            if (!currentTeachers.includes(teacherName)) {
+                await updateDoc(subjectRef, {
+                    teachers: [...currentTeachers, teacherName]
+                });
+                toast({ title: 'Teacher Assigned', description: `${teacherName} can now teach this subject.` });
+            } else {
+                 toast({ title: 'Already Assigned', description: `${teacherName} is already assigned to this subject.`, variant: 'default' });
+            }
+        } catch (error) {
+            console.error("Error assigning teacher to subject:", error);
+            toast({ title: 'Assignment Failed', variant: 'destructive'});
+        } finally {
+            setIsSaving(false);
+        }
+    };
     
     const handleDelete = async (collectionName: string, id: string, name: string) => {
         if (!schoolId) return;
@@ -949,10 +972,29 @@ export default function ClassesAndSubjectsPage() {
                                         <TableCell><Badge variant="outline">{subject.code}</Badge></TableCell>
                                         <TableCell className="text-muted-foreground">{subject.department}</TableCell>
                                         <TableCell>
-                                            <div className="flex flex-wrap gap-1">
+                                            <div className="flex flex-wrap items-center gap-1">
                                                 {(subject.teachers || []).map(teacher => (
                                                     <Badge key={teacher} variant="secondary" className="font-normal">{teacher}</Badge>
                                                 ))}
+                                                {(subject.teachers || []).length === 0 && (
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="outline" size="sm">
+                                                                <UserPlus className="mr-2 h-4 w-4" />
+                                                                Assign Teacher
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-2">
+                                                            <div className="space-y-1">
+                                                                {teachers.map(t => (
+                                                                    <Button key={t.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacherToSubject(subject.id, t.name)}>
+                                                                        {t.name}
+                                                                    </Button>
+                                                                ))}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -1086,7 +1128,7 @@ export default function ClassesAndSubjectsPage() {
                                                         )}
                                                     </PopoverTrigger>
                                                     <PopoverContent className="w-auto p-2">
-                                                        <div className="space-y-2">
+                                                        <div className="space-y-1">
                                                             <p className="font-semibold text-sm">Assign Teacher</p>
                                                             {availableTeachers.length > 0 ? availableTeachers.map(t => {
                                                                 const load = teacherWorkload[t] || 0;
