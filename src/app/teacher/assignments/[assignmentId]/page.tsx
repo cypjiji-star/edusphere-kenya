@@ -47,6 +47,7 @@ import { doc, getDoc, onSnapshot, collection, query, where, Timestamp } from 'fi
 import type { DocumentData } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
+export const dynamicParams = false;
 
 const getStatusBadge = (status: Submission['status']) => {
     switch(status) {

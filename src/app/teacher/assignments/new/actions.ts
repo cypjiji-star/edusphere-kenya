@@ -19,6 +19,9 @@ export async function createAssignmentAction(
     return { success: false, message: 'School ID is missing.' };
   }
 
+  // Schema is now defined and validated in the client-side form action.
+  // We can trust the data coming in here if needed, or re-validate if we want to be extra safe.
+
   try {
     // 1. Get all students for the selected class
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', data.classId));
