@@ -798,6 +798,7 @@ export default function AdminGradesPage() {
     const [activeTab, setActiveTab] = React.useState('exam-management');
 
     // State for the create exam form
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
     const [examTitle, setExamTitle] = React.useState('');
     const [examClassId, setExamClassId] = React.useState('');
     const [examSubject, setExamSubject] = React.useState('');
@@ -1467,7 +1468,7 @@ export default function AdminGradesPage() {
                                     {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Dialog>
+                            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button>
                                         <PlusCircle className="mr-2 h-4 w-4"/>
