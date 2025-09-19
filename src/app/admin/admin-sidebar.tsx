@@ -40,6 +40,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuBadge,
+  useSidebar
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -125,8 +126,15 @@ export function AdminSidebar() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId') || '';
   const { user } = useAuth();
+  const { isMobile, setOpenMobile } = useSidebar();
   const isActive = (href: string) => pathname.startsWith(href);
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -150,7 +158,7 @@ export function AdminSidebar() {
          <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/admin'} tooltip={{ children: 'Dashboard' }}>
-              <Link href={`/admin?schoolId=${schoolId}`}>
+              <Link href={`/admin?schoolId=${schoolId}`} onClick={handleLinkClick}>
                 <LayoutDashboard />
                 <span>Dashboard</span>
               </Link>
@@ -181,7 +189,7 @@ export function AdminSidebar() {
                             isActive={isActive(item.href)}
                             tooltip={{ children: item.label }}
                         >
-                            <Link href={`${item.href}?schoolId=${schoolId}`}>
+                            <Link href={`${item.href}?schoolId=${schoolId}`} onClick={handleLinkClick}>
                                 <item.icon />
                                 <span>{item.label}</span>
                                 {badgeCount !== undefined && badgeCount > 0 && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
@@ -222,19 +230,19 @@ export function AdminSidebar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-                <Link href={`/admin/profile?schoolId=${schoolId}`}>
+                <Link href={`/admin/profile?schoolId=${schoolId}`} onClick={handleLinkClick}>
                     <Settings className="mr-2" />Profile
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-                <Link href={`/admin/support?schoolId=${schoolId}`}>
+                <Link href={`/admin/support?schoolId=${schoolId}`} onClick={handleLinkClick}>
                     <HelpCircle className="mr-2" />
                     Support
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
-                <Link href="/">
+                <Link href="/" onClick={handleLinkClick}>
                     <LogOut className="mr-2" />
                     <span>Log out</span>
                 </Link>

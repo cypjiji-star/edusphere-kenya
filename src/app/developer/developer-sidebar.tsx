@@ -20,6 +20,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -31,15 +32,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import * as React from 'react';
 
 export function DeveloperSidebar() {
   const pathname = usePathname();
   const isActive = (href: string) => pathname.startsWith(href);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <>
       <SidebarHeader>
-        <Link href="/developer" className="flex items-center gap-2">
+        <Link href="/developer" onClick={handleLinkClick} className="flex items-center gap-2">
           <GraduationCap className="size-6 text-primary" />
           <span className="font-bold font-headline text-lg">Developer Portal</span>
         </Link>
@@ -49,7 +58,7 @@ export function DeveloperSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/developer'} tooltip={{ children: 'Dashboard' }}>
-              <Link href="/developer">
+              <Link href="/developer" onClick={handleLinkClick}>
                 <LayoutDashboard />
                 <span>Dashboard</span>
               </Link>
@@ -57,7 +66,7 @@ export function DeveloperSidebar() {
           </SidebarMenuItem>
            <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive('/developer/roles')} tooltip={{ children: 'Roles & Permissions' }}>
-              <Link href="/developer/roles">
+              <Link href="/developer/roles" onClick={handleLinkClick}>
                 <ShieldCheck />
                 <span>Roles & Permissions</span>
               </Link>
@@ -65,7 +74,7 @@ export function DeveloperSidebar() {
           </SidebarMenuItem>
            <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive('/developer/logs')} tooltip={{ children: 'Audit Logs' }}>
-              <Link href="/developer/logs">
+              <Link href="/developer/logs" onClick={handleLinkClick}>
                 <FileClock />
                 <span>Audit Logs</span>
               </Link>
@@ -73,7 +82,7 @@ export function DeveloperSidebar() {
           </SidebarMenuItem>
            <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive('/developer/settings')} tooltip={{ children: 'System Settings' }}>
-              <Link href="/developer/settings">
+              <Link href="/developer/settings" onClick={handleLinkClick}>
                 <Settings />
                 <span>System Settings</span>
               </Link>
@@ -115,7 +124,7 @@ export function DeveloperSidebar() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
-                <Link href="/">
+                <Link href="/" onClick={handleLinkClick}>
                     <LogOut className="mr-2" />
                     <span>Log out</span>
                 </Link>

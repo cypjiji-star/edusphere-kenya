@@ -26,6 +26,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuBadge,
+  useSidebar
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,13 @@ export function ParentSidebar() {
   const isActive = (href: string) => pathname.startsWith(href);
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
   const [user, setUser] = React.useState(auth.currentUser);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -93,7 +101,7 @@ export function ParentSidebar() {
   return (
     <>
       <SidebarHeader>
-        <Link href={`/parent?schoolId=${schoolId}`} className="flex items-center gap-2">
+        <Link href={`/parent?schoolId=${schoolId}`} onClick={handleLinkClick} className="flex items-center gap-2">
           <GraduationCap className="size-6 text-primary" />
           <span className="font-bold font-headline text-lg">Parent Portal</span>
         </Link>
@@ -103,7 +111,7 @@ export function ParentSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === '/parent'} tooltip={{ children: 'Dashboard' }}>
-              <Link href={`/parent?schoolId=${schoolId}`}>
+              <Link href={`/parent?schoolId=${schoolId}`} onClick={handleLinkClick}>
                 <LayoutDashboard />
                 <span>Dashboard</span>
               </Link>
@@ -118,7 +126,7 @@ export function ParentSidebar() {
                     isActive={isActive(item.href)}
                     tooltip={{ children: item.label }}
                 >
-                    <Link href={`${item.href}?schoolId=${schoolId}`}>
+                    <Link href={`${item.href}?schoolId=${schoolId}`} onClick={handleLinkClick}>
                         <item.icon />
                         <span>{item.label}</span>
                          {badgeCount > 0 && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
@@ -158,7 +166,7 @@ export function ParentSidebar() {
             <DropdownMenuItem disabled><HelpCircle className="mr-2" />Support</DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
-                <Link href="/">
+                <Link href="/" onClick={handleLinkClick}>
                     <LogOut className="mr-2" />
                     <span>Log out</span>
                 </Link>
