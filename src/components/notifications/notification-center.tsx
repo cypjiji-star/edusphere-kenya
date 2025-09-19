@@ -16,6 +16,7 @@ import {
   Send,
   ArrowLeft,
   Trash2,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sheet,
@@ -60,8 +61,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { supportChatbot } from '@/ai/flows/support-chatbot-flow';
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
 
@@ -90,10 +91,11 @@ type Conversation = {
 
 type Message = {
   id?: string;
-  sender: string;
-  text: string;
+  role: 'user' | 'model';
+  content: string;
   timestamp: Timestamp | null;
   read?: boolean;
+  sender?: string;
 };
 
 
@@ -158,21 +160,31 @@ function NotificationItem({
   );
 }
 
-function ChatView({ conversation, schoolId, userId, onBack, onDelete }: { conversation: Conversation; schoolId: string; userId: string; onBack: () => void; onDelete: (conversationId: string) => void; }) {
+function ChatView({ conversation, schoolId, userId, onBack, onDelete, isAiChat = false }: { conversation: Conversation; schoolId: string; userId: string; onBack: () => void; onDelete: (conversationId: string) => void; isAiChat?: boolean }) {
     const [messages, setMessages] = React.useState<Message[]>([]);
     const [reply, setReply] = React.useState('');
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
+        if (isAiChat) return;
         const messagesQuery = query(
             collection(firestore, 'schools', schoolId, 'conversations', conversation.id, 'messages'),
             orderBy('timestamp', 'asc')
         );
         const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-            setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)));
+            setMessages(snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    content: data.text,
+                    sender: data.sender,
+                    role: data.sender === userId ? 'user' : 'model',
+                    timestamp: data.timestamp
+                }
+            }));
         });
         return unsubscribe;
-    }, [schoolId, conversation.id]);
+    }, [schoolId, conversation.id, userId, isAiChat]);
     
     React.useEffect(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -183,6 +195,15 @@ function ChatView({ conversation, schoolId, userId, onBack, onDelete }: { conver
         const newReply = reply;
         setReply('');
         
+        if (isAiChat) {
+             const userMessage: Message = { content: newReply, role: 'user', sender: userId, timestamp: Timestamp.now() };
+             setMessages(prev => [...prev, userMessage]);
+             const aiResponse = await supportChatbot({ history: [...messages, userMessage] });
+             const aiMessage: Message = { content: aiResponse.response, role: 'model', sender: 'ai', timestamp: Timestamp.now() };
+             setMessages(prev => [...prev, userMessage, aiMessage]);
+             return;
+        }
+
         await addDoc(collection(firestore, 'schools', schoolId, 'conversations', conversation.id, 'messages'), {
             sender: userId,
             text: newReply,
@@ -207,10 +228,11 @@ function ChatView({ conversation, schoolId, userId, onBack, onDelete }: { conver
                     </Button>
                     <Avatar className="h-9 w-9">
                         <AvatarImage src={conversation.avatar} />
-                        <AvatarFallback>{conversation.name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback>{isAiChat ? <Sparkles/> : conversation.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <h3 className="font-semibold">{conversation.name}</h3>
                 </div>
+                {!isAiChat && (
                  <AlertDialog>
                     <AlertDialogTrigger asChild>
                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
@@ -230,13 +252,20 @@ function ChatView({ conversation, schoolId, userId, onBack, onDelete }: { conver
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
+                )}
             </header>
             <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
-                    {messages.map(msg => (
-                        <div key={msg.id} className={cn('flex items-end gap-2', msg.sender === userId ? 'justify-end' : 'justify-start')}>
-                            <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", msg.sender === userId ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                                <p>{msg.text}</p>
+                    {messages.map((msg, index) => (
+                        <div key={msg.id || index} className={cn('flex items-end gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                            {msg.role === 'model' && (
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src={conversation.avatar} />
+                                    <AvatarFallback>{isAiChat ? <Sparkles/> : conversation.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            )}
+                            <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                                <p>{msg.content}</p>
                             </div>
                         </div>
                     ))}
@@ -267,12 +296,22 @@ export function NotificationCenter() {
   const schoolId = searchParams.get('schoolId');
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
-  const [activeTab, setActiveTab] = React.useState('all');
+  const [activeTab, setActiveTab] = React.useState('notifications');
   const [selectedConversation, setSelectedConversation] = React.useState<Conversation | null>(null);
   
   const unreadNotifications = notifications.filter((n) => !n.readBy?.includes(user?.uid || ''));
   const unreadMessages = conversations.filter(c => c.unread && c.lastMessageSender !== user?.uid).length;
   const unreadCount = unreadNotifications.length + unreadMessages;
+
+  const aiConversation: Conversation = {
+    id: 'ai-support',
+    name: 'AI Support Assistant',
+    avatar: `https://picsum.photos/seed/ai-avatar/100`,
+    lastMessage: 'Ask me anything about the school portal!',
+    timestamp: Timestamp.now(),
+    unread: false,
+    participants: ['ai'],
+  };
 
   React.useEffect(() => {
     if (!schoolId || !user || !role || role === 'unknown') return;
@@ -360,7 +399,7 @@ export function NotificationCenter() {
       return (
           <Sheet open={true} onOpenChange={(open) => !open && setSelectedConversation(null)}>
                <SheetContent className="w-full sm:max-w-md p-0">
-                    <ChatView conversation={selectedConversation} schoolId={schoolId} userId={user.uid} onBack={() => setSelectedConversation(null)} onDelete={handleDeleteConversation} />
+                    <ChatView conversation={selectedConversation} schoolId={schoolId} userId={user.uid} onBack={() => setSelectedConversation(null)} onDelete={handleDeleteConversation} isAiChat={selectedConversation.id === 'ai-support'} />
                </SheetContent>
           </Sheet>
       )
@@ -395,7 +434,7 @@ export function NotificationCenter() {
         </SheetHeader>
         <Tabs defaultValue="notifications" className="flex-1 flex flex-col">
             <div className="px-4">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="notifications">
                         Notifications
                         {unreadNotifications.length > 0 && <span className="ml-2 h-2 w-2 rounded-full bg-primary"/>}
@@ -403,6 +442,9 @@ export function NotificationCenter() {
                     <TabsTrigger value="messages">
                         Messages
                         {unreadMessages > 0 && <span className="ml-2 h-2 w-2 rounded-full bg-primary"/>}
+                    </TabsTrigger>
+                     <TabsTrigger value="ai-chat">
+                        AI Assistant
                     </TabsTrigger>
                 </TabsList>
             </div>
@@ -455,6 +497,24 @@ export function NotificationCenter() {
                                 <p>You have no messages.</p>
                             </div>
                         )}
+                    </div>
+                </ScrollArea>
+            </TabsContent>
+             <TabsContent value="ai-chat" className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full">
+                    <div className="p-4 pt-2 space-y-1">
+                        <button className="w-full text-left p-2 rounded-lg hover:bg-muted" onClick={() => setSelectedConversation(aiConversation)}>
+                            <div className="flex items-start gap-3">
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={aiConversation.avatar} />
+                                    <AvatarFallback><Sparkles /></AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 truncate">
+                                    <p className="font-semibold text-sm truncate">{aiConversation.name}</p>
+                                    <p className="text-sm truncate text-muted-foreground">{aiConversation.lastMessage}</p>
+                                </div>
+                            </div>
+                        </button>
                     </div>
                 </ScrollArea>
             </TabsContent>
