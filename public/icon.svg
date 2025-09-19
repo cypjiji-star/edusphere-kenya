@@ -1,12 +1,9 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M256 448C364.394 448 452 360.394 452 252C452 143.606 364.394 56 256 56C147.606 56 60 143.606 60 252C60 360.394 147.606 448 256 448Z" fill="#2563EB"/>
-<path d="M256 448C364.394 448 452 360.394 452 252C452 143.606 364.394 56 256 56C147.606 56 60 143.606 60 252C60 360.394 147.606 448 256 448Z" fill="url(#paint0_linear_1_12)"/>
-<path d="M148 236L256 180L364 236L256 292L148 236Z" fill="white"/>
-<path d="M340 249V317L256 361L172 317V249L256 293L340 249Z" fill="white"/>
-<defs>
-<linearGradient id="paint0_linear_1_12" x1="256" y1="56" x2="256" y2="448" gradientUnits="userSpaceOnUse">
-<stop stop-color="white" stop-opacity="0.2"/>
-<stop offset="1" stop-color="white" stop-opacity="0"/>
-</linearGradient>
-</defs>
+    <circle cx="256" cy="256" r="200" fill="#171C26"/>
+    <path d="M256 128L148 184V296" stroke="#2563EB" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M364 184V296L256 352L148 296" stroke="#2563EB" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M364 184L256 128" stroke="#2563EB" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M256 240V352" stroke="#2563EB" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M328.5 208L256 240L183.5 208" stroke="#2563EB" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M148 296L256 352L364 296" fill="#2563EB" fill-opacity="0.2"/>
 </svg>
