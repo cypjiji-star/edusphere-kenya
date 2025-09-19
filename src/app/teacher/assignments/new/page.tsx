@@ -44,11 +44,10 @@ function NewAssignmentPageContent() {
   );
 }
 
-export default function NewLessonPlanPage() {
+export default function NewAssignmentPage() {
     return (
         <Suspense>
             <NewAssignmentPageContent />
         </Suspense>
     )
 }
-

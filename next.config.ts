@@ -13,9 +13,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // ✅ Disable Next.js image optimization (important for Capacitor)
+  // ✅ Re-enable Next.js image optimization
   images: {
-    unoptimized: true,
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: 'https',
@@ -49,9 +49,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
-  // ✅ Make sure we are using "output: export" for Capacitor
-  output: 'export',
 };
 
 export default nextConfig;

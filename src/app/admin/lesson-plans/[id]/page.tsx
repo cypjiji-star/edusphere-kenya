@@ -29,8 +29,6 @@ import { collection, doc, onSnapshot, orderBy, query, Timestamp } from 'firebase
 import { useToast } from '@/hooks/use-toast';
 
 
-export const dynamicParams = false;
-
 type VersionHistoryItem = {
     id: string;
     version: number;
