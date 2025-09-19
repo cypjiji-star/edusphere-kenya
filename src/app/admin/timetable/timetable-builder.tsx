@@ -55,7 +55,7 @@ type DraggableSubjectType = {
 };
 
 type Period = { id: number; time: string; isBreak?: boolean; title?: string };
-type TimetableCellData = { subject: DraggableSubjectType; room: string; className?: string; clash?: { with: string; message: string } };
+type TimetableCellData = { subject: DraggableSubjectType; room: string; className?: string; clash?: { with: string; message: string } | null };
 type TimetableData = Record<string, Record<string, TimetableCellData>>;
 type AllTimetables = Record<string, TimetableData>;
 
@@ -297,7 +297,7 @@ export function TimetableBuilder() {
         };
       }
     }
-    return undefined;
+    return null;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
