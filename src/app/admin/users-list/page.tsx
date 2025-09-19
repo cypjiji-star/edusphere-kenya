@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -60,7 +59,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, where, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
@@ -147,16 +146,8 @@ export default function UserManagementListPage() {
         if (!schoolId) return;
         setClientReady(true);
         
-        const userCollections = ['admins', 'teachers', 'parents'];
-        const unsubscribers = userCollections.map(collectionName => {
-            const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
-            return onSnapshot(q, () => {
-                // When any user collection changes, refetch all
-                fetchAllUsers();
-            });
-        });
-
         const fetchAllUsers = async () => {
+            const userCollections = ['admins', 'teachers', 'parents'];
             const usersData: User[] = [];
             for (const collectionName of userCollections) {
                 const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
@@ -169,7 +160,7 @@ export default function UserManagementListPage() {
         };
         
         fetchAllUsers();
-        
+
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
             setRoles(snapshot.docs.map(doc => doc.id));
         });
@@ -180,7 +171,6 @@ export default function UserManagementListPage() {
         });
 
         return () => {
-            unsubscribers.forEach(unsub => unsub());
             unsubRoles();
             unsubClasses();
         };
@@ -757,3 +747,5 @@ export default function UserManagementListPage() {
         </div>
     );
 }
+
+    
