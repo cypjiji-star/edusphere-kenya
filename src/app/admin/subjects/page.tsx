@@ -297,7 +297,7 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                     </div>
                 </div>
                 <DialogFooter className="justify-between">
-                     <Button variant="destructive" onClick={() => onDelete(subject.id, subject.name)}>
+                     <Button variant="destructive" onClick={() => {onDelete(subject.id, subject.name)}}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Subject
                     </Button>
@@ -520,9 +520,16 @@ export default function ClassesAndSubjectsPage() {
         
         try {
             const subjectRef = doc(firestore, 'schools', schoolId, 'subjects', subjectId);
+            const subjectDoc = await getDoc(subjectRef);
+            const existingTeachers = subjectDoc.data()?.teachers || [];
+            
+            // Using a Set to avoid duplicate teacher names
+            const updatedTeachers = Array.from(new Set([...existingTeachers, ...teacherNames]));
+
             await updateDoc(subjectRef, {
-                teachers: teacherNames
+                teachers: updatedTeachers
             });
+
             toast({
                 title: 'Teachers Assigned',
                 description: `Teachers have been assigned to this subject.`
@@ -962,7 +969,7 @@ export default function ClassesAndSubjectsPage() {
                                             </Select>
                                         </div>
                                          <div className="space-y-2">
-                                            <Label>Assign Teacher</Label>
+                                            <Label>Assign Teachers</Label>
                                             <MultiSelect
                                                 options={teacherOptions}
                                                 selected={newSubjectTeacherIds}
@@ -1214,9 +1221,3 @@ export default function ClassesAndSubjectsPage() {
     </div>
   );
 }
-
-    
-
-
-
-
