@@ -107,7 +107,7 @@ function DroppableCell({ day, periodId, children }: { day: string; periodId: num
         <td
             ref={setNodeRef}
             className={cn(
-                "h-28 p-1 align-top border-r transition-colors",
+                "h-20 md:h-28 p-1 align-top border-r transition-colors",
                 isOver && "bg-primary/20"
             )}
         >
