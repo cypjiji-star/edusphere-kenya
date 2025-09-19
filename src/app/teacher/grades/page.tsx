@@ -43,6 +43,7 @@ import {
   RefreshCcw,
   ArrowLeft,
   Search,
+  Users,
 } from 'lucide-react';
 import {
   Table,
@@ -176,6 +177,9 @@ type PendingGrade = {
     assessmentTitle: string;
     examId: string;
 };
+
+type GroupedPendingGrades = Record<string, Record<string, PendingGrade[]>>;
+
 
 type TeacherClass = {
     id: string;
@@ -397,31 +401,38 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
 
     React.useEffect(() => {
         setIsLoading(true);
+        
         const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
         const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
 
-        Promise.all([getDocs(studentsQuery), getDocs(gradesQuery)]).then(([studentsSnap, gradesSnap]) => {
+        const unsubGrades = onSnapshot(gradesQuery, (gradesSnap) => {
             const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
             
-            const studentData = studentsSnap.docs.map(doc => {
-                const data = doc.data();
-                const existingGrade = gradesMap.get(doc.id);
-                const score = existingGrade?.score || '';
-                return {
-                    studentId: doc.id,
-                    studentName: data.name,
-                    avatarUrl: data.avatarUrl || '',
-                    admNo: data.admissionNumber || '',
-                    score: score,
-                    grade: score ? calculateGrade(Number(score)) : '',
-                    gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
-                    submissionId: existingGrade?.submissionId,
-                }
+            // This assumes students don't change often, so we fetch them once.
+            // For a more robust solution, we'd listen to student changes too.
+            getDocs(studentsQuery).then(studentsSnap => {
+                const studentData = studentsSnap.docs.map(doc => {
+                    const data = doc.data();
+                    const existingGrade = gradesMap.get(doc.id);
+                    const score = existingGrade?.score || '';
+                    return {
+                        studentId: doc.id,
+                        studentName: data.name,
+                        avatarUrl: data.avatarUrl || '',
+                        admNo: data.admissionNumber || '',
+                        score: score,
+                        grade: score ? calculateGrade(Number(score)) : '',
+                        gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
+                        submissionId: existingGrade?.submissionId,
+                    }
+                });
+                setStudents(studentData);
+                gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
+                setIsLoading(false);
             });
-            setStudents(studentData);
-            gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
-            setIsLoading(false);
         });
+
+        return () => unsubGrades();
     }, [exam, schoolId]);
     
     const handleScoreChange = (studentId: string, score: string) => {
@@ -457,7 +468,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 classId: exam.classId,
                 date: exam.date,
                 teacherName: teacher.name,
-                status: 'Pending Approval' // Always set to pending for admin review
+                status: 'Pending Approval'
             }, { merge: true });
             
             toast({
@@ -465,7 +476,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 description: `The grade for ${student.studentName} is saved and awaits admin approval.`,
             });
 
-            setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id, gradeStatus: 'Pending Approval' } : s));
+            // The onSnapshot listener will handle the UI update, no need for local state update here.
 
         } catch (e) {
             console.error(e);
@@ -477,7 +488,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         setIsSaving(true);
         try {
             const examRef = doc(firestore, 'schools', schoolId, 'exams', exam.id);
-            await updateDoc(examRef, { status: 'Pending Approval' }); // Change status to Pending Approval for the whole exam
+            await updateDoc(examRef, { status: 'Pending Approval' });
             
             await logAuditEvent({
                 schoolId,
@@ -1011,4 +1022,5 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
+
 
