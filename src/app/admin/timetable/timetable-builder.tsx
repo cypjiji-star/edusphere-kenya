@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, type DragEndEvent, useSensors, useSensor, PointerSensor, TouchSensor, KeyboardSensor } from '@dnd-kit/core';
 import {
   Card,
   CardContent,
@@ -135,6 +135,12 @@ export function TimetableBuilder() {
   const [newSubjectCode, setNewSubjectCode] = React.useState('');
   const [newSubjectDept, setNewSubjectDept] = React.useState('');
   const [isAddSubjectOpen, setIsAddSubjectOpen] = React.useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(TouchSensor),
+    useSensor(KeyboardSensor)
+  );
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -466,7 +472,7 @@ export function TimetableBuilder() {
     : selectedItem;
 
   return (
-    <DndContext onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-3">
                 <Card>
