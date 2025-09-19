@@ -66,7 +66,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, setDoc, writeBatch, getDocs, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { MultiSelect } from '@/components/ui/multi-select';
 import jsPDF from 'jspdf';
@@ -495,7 +495,10 @@ export default function ClassesAndSubjectsPage() {
         const subjectRef = doc(firestore, `schools/${schoolId}/subjects`, subjectId);
         try {
             const subjectDoc = await getDoc(subjectRef);
-            const currentTeachers = subjectDoc.data()?.teachers || [];
+            if (!subjectDoc.exists()) {
+                throw new Error("Subject not found");
+            }
+            const currentTeachers = subjectDoc.data().teachers || [];
             if (!currentTeachers.includes(teacherName)) {
                 await updateDoc(subjectRef, {
                     teachers: [...currentTeachers, teacherName]
@@ -533,7 +536,7 @@ export default function ClassesAndSubjectsPage() {
         }
         setIsSaving(true);
         try {
-            // Map teacher IDs back to names before saving
+            // Map teacher IDs back to names for saving
             const teacherNames = newSubjectTeacherIds.map(id => teachers.find(t => t.id === id)?.name).filter(Boolean) as string[];
 
             await addDoc(collection(firestore, `schools/${schoolId}/subjects`), {
@@ -988,7 +991,7 @@ export default function ClassesAndSubjectsPage() {
                                                             <div className="space-y-1">
                                                                 {teachers.map(t => (
                                                                     <Button key={t.id} variant="ghost" size="sm" className="w-full justify-start" onClick={() => handleAssignTeacherToSubject(subject.id, t.name)}>
-                                                                        {t.name}
+                                                                        <UserCheck className="mr-2 h-4 w-4 inline" /> {t.name}
                                                                     </Button>
                                                                 ))}
                                                             </div>
