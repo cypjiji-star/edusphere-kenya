@@ -180,13 +180,11 @@ function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAs
     )
 }
 
-function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDelete }: { subject: Subject | null, teachers: Teacher[], open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Subject>) => void, onDelete: (id: string, name: string) => void }) {
+function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDelete, teacherOptions }: { subject: Subject | null, teachers: Teacher[], open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Subject>) => void, onDelete: (id: string, name: string) => void, teacherOptions: {value: string; label: string;}[] }) {
     const [name, setName] = React.useState('');
     const [code, setCode] = React.useState('');
     const [department, setDepartment] = React.useState('');
     const [assignedTeacherIds, setAssignedTeacherIds] = React.useState<string[]>([]);
-    
-    const teacherOptions = React.useMemo(() => teachers.map(t => ({ value: t.id, label: t.name })), [teachers]);
 
     React.useEffect(() => {
         if (subject) {
@@ -1128,6 +1126,7 @@ export default function ClassesAndSubjectsPage() {
             onOpenChange={(open) => !open && setEditingSubject(null)}
             onSave={handleUpdateSubject}
             onDelete={handleDelete}
+            teacherOptions={teacherOptions}
         />
     </div>
   );
