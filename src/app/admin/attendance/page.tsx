@@ -581,7 +581,7 @@ export default function AdminAttendancePage() {
       </div>
       
        <Tabs defaultValue="overview">
-        <TabsList className="mb-4 grid grid-cols-1 sm:grid-cols-3 w-full sm:w-auto">
+        <TabsList className="mb-4 flex-wrap h-auto justify-start sm:justify-center">
             <TabsTrigger value="overview">School-wide Overview</TabsTrigger>
             <TabsTrigger value="student">Student Analytics</TabsTrigger>
             <TabsTrigger value="comms">Communication Log</TabsTrigger>
@@ -610,7 +610,7 @@ export default function AdminAttendancePage() {
                                         <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students</p>
                                     </CardContent>
                                     <CardFooter>
-                                        <Button variant="outline" size="sm" className="w-full" onClick={() => setStatusFilter('All Statuses')}>
+                                        <Button size="sm" className="w-full" onClick={() => setStatusFilter('All Statuses')}>
                                             View All
                                             <ArrowRight className="ml-2 h-4 w-4"/>
                                         </Button>
@@ -626,7 +626,7 @@ export default function AdminAttendancePage() {
                                         <p className="text-xs text-muted-foreground">students marked absent</p>
                                     </CardContent>
                                     <CardFooter>
-                                         <Button variant="outline" size="sm" className="w-full" onClick={() => setStatusFilter('Absent')}>
+                                         <Button variant="destructive" size="sm" className="w-full" onClick={() => setStatusFilter('Absent')}>
                                             View Absences
                                             <ArrowRight className="ml-2 h-4 w-4"/>
                                         </Button>
@@ -642,7 +642,7 @@ export default function AdminAttendancePage() {
                                         <p className="text-xs text-muted-foreground">students marked late</p>
                                     </CardContent>
                                     <CardFooter>
-                                        <Button variant="outline" size="sm" className="w-full" onClick={() => setStatusFilter('Late')}>
+                                        <Button variant="secondary" size="sm" className="w-full" onClick={() => setStatusFilter('Late')}>
                                             View Late Arrivals
                                             <ArrowRight className="ml-2 h-4 w-4"/>
                                         </Button>
@@ -980,3 +980,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
