@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -821,6 +820,7 @@ export default function AdminGradesPage() {
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [gradeToReject, setGradeToReject] = React.useState<PendingGrade | null>(null);
     const [rankedClasses, setRankedClasses] = React.useState<Record<string, Ranking[]>>({});
+    const [examTermFilter, setExamTermFilter] = React.useState<string>(getCurrentTerm());
 
 
     React.useEffect(() => {
@@ -847,7 +847,7 @@ export default function AdminGradesPage() {
             setSubjects(snapshot.docs.map(doc => doc.data().name));
         });
 
-        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
+        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved'));
         const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
             const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number>, classId: string }> = {};
             const studentPromises = [];
@@ -985,10 +985,29 @@ export default function AdminGradesPage() {
         const exam = exams.find(e => e.id === selectedGradebookExam);
         return exam ? [exam.subject] : [];
     }, [exams, selectedGradebookExam]);
+
+    const getTermDates = (term: string) => {
+        const [termName, yearStr] = term.split('-');
+        const year = parseInt(yearStr, 10);
+        switch(termName) {
+            case 'term1': return { start: new Date(year, 0, 1), end: new Date(year, 3, 30) };
+            case 'term2': return { start: new Date(year, 4, 1), end: new Date(year, 7, 31) };
+            case 'term3': return { start: new Date(year, 8, 1), end: new Date(year, 11, 31) };
+            default: return null;
+        }
+    };
     
     const groupedExams = React.useMemo(() => {
+        const termRange = getTermDates(examTermFilter);
+        const filteredExams = termRange
+            ? exams.filter(exam => {
+                const examDate = exam.date.toDate();
+                return examDate >= termRange.start && examDate <= termRange.end;
+              })
+            : exams;
+
         const groups = new Map<string, Exam[]>();
-        exams.forEach(exam => {
+        filteredExams.forEach(exam => {
             const key = `${exam.title}|${exam.classId}|${exam.date.toMillis()}`;
             if (!groups.has(key)) {
                 groups.set(key, []);
@@ -1012,7 +1031,7 @@ export default function AdminGradesPage() {
             }
             return representative;
         });
-    }, [exams, subjects.length]);
+    }, [exams, subjects.length, examTermFilter]);
 
 
     const handleCreateExam = async () => {
@@ -1412,77 +1431,87 @@ export default function AdminGradesPage() {
                             <CardTitle>Exam Scheduler</CardTitle>
                             <CardDescription>Create, schedule, and manage all school examinations.</CardDescription>
                         </div>
-                        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <PlusCircle className="mr-2 h-4 w-4"/>
-                                    Create Exam
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-2xl">
-                                <DialogHeader>
-                                    <DialogTitle>Create New Exam</DialogTitle>
-                                    <DialogDescription>Fill in the details for the new examination.</DialogDescription>
-                                </DialogHeader>
-                                <div className="py-4 space-y-6">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="exam-title">Exam Title</Label>
-                                        <Input id="exam-title" placeholder="e.g., Form 4 Midterm Exam" value={examTitle} onChange={e => setExamTitle(e.target.value)} />
+                        <div className="flex w-full md:w-auto flex-col sm:flex-row gap-2 mt-4 md:mt-0">
+                            <Select value={examTermFilter} onValueChange={setExamTermFilter}>
+                                <SelectTrigger className="w-full sm:w-[200px]">
+                                    <SelectValue placeholder="Select Term/Year"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <PlusCircle className="mr-2 h-4 w-4"/>
+                                        Create Exam
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Create New Exam</DialogTitle>
+                                        <DialogDescription>Fill in the details for the new examination.</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="py-4 space-y-6">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="exam-title">Exam Title</Label>
+                                            <Input id="exam-title" placeholder="e.g., Form 4 Midterm Exam" value={examTitle} onChange={e => setExamTitle(e.target.value)} />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="exam-class">Class</Label>
+                                                <Select value={examClassId} onValueChange={setExamClassId}>
+                                                    <SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">All Classes</SelectItem>
+                                                        {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="exam-subject">Subject</Label>
+                                                <Select value={examSubject} onValueChange={setExamSubject}>
+                                                    <SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">All Subjects</SelectItem>
+                                                        {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="exam-date">Date</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="outline" className="w-full justify-start font-normal">
+                                                            <CalendarIcon className="mr-2 h-4 w-4"/>
+                                                            {examDate ? format(examDate, 'PPP') : <span>Pick a date</span>}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={examDate} onSelect={setExamDate} initialFocus/></PopoverContent>
+                                                </Popover>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="exam-duration">Duration (minutes)</Label>
+                                                <Input id="exam-duration" type="number" placeholder="e.g., 120" value={examDuration} onChange={e => setExamDuration(e.target.value)} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="exam-type">Type</Label>
+                                                <Select value={examType} onValueChange={(v: Exam['type']) => setExamType(v)}>
+                                                    <SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger>
+                                                    <SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="exam-class">Class</Label>
-                                            <Select value={examClassId} onValueChange={setExamClassId}>
-                                                <SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">All Classes</SelectItem>
-                                                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="exam-subject">Subject</Label>
-                                            <Select value={examSubject} onValueChange={setExamSubject}>
-                                                <SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">All Subjects</SelectItem>
-                                                    {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="exam-date">Date</Label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="outline" className="w-full justify-start font-normal">
-                                                        <CalendarIcon className="mr-2 h-4 w-4"/>
-                                                        {examDate ? format(examDate, 'PPP') : <span>Pick a date</span>}
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={examDate} onSelect={setExamDate} initialFocus/></PopoverContent>
-                                            </Popover>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="exam-duration">Duration (minutes)</Label>
-                                            <Input id="exam-duration" type="number" placeholder="e.g., 120" value={examDuration} onChange={e => setExamDuration(e.target.value)} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="exam-type">Type</Label>
-                                            <Select value={examType} onValueChange={(v: Exam['type']) => setExamType(v)}>
-                                                <SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger>
-                                                <SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                                    <Button onClick={handleCreateExam}>Create Exam</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                                    <DialogFooter>
+                                        <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                                        <Button onClick={handleCreateExam}>Create Exam</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="w-full overflow-auto rounded-lg border">
@@ -1600,40 +1629,39 @@ export default function AdminGradesPage() {
                         <CardDescription>Review and approve grade entries submitted by teachers.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Accordion type="single" collapsible className="w-full">
-                           {Object.entries(rankedClasses).map(([classId, students]) => {
-                                const className = classes.find(c => c.id === classId)?.name || 'Unknown Class';
-                                return (
-                                <AccordionItem key={classId} value={classId}>
-                                    <AccordionTrigger className="text-lg font-semibold">{className}</AccordionTrigger>
-                                    <AccordionContent>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Rank</TableHead>
-                                                    <TableHead>Student</TableHead>
-                                                    <TableHead className="text-right">Total Score</TableHead>
-                                                    <TableHead className="text-right">Average</TableHead>
-                                                    <TableHead>Grade</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {students.map(student => (
-                                                    <TableRow key={student.admNo} className="cursor-pointer" onClick={() => setSelectedStudentForReport(student)}>
-                                                        <TableCell className="font-bold">{student.position}</TableCell>
-                                                        <TableCell>{student.name}</TableCell>
-                                                        <TableCell className="text-right">{student.total}</TableCell>
-                                                        <TableCell className="text-right">{student.avg.toFixed(1)}%</TableCell>
-                                                        <TableCell><Badge>{student.grade}</Badge></TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </AccordionContent>
-                                </AccordionItem>
-                                )
-                           })}
-                        </Accordion>
+                         <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Grade</TableHead>
+                                        <TableHead>Submitted By</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {pendingGrades.length > 0 ? pendingGrades.map(grade => (
+                                        <TableRow key={grade.id}>
+                                            <TableCell>{grade.studentName}</TableCell>
+                                            <TableCell>{grade.subject}</TableCell>
+                                            <TableCell className="font-bold">{grade.grade}</TableCell>
+                                            <TableCell>{grade.teacherName}</TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button size="sm" variant="secondary" className="bg-green-600 hover:bg-green-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Approved')}>
+                                                    <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                                                </Button>
+                                                <Button size="sm" variant="destructive" onClick={() => setGradeToReject(grade)}>
+                                                    <XCircle className="mr-2 h-4 w-4" /> Reject
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">The approval queue is empty.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                  </Card>
                  <Card>
@@ -1727,41 +1755,40 @@ export default function AdminGradesPage() {
                             <CardTitle>Class Ranking</CardTitle>
                         </CardHeader>
                         <CardContent>
-                             <div className="w-full overflow-auto rounded-lg border" id="class-ranking-table">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Pos</TableHead>
-                                            <TableHead>Stream</TableHead>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead className="text-right">Total</TableHead>
-                                            <TableHead className="text-right">Average</TableHead>
-                                            <TableHead>Grade</TableHead>
-                                            <TableHead className="text-right">Report</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {classRanking.map(student => (
-                                            <TableRow key={student.admNo}>
-                                                <TableCell className="font-bold">{student.position}</TableCell>
-                                                <TableCell className="font-bold">{student.streamPosition}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="h-8 w-8"><AvatarImage src={student.avatarUrl}/><AvatarFallback>{student.name[0]}</AvatarFallback></Avatar>
-                                                        {student.name}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right">{student.total}</TableCell>
-                                                <TableCell className="text-right">{student.avg.toFixed(1)}</TableCell>
-                                                <TableCell><Badge>{student.grade}</Badge></TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="outline" size="sm" onClick={() => setSelectedStudentForReport(student)}>View Report</Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                            <Accordion type="single" collapsible className="w-full">
+                                {Object.entries(rankedClasses).map(([classId, students]) => {
+                                    const className = classes.find(c => c.id === classId)?.name || 'Unknown Class';
+                                    return (
+                                    <AccordionItem key={classId} value={classId}>
+                                        <AccordionTrigger className="text-lg font-semibold">{className}</AccordionTrigger>
+                                        <AccordionContent>
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Rank</TableHead>
+                                                        <TableHead>Student</TableHead>
+                                                        <TableHead className="text-right">Total Score</TableHead>
+                                                        <TableHead className="text-right">Average</TableHead>
+                                                        <TableHead>Grade</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {students.map(student => (
+                                                        <TableRow key={student.admNo} className="cursor-pointer" onClick={() => setSelectedStudentForReport(student)}>
+                                                            <TableCell className="font-bold">{student.position}</TableCell>
+                                                            <TableCell>{student.name}</TableCell>
+                                                            <TableCell className="text-right">{student.total}</TableCell>
+                                                            <TableCell className="text-right">{student.avg.toFixed(1)}%</TableCell>
+                                                            <TableCell><Badge>{student.grade}</Badge></TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                    )
+                            })}
+                            </Accordion>
                         </CardContent>
                     </Card>
                     <Card>
@@ -1800,4 +1827,5 @@ export default function AdminGradesPage() {
 }
     
 
+    
     
