@@ -3,8 +3,6 @@
 
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
-
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -141,5 +139,4 @@ export {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
-  VisuallyHidden,
 }
