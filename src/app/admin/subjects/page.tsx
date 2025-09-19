@@ -203,7 +203,7 @@ function AssignTeacherDialog({ subject, teachers, open, onOpenChange, onSave }: 
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Assign Teachers to {subject.name}</DialogTitle>
@@ -222,7 +222,7 @@ function AssignTeacherDialog({ subject, teachers, open, onOpenChange, onSave }: 
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
+    );
 }
 
 function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDelete, teacherOptions }: { subject: Subject | null, teachers: Teacher[], open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Subject>) => void, onDelete: (id: string, name: string) => void, teacherOptions: {value: string; label: string;}[] }) {
@@ -512,26 +512,21 @@ export default function ClassesAndSubjectsPage() {
         });
     };
 
-    const handleAssignTeacher = async (classId: string, subject: string, teacherName: string) => {
+    const handleAssignTeacherToSubject = async (subjectId: string, teacherName: string) => {
         if (!schoolId) return;
-        setIsSaving(true);
-        const currentAssignments = classAssignments[classId] || [];
-        const updatedAssignments = currentAssignments.map(a => 
-            a.subject === subject ? { ...a, teacher: teacherName } : a
-        );
-
+        
         try {
-            const assignmentRef = doc(firestore, `schools/${schoolId}/class-assignments`, classId);
-            await setDoc(assignmentRef, { assignments: updatedAssignments }, { merge: true });
+            const subjectRef = doc(firestore, 'schools', schoolId, 'subjects', subjectId);
+            await updateDoc(subjectRef, {
+                teachers: arrayUnion(teacherName)
+            });
             toast({
                 title: 'Teacher Assigned',
-                description: `${teacherName} has been assigned to teach ${subject} in this class.`
+                description: `${teacherName} has been assigned to this subject.`
             });
-        } catch (error) {
-            console.error("Failed to assign teacher:", error);
-            toast({ title: 'Assignment Failed', variant: 'destructive' });
-        } finally {
-            setIsSaving(false);
+        } catch(error) {
+            console.error("Error assigning teacher:", error);
+            toast({ variant: 'destructive', title: 'Assignment Failed' });
         }
     };
     
@@ -589,6 +584,29 @@ export default function ClassesAndSubjectsPage() {
         } catch (e) {
             console.error(e);
             toast({ title: 'Update Failed', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleAssignTeacherToClassSubject = async (classId: string, subject: string, teacherName: string) => {
+        if (!schoolId) return;
+        setIsSaving(true);
+        const currentAssignments = classAssignments[classId] || [];
+        const updatedAssignments = currentAssignments.map(a => 
+            a.subject === subject ? { ...a, teacher: teacherName } : a
+        );
+
+        try {
+            const assignmentRef = doc(firestore, `schools/${schoolId}/class-assignments`, classId);
+            await setDoc(assignmentRef, { assignments: updatedAssignments }, { merge: true });
+            toast({
+                title: 'Teacher Assigned',
+                description: `${teacherName} has been assigned to teach ${subject} in this class.`
+            });
+        } catch (error) {
+            console.error("Failed to assign teacher:", error);
+            toast({ title: 'Assignment Failed', variant: 'destructive' });
         } finally {
             setIsSaving(false);
         }
@@ -1143,7 +1161,7 @@ export default function ClassesAndSubjectsPage() {
                                                             {availableTeachers.length > 0 ? availableTeachers.map(t => {
                                                                 const load = teacherWorkload[t] || 0;
                                                                 return (
-                                                                <Button key={t} variant="ghost" size="sm" className="w-full justify-between" onClick={() => handleAssignTeacher(currentClassForAssignment.id, assignment.subject, t)}>
+                                                                <Button key={t} variant="ghost" size="sm" className="w-full justify-between" onClick={() => handleAssignTeacherToClassSubject(currentClassForAssignment.id, assignment.subject, t)}>
                                                                     <span><UserCheck className="mr-2 h-4 w-4 inline" /> {t}</span>
                                                                     <Badge variant={load > OVER_ASSIGNED_THRESHOLD ? "destructive" : "secondary"}>{load} classes</Badge>
                                                                 </Button>
@@ -1192,4 +1210,5 @@ export default function ClassesAndSubjectsPage() {
 }
 
     
+
 
