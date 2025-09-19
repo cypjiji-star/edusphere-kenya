@@ -17,10 +17,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type TeacherAttendanceRecord = {
     date: Timestamp;
-    status: 'Present' | 'Absent' | 'Late' | 'CheckedOut';
+    status: 'Present' | 'Absent' | 'Late' | 'CheckedOut' | 'present' | 'absent' | 'late';
     checkInTime?: Timestamp;
     checkOutTime?: Timestamp;
 };
+
+const normalizeStatus = (status: TeacherAttendanceRecord['status']): 'Present' | 'Absent' | 'Late' | 'CheckedOut' => {
+    switch (status.toLowerCase()) {
+        case 'present': return 'Present';
+        case 'checkedout': return 'CheckedOut';
+        case 'late': return 'Late';
+        case 'absent': return 'Absent';
+        default: return 'Present';
+    }
+}
 
 export function MyAttendanceHistory() {
     const { user } = useAuth();
@@ -53,15 +63,15 @@ export function MyAttendanceHistory() {
     
     // --- Data for Calendar View ---
     const presentDays = attendance
-        .filter(r => r.status === 'Present' || r.status === 'CheckedOut')
+        .filter(r => normalizeStatus(r.status) === 'Present' || normalizeStatus(r.status) === 'CheckedOut')
         .map(r => r.date.toDate());
     
     const lateDays = attendance
-        .filter(r => r.status === 'Late')
+        .filter(r => normalizeStatus(r.status) === 'Late')
         .map(r => r.date.toDate());
 
     const absentDays = attendance
-        .filter(r => r.status === 'Absent')
+        .filter(r => normalizeStatus(r.status) === 'Absent')
         .map(r => r.date.toDate());
         
     // --- Data for List View ---
@@ -75,7 +85,8 @@ export function MyAttendanceHistory() {
     
     const getStatusForDay = (record?: TeacherAttendanceRecord) => {
         if (!record) return <Badge variant="outline">Unmarked</Badge>;
-        switch (record.status) {
+        const normalized = normalizeStatus(record.status);
+        switch (normalized) {
             case 'Present':
             case 'CheckedOut':
                 return <Badge className="bg-green-600 hover:bg-green-600">Present</Badge>;

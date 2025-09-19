@@ -41,6 +41,7 @@ export default function CreateDeveloperAccountPage() {
       await setDoc(devDocRef, {
         uid: user.uid,
         email: user.email,
+        role: 'developer',
         createdAt: new Date(),
       });
 
