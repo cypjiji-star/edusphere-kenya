@@ -72,6 +72,7 @@ import {
   Loader2,
   User as UserIcon,
   Mail,
+  ArrowRight,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -598,43 +599,55 @@ export default function AdminAttendancePage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid gap-6 sm:grid-cols-3">
-                                <button className="w-full text-left" onClick={() => setStatusFilter('All Statuses')}>
-                                    <Card className="hover:bg-muted/50 transition-colors h-full">
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Overall Attendance Rate</CardTitle>
-                                            <Percent className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{attendanceRate}%</div>
-                                            <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students</p>
-                                        </CardContent>
-                                    </Card>
-                                </button>
-                                <button className="w-full text-left" onClick={() => setStatusFilter('Absent')}>
-                                    <Card className="hover:bg-muted/50 transition-colors h-full">
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
-                                            <UserX className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{summaryStats.absent}</div>
-                                            <p className="text-xs text-muted-foreground">students marked absent</p>
-                                        </CardContent>
-                                    </Card>
-                                </button>
-                                <button className="w-full text-left" onClick={() => setStatusFilter('Late')}>
-                                    <Card className="hover:bg-muted/50 transition-colors h-full">
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
-                                            <UserCheck className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{summaryStats.late}</div>
-                                            <p className="text-xs text-muted-foreground">students marked late</p>
-                                        </CardContent>
-                                    </Card>
-                                </button>
+                           <div className="grid gap-6 sm:grid-cols-3">
+                                <Card className="flex flex-col">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                        <CardTitle className="text-sm font-medium">Overall Attendance Rate</CardTitle>
+                                        <Percent className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent className="flex-1">
+                                        <div className="text-2xl font-bold">{attendanceRate}%</div>
+                                        <p className="text-xs text-muted-foreground">{summaryStats.present + summaryStats.late} of {totalRecords} students</p>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button variant="outline" size="sm" className="w-full" onClick={() => setStatusFilter('All Statuses')}>
+                                            View All
+                                            <ArrowRight className="ml-2 h-4 w-4"/>
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                                <Card className="flex flex-col">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                        <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
+                                        <UserX className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent className="flex-1">
+                                        <div className="text-2xl font-bold">{summaryStats.absent}</div>
+                                        <p className="text-xs text-muted-foreground">students marked absent</p>
+                                    </CardContent>
+                                    <CardFooter>
+                                         <Button variant="outline" size="sm" className="w-full" onClick={() => setStatusFilter('Absent')}>
+                                            View Absences
+                                            <ArrowRight className="ml-2 h-4 w-4"/>
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                                <Card className="flex flex-col">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                        <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
+                                        <UserCheck className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent className="flex-1">
+                                        <div className="text-2xl font-bold">{summaryStats.late}</div>
+                                        <p className="text-xs text-muted-foreground">students marked late</p>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button variant="outline" size="sm" className="w-full" onClick={() => setStatusFilter('Late')}>
+                                            View Late Arrivals
+                                            <ArrowRight className="ml-2 h-4 w-4"/>
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
                             </div>
                         </CardContent>
                     </Card>
