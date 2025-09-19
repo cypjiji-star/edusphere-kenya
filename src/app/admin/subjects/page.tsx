@@ -71,6 +71,7 @@ import { useSearchParams } from 'next/navigation';
 import { MultiSelect } from '@/components/ui/multi-select';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { CommandList } from '@/components/ui/command';
 
 
 type SchoolClass = {
@@ -514,17 +515,17 @@ export default function ClassesAndSubjectsPage() {
         });
     };
 
-    const handleAssignTeacherToSubject = async (subjectId: string, teacherName: string) => {
+    const handleAssignTeacherToSubject = async (subjectId: string, teacherNames: string[]) => {
         if (!schoolId) return;
         
         try {
             const subjectRef = doc(firestore, 'schools', schoolId, 'subjects', subjectId);
             await updateDoc(subjectRef, {
-                teachers: arrayUnion(teacherName)
+                teachers: teacherNames
             });
             toast({
-                title: 'Teacher Assigned',
-                description: `${teacherName} has been assigned to this subject.`
+                title: 'Teachers Assigned',
+                description: `Teachers have been assigned to this subject.`
             });
         } catch(error) {
             console.error("Error assigning teacher:", error);
@@ -961,7 +962,7 @@ export default function ClassesAndSubjectsPage() {
                                             </Select>
                                         </div>
                                          <div className="space-y-2">
-                                            <Label>Assigned Teachers</Label>
+                                            <Label>Assign Teacher</Label>
                                             <MultiSelect
                                                 options={teacherOptions}
                                                 selected={newSubjectTeacherIds}
@@ -1208,13 +1209,14 @@ export default function ClassesAndSubjectsPage() {
             teachers={teachers}
             open={!!assigningTeacherSubject}
             onOpenChange={(open) => !open && setAssigningTeacherSubject(null)}
-            onSave={(id, teacherNames) => handleUpdateSubject(id, { teachers: teacherNames })}
+            onSave={handleAssignTeacherToSubject}
         />
     </div>
   );
 }
 
     
+
 
 
 
