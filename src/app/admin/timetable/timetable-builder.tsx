@@ -517,7 +517,7 @@ export function TimetableBuilder() {
                                             {periods.map((period, index) => {
                                                 const [startTime, endTime] = period.time.split(' - ');
                                                 return (
-                                                <div key={period.id} className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 border-b pb-4">
+                                                <div key={period.id} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-center gap-4 border-b pb-4">
                                                     <div className="space-y-1.5">
                                                         <Label htmlFor={`start-time-${period.id}`}>Start Time</Label>
                                                         <Input id={`start-time-${period.id}`} type="time" value={startTime} onChange={(e) => updatePeriod(period.id, 'time', `${e.target.value} - ${endTime}`)} />
