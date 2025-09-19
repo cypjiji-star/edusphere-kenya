@@ -12,6 +12,9 @@ import {
   Settings,
   X,
   AlertTriangle,
+  Send,
+  Loader2,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sheet,
@@ -41,6 +44,9 @@ import { useAuth } from '@/context/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
+import { Input } from '../ui/input';
+import { Avatar, AvatarFallback } from '../ui/avatar';
+import { supportChatbot } from '@/ai/flows/support-chatbot-flow';
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
 
@@ -55,6 +61,13 @@ export type Notification = {
   audience?: 'all' | 'admin' | 'teacher' | 'parent' | 'parents-and-students';
   userId?: string;
 };
+
+type Message = {
+  role: 'user' | 'model';
+  content: string;
+};
+
+const aiEscalationMessage = "Understood. I'm escalating your request to a human administrator who will get back to you shortly.";
 
 
 const categoryConfig: Record<NotificationCategory, { icon: React.ElementType, color: string, priority: number }> = {
@@ -114,6 +127,88 @@ function NotificationItem({
         >
           <X className="h-4 w-4" />
       </Button>
+    </div>
+  );
+}
+
+function AiChatTab() {
+  const [messages, setMessages] = React.useState<Message[]>([
+    { role: 'model', content: 'Hello! I am the EduSphere AI assistant. How can I help you with school administration today?' }
+  ]);
+  const [input, setInput] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isEscalated, setIsEscalated] = React.useState(false);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const userMessage: Message = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+        const result = await supportChatbot({ history: [...messages, userMessage] });
+        if (result.response === aiEscalationMessage) {
+            setIsEscalated(true);
+        }
+        const aiMessage: Message = { role: 'model', content: result.response };
+        setMessages(prev => [...prev, aiMessage]);
+
+    } catch (error) {
+        console.error("Error with AI chatbot:", error);
+        const errorMessage: Message = { role: 'model', content: 'Sorry, I encountered an error. Please try again.' };
+        setMessages(prev => [...prev, errorMessage]);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+       <ScrollArea className="flex-1">
+         <div className="p-4 space-y-4">
+            {messages.map((message, index) => (
+                <div key={index} className={cn('flex items-end gap-2', message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                {message.role === 'model' && (
+                    <Avatar className="h-8 w-8">
+                        <AvatarFallback><Sparkles /></AvatarFallback>
+                    </Avatar>
+                )}
+                <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                    <p>{message.content}</p>
+                </div>
+                </div>
+            ))}
+            {isLoading && (
+                <div className="flex items-end gap-2 justify-start">
+                    <Avatar className="h-8 w-8"><AvatarFallback><Sparkles /></AvatarFallback></Avatar>
+                    <div className="rounded-lg p-3 text-sm bg-muted"><Loader2 className="h-5 w-5 animate-spin"/></div>
+                </div>
+            )}
+            {isEscalated && (
+                <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-500/50 rounded-lg text-center text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4"/>
+                    A human agent has been notified and will join this chat shortly.
+                </div>
+            )}
+            <div ref={messagesEndRef} />
+         </div>
+       </ScrollArea>
+       <div className="p-4 border-t">
+          <form onSubmit={handleSendMessage} className="flex w-full items-center gap-2">
+              <Input placeholder="Type your message..." value={input} onChange={(e) => setInput(e.target.value)} disabled={isEscalated} />
+              <Button type="submit" size="icon" disabled={isLoading || isEscalated}>
+                  <Send className="h-4 w-4" />
+              </Button>
+          </form>
+       </div>
     </div>
   );
 }
@@ -200,37 +295,55 @@ export function NotificationCenter() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
-        <SheetHeader className="p-6 border-b">
-          <SheetTitle className="flex items-center justify-between">
-            <span>Notifications</span>
-            {unreadCount > 0 && (
-                <Button variant="link" size="sm" className="h-auto p-0" onClick={handleMarkAllAsRead}>
-                    <CheckCheck className="mr-2 h-4 w-4"/>
-                    Mark all as read
-                </Button>
-            )}
-          </SheetTitle>
-        </SheetHeader>
-        <ScrollArea className="flex-1">
-            <div className="p-4 pt-2 space-y-2">
-                {sortedNotifications.length > 0 ? (
-                    sortedNotifications.map((notification) => (
-                        <NotificationItem
-                        key={notification.id}
-                        notification={notification}
-                        schoolId={schoolId!}
-                        onDismiss={handleMarkAsRead}
-                        currentUserId={user!.uid}
-                        />
-                    ))
-                ) : (
-                      <div className="text-center text-muted-foreground py-16">
-                        <p>No new notifications.</p>
+      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-full">
+        <Tabs defaultValue="notifications" className="flex flex-col h-full">
+            <SheetHeader className="p-6 pb-0">
+                <SheetTitle className="flex items-center justify-between">
+                    <span>Center</span>
+                    {unreadCount > 0 && (
+                        <Button variant="link" size="sm" className="h-auto p-0" onClick={handleMarkAllAsRead}>
+                            <CheckCheck className="mr-2 h-4 w-4"/>
+                            Mark all as read
+                        </Button>
+                    )}
+                </SheetTitle>
+                 <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="notifications">
+                        <Bell className="mr-2 h-4 w-4" />
+                        Notifications
+                        {unreadCount > 0 && <span className="ml-2 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">{unreadCount}</span>}
+                    </TabsTrigger>
+                    <TabsTrigger value="messages">
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        AI Support
+                    </TabsTrigger>
+                </TabsList>
+            </SheetHeader>
+            <TabsContent value="notifications" className="flex-1 mt-0">
+                 <ScrollArea className="h-full">
+                    <div className="p-4 pt-2 space-y-2">
+                        {sortedNotifications.length > 0 ? (
+                            sortedNotifications.map((notification) => (
+                                <NotificationItem
+                                key={notification.id}
+                                notification={notification}
+                                schoolId={schoolId!}
+                                onDismiss={handleMarkAsRead}
+                                currentUserId={user!.uid}
+                                />
+                            ))
+                        ) : (
+                            <div className="text-center text-muted-foreground py-16">
+                                <p>No new notifications.</p>
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
-          </ScrollArea>
+                </ScrollArea>
+            </TabsContent>
+            <TabsContent value="messages" className="flex-1 mt-0 h-full">
+                <AiChatTab />
+            </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

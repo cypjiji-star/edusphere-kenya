@@ -78,7 +78,6 @@ const navGroups = [
   {
     title: 'Communication',
     items: [
-      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false, badgeKey: 'unreadMessages' },
       { href: '/teacher/announcements', label: 'Announcements', icon: Megaphone, disabled: false, badgeKey: null },
       { href: '/teacher/calendar', label: 'Events Calendar', icon: Calendar, disabled: false, badgeKey: null },
     ],
@@ -128,12 +127,6 @@ export function TeacherSidebar() {
 
     const teacherId = user.uid;
     
-    // Unread messages count
-    const unreadMessagesQuery = query(collection(firestore, `schools/${schoolId}/conversations`), where('unread', '==', true));
-    const unsubscribeMessages = onSnapshot(unreadMessagesQuery, (snapshot) => {
-        setDynamicBadges(prev => ({...prev, unreadMessages: snapshot.size}));
-    });
-
     // Ungraded assignments count
     const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
     const unsubscribeAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
@@ -149,7 +142,6 @@ export function TeacherSidebar() {
 
     // Cleanup listeners on component unmount
     return () => {
-        unsubscribeMessages();
         unsubscribeAssignments();
     };
   }, [schoolId, user]);
