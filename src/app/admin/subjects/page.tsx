@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -183,23 +184,29 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
     const [name, setName] = React.useState('');
     const [code, setCode] = React.useState('');
     const [department, setDepartment] = React.useState('');
-    const [assignedTeachers, setAssignedTeachers] = React.useState<string[]>([]);
+    const [assignedTeacherIds, setAssignedTeacherIds] = React.useState<string[]>([]);
     
-    const teacherOptions = React.useMemo(() => teachers.map(t => ({ value: t.name, label: t.name })), [teachers]);
+    const teacherOptions = React.useMemo(() => teachers.map(t => ({ value: t.id, label: t.name })), [teachers]);
 
     React.useEffect(() => {
         if (subject) {
             setName(subject.name);
             setCode(subject.code);
             setDepartment(subject.department);
-            setAssignedTeachers(subject.teachers || []);
+            // Map names back to IDs for the MultiSelect component
+            const teacherIds = (subject.teachers || [])
+                .map(name => teachers.find(t => t.name === name)?.id)
+                .filter((id): id is string => !!id);
+            setAssignedTeacherIds(teacherIds);
         }
-    }, [subject]);
+    }, [subject, teachers]);
     
     if (!subject) return null;
 
     const handleSave = () => {
-        onSave(subject.id, { name, code, department, teachers: assignedTeachers });
+        // Map selected IDs back to names for saving
+        const teacherNames = assignedTeacherIds.map(id => teachers.find(t => t.id === id)?.name).filter(Boolean) as string[];
+        onSave(subject.id, { name, code, department, teachers: teacherNames });
         onOpenChange(false);
     };
 
@@ -237,8 +244,8 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                         <Label htmlFor="subject-teachers-edit">Assigned Teachers</Label>
                          <MultiSelect
                             options={teacherOptions}
-                            selected={assignedTeachers}
-                            onChange={setAssignedTeachers}
+                            selected={assignedTeacherIds}
+                            onChange={setAssignedTeacherIds}
                             placeholder="Select teachers..."
                         />
                     </div>
@@ -277,7 +284,7 @@ export default function ClassesAndSubjectsPage() {
     const [newSubjectName, setNewSubjectName] = React.useState('');
     const [newSubjectCode, setNewSubjectCode] = React.useState('');
     const [newSubjectDept, setNewSubjectDept] = React.useState('');
-    const [newSubjectTeachers, setNewSubjectTeachers] = React.useState<string[]>([]);
+    const [newSubjectTeacherIds, setNewSubjectTeacherIds] = React.useState<string[]>([]);
     
     // State for editing subject
     const [editingSubject, setEditingSubject] = React.useState<Subject | null>(null);
@@ -505,11 +512,14 @@ export default function ClassesAndSubjectsPage() {
         }
         setIsSaving(true);
         try {
+            // Map teacher IDs back to names before saving
+            const teacherNames = newSubjectTeacherIds.map(id => teachers.find(t => t.id === id)?.name).filter(Boolean) as string[];
+
             await addDoc(collection(firestore, `schools/${schoolId}/subjects`), {
                 name: newSubjectName,
                 code: newSubjectCode,
                 department: newSubjectDept,
-                teachers: newSubjectTeachers,
+                teachers: teacherNames,
                 classes: [],
                 createdAt: serverTimestamp(),
             });
@@ -517,7 +527,7 @@ export default function ClassesAndSubjectsPage() {
             setNewSubjectName('');
             setNewSubjectCode('');
             setNewSubjectDept('');
-            setNewSubjectTeachers([]);
+            setNewSubjectTeacherIds([]);
         } catch(e) {
             console.error(e);
             toast({ title: 'Creation Failed', variant: 'destructive' });
@@ -546,6 +556,7 @@ export default function ClassesAndSubjectsPage() {
 
     const currentClassForAssignment = classes.find(c => c.id === selectedAssignmentClass);
     const assignmentsForSelectedClass = currentClassForAssignment ? classAssignments[currentClassForAssignment.id] || [] : [];
+    const teacherOptions = React.useMemo(() => teachers.map(t => ({ value: t.id, label: t.name })), [teachers]);
 
 
   return (
@@ -885,9 +896,9 @@ export default function ClassesAndSubjectsPage() {
                                          <div className="space-y-2">
                                             <Label>Assigned Teachers</Label>
                                             <MultiSelect
-                                                options={teachers.map(t => ({ value: t.name, label: t.name }))}
-                                                selected={newSubjectTeachers}
-                                                onChange={setNewSubjectTeachers}
+                                                options={teacherOptions}
+                                                selected={newSubjectTeacherIds}
+                                                onChange={setNewSubjectTeacherIds}
                                                 placeholder="Select teachers..."
                                             />
                                         </div>
