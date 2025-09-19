@@ -205,12 +205,12 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
 
     return (
          <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Edit Subject: {subject.name}</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-6 py-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="subject-name-edit">Subject Name</Label>
                             <Input id="subject-name-edit" value={name} onChange={(e) => setName(e.target.value)} />
@@ -559,7 +559,7 @@ export default function ClassesAndSubjectsPage() {
       </div>
 
       <Tabs defaultValue="classes">
-        <TabsList className="mb-4 grid w-full grid-cols-3 md:w-auto md:inline-flex">
+        <TabsList className="mb-4 grid w-full grid-cols-1 sm:grid-cols-3 h-auto">
             <TabsTrigger value="classes">Class Management</TabsTrigger>
             <TabsTrigger value="subjects">Subject Management</TabsTrigger>
             <TabsTrigger value="assignments">Teacher Assignments</TabsTrigger>
@@ -572,15 +572,15 @@ export default function ClassesAndSubjectsPage() {
                              <CardTitle>Class List</CardTitle>
                             <CardDescription>View, create, and edit classes and streams.</CardDescription>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex w-full flex-col sm:flex-row gap-2 md:w-auto">
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <Button>
+                                    <Button className="w-full sm:w-auto">
                                     <PlusCircle className="mr-2" />
                                     Add New Class
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="sm:max-w-md">
                                     <DialogHeader>
                                         <DialogTitle>Add a New Class</DialogTitle>
                                         <DialogDescription>
@@ -588,18 +588,18 @@ export default function ClassesAndSubjectsPage() {
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="grid gap-4 py-4">
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="class-name" className="text-right">Class Name</Label>
-                                            <Input id="class-name" placeholder="e.g., Form 1" className="col-span-3" value={newClassName} onChange={e => setNewClassName(e.target.value)} />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="class-name">Class Name</Label>
+                                            <Input id="class-name" placeholder="e.g., Form 1" value={newClassName} onChange={e => setNewClassName(e.target.value)} />
                                         </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="class-stream" className="text-right">Stream</Label>
-                                            <Input id="class-stream" placeholder="e.g., A, North (Optional)" className="col-span-3" value={newClassStream} onChange={e => setNewClassStream(e.target.value)} />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="class-stream">Stream</Label>
+                                            <Input id="class-stream" placeholder="e.g., A, North (Optional)" value={newClassStream} onChange={e => setNewClassStream(e.target.value)} />
                                         </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="class-teacher" className="text-right">Class Teacher</Label>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="class-teacher">Class Teacher</Label>
                                             <Select value={newClassTeacherId} onValueChange={setNewClassTeacherId}>
-                                                <SelectTrigger id="class-teacher" className="col-span-3">
+                                                <SelectTrigger id="class-teacher">
                                                     <SelectValue placeholder="Select a teacher" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -609,9 +609,9 @@ export default function ClassesAndSubjectsPage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="class-capacity" className="text-right">Capacity</Label>
-                                            <Input id="class-capacity" type="number" placeholder="e.g., 45" className="col-span-3" value={newClassCapacity} onChange={e => setNewClassCapacity(e.target.value)} />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="class-capacity">Capacity</Label>
+                                            <Input id="class-capacity" type="number" placeholder="e.g., 45" value={newClassCapacity} onChange={e => setNewClassCapacity(e.target.value)} />
                                         </div>
                                     </div>
                                     <DialogFooter>
@@ -627,7 +627,7 @@ export default function ClassesAndSubjectsPage() {
                             </Dialog>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline">
+                                    <Button variant="outline" className="w-full sm:w-auto">
                                         <FileDown className="mr-2 h-4 w-4" />
                                         Export
                                         <ChevronDown className="ml-2 h-4 w-4" />
@@ -697,7 +697,7 @@ export default function ClassesAndSubjectsPage() {
                                                         <Edit className="mr-2 h-4 w-4" /> Edit
                                                     </Button>
                                                 </DialogTrigger>
-                                                <DialogContent>
+                                                <DialogContent className="sm:max-w-md">
                                                     <form onSubmit={(e) => {
                                                         e.preventDefault();
                                                         const formData = new FormData(e.currentTarget);
@@ -722,18 +722,18 @@ export default function ClassesAndSubjectsPage() {
                                                         </DialogDescription>
                                                     </DialogHeader>
                                                     <div className="grid gap-4 py-4">
-                                                        <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="className" className="text-right">Class Name</Label>
-                                                            <Input id="className" name="className" defaultValue={schoolClass.name} className="col-span-3" />
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="className">Class Name</Label>
+                                                            <Input id="className" name="className" defaultValue={schoolClass.name} />
                                                         </div>
-                                                        <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="stream" className="text-right">Stream</Label>
-                                                            <Input id="stream" name="stream" defaultValue={schoolClass.stream} className="col-span-3" />
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="stream">Stream</Label>
+                                                            <Input id="stream" name="stream" defaultValue={schoolClass.stream} />
                                                         </div>
-                                                        <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="teacherId" className="text-right">Class Teacher</Label>
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="teacherId">Class Teacher</Label>
                                                             <Select name="teacherId" defaultValue={schoolClass.teacherId}>
-                                                                <SelectTrigger id="teacherId" className="col-span-3">
+                                                                <SelectTrigger id="teacherId">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -743,14 +743,14 @@ export default function ClassesAndSubjectsPage() {
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
-                                                        <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="capacity" className="text-right">Capacity</Label>
-                                                            <Input id="capacity" name="capacity" type="number" defaultValue={schoolClass.capacity} className="col-span-3" />
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="capacity">Capacity</Label>
+                                                            <Input id="capacity" name="capacity" type="number" defaultValue={schoolClass.capacity} />
                                                         </div>
-                                                         <div className="grid grid-cols-4 items-center gap-4">
-                                                            <Label htmlFor="status" className="text-right">Status</Label>
+                                                         <div className="space-y-2">
+                                                            <Label htmlFor="status">Status</Label>
                                                             <Select name="status" defaultValue={schoolClass.status || 'Active'}>
-                                                                <SelectTrigger id="status" className="col-span-3">
+                                                                <SelectTrigger id="status">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -848,18 +848,18 @@ export default function ClassesAndSubjectsPage() {
                         <div className="flex w-full flex-wrap gap-2 md:w-auto">
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <Button>
+                                    <Button className="w-full sm:w-auto">
                                         <PlusCircle className="mr-2 h-4 w-4"/>
                                         Add New Subject
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="sm:max-w-[600px]">
+                                <DialogContent className="sm:max-w-xl">
                                     <DialogHeader>
                                         <DialogTitle>Add New Subject</DialogTitle>
                                         <DialogDescription>Define a new subject and assign it to classes and teachers.</DialogDescription>
                                     </DialogHeader>
                                     <div className="grid gap-6 py-4">
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="subject-name">Subject Name</Label>
                                                 <Input id="subject-name" placeholder="e.g., Computer Science" value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} />
@@ -905,7 +905,7 @@ export default function ClassesAndSubjectsPage() {
                             </Dialog>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline">
+                                    <Button variant="outline" className="w-full sm:w-auto">
                                         <FileDown className="mr-2 h-4 w-4" />
                                         Export
                                         <ChevronDown className="ml-2 h-4 w-4" />
@@ -957,7 +957,7 @@ export default function ClassesAndSubjectsPage() {
                         </Table>
                     </div>
                     {/* Mobile Cards */}
-                    <div className="grid grid-cols-1 gap-4 md:hidden">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
                         {subjects.map(subject => (
                             <Card key={subject.id}>
                                 <CardHeader>
@@ -990,14 +990,14 @@ export default function ClassesAndSubjectsPage() {
         <TabsContent value="assignments">
              <Card>
                 <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                          <div>
                             <CardTitle>Per-Class Teacher Assignments</CardTitle>
                             <CardDescription>View which teacher is teaching which subject in each class and identify any unassigned subjects.</CardDescription>
                          </div>
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
+                                <Button variant="outline" className="w-full sm:w-auto">
                                     <FileDown className="mr-2 h-4 w-4"/>
                                     Export / Print
                                     <ChevronDown className="ml-2 h-4 w-4"/>
