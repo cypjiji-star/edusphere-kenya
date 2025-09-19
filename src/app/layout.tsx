@@ -11,6 +11,8 @@ import Script from 'next/script';
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
   description: "Empowering Kenya's Future, One School at a Time.",
+  manifest: '/manifest.json',
+  themeColor: '#2563eb',
 };
 
 export default function RootLayout({
@@ -32,6 +34,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800&display=swap"
           rel="stylesheet"
         />
+        {/* PWA Icons */}
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className="font-body antialiased">
         <AuthProvider>

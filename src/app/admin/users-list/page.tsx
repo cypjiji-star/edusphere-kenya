@@ -183,7 +183,7 @@ export default function UserManagementListPage() {
                 description: 'Please map the columns from your file to the required fields.',
             });
         }, 1500);
-    }
+    };
     
     const handleImportUsers = () => {
         setIsBulkImportOpen(false); // Close the dialog
@@ -705,7 +705,7 @@ export default function UserManagementListPage() {
                 </CardHeader>
                 <CardContent>
                    <Tabs defaultValue="all" className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
+                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
                             <TabsTrigger value="all">All Users</TabsTrigger>
                             <TabsTrigger value="Teacher">Teachers</TabsTrigger>
                             <TabsTrigger value="Parent">Parents</TabsTrigger>
