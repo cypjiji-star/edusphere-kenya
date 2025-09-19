@@ -1,7 +1,7 @@
 
 'use client';
 
-import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { DeveloperSidebar } from './developer-sidebar';
 import { Suspense } from 'react';
 import { AuthCheck } from '@/lib/auth-check';
@@ -29,6 +29,9 @@ export default function DeveloperLayout({
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
           <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
+            <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm md:hidden">
+              <SidebarTrigger />
+            </header>
             {children}
           </main>
         </SidebarInset>
