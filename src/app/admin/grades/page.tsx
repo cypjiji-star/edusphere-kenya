@@ -94,6 +94,7 @@ import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import jsPDF from 'jspdf';
@@ -531,7 +532,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 classId: exam.classId,
                 date: exam.date,
                 teacherName: teacher.name,
-                status: 'Pending Approval' // Always set to pending for admin review
+                status: 'Pending Approval'
             }, { merge: true });
             
             toast({
@@ -819,6 +820,7 @@ export default function AdminGradesPage() {
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [gradeToReject, setGradeToReject] = React.useState<PendingGrade | null>(null);
+    const [rankedClasses, setRankedClasses] = React.useState<Record<string, Ranking[]>>({});
 
 
     React.useEffect(() => {
@@ -847,7 +849,7 @@ export default function AdminGradesPage() {
 
         const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
         const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
-            const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number> }> = {};
+            const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number>, classId: string }> = {};
             const studentPromises = [];
             
             for (const doc of snapshot.docs) {
@@ -856,7 +858,7 @@ export default function AdminGradesPage() {
                 if (!gradeData.studentRef) continue;
 
                 if (!gradesByStudent[gradeData.studentId]) {
-                    gradesByStudent[gradeData.studentId] = { studentId: gradeData.studentId, scores: {} };
+                    gradesByStudent[gradeData.studentId] = { studentId: gradeData.studentId, scores: {}, classId: gradeData.classId };
                     studentPromises.push(getDoc(gradeData.studentRef));
                 }
                 gradesByStudent[gradeData.studentId].scores[gradeData.subject] = parseInt(gradeData.grade);
@@ -872,13 +874,21 @@ export default function AdminGradesPage() {
                     studentName: studentInfo?.name || 'Unknown',
                     admNo: studentInfo?.admissionNumber || 'N/A',
                     avatarUrl: studentInfo?.avatarUrl || '',
-                    scores: data.scores
+                    scores: data.scores,
+                    classId: data.classId
                 }
             });
             
             setStudentGrades(studentScores);
             
-            const calculatedRanking: Omit<Ranking, 'position' | 'streamPosition'>[] = studentScores.map(student => {
+            const calculatedRankingByClass: Record<string, Omit<Ranking, 'position' | 'streamPosition'>[]> = {};
+
+            studentScores.forEach(student => {
+                 const { classId } = gradesByStudent[student.studentId];
+                if (!calculatedRankingByClass[classId]) {
+                    calculatedRankingByClass[classId] = [];
+                }
+
                 const subjectCount = Object.keys(student.scores).length;
                 const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
                 const avg = subjectCount > 0 ? total / subjectCount : 0;
@@ -889,23 +899,25 @@ export default function AdminGradesPage() {
                 else if (avg >= 40) grade = 'D';
                 else grade = 'E';
 
-                return {
+                calculatedRankingByClass[classId].push({
                     name: student.studentName,
                     admNo: student.admNo,
                     avatarUrl: student.avatarUrl,
                     total,
                     avg,
                     grade,
-                };
+                });
             });
             
-            const sortedRanking = calculatedRanking.sort((a, b) => b.total - a.total).map((student, index) => ({
-                ...student,
-                position: index + 1,
-                streamPosition: index + 1, 
-            }));
-            
-            setClassRanking(sortedRanking);
+            const finalRankings: Record<string, Ranking[]> = {};
+            for (const classId in calculatedRankingByClass) {
+                finalRankings[classId] = calculatedRankingByClass[classId]
+                    .sort((a,b) => b.total - a.total)
+                    .map((student, index) => ({...student, position: index + 1, streamPosition: index + 1 }));
+            }
+
+            setRankedClasses(finalRankings);
+            setClassRanking(finalRankings[selectedReportClass] || []);
 
             const perfData: Record<string, { total: number, count: number }> = {};
             studentScores.forEach(student => {
@@ -958,7 +970,7 @@ export default function AdminGradesPage() {
             unsubscribeLogs();
             unsubscribePendingGrades();
         };
-    }, [schoolId, selectedGradebookClass]);
+    }, [schoolId, selectedGradebookClass, selectedReportClass]);
 
     const filteredGradebookExams = React.useMemo(() => {
         return exams.filter(exam => exam.classId === selectedGradebookClass);
@@ -1584,54 +1596,44 @@ export default function AdminGradesPage() {
             <TabsContent value="moderation" className="mt-4 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Wand2 className="h-5 w-5 text-primary"/>AI-Assisted Grading Insights</CardTitle>
-                        <CardDescription>AI-powered analysis to detect potential grading anomalies, patterns, or inconsistencies.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="p-4 rounded-lg flex items-center gap-3 bg-muted/50">
-                            <p className="text-sm text-muted-foreground">AI Insights are disabled. This feature requires a more complex data pipeline.</p>
-                        </div>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
                         <CardTitle>Grade Approval Queue</CardTitle>
                         <CardDescription>Review and approve grade entries submitted by teachers.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Student</TableHead>
-                                        <TableHead>Subject</TableHead>
-                                        <TableHead>Score</TableHead>
-                                        <TableHead>Entered By</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                     {pendingGrades.length > 0 ? pendingGrades.map(grade => (
-                                        <TableRow key={grade.id}>
-                                            <TableCell>{grade.studentName}</TableCell>
-                                            <TableCell>{grade.subject}</TableCell>
-                                            <TableCell className="font-semibold">{grade.grade}</TableCell>
-                                            <TableCell className="text-muted-foreground">{grade.teacherName}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700" onClick={() => handleGradeModeration(grade.id, grade.studentId, grade.studentName, grade.subject, grade.grade, 'Approved')}>
-                                                    <CheckCircle className="mr-2 h-4 w-4"/>Approve
-                                                </Button>
-                                                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => setGradeToReject(grade)}>
-                                                    <XCircle className="mr-2 h-4 w-4"/>Reject
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                     )) : (
-                                        <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No pending approvals.</TableCell></TableRow>
-                                     )}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        <Accordion type="single" collapsible className="w-full">
+                           {Object.entries(rankedClasses).map(([classId, students]) => {
+                                const className = classes.find(c => c.id === classId)?.name || 'Unknown Class';
+                                return (
+                                <AccordionItem key={classId} value={classId}>
+                                    <AccordionTrigger className="text-lg font-semibold">{className}</AccordionTrigger>
+                                    <AccordionContent>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Rank</TableHead>
+                                                    <TableHead>Student</TableHead>
+                                                    <TableHead className="text-right">Total Score</TableHead>
+                                                    <TableHead className="text-right">Average</TableHead>
+                                                    <TableHead>Grade</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {students.map(student => (
+                                                    <TableRow key={student.admNo} className="cursor-pointer" onClick={() => setSelectedStudentForReport(student)}>
+                                                        <TableCell className="font-bold">{student.position}</TableCell>
+                                                        <TableCell>{student.name}</TableCell>
+                                                        <TableCell className="text-right">{student.total}</TableCell>
+                                                        <TableCell className="text-right">{student.avg.toFixed(1)}%</TableCell>
+                                                        <TableCell><Badge>{student.grade}</Badge></TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </AccordionContent>
+                                </AccordionItem>
+                                )
+                           })}
+                        </Accordion>
                     </CardContent>
                  </Card>
                  <Card>
