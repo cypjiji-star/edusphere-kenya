@@ -1,14 +1,12 @@
-<svg
-      viewBox="0 0 512 512"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M64 128C64 105.908 81.9081 88 104 88H408C430.092 88 448 105.908 448 128V344.821C448 354.542 444.153 363.856 437.388 370.621L285.388 522.621C270.83 537.179 247.17 537.179 232.612 522.621L80.6122 370.621C73.8473 363.856 64 354.542 64 344.821V128Z"
-        fill="hsl(217 91% 60%)"
-      />
-      <path
-        d="M328 200H184V248H280V296H184V344H328V392H136V152H328V200Z"
-        fill="white"
-      />
-    </svg>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M256 448C364.394 448 452 360.394 452 252C452 143.606 364.394 56 256 56C147.606 56 60 143.606 60 252C60 360.394 147.606 448 256 448Z" fill="#2563EB"/>
+<path d="M256 448C364.394 448 452 360.394 452 252C452 143.606 364.394 56 256 56C147.606 56 60 143.606 60 252C60 360.394 147.606 448 256 448Z" fill="url(#paint0_linear_1_12)"/>
+<path d="M148 236L256 180L364 236L256 292L148 236Z" fill="white"/>
+<path d="M340 249V317L256 361L172 317V249L256 293L340 249Z" fill="white"/>
+<defs>
+<linearGradient id="paint0_linear_1_12" x1="256" y1="56" x2="256" y2="448" gradientUnits="userSpaceOnUse">
+<stop stop-color="white" stop-opacity="0.2"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</linearGradient>
+</defs>
+</svg>
