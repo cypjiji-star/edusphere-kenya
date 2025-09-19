@@ -46,6 +46,7 @@ export default function RootLayout({
           <Suspense>{children}</Suspense>
           <Toaster />
         </AuthProvider>
+        <Script src="/sw-register.js" />
       </body>
     </html>
   );
