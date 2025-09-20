@@ -346,7 +346,13 @@ function AiChatTab() {
     const escalationMessage: AiMessage = { role: 'model', content: aiEscalationMessage };
     
     try {
-        const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+        let userDocRef;
+        const roleLower = role.toLowerCase();
+        if (roleLower === 'admin') userDocRef = doc(firestore, 'schools', schoolId, 'admins', user.uid);
+        else if (roleLower === 'teacher') userDocRef = doc(firestore, 'schools', schoolId, 'teachers', user.uid);
+        else if (roleLower === 'parent') userDocRef = doc(firestore, 'schools', schoolId, 'parents', user.uid);
+        else userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid); // Fallback
+        
         const userDocSnap = await getDoc(userDocRef);
         const userData = userDocSnap.exists() ? userDocSnap.data() : null;
 
@@ -382,7 +388,13 @@ function AiChatTab() {
     setInput('');
     setIsLoading(true);
     
-    const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+    let userDocRef;
+    const roleLower = role.toLowerCase();
+    if (roleLower === 'admin') userDocRef = doc(firestore, 'schools', schoolId, 'admins', user.uid);
+    else if (roleLower === 'teacher') userDocRef = doc(firestore, 'schools', schoolId, 'teachers', user.uid);
+    else if (roleLower === 'parent') userDocRef = doc(firestore, 'schools', schoolId, 'parents', user.uid);
+    else userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid); // Fallback
+
     const userDocSnap = await getDoc(userDocRef);
     const userData = userDocSnap.exists() ? userDocSnap.data() : null;
     
@@ -451,7 +463,7 @@ function AiChatTab() {
             {isEscalated && (
                 <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-500/50 rounded-lg text-center text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4"/>
-                    A human agent has been notified and will respond on the Admin messaging page.
+                    An admin will respond in the Admin messaging page.
                 </div>
             )}
             <div ref={messagesEndRef} />
