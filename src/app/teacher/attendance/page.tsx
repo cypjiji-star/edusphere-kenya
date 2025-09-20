@@ -373,7 +373,7 @@ export default function AttendancePage() {
     } finally {
         setIsLoading(false);
     }
-  }, [schoolId, activeTab, selectedDate]);
+  }, [schoolId, activeTab, selectedDate, toast]);
 
   useEffect(() => {
     fetchAttendanceData();
@@ -617,5 +617,3 @@ export default function AttendancePage() {
     </div>
   );
 }
-
-    
