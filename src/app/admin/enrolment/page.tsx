@@ -285,10 +285,6 @@ export default function StudentEnrolmentPage() {
         };
         reader.readAsBinaryString(bulkEnrolmentFile);
     };
-
-    const handleMappingChange = (fieldId: string, fileHeader: string) => {
-        setColumnMapping(prev => ({ ...prev, [fieldId]: fileHeader }));
-    };
     
      const handleImportStudents = async () => {
         if (parsedData.length === 0 || !schoolId || !adminUser) {
@@ -892,7 +888,3 @@ export default function StudentEnrolmentPage() {
     </div>
   );
 }
-
-    
-
-    
