@@ -50,8 +50,6 @@ import { firestore } from '@/lib/firebase';
 import { collection, doc, onSnapshot, query, where, getDoc, addDoc, updateDoc, deleteDoc, writeBatch, setDoc, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
-export const dynamicParams = false;
-
 type TeamDetails = {
   name: string;
   coach: string;

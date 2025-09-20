@@ -436,7 +436,11 @@ export default function AdminAttendancePage() {
       setCommunicationLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationLog)));
     });
 
-     const qTeacherAttendance = query(collection(firestore, 'schools', schoolId, 'teacher_attendance'));
+     const qTeacherAttendance = query(
+        collection(firestore, 'schools', schoolId, 'teacher_attendance'),
+        where('date', '>=', termRange.start),
+        where('date', '<=', termRange.end)
+    );
     const unsubTeacherAttendance = onSnapshot(qTeacherAttendance, (snapshot) => {
       const records: TeacherAttendanceRecord[] = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -510,6 +514,8 @@ export default function AdminAttendancePage() {
             endOfDay.setHours(23, 59, 59, 999);
             isDateInRange = recordDate >= fromDate && recordDate <= endOfDay;
         }
+    } else {
+        return false;
     }
 
     const matchesSearch = record.studentName && record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1061,4 +1067,5 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
 

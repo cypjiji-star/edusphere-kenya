@@ -57,3 +57,4 @@ export async function deleteUserAction(uid: string, schoolId: string) {
     return { success: false, message: error.message || 'Failed to delete user authentication.' };
   }
 }
+
