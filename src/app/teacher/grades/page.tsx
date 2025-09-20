@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -447,7 +448,8 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         });
 
         return () => unsubGrades();
-    }, [exam, schoolId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [exam.id, exam.classId, schoolId]);
     
     const handleScoreChange = (studentId: string, score: string) => {
         let error = undefined;
@@ -859,4 +861,5 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
+
 

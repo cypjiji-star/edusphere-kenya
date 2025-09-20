@@ -113,10 +113,13 @@ const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', '
 
 function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAssignments, setClassAssignments }: { schoolClass: SchoolClass, allSubjects: Subject[], schoolId: string, classAssignments: ClassAssignment, setClassAssignments: React.Dispatch<React.SetStateAction<ClassAssignment>> }) {
     const { toast } = useToast();
-    const [selectedSubjects, setSelectedSubjects] = React.useState<string[]>(() => {
-        return (classAssignments[schoolClass.id] || []).map(a => a.subject);
-    });
+    const [selectedSubjects, setSelectedSubjects] = React.useState<string[]>([]);
     const [isSaving, setIsSaving] = React.useState(false);
+    
+    React.useEffect(() => {
+        setSelectedSubjects((classAssignments[schoolClass.id] || []).map(a => a.subject));
+    }, [classAssignments, schoolClass.id]);
+
 
     const handleCheckboxChange = (subjectName: string, checked: boolean) => {
         setSelectedSubjects(prev => 
@@ -375,7 +378,7 @@ export default function ClassesAndSubjectsPage() {
         const unsubSubjects = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
             setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
         });
-        const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'teachers')), (snapshot) => {
+        const unsubTeachers = onSnapshot(query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher')), (snapshot) => {
             setTeachers(snapshot.docs.map(d => ({ id: d.id, name: d.data().name, avatarUrl: d.data().avatarUrl } as Teacher)));
         });
         const unsubAssignments = onSnapshot(collection(firestore, 'schools', schoolId, 'class-assignments'), (snapshot) => {
