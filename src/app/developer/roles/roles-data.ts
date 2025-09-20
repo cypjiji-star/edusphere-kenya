@@ -54,24 +54,3 @@ export const initialPermissionStructure: PermissionCategory[] = [
     ],
   },
 ];
-
-// This initial data is used to bootstrap roles for a new school.
-// The actual role data will be read from Firestore.
-export const initialRolePermissions: Record<string, Omit<Role, 'userCount'>> = {
-  Admin: {
-    permissions: initialPermissionStructure.flatMap(cat => cat.permissions.map(p => p.id)),
-    isCore: true,
-  },
-  Teacher: {
-    permissions: ['academics.grades.view'],
-    isCore: true,
-  },
-  Student: {
-    permissions: [],
-    isCore: true,
-  },
-  Parent: {
-    permissions: [],
-    isCore: true,
-  },
-};
