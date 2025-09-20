@@ -814,7 +814,6 @@ export default function TeacherGradesPage() {
     const { user: adminUser } = useAuth();
     
     const [exams, setExams] = React.useState<Exam[]>([]);
-    const [selectedExamForGrading, setSelectedExamForGrading] = React.useState<Exam | null>(null);
     const [editingExam, setEditingExam] = React.useState<Exam | null>(null);
     const [examToDelete, setExamToDelete] = React.useState<GroupedExam | null>(null);
     const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
@@ -852,6 +851,7 @@ export default function TeacherGradesPage() {
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [gradeToReject, setGradeToReject] = React.useState<PendingGrade | null>(null);
     const [examTermFilter, setExamTermFilter] = React.useState<string>(getCurrentTerm());
+    const [selectedExamForSubmissions, setSelectedExamForSubmissions] = React.useState<Exam | null>(null);
     
     React.useEffect(() => {
         if (!schoolId) return;
@@ -1358,8 +1358,8 @@ export default function TeacherGradesPage() {
         }
     };
     
-    if (selectedExamForGrading) {
-        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId!} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
+    if (selectedExamForSubmissions) {
+        return <GradeEntryView exam={selectedExamForSubmissions} onBack={() => setSelectedExamForSubmissions(null)} schoolId={schoolId!} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
     }
 
 
@@ -1617,7 +1617,7 @@ export default function TeacherGradesPage() {
                                             <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
                                             <TableCell>{getStatusBadge(exam.status)}</TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                 <Button variant="outline" size="sm" onClick={() => setSelectedExamForGrading(exam)}>View Submissions</Button>
+                                                 <Button variant="outline" size="sm" onClick={() => setSelectedExamForSubmissions(exam)}>View Submissions</Button>
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingExam(exam)}><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" onClick={() => setExamToDelete(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </TableCell>
@@ -1871,6 +1871,9 @@ export default function TeacherGradesPage() {
 
     
 
+
+
+    
 
 
     
