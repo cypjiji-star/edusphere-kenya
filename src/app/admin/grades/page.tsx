@@ -889,7 +889,7 @@ const getStatusBadge = (status: Exam['status']) => {
   }
 }
 
-export default function TeacherGradesContent() {
+export default function AdminGradesPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const { toast } = useToast();
@@ -899,7 +899,7 @@ export default function TeacherGradesContent() {
   const [editingExam, setEditingExam] = React.useState<Exam | null>(null);
   const [examToDelete, setExamToDelete] = React.useState<GroupedExam | null>(null);
   const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
-  const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
+  const [studentGrades, setStudentGrades] = React.useState<StudentGrade[] | null>([]);
   const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
   const [pendingGrades, setPendingGrades] = React.useState<PendingGrade[]>([]);
   const [groupedPendingGrades, setGroupedPendingGrades] = React.useState<GroupedPendingGrades>({});
@@ -986,7 +986,7 @@ export default function TeacherGradesContent() {
             scores: data.scores
         }));
 
-        setStudentGrades(studentScores);
+        setStudentGrades(studentScores as StudentGrade[]);
         setLoadingState(prev => ({ ...prev, grades: false }));
 
         const classAvgs: Record<string, { total: number; count: number }> = {};
@@ -1105,10 +1105,11 @@ export default function TeacherGradesContent() {
 
   // Ranking calculation
   React.useEffect(() => {
-    if (!selectedReportExamTitle || studentGrades.length === 0) {
+    if (!selectedReportExamTitle || !studentGrades || studentGrades.length === 0) {
         setClassRankings({});
         return;
     }
+    
     const relevantGrades = studentGrades.filter(sg => {
         return reportClassFilter === 'all' || sg.classId === reportClassFilter;
     });
@@ -1321,7 +1322,7 @@ export default function TeacherGradesContent() {
     const doc = new jsPDF();
     
     const ranking = classRankings[reportClassFilter];
-    if (!ranking) return;
+    if (!ranking || !studentGrades) return;
 
     ranking.forEach((student, index) => {
       if (index > 0) {
@@ -1447,11 +1448,11 @@ export default function TeacherGradesContent() {
 
   return (
     <GradeErrorBoundary>
-      <TeacherGradesContent />
+      <AdminGradesContent />
     </GradeErrorBoundary>
   );
 }
-const TeacherGradesContent = () => {
+const AdminGradesContent = () => {
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <h1 className="font-headline text-3xl font-bold">Grades & Exams</h1>
@@ -1459,4 +1460,3 @@ const TeacherGradesContent = () => {
         </div>
     );
 };
-```
