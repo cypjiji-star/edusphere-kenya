@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -133,6 +134,7 @@ type StudentGrade = {
     admNo: string;
     avatarUrl: string;
     scores: Record<string, number>;
+    classId: string;
 };
 
 type StudentGradeEntry = {
@@ -850,7 +852,8 @@ export default function TeacherGradesPage() {
     const [gradeToReject, setGradeToReject] = React.useState<PendingGrade | null>(null);
     const [rankedClasses, setRankedClasses] = React.useState<Record<string, Ranking[]>>({});
     const [examTermFilter, setExamTermFilter] = React.useState<string>(getCurrentTerm());
-
+    
+    const memoizedClasses = React.useMemo(() => classes, [classes]);
 
     React.useEffect(() => {
         if (!schoolId) return;
@@ -973,7 +976,7 @@ export default function TeacherGradesPage() {
         
         const pendingGradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval'));
         const unsubscribePendingGrades = onSnapshot(pendingGradesQuery, async (snapshot) => {
-            const classMap = new Map(classes.map(c => [c.id, c.name]));
+            const classMap = new Map(memoizedClasses.map(c => [c.id, c.name]));
             const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
                 const data = gradeDoc.data();
                 const studentSnap = await getDoc(data.studentRef);
@@ -1014,7 +1017,7 @@ export default function TeacherGradesPage() {
             unsubscribeLogs();
             unsubscribePendingGrades();
         };
-    }, [schoolId, selectedReportClass, classes]);
+    }, [schoolId, selectedReportClass, memoizedClasses]);
 
     const getTermDates = (term: string) => {
         const [termName, yearStr] = term.split('-');
@@ -1833,4 +1836,5 @@ export default function TeacherGradesPage() {
   );
 }
 
+    
     
