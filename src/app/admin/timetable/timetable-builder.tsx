@@ -186,9 +186,6 @@ export function TimetableBuilder() {
             fetchedTimetables[doc.id] = doc.data() as TimetableData;
         });
         setAllTimetables(fetchedTimetables);
-        if (selectedItem && view === 'Class View') {
-          setTimetable(fetchedTimetables[selectedItem] || {});
-        }
         setIsLoading(false);
     });
     
@@ -199,7 +196,7 @@ export function TimetableBuilder() {
       unsubSubjects();
       unsubTimetables();
     }
-  }, [schoolId]);
+  }, [schoolId, selectedItem]);
 
   React.useEffect(() => {
     if (!selectedItem) return;
@@ -324,18 +321,6 @@ export function TimetableBuilder() {
             };
             return newTimetable;
         });
-
-        // Update the global state to reflect the change immediately for clash detection
-        setAllTimetables(prev => ({
-            ...prev,
-            [selectedItem]: {
-                ...(prev[selectedItem] || {}),
-                [day]: {
-                    ...(prev[selectedItem]?.[day] || {}),
-                    [periodTime]: { subject, room: 'Room TBD', clash }
-                }
-            }
-        }));
     } else if (view !== 'Class View') {
         toast({
             title: 'Read-only View',
@@ -354,21 +339,18 @@ export function TimetableBuilder() {
         }
         return newTimetable;
     });
-     // Update the global state
-    setAllTimetables(prev => {
-        const newAllTimetables = { ...prev };
-        if (selectedItem && newAllTimetables[selectedItem]?.[day]?.[periodTime]) {
-            delete newAllTimetables[selectedItem][day][periodTime];
-        }
-        return newAllTimetables;
-    });
   }
 
   const handleSave = async () => {
     if (!selectedItem || !schoolId || view !== 'Class View') return;
     try {
         const timetableRef = doc(firestore, `schools/${schoolId}/timetables`, selectedItem);
-        await setDoc(timetableRef, timetable, { merge: true });
+        // Important: Use the local timetable state to update the global state first
+        const updatedAllTimetables = { ...allTimetables, [selectedItem]: timetable };
+        // Save the entire updated global state
+        await setDoc(timetableRef, updatedAllTimetables[selectedItem], { merge: true });
+        // Then set the new global state locally
+        setAllTimetables(updatedAllTimetables);
         toast({
             title: 'Timetable Saved',
             description: `The timetable for the selected view has been saved.`,
@@ -757,3 +739,5 @@ export function TimetableBuilder() {
     </DndContext>
   );
 }
+
+    
