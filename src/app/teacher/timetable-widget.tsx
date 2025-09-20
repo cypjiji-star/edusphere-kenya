@@ -10,7 +10,7 @@ import Link from 'next/link';
 import * as React from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -39,26 +39,23 @@ export function TimetableWidget() {
     setClientReady(true);
     setCurrentTime(new Date());
 
-    const getTodaySchedule = async () => {
-        if (!schoolId || !user) {
-            setIsLoading(false);
-            return;
-        }
+    if (!schoolId || !user) {
+        setIsLoading(false);
+        return;
+    }
 
-        setIsLoading(true);
-        const today = new Date();
-        const dayOfWeek = today.toLocaleString('en-US', { weekday: 'long' }); // e.g., 'Monday'
-        const teacherName = user.displayName; // This should be dynamic based on logged-in user
+    setIsLoading(true);
 
-        try {
-            // Fetch periods
-            const periodsRef = doc(firestore, `schools/${schoolId}/timetableSettings`, 'periods');
-            const periodsSnap = await getDoc(periodsRef);
-            const periods: PeriodData[] = periodsSnap.exists() ? periodsSnap.data().periods : [];
+    const today = new Date();
+    const dayOfWeek = today.toLocaleString('en-US', { weekday: 'long' });
+    const teacherName = user.displayName;
 
-            // Fetch timetable for all classes to find the teacher's lessons
-            const timetablesSnapshot = await getDocs(collection(firestore, `schools/${schoolId}/timetables`));
+    const periodsRef = doc(firestore, `schools/${schoolId}/timetableSettings`, 'periods');
+    const unsubPeriods = onSnapshot(periodsRef, (periodsSnap) => {
+        const periods: PeriodData[] = periodsSnap.exists() ? periodsSnap.data().periods : [];
 
+        const timetablesQuery = collection(firestore, `schools/${schoolId}/timetables`);
+        const unsubTimetables = onSnapshot(timetablesQuery, (timetablesSnapshot) => {
             const scheduleForToday: TimetableEntry[] = periods.map(period => {
                 const [startTime, endTime] = period.time.split(' - ');
                 if (period.isBreak) {
@@ -80,19 +77,19 @@ export function TimetableWidget() {
 
                 return lessonForPeriod || { startTime, endTime, title: 'Free Period', location: 'Staff Room' };
             });
-
             setTodaySchedule(scheduleForToday);
-        } catch (error) {
-            console.error("Error fetching timetable:", error);
-        } finally {
             setIsLoading(false);
-        }
-    }
-    
-    getTodaySchedule();
+        });
 
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
-    return () => clearInterval(timer);
+        return () => unsubTimetables();
+    });
+    
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+
+    return () => {
+        unsubPeriods();
+        clearInterval(timer);
+    };
   }, [schoolId, user]);
 
   const isCurrentClass = (entry: TimetableEntry) => {

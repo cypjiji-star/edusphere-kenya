@@ -300,8 +300,8 @@ function CalendarWidget({ schoolId }: { schoolId: string }) {
 export default function ParentDashboard() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const { user } = useAuth(); // Get authenticated user from context
-    const parentId = user?.uid; // Use actual user ID
+    const { user } = useAuth();
+    const parentId = user?.uid;
     
     const [schoolName, setSchoolName] = React.useState('');
     const [parentName, setParentName] = React.useState('Parent');
@@ -310,98 +310,108 @@ export default function ParentDashboard() {
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     
-    const fetchData = React.useCallback(async () => {
-        if (!schoolId || !parentId) return;
+    React.useEffect(() => {
+        if (!schoolId || !parentId) {
+            setIsLoading(false);
+            return;
+        };
+
+        const unsubscribers: (() => void)[] = [];
+        setIsLoading(true);
 
         try {
-            const schoolDocPromise = getDoc(doc(firestore, 'schools', schoolId));
-            const parentDocPromise = getDoc(doc(firestore, 'schools', schoolId, 'users', parentId));
-            const [schoolDoc, parentDoc] = await Promise.all([schoolDocPromise, parentDocPromise]);
+            unsubscribers.push(onSnapshot(doc(firestore, 'schools', schoolId), (docSnap) => {
+                if (docSnap.exists()) setSchoolName(docSnap.data().name);
+            }));
 
-            if (schoolDoc.exists()) setSchoolName(schoolDoc.data().name);
-            if (parentDoc.exists()) setParentName(parentDoc.data().name || 'Parent');
+            unsubscribers.push(onSnapshot(doc(firestore, 'schools', schoolId, 'users', parentId), (docSnap) => {
+                if (docSnap.exists()) setParentName(docSnap.data().name || 'Parent');
+            }));
 
             const childrenQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
-            const childrenSnapshot = await getDocs(childrenQuery);
+            unsubscribers.push(onSnapshot(childrenQuery, (studentsSnapshot) => {
+                const studentIds = studentsSnapshot.docs.map(doc => doc.id);
+                if (studentIds.length === 0) {
+                    setChildrenData([]);
+                    setSelectedChild(null);
+                    setIsLoading(false);
+                    return;
+                }
+                
+                // We'll set up listeners for attendance and grades for all children
+                const termStartDate = new Date();
+                termStartDate.setMonth(termStartDate.getMonth() - 3);
 
-            if (childrenSnapshot.empty) {
-                setChildrenData([]);
-                setIsLoading(false);
-                return;
-            }
+                const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', 'in', studentIds), where('date', '>=', Timestamp.fromDate(termStartDate)));
+                const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds));
 
-            const studentIds = childrenSnapshot.docs.map(doc => doc.id);
-            const termStartDate = new Date();
-            termStartDate.setMonth(termStartDate.getMonth() - 3);
+                const unsubAttendance = onSnapshot(attendanceQuery, (attendanceSnapshot) => {
+                     const unsubGrades = onSnapshot(gradesQuery, (gradesSnapshot) => {
+                        // Re-process all data when either attendance or grades change
+                        const attendanceByStudent = new Map<string, { present: number; total: number }>();
+                        attendanceSnapshot.forEach(doc => {
+                            const data = doc.data();
+                            const studentId = data.studentId;
+                            if (!attendanceByStudent.has(studentId)) attendanceByStudent.set(studentId, { present: 0, total: 0 });
+                            const record = attendanceByStudent.get(studentId)!;
+                            record.total++;
+                            if (['present', 'late'].includes(data.status.toLowerCase())) record.present++;
+                        });
 
-            const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', 'in', studentIds), where('date', '>=', Timestamp.fromDate(termStartDate)));
-            const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds));
+                        const gradesByStudent = new Map<string, { scores: number[], recent: { subject: string; grade: string; date: string }[] }>();
+                        gradesSnapshot.forEach(doc => {
+                            const data = doc.data();
+                            const studentId = data.studentId;
+                            const score = parseInt(data.grade, 10);
+                            if (!gradesByStudent.has(studentId)) gradesByStudent.set(studentId, { scores: [], recent: [] });
+                            const record = gradesByStudent.get(studentId)!;
+                            if (!isNaN(score)) record.scores.push(score);
+                            if (record.recent.length < 3) record.recent.push({ subject: data.subject || 'Unknown', grade: data.grade, date: (data.date as Timestamp).toDate().toLocaleDateString('en-GB') });
+                        });
 
-            const [attendanceSnapshot, gradesSnapshot] = await Promise.all([getDocs(attendanceQuery), getDocs(gradesQuery)]);
-            
-            // Process data in memory...
-            const attendanceByStudent = new Map<string, { present: number; total: number }>();
-            attendanceSnapshot.forEach(doc => {
-                const data = doc.data();
-                const studentId = data.studentId;
-                if (!attendanceByStudent.has(studentId)) attendanceByStudent.set(studentId, { present: 0, total: 0 });
-                const record = attendanceByStudent.get(studentId)!;
-                record.total++;
-                if (['present', 'late'].includes(data.status.toLowerCase())) record.present++;
-            });
+                        const processedChildren = studentsSnapshot.docs.map(studentDoc => {
+                            const studentData = studentDoc.data();
+                            const studentId = studentDoc.id;
+                            const attendanceStats = attendanceByStudent.get(studentId);
+                            const attendance = attendanceStats && attendanceStats.total > 0 ? Math.round((attendanceStats.present / attendanceStats.total) * 100) : 100;
+                            const gradeStats = gradesByStudent.get(studentId);
+                            const overallGrade = gradeStats && gradeStats.scores.length > 0 ? Math.round(gradeStats.scores.reduce((a, b) => a + b, 0) / gradeStats.scores.length) : 0;
+                            const totalFee = studentData.totalFee || 0;
+                            const amountPaid = studentData.amountPaid || 0;
+                            const balance = totalFee - amountPaid;
+                            const dueDate = studentData.dueDate instanceof Timestamp ? studentData.dueDate.toDate() : (studentData.dueDate ? new Date(studentData.dueDate) : new Date());
 
-            const gradesByStudent = new Map<string, { scores: number[], recent: { subject: string; grade: string; date: string }[] }>();
-            gradesSnapshot.forEach(doc => {
-                const data = doc.data();
-                const studentId = data.studentId;
-                const score = parseInt(data.grade, 10);
-                if (!gradesByStudent.has(studentId)) gradesByStudent.set(studentId, { scores: [], recent: [] });
-                const record = gradesByStudent.get(studentId)!;
-                if (!isNaN(score)) record.scores.push(score);
-                if (record.recent.length < 3) record.recent.push({ subject: data.subject || 'Unknown', grade: data.grade, date: (data.date as Timestamp).toDate().toLocaleDateString('en-GB') });
-            });
-
-            const processedChildren = childrenSnapshot.docs.map(studentDoc => {
-                const studentData = studentDoc.data();
-                const studentId = studentDoc.id;
-                const attendanceStats = attendanceByStudent.get(studentId);
-                const attendance = attendanceStats && attendanceStats.total > 0 ? Math.round((attendanceStats.present / attendanceStats.total) * 100) : 100;
-                const gradeStats = gradesByStudent.get(studentId);
-                const overallGrade = gradeStats && gradeStats.scores.length > 0 ? Math.round(gradeStats.scores.reduce((a, b) => a + b, 0) / gradeStats.scores.length) : 0;
-                const totalFee = studentData.totalFee || 0;
-                const amountPaid = studentData.amountPaid || 0;
-                const balance = totalFee - amountPaid;
-                const dueDate = studentData.dueDate instanceof Timestamp ? studentData.dueDate.toDate() : (studentData.dueDate ? new Date(studentData.dueDate) : new Date());
-
-                return {
-                    id: studentId,
-                    name: studentData.name || 'Unknown',
-                    class: studentData.class || 'Unknown',
-                    avatarUrl: studentData.avatarUrl || `https://picsum.photos/seed/${studentId}/100`,
-                    attendance,
-                    overallGrade,
-                    feeStatus: { total: totalFee, paid: amountPaid, balance, status: balance <= 0 ? 'Paid' as const : (isPast(dueDate) ? 'Overdue' as const : 'Partial' as const), dueDate: dueDate.toISOString() },
-                    recentGrades: gradeStats?.recent.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-                } as Child;
-            });
-            
-            setChildrenData(processedChildren);
-            if(processedChildren.length > 0) {
-                const currentSelectedId = selectedChild?.id;
-                const updatedSelectedChild = currentSelectedId ? processedChildren.find(c => c.id === currentSelectedId) : undefined;
-                setSelectedChild(updatedSelectedChild || processedChildren[0]);
-            }
+                            return {
+                                id: studentId,
+                                name: studentData.name || 'Unknown',
+                                class: studentData.class || 'Unknown',
+                                avatarUrl: studentData.avatarUrl || `https://picsum.photos/seed/${studentId}/100`,
+                                attendance,
+                                overallGrade,
+                                feeStatus: { total: totalFee, paid: amountPaid, balance, status: balance <= 0 ? 'Paid' as const : (isPast(dueDate) ? 'Overdue' as const : 'Partial' as const), dueDate: dueDate.toISOString() },
+                                recentGrades: gradeStats?.recent.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+                            } as Child;
+                        });
+                        
+                        setChildrenData(processedChildren);
+                        const currentSelectedId = selectedChild?.id || (processedChildren.length > 0 ? processedChildren[0].id : null);
+                        if(currentSelectedId) {
+                            setSelectedChild(processedChildren.find(c => c.id === currentSelectedId) || null);
+                        }
+                        setIsLoading(false);
+                     });
+                     unsubscribers.push(unsubGrades);
+                });
+                unsubscribers.push(unsubAttendance);
+            }));
         } catch (err) {
-            console.error('Error fetching dashboard data:', err);
+            console.error('Error setting up dashboard listeners:', err);
             setError('Failed to load dashboard data. Please try again.');
-        } finally {
             setIsLoading(false);
         }
+
+        return () => unsubscribers.forEach(unsub => unsub());
     }, [schoolId, parentId]);
-    
-    React.useEffect(() => {
-        fetchData(); // Initial fetch
-    }, [fetchData]);
 
 
     if (isLoading) {
@@ -415,7 +425,7 @@ export default function ParentDashboard() {
     if (error) {
         return (
             <div className="flex h-[calc(100vh-200px)] items-center justify-center">
-                <ErrorMessage message={error} onRetry={fetchData} />
+                <ErrorMessage message={error} />
             </div>
         );
     }
