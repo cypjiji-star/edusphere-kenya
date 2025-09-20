@@ -1,4 +1,5 @@
 
+      
 'use client';
 
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
@@ -38,32 +39,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const devDoc = await getDoc(doc(firestore, 'developers', authUser.uid));
         if (devDoc.exists()) {
           setRole('developer');
+          setLoading(false);
           return;
         }
 
         const schoolId = searchParams.get('schoolId');
         if (schoolId) {
-          // Prioritize checking roles in a specific order
-          const collectionsToCheck: ('admins' | 'teachers' | 'parents' | 'students')[] = ['admins', 'teachers', 'parents', 'students'];
-          let userFound = false;
+          const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
 
-          for (const collectionName of collectionsToCheck) {
-              const userDocRef = doc(firestore, 'schools', schoolId, collectionName, authUser.uid);
-              const userDocSnap = await getDoc(userDocRef);
-              if (userDocSnap.exists()) {
-                  const userData = userDocSnap.data();
-                  setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
-                  userFound = true;
-                  break; 
-              }
-          }
-           if (!userFound) {
-            setRole('unknown');
+          if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
+          } else {
+             setRole('unknown');
           }
         } else if (pathname !== '/login' && pathname !== '/') {
             setRole('unknown');
         }
-
       } catch (err) {
         console.error('Error fetching user role:', err);
         setRole('unknown');
@@ -89,3 +82,5 @@ export function useAuth() {
   }
   return context;
 }
+
+    

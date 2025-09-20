@@ -1,4 +1,5 @@
 
+      
 'use client';
 
 import Link from 'next/link';
@@ -145,7 +146,7 @@ export function AdminSidebar() {
       .map(item => {
         const q = query(collection(firestore, 'schools', schoolId, item.collection!), where(item.field!, '==', item.value!));
         return onSnapshot(q, (snapshot) => {
-          setDynamicBadges(prev => ({ ...prev, [item.label]: snapshot.size }));
+          setDynamicBadges(prev => ({ ...prev, [item.href]: snapshot.size }));
         });
       });
 
@@ -181,7 +182,7 @@ export function AdminSidebar() {
             <CollapsibleContent>
                 <SidebarMenu>
                     {group.items.map((item) => {
-                        const badgeCount = dynamicBadges[item.label];
+                        const badgeCount = dynamicBadges[item.href];
                         return (
                         <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
@@ -253,3 +254,6 @@ export function AdminSidebar() {
     </>
   );
 }
+
+
+    
