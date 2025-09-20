@@ -60,6 +60,7 @@ import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timest
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/context/auth-context';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -155,6 +156,7 @@ function StatsDialog({ announcement, open, onOpenChange }: { announcement: Annou
 export default function AdminAnnouncementsPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
+  const { user } = useAuth();
   const [isScheduling, setIsScheduling] = React.useState(false);
   const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>();
   const [pastAnnouncements, setPastAnnouncements] = React.useState<Announcement[]>([]);
@@ -296,7 +298,7 @@ export default function AdminAnnouncementsPage() {
 
 
   async function onSubmit(values: AnnouncementFormValues) {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
     setIsSubmitting(true);
     let attachmentUrl, attachmentName;
 
@@ -313,7 +315,7 @@ export default function AdminAnnouncementsPage() {
             content: values.message,
             audience: values.audience,
             category: values.category,
-            sender: { name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin-avatar/100' },
+            sender: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100` },
             sentAt: scheduledDate && isScheduling ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
             channels: {
                 app: values.notifyApp,
@@ -713,3 +715,5 @@ export default function AdminAnnouncementsPage() {
     </>
   );
 }
+
+    

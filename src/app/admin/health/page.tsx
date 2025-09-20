@@ -74,6 +74,7 @@ import { firestore, storage } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useAuth } from '@/context/auth-context';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -156,6 +157,7 @@ export default function AdminHealthPage() {
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const { user } = useAuth();
     const [allStudents, setAllStudents] = React.useState<TeacherStudent[]>([]);
     const [selectedHealthStudent, setSelectedHealthStudent] = React.useState<string | null>(null);
     const [currentHealthRecord, setCurrentHealthRecord] = React.useState<HealthRecord | null>(null);
@@ -281,7 +283,7 @@ export default function AdminHealthPage() {
 
 
     async function onSubmit(values: IncidentFormValues) {
-        if (!schoolId) return;
+        if (!schoolId || !user) return;
         setIsSubmitting(true);
         const student = allStudents.find(s => s.id === values.studentId);
         let attachmentUrl, attachmentName;
@@ -301,7 +303,8 @@ export default function AdminHealthPage() {
                 studentAvatar: `https://picsum.photos/seed/${values.studentId}/100`,
                 class: student?.class || 'Unknown',
                 date: Timestamp.fromDate(values.incidentDate),
-                reportedBy: 'Admin User',
+                reportedBy: user.displayName || 'Admin',
+                reportedById: user.uid,
                 status: 'Reported',
                 attachmentUrl: attachmentUrl || null,
                 attachmentName: attachmentName || null,
@@ -356,7 +359,7 @@ export default function AdminHealthPage() {
     };
 
     const handleSaveMedication = async () => {
-        if (!schoolId || !medStudentId || !medName || !medDosage) {
+        if (!schoolId || !medStudentId || !medName || !medDosage || !user) {
             toast({ title: "Missing Information", variant: "destructive" });
             return;
         }
@@ -369,7 +372,7 @@ export default function AdminHealthPage() {
                 medication: medName,
                 dosage: medDosage,
                 time: Timestamp.now(),
-                givenBy: 'Admin User',
+                givenBy: user.displayName || 'Admin',
             });
 
             toast({ title: 'Medication Logged', description: `${medName} was successfully logged.` });
@@ -691,3 +694,5 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
+
+    
