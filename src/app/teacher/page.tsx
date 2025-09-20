@@ -12,7 +12,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, BookMarked, ClipboardCheck, Percent, Loader2 } from 'lucide-react';
+import { Users, BookMarked, ClipboardCheck, Percent, Loader2, ArrowRight } from 'lucide-react';
 import { TimetableWidget } from './timetable-widget';
 import { AbsentStudentsWidget } from './absent-students-widget';
 import { MessagesWidget } from './messages-widget';
@@ -214,3 +214,5 @@ export default function TeacherDashboard() {
     </div>
   );
 }
+
+    

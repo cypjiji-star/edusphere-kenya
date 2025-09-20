@@ -522,7 +522,7 @@ export default function StudentEnrolmentPage() {
                         studentId: studentDocRef.id, studentName: `${values.studentFirstName} ${values.studentLastName}`,
                         class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
                         date: serverTimestamp(), description: 'Enrolment Payment', type: 'Payment',
-                        amount: -amountPaid, method: 'Manual',
+                        amount: amountPaid, method: 'Manual',
                     });
                 }
             });
@@ -892,5 +892,7 @@ export default function StudentEnrolmentPage() {
     </div>
   );
 }
+
+    
 
     
