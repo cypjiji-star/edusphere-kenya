@@ -40,6 +40,7 @@ import {
   or,
   serverTimestamp,
   addDoc,
+  setDoc,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -73,6 +74,7 @@ type AiMessage = {
 type AdminMessage = {
   role: 'user' | 'model' | 'admin';
   content: string;
+  senderName?: string;
 };
 
 type Conversation = {
@@ -197,7 +199,12 @@ function AdminMessagesTab() {
         if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
         
         setIsSending(true);
-        const newMessages: AdminMessage[] = [...selectedConversation.messages, { role: 'admin', content: reply }];
+        const newAdminMessage: AdminMessage = {
+          role: 'admin',
+          content: reply,
+          senderName: user.displayName || 'Admin',
+        };
+        const newMessages: AdminMessage[] = [...selectedConversation.messages, newAdminMessage];
 
         try {
             const conversationRef = doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id);
@@ -318,7 +325,8 @@ function AiChatTab() {
     const escalationMessage: AiMessage = { role: 'model', content: aiEscalationMessage };
     
     try {
-        await addDoc(collection(firestore, `schools/${schoolId}/support-chats`), {
+        const chatDocRef = doc(firestore, `schools/${schoolId}/support-chats`, user.uid);
+        await setDoc(chatDocRef, {
             userId: user.uid,
             userName: user.displayName || "User",
             userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
@@ -326,7 +334,7 @@ function AiChatTab() {
             isEscalated: true,
             lastMessage: "Conversation escalated to admin.",
             lastUpdate: serverTimestamp()
-        });
+        }, { merge: true });
 
         setIsEscalated(true);
         setMessages(prev => [...prev, escalationMessage]);
