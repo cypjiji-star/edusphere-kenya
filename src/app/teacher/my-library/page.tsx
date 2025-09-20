@@ -314,6 +314,23 @@ export default function MyLibraryPage() {
                     quantity: book.quantity - 1
                 });
             });
+            
+            // Send notification to parent
+            const studentDoc = await getDoc(doc(firestore, `schools/${schoolId}/students`, student.id));
+            if(studentDoc.exists()) {
+                const parentId = studentDoc.data().parentId;
+                if(parentId) {
+                    await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+                        title: 'New Book Assigned',
+                        description: `Your child, ${student.name}, has been assigned the textbook "${book.title}".`,
+                        createdAt: serverTimestamp(),
+                        category: 'Academics',
+                        href: `/parent/library?schoolId=${schoolId}`, // Placeholder link
+                        userId: parentId,
+                    });
+                }
+            }
+
 
             toast({
                 title: 'Book Assigned',

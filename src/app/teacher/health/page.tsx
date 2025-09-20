@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -48,18 +49,9 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { firestore, auth } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { firestore } from '@/lib/firebase';
+import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { Label } from '@/components/ui/label';
@@ -288,17 +280,33 @@ export default function TeacherHealthPage() {
                 status: 'Reported',
             });
             
+            // Notify Admin
             await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
                 title: `New Incident Report: ${values.incidentType}`,
                 description: `Incident involving ${student?.name || 'a student'} reported by ${user.displayName || 'a teacher'}.`,
                 createdAt: serverTimestamp(),
                 category: 'Health',
                 href: `/admin/health?schoolId=${schoolId}`,
+                audience: 'admin',
             });
+            
+            // Notify Parent
+            const studentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'students', values.studentId));
+            const parentId = studentDoc.data()?.parentId;
+            if (parentId) {
+                 await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+                    title: `Health & Safety Update for ${student?.name}`,
+                    description: `A new incident of type "${values.incidentType}" has been logged for your child. Please check the health portal for details.`,
+                    createdAt: serverTimestamp(),
+                    category: 'Health',
+                    href: `/parent/health?schoolId=${schoolId}`,
+                    userId: parentId,
+                });
+            }
 
             toast({
                 title: 'Incident Reported',
-                description: 'The incident has been logged and relevant parties will be notified if necessary.',
+                description: 'The incident has been logged and relevant parties have been notified.',
             });
             form.reset();
         } catch (e) {

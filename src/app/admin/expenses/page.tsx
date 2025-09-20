@@ -369,6 +369,15 @@ export default function ExpensesPage() {
             };
 
             await addDoc(collection(firestore, 'schools', schoolId, 'expenses'), expenseData);
+            
+            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+              title: 'New Expense Logged',
+              description: `A new expense of ${formatCurrency(Number(newExpenseAmount))} was logged by ${user.displayName || 'Admin'} and requires approval.`,
+              createdAt: serverTimestamp(),
+              category: 'Finance',
+              href: `/admin/expenses?schoolId=${schoolId}`,
+              audience: 'admin',
+            });
 
             toast({ title: "Expense Saved", description: "Your new expense has been logged for approval." });
             resetNewExpenseForm();

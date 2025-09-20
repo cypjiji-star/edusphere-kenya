@@ -459,6 +459,16 @@ export default function StudentEnrolmentPage() {
                 }
             });
 
+            // Send notification to the parent
+            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+              title: `Welcome to the Parent Portal!`,
+              description: `The account for your child, ${values.studentFirstName} ${values.studentLastName}, is now active. Log in to view details.`,
+              createdAt: serverTimestamp(),
+              category: 'General',
+              href: `/parent?schoolId=${schoolId}`,
+              userId: parentUserId,
+            });
+
             const studentName = `${values.studentFirstName} ${values.studentLastName}`;
             const parentName = `${values.parentFirstName} ${values.parentLastName}`;
             await logAuditEvent({
