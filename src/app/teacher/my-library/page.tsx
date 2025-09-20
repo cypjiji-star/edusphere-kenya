@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp, getDocs, runTransaction } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp, getDocs, runTransaction, deleteDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -52,13 +52,14 @@ type RequestItem = {
 
 type StudentAssignment = {
     id: string;
+    bookId: string;
     bookTitle: string;
     studentId: string;
     studentName: string;
     teacherId: string;
     teacherName: string;
     assignedDate: Timestamp;
-    status: 'Assigned' | 'Returned' | 'Pending Return';
+    status: 'Assigned' | 'Returned';
 };
 
 type TeacherStudent = {
@@ -286,17 +287,32 @@ export default function MyLibraryPage() {
         const student = allTeacherStudents.find(s => s.id === selectedStudentForAssignment);
 
         if (!book || !student) return;
+        if (book.quantity < 1) {
+            toast({ variant: 'destructive', title: 'No copies available', description: `You have no available copies of "${book.title}" to assign.`});
+            return;
+        }
         
         try {
-            await addDoc(collection(firestore, `schools/${schoolId}/student-assignments`), {
-                bookId: book.id,
-                bookTitle: book.title,
-                studentId: student.id,
-                studentName: student.name,
-                teacherId: user.uid,
-                teacherName: user.displayName || 'Teacher',
-                assignedDate: serverTimestamp(),
-                status: 'Assigned',
+            await runTransaction(firestore, async (transaction) => {
+                const teacherBorrowedItemRef = doc(firestore, 'schools', schoolId, 'users', user.uid, 'borrowed-items', book.id);
+
+                // Create the new student assignment
+                const newAssignmentRef = doc(collection(firestore, `schools/${schoolId}/student-assignments`));
+                transaction.set(newAssignmentRef, {
+                    bookId: book.id,
+                    bookTitle: book.title,
+                    studentId: student.id,
+                    studentName: student.name,
+                    teacherId: user.uid,
+                    teacherName: user.displayName || 'Teacher',
+                    assignedDate: serverTimestamp(),
+                    status: 'Assigned',
+                });
+                
+                // Decrement the teacher's count of the book
+                transaction.update(teacherBorrowedItemRef, {
+                    quantity: book.quantity - 1
+                });
             });
 
             toast({
@@ -313,15 +329,41 @@ export default function MyLibraryPage() {
         }
     };
 
-    const handleMarkAsReturned = async (assignmentId: string) => {
-        if (!schoolId) return;
-        const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignmentId);
+    const handleConfirmReturn = async (assignment: StudentAssignment) => {
+        if (!schoolId || !user) return;
+
         try {
-            await updateDoc(assignmentRef, { status: 'Pending Return' });
-            toast({ title: 'Return Initiated', description: 'The librarian has been notified to confirm the return.' });
-        } catch (e) {
-            console.error('Failed to mark for return', e);
-            toast({ variant: 'destructive', title: 'Update Failed' });
+            await runTransaction(firestore, async (transaction) => {
+                const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignment.id);
+                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/users/${assignment.teacherId}/borrowed-items`, assignment.bookId);
+                
+                const borrowedItemSnap = await transaction.get(teacherBorrowedItemRef);
+                
+                // Delete the student assignment
+                transaction.delete(assignmentRef);
+                
+                // Increment the teacher's book count
+                if (borrowedItemSnap.exists()) {
+                    transaction.update(teacherBorrowedItemRef, {
+                        quantity: (borrowedItemSnap.data().quantity || 0) + 1
+                    });
+                } else {
+                    // If the teacher's record was deleted for some reason, recreate it
+                    transaction.set(teacherBorrowedItemRef, {
+                        title: assignment.bookTitle,
+                        quantity: 1,
+                        // Other fields might be missing but quantity is most important here
+                    });
+                }
+            });
+
+            toast({
+                title: 'Return Confirmed',
+                description: `${assignment.bookTitle} has been returned and added back to your available copies.`,
+            });
+        } catch (error: any) {
+            console.error("Error confirming return:", error);
+            toast({ title: 'Confirmation Failed', description: error.message, variant: 'destructive' });
         }
     };
     
@@ -448,7 +490,7 @@ export default function MyLibraryPage() {
                                             <Accordion type="single" collapsible className="w-full pl-4">
                                                 {Object.entries(books).map(([bookTitle, assignments]) => (
                                                     <AccordionItem key={bookTitle} value={bookTitle}>
-                                                        <AccordionTrigger>{bookTitle} ({assignments.length} copies)</AccordionTrigger>
+                                                        <AccordionTrigger>{bookTitle} ({assignments.length} copies assigned)</AccordionTrigger>
                                                         <AccordionContent>
                                                             <Table>
                                                                 <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Date Assigned</TableHead><TableHead className="text-right">Status</TableHead></TableRow></TableHeader>
@@ -459,9 +501,7 @@ export default function MyLibraryPage() {
                                                                             <TableCell>{assignment.assignedDate?.toDate().toLocaleDateString()}</TableCell>
                                                                             <TableCell className="text-right">
                                                                                 {assignment.status === 'Assigned' ? (
-                                                                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsReturned(assignment.id)}>Mark as Returned</Button>
-                                                                                ) : assignment.status === 'Pending Return' ? (
-                                                                                    <Badge variant="secondary">Pending Return</Badge>
+                                                                                    <Button variant="outline" size="sm" onClick={() => handleConfirmReturn(assignment)}>Confirm Return</Button>
                                                                                 ) : (
                                                                                     <Badge variant="default" className="bg-green-600">Returned</Badge>
                                                                                 )}
