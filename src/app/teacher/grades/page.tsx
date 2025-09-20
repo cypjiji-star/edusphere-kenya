@@ -230,7 +230,7 @@ function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { stud
             body: studentData ? Object.entries(studentData.scores).map(([subject, score]) => [
                 subject,
                 score,
-                score >= 80 ? 'A' : score >= 65 ? 'B' : 'C',
+                calculateGrade(score),
                 'Good progress.' // Placeholder comment
             ]) : [],
         });
@@ -292,7 +292,7 @@ function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { stud
                                 <TableRow key={subject}>
                                     <TableCell>{subject}</TableCell>
                                     <TableCell className="text-center font-semibold">{score}</TableCell>
-                                    <TableCell>{score >= 80 ? 'A' : score >= 65 ? 'B' : 'C'}</TableCell>
+                                    <TableCell>{calculateGrade(score)}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground italic">Good progress.</TableCell>
                                 </TableRow>
                             ))}
@@ -407,7 +407,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
 
         // 1. Fetch students for the class just once
         const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
-        getDocs(studentsQuery).then(studentsSnap => {
+        studentUnsub = onSnapshot(studentsQuery, (studentsSnap) => {
             const studentData = studentsSnap.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -421,31 +421,26 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                     submissionId: undefined,
                 };
             });
-            setStudents(studentData);
-            gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
-            setIsLoading(false);
 
             // 2. After students are loaded, set up a real-time listener for grades
             const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
             gradesUnsub = onSnapshot(gradesQuery, (gradesSnap) => {
                 const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
                 
-                setStudents(currentStudents => {
-                    // If currentStudents is empty, wait for the initial fetch to complete
-                    if (currentStudents.length === 0) return [];
-
-                    return currentStudents.map(student => {
-                        const existingGrade = gradesMap.get(student.studentId);
-                        const score = existingGrade?.score || '';
-                        return {
-                            ...student,
-                            score,
-                            grade: score ? calculateGrade(Number(score)) : '',
-                            gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
-                            submissionId: existingGrade?.submissionId,
-                        };
-                    });
+                const mergedStudents = studentData.map(student => {
+                    const existingGrade = gradesMap.get(student.studentId);
+                    const score = existingGrade?.score || '';
+                    return {
+                        ...student,
+                        score,
+                        grade: score ? calculateGrade(Number(score)) : '',
+                        gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
+                        submissionId: existingGrade?.submissionId,
+                    };
                 });
+                setStudents(mergedStudents);
+                gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
+                setIsLoading(false);
             });
         });
 

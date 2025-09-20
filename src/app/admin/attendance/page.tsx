@@ -527,7 +527,8 @@ export default function AdminAttendancePage() {
 
     return teacherAttendanceRecords.filter(record => {
       const recordDate = record.date.toDate();
-      return recordDate >= fromDate && recordDate <= toDate;
+      const isDateInRange = recordDate >= fromDate && recordDate <= toDate;
+      return isDateInRange;
     });
   }, [teacherAttendanceRecords, date]);
   
