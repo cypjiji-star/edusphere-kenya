@@ -834,7 +834,7 @@ export default function TeacherGradesPage() {
     const [examType, setExamType] = React.useState<Exam['type'] | undefined>();
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
     const [subjects, setSubjects] = React.useState<string[]>([]);
-    const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<{subject: string; average: number}[]>([]);
+    const [classPerformanceData, setClassPerformanceData] = React.useState<{ name: string; average: number }[]>([]);
     const [academicTerms] = React.useState(generateAcademicTerms());
     
     // Gradebook state
@@ -853,8 +853,6 @@ export default function TeacherGradesPage() {
     const [gradeToReject, setGradeToReject] = React.useState<PendingGrade | null>(null);
     const [examTermFilter, setExamTermFilter] = React.useState<string>(getCurrentTerm());
     
-    const memoizedClasses = React.useMemo(() => classes, [classes]);
-
     React.useEffect(() => {
         if (!schoolId) return;
 
@@ -918,7 +916,7 @@ export default function TeacherGradesPage() {
                 const calculatedRankingByClass: Record<string, Omit<Ranking, 'position' | 'streamPosition'>[]> = {};
 
                 studentScores.forEach(student => {
-                    const { classId } = gradesByStudent[student.studentId];
+                    const classId = student.classId;
                     if (!calculatedRankingByClass[classId]) {
                         calculatedRankingByClass[classId] = [];
                     }
@@ -951,20 +949,24 @@ export default function TeacherGradesPage() {
                 }
                 setClassRankings(finalRankings);
             
-                const perfData: Record<string, { total: number, count: number }> = {};
-                studentScores.forEach(student => {
-                    Object.entries(student.scores).forEach(([subject, score]) => {
-                        if (!perfData[subject]) {
-                            perfData[subject] = { total: 0, count: 0 };
-                        }
-                        perfData[subject].total += score;
-                        perfData[subject].count++;
-                    });
-                });
-                setSubjectPerformanceData(Object.entries(perfData).map(([subject, data]) => ({
-                    subject: subject.substring(0, 5),
-                    average: Math.round(data.total / data.count),
-                })));
+                const perfData: Record<string, { total: number; count: number }> = {};
+                for (const classId in calculatedRankingByClass) {
+                    const className = classes.find(c => c.id === classId)?.name || classId;
+                    const classStudents = calculatedRankingByClass[classId];
+                    if (classStudents.length > 0) {
+                        const totalAvg = classStudents.reduce((sum, s) => sum + s.avg, 0) / classStudents.length;
+                        perfData[className] = { total: totalAvg, count: 1 };
+                    }
+                }
+                
+                setClassPerformanceData(
+                  Object.entries(perfData)
+                    .map(([name, data]) => ({
+                      name,
+                      average: Math.round(data.total / data.count),
+                    }))
+                    .sort((a, b) => b.average - a.average)
+                );
             });
 
             const auditLogQuery = query(collection(firestore, 'schools', schoolId, 'audit_logs'), where('action', 'in', ['GRADE_UPDATED', 'GRADE_APPROVED', 'GRADE_REJECTED']), orderBy('timestamp', 'desc'));
@@ -1021,7 +1023,7 @@ export default function TeacherGradesPage() {
             unsubLogs();
             unsubPendingGrades();
         };
-    }, [schoolId, toast]);
+    }, [schoolId, toast, classes]);
 
     const getTermDates = (term: string) => {
         const [termName, yearStr] = term.split('-');
@@ -1839,14 +1841,14 @@ export default function TeacherGradesPage() {
             <TabsContent value="analytics" className="mt-4 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Subject Performance</CardTitle>
-                        <CardDescription>Average scores across all classes for each subject.</CardDescription>
+                        <CardTitle>Class Performance</CardTitle>
+                        <CardDescription>Average scores across all subjects for each class.</CardDescription>
                     </CardHeader>
                     <CardContent>
                          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                            <BarChart data={subjectPerformanceData} layout="vertical" margin={{ left: 10 }}>
+                            <BarChart data={classPerformanceData} layout="vertical" margin={{ left: 10, right: 30 }}>
                                 <CartesianGrid horizontal={false} />
-                                <YAxis dataKey="subject" type="category" tickLine={false} tickMargin={10} axisLine={false} />
+                                <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={80} />
                                 <XAxis dataKey="average" type="number" hide />
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                                 <Bar dataKey="average" fill="var(--color-average)" radius={5}>
@@ -1867,6 +1869,9 @@ export default function TeacherGradesPage() {
 
     
 
+
+
+    
 
 
     
