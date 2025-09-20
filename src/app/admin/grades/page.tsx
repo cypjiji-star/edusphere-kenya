@@ -950,8 +950,10 @@ export default function TeacherGradesPage() {
                 setClassRankings(finalRankings);
             
                 const perfData: Record<string, { total: number; count: number }> = {};
+                const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
+
                 for (const classId in calculatedRankingByClass) {
-                    const className = classes.find(c => c.id === classId)?.name || classId;
+                    const className = classData.find(c => c.id === classId)?.name || classId;
                     const classStudents = calculatedRankingByClass[classId];
                     if (classStudents.length > 0) {
                         const totalAvg = classStudents.reduce((sum, s) => sum + s.avg, 0) / classStudents.length;
@@ -1023,7 +1025,7 @@ export default function TeacherGradesPage() {
             unsubLogs();
             unsubPendingGrades();
         };
-    }, [schoolId, toast, classes]);
+    }, [schoolId, toast]);
 
     const getTermDates = (term: string) => {
         const [termName, yearStr] = term.split('-');
@@ -1500,7 +1502,7 @@ export default function TeacherGradesPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 h-auto">
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
-                <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+                <TabsTrigger value="reports">Exam Reports</TabsTrigger>
                 <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
@@ -1615,7 +1617,7 @@ export default function TeacherGradesPage() {
                                             <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
                                             <TableCell>{getStatusBadge(exam.status)}</TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                 <Button variant="outline" size="sm" onClick={() => toast({ title: "View Submissions", description: "This will show a detailed submission status view."})}>View Submissions</Button>
+                                                 <Button variant="outline" size="sm" onClick={() => setSelectedExamForGrading(exam)}>View Submissions</Button>
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingExam(exam)}><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" onClick={() => setExamToDelete(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </TableCell>
@@ -1627,10 +1629,10 @@ export default function TeacherGradesPage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-            <TabsContent value="gradebook" className="mt-4">
+            <TabsContent value="reports" className="mt-4">
                  <Card>
                     <CardHeader>
-                        <CardTitle>Gradebook</CardTitle>
+                        <CardTitle>Exam Reports</CardTitle>
                         <CardDescription>Generate and view detailed performance reports for specific exams.</CardDescription>
                         <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
                             <Select value={selectedReportTerm} onValueChange={setSelectedReportTerm}>
