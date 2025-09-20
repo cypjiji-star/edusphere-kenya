@@ -264,12 +264,20 @@ export default function AnnouncementsPage() {
 
       await addDoc(collection(firestore, 'schools', schoolId, 'announcements'), newAnnouncement);
       
+      let notificationAudience = 'all'; // Default
+      if (values.audience.includes('Parents')) {
+        notificationAudience = 'parent';
+      } else if (values.audience.includes('Students')) {
+        notificationAudience = 'student';
+      }
+      
       await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
           title: `New Announcement: ${values.title}`,
           description: `From ${teacherName}: ${values.message.substring(0, 100)}`,
           createdAt: serverTimestamp(),
           category: 'Communication',
-          href: `/admin/announcements?schoolId=${schoolId}`,
+          href: `/parent/announcements?schoolId=${schoolId}`,
+          audience: notificationAudience,
       });
 
       form.reset();
