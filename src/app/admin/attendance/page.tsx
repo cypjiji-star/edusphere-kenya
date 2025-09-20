@@ -494,35 +494,26 @@ export default function AdminAttendancePage() {
     });
   }
 
-  const filteredRecords = React.useMemo(() => allRecords.filter(record => {
-    const recordDate = record.date.toDate();
-    let isDateInRange = true;
+  const filteredRecords = React.useMemo(() => {
+      if (!date?.from) return [];
+      
+      const fromDate = new Date(date.from);
+      fromDate.setHours(0, 0, 0, 0);
+      const toDate = date.to ? new Date(date.to) : new Date(date.from);
+      toDate.setHours(23, 59, 59, 999);
 
-    if (date?.from) {
-        const fromDate = new Date(date.from);
-        fromDate.setHours(0, 0, 0, 0);
+      return allRecords.filter(record => {
+        const recordDate = record.date.toDate();
+        const isDateInRange = recordDate >= fromDate && recordDate <= toDate;
 
-        if (date.to) {
-            const toDate = new Date(date.to);
-            toDate.setHours(23, 59, 59, 999);
-            isDateInRange = recordDate >= fromDate && recordDate <= toDate;
-        } else {
-            // If only 'from' is set, filter for that single day
-            const endOfDay = new Date(date.from);
-            endOfDay.setHours(23, 59, 59, 999);
-            isDateInRange = recordDate >= fromDate && recordDate <= endOfDay;
-        }
-    } else {
-        return false;
-    }
+        const matchesSearch = record.studentName && record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesClass = classFilter === 'All Classes' || record.class === classFilter;
+        const matchesTeacher = teacherFilter === 'All Teachers' || record.teacher === teacherFilter;
+        const matchesStatus = statusFilter === 'All Statuses' || record.status === statusFilter;
 
-    const matchesSearch = record.studentName && record.studentName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesClass = classFilter === 'All Classes' || record.class === classFilter;
-    const matchesTeacher = teacherFilter === 'All Teachers' || record.teacher === teacherFilter;
-    const matchesStatus = statusFilter === 'All Statuses' || record.status === statusFilter;
-
-    return isDateInRange && matchesSearch && matchesClass && matchesTeacher && matchesStatus;
-  }), [allRecords, date, searchTerm, classFilter, teacherFilter, statusFilter]);
+        return isDateInRange && matchesSearch && matchesClass && matchesTeacher && matchesStatus;
+      });
+  }, [allRecords, date, searchTerm, classFilter, teacherFilter, statusFilter]);
 
    const filteredTeacherRecords = React.useMemo(() => {
     if (!date?.from) return [];
@@ -1068,3 +1059,6 @@ export default function AdminAttendancePage() {
 
 
 
+
+
+    

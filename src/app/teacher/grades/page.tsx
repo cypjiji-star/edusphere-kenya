@@ -94,6 +94,7 @@ import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import jsPDF from 'jspdf';
@@ -407,32 +408,46 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         const unsubGrades = onSnapshot(gradesQuery, (gradesSnap) => {
             const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
             
-            // This assumes students don't change often, so we fetch them once.
-            // For a more robust solution, we'd listen to student changes too.
-            getDocs(studentsQuery).then(studentsSnap => {
-                const studentData = studentsSnap.docs.map(doc => {
-                    const data = doc.data();
-                    const existingGrade = gradesMap.get(doc.id);
-                    const score = existingGrade?.score || '';
-                    return {
-                        studentId: doc.id,
-                        studentName: data.name,
-                        avatarUrl: data.avatarUrl || '',
-                        admNo: data.admissionNumber || '',
+            // Fetch students once and then update with grade changes
+            if (students.length === 0) {
+                 getDocs(studentsQuery).then(studentsSnap => {
+                    const studentData = studentsSnap.docs.map(doc => {
+                        const data = doc.data();
+                        const existingGrade = gradesMap.get(doc.id);
+                        const score = existingGrade?.score || '';
+                        return {
+                            studentId: doc.id,
+                            studentName: data.name,
+                            avatarUrl: data.avatarUrl || '',
+                            admNo: data.admissionNumber || '',
+                            score: score,
+                            grade: score ? calculateGrade(Number(score)) : '',
+                            gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
+                            submissionId: existingGrade?.submissionId,
+                        }
+                    });
+                    setStudents(studentData);
+                    gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
+                    setIsLoading(false);
+                });
+            } else {
+                 setStudents(prevStudents => prevStudents.map(student => {
+                     const existingGrade = gradesMap.get(student.studentId);
+                     const score = existingGrade?.score || '';
+                     return {
+                        ...student,
                         score: score,
                         grade: score ? calculateGrade(Number(score)) : '',
                         gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
                         submissionId: existingGrade?.submissionId,
-                    }
-                });
-                setStudents(studentData);
-                gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
-                setIsLoading(false);
-            });
+                     }
+                 }))
+                 setIsLoading(false);
+            }
         });
 
         return () => unsubGrades();
-    }, [exam, schoolId]);
+    }, [exam, schoolId, students.length]);
     
     const handleScoreChange = (studentId: string, score: string) => {
         let error = undefined;
@@ -847,3 +862,5 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
+
+    

@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { FinanceSnapshot, PerformanceSnapshot } from './admin-charts';
 import { CalendarWidget } from './calendar-widget';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDoc, doc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { SecurityAlertsWidget } from './security-alerts-widget';
 
@@ -96,39 +96,34 @@ export default function AdminDashboard() {
       }
     });
 
-    const usersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher'));
-    const unsubTeachers = onSnapshot(usersQuery, (snapshot) => {
+    const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher'));
+    const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
       setStats(prev => ({...prev, totalTeachers: snapshot.size }));
     });
     
-    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
-    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
-      const studentCount = snapshot.size;
-      let totalBilled = 0;
-      let totalPaid = 0;
-      snapshot.forEach(doc => {
-          totalBilled += doc.data().totalFee || 0;
-          totalPaid += doc.data().amountPaid || 0;
-      });
-      const balance = totalBilled - totalPaid;
-
-      setStats(prev => ({...prev, totalStudents: studentCount, overallFeeBalance: balance }));
-
-       // Fetch attendance only after we have the student count
-       if (studentCount > 0) {
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-        const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
-        const unsubAttendance = onSnapshot(attendanceQuery, (attSnapshot) => {
-             const presentCount = attSnapshot.docs.filter(r => ['Present', 'Late', 'present', 'late'].includes(r.data().status)).length;
-             setStats(prev => ({...prev, attendanceRate: Math.round((presentCount / studentCount) * 100) }));
+    // Combine student and attendance fetching
+    const unsubStudents = onSnapshot(query(collection(firestore, `schools/${schoolId}/students`)), async (studentsSnapshot) => {
+        const studentCount = studentsSnapshot.size;
+        let totalBilled = 0;
+        let totalPaid = 0;
+        studentsSnapshot.forEach(doc => {
+            totalBilled += doc.data().totalFee || 0;
+            totalPaid += doc.data().amountPaid || 0;
         });
-        return () => unsubAttendance(); // Cleanup attendance listener
-      } else {
-          setStats(prev => ({...prev, attendanceRate: 100 }));
-      }
-    });
+        const balance = totalBilled - totalPaid;
 
+        if (studentCount > 0) {
+            const today = new Date();
+            const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+            const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
+            const attSnapshot = await getDocs(attendanceQuery);
+            const presentCount = attSnapshot.docs.filter(r => ['Present', 'Late', 'present', 'late'].includes(r.data().status)).length;
+            const attendanceRate = Math.round((presentCount / studentCount) * 100);
+            setStats(prev => ({...prev, totalStudents: studentCount, overallFeeBalance: balance, attendanceRate }));
+        } else {
+            setStats(prev => ({...prev, totalStudents: 0, overallFeeBalance: 0, attendanceRate: 100 }));
+        }
+    });
 
     // Real-time recent activities
     const notificationsQuery = query(collection(firestore, `schools/${schoolId}/notifications`), orderBy('createdAt', 'desc'), limit(6));
@@ -276,3 +271,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+    

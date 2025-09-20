@@ -58,7 +58,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, where, writeBatch, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -66,13 +66,11 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
-import { initializeApp, deleteApp } from 'firebase/app';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { Timestamp } from 'firebase/firestore';
-import { deleteUserAction, updateUserAuthAction } from '../users/actions';
+import { deleteUserAction, updateUserAuthAction, createUserAction } from '../users/actions';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -146,21 +144,18 @@ export default function UserManagementListPage() {
         if (!schoolId) return;
         setClientReady(true);
         
-        const fetchAllUsers = async () => {
-            const userCollections = ['admins', 'teachers', 'parents'];
-            const usersData: User[] = [];
-            for (const collectionName of userCollections) {
-                const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
-                const snapshot = await getDocs(q);
-                snapshot.forEach(doc => {
-                    usersData.push({ id: doc.id, ...doc.data() } as User);
+        const userCollections = ['admins', 'teachers', 'parents', 'students'];
+        const unsubscribers = userCollections.map(collectionName => {
+            const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
+            return onSnapshot(q, (snapshot) => {
+                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+                setAllUsers(prevUsers => {
+                    const otherUsers = prevUsers.filter(u => u.role?.toLowerCase() + 's' !== collectionName);
+                    return [...otherUsers, ...usersData];
                 });
-            }
-            setAllUsers(usersData);
-        };
+            });
+        });
         
-        fetchAllUsers();
-
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
             setRoles(snapshot.docs.map(doc => doc.id));
         });
@@ -171,6 +166,7 @@ export default function UserManagementListPage() {
         });
 
         return () => {
+            unsubscribers.forEach(unsub => unsub());
             unsubRoles();
             unsubClasses();
         };
@@ -219,59 +215,35 @@ export default function UserManagementListPage() {
             return;
         }
 
-        const secondaryApp = initializeApp(auth.app.options, `secondary-${Date.now()}`);
-        const secondaryAuth = getAuth(secondaryApp);
-
         try {
-            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newUserEmail, newUserPassword);
-            const user = userCredential.user;
-            
-            const collectionName = newUserRole.toLowerCase() + 's';
-            const userDocRef = doc(firestore, 'schools', schoolId, collectionName, user.uid);
-            
-            const userData: any = {
-                id: user.uid,
-                schoolId: schoolId,
-                name: newUserName,
-                email: newUserEmail,
-                role: newUserRole,
-                status: 'Active',
-                createdAt: serverTimestamp(),
-                lastLogin: 'Never',
-                avatarUrl: `https://picsum.photos/seed/${newUserEmail}/100`
-            };
-
-            if (newUserRole === 'Teacher') userData.classes = newUserClasses;
-
-            await setDoc(userDocRef, userData);
-            
-            await logAuditEvent({
+            const result = await createUserAction({
                 schoolId,
-                action: 'USER_CREATED',
-                actionType: 'User Management',
-                description: `New user account created for ${newUserName}.`,
-                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-                details: `Role: ${newUserRole}, Email: ${newUserEmail}`
+                email: newUserEmail,
+                password: newUserPassword,
+                name: newUserName,
+                role: newUserRole,
+                actor: {
+                    id: adminUser.uid,
+                    name: adminUser.displayName || 'Admin'
+                },
+                ...(newUserRole === 'Teacher' && { classes: newUserClasses }),
             });
 
-            toast({
-                title: 'User Created',
-                description: 'A new user account has been created successfully.',
-            });
-
-            setNewUserName('');
-            setNewUserEmail('');
-            setNewUserPassword('');
-            setNewUserRole('');
-            setNewUserClasses([]);
-
+            if (result.success) {
+                toast({
+                    title: 'User Created',
+                    description: 'A new user account has been created successfully.',
+                });
+                setNewUserName('');
+                setNewUserEmail('');
+                setNewUserPassword('');
+                setNewUserRole('');
+                setNewUserClasses([]);
+            } else {
+                throw new Error(result.message);
+            }
         } catch(e: any) {
-             let errorMessage = 'Could not create user. Please try again.';
-            if (e.code === 'auth/email-already-in-use') errorMessage = 'This email is already in use by another account.';
-            else if (e.code === 'auth/weak-password') errorMessage = 'Password is too weak. It must be at least 6 characters long.';
-            toast({ title: 'Error', description: errorMessage, variant: 'destructive'});
-        } finally {
-            await deleteApp(secondaryApp);
+            toast({ title: 'Error', description: e.message || 'Could not create user.', variant: 'destructive'});
         }
     };
     
@@ -747,5 +719,7 @@ export default function UserManagementListPage() {
         </div>
     );
 }
+
+    
 
     
