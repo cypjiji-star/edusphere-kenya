@@ -93,13 +93,13 @@ export default function ParentTimetablePage() {
             }
         });
         return () => unsubscribe();
-    }, [schoolId, selectedChild, parentId]);
+    }, [schoolId, parentId, selectedChild]);
 
     React.useEffect(() => {
         if (!selectedChild || !schoolId) return;
 
         const fetchTimetable = async () => {
-            setIsLoading(true);
+            if (!isLoading) setIsLoading(true);
             const child = childrenData.find(c => c.id === selectedChild);
             if (child?.classId) {
                 const timetableRef = doc(firestore, 'schools', schoolId, 'timetables', child.classId);
@@ -123,7 +123,7 @@ export default function ParentTimetablePage() {
         };
 
         fetchTimetable();
-    }, [selectedChild, childrenData, schoolId]);
+    }, [selectedChild, childrenData, schoolId, isLoading]);
 
     const handleExport = (type: 'PDF' | 'Print') => {
         toast({
@@ -134,7 +134,7 @@ export default function ParentTimetablePage() {
             setTimeout(() => window.print(), 1000);
         }
     }
-
+    
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing.</div>
     }
@@ -254,5 +254,3 @@ export default function ParentTimetablePage() {
         </div>
     )
 }
-
-    
