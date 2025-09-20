@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -27,7 +28,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
@@ -99,7 +100,7 @@ export default function ParentTimetablePage() {
         if (!selectedChild || !schoolId) return;
 
         const fetchTimetable = async () => {
-            if (!isLoading) setIsLoading(true);
+            setIsLoading(true);
             const child = childrenData.find(c => c.id === selectedChild);
             if (child?.classId) {
                 const timetableRef = doc(firestore, 'schools', schoolId, 'timetables', child.classId);
@@ -123,7 +124,7 @@ export default function ParentTimetablePage() {
         };
 
         fetchTimetable();
-    }, [selectedChild, childrenData, schoolId, isLoading]);
+    }, [selectedChild, childrenData, schoolId]);
 
     const handleExport = (type: 'PDF' | 'Print') => {
         toast({

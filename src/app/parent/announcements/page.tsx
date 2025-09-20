@@ -85,14 +85,13 @@ export default function ParentAnnouncementsPage() {
   }, [schoolId, toast]);
 
 
-  const handleMarkAsRead = async (id: string, readBy: string[]) => {
+  const handleMarkAsRead = async (id: string) => {
     if (!schoolId || !currentUserId) return;
 
-    // Prevent re-marking if already read
-    if (readBy?.includes(currentUserId)) {
-        toast({ description: 'Already marked as read.' });
-        return;
-    }
+    // Optimistically update the UI
+    setAnnouncements(prev => prev.map(ann => 
+        ann.id === id ? { ...ann, readBy: [...(ann.readBy || []), currentUserId] } : ann
+    ));
     
     const announcementRef = doc(firestore, `schools/${schoolId}/announcements`, id);
     try {
@@ -104,6 +103,10 @@ export default function ParentAnnouncementsPage() {
     } catch(e) {
         console.error("Error marking as read:", e);
         toast({ variant: 'destructive', title: 'Could not mark as read.' });
+        // Revert optimistic update on failure
+        setAnnouncements(prev => prev.map(ann => 
+            ann.id === id ? { ...ann, readBy: ann.readBy.filter(uid => uid !== currentUserId) } : ann
+        ));
     }
   }
   
@@ -239,7 +242,7 @@ export default function ParentAnnouncementsPage() {
                             </CardContent>
                             {!isRead && (
                                 <CardFooter>
-                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id, ann.readBy || [])}>
+                                    <Button variant="outline" size="sm" onClick={() => handleMarkAsRead(ann.id)}>
                                         <Check className="mr-2 h-4 w-4"/>
                                         Mark as Read
                                     </Button>

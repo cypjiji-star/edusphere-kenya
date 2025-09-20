@@ -140,7 +140,7 @@ export default function ParentAttendancePage() {
         setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [schoolId, user]);
+  }, [schoolId, user, selectedChild, toast]);
 
   // Fetch attendance records for the selected child
   React.useEffect(() => {
@@ -167,12 +167,14 @@ export default function ParentAttendancePage() {
 
   const filteredRecords = React.useMemo(() => {
     if (!date?.from) return attendanceRecords;
+    
+    const fromDate = new Date(date.from);
+    fromDate.setHours(0, 0, 0, 0);
+    const toDate = date.to ? new Date(date.to) : new Date(date.from);
+    toDate.setHours(23, 59, 59, 999);
+    
     return attendanceRecords.filter(record => {
         const recordDate = record.date.toDate();
-        const fromDate = new Date(date.from!);
-        fromDate.setHours(0,0,0,0);
-        const toDate = date.to ? new Date(date.to) : new Date(date.from!);
-        toDate.setHours(23,59,59,999);
         return recordDate >= fromDate && recordDate <= toDate;
     });
   }, [attendanceRecords, date]);

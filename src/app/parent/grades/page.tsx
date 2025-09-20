@@ -62,8 +62,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc, getDocs } from 'firebase/firestore';
-import type { DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, getDoc, getDocs, Timestamp } from 'firebase/firestore';
+import type { DocumentData } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
@@ -72,6 +72,7 @@ type Child = {
     id: string;
     name: string;
     class: string;
+    classId: string;
 };
 
 type GradeData = {
@@ -198,16 +199,31 @@ export default function ParentGradesPage() {
         }
     });
     return () => unsubscribe();
-  }, [selectedChild, schoolId, parentId]);
+  }, [schoolId, parentId, selectedChild]);
+
+  const getTermDates = (term: string) => {
+    const [termName, yearStr] = term.split('-');
+    const year = parseInt(yearStr, 10);
+    switch(termName) {
+        case 'term1': return { start: new Date(year, 0, 1), end: new Date(year, 3, 30) };
+        case 'term2': return { start: new Date(year, 4, 1), end: new Date(year, 7, 31) };
+        case 'term3': return { start: new Date(year, 8, 1), end: new Date(year, 11, 31) };
+        default: return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
+    }
+  };
 
   React.useEffect(() => {
     if (!selectedChild || !schoolId) return;
     setIsLoading(true);
 
+    const { start, end } = getTermDates(selectedTerm);
+
     const gradesQuery = query(
         collection(firestore, 'schools', schoolId, 'grades'), 
         where('studentId', '==', selectedChild),
-        where('status', '==', 'Approved') // Only fetch approved grades
+        where('status', '==', 'Approved'),
+        where('date', '>=', Timestamp.fromDate(start)),
+        where('date', '<=', Timestamp.fromDate(end)),
     );
     const unsubGrades = onSnapshot(gradesQuery, async (gradesSnapshot) => {
         const gradesBySubject: Record<string, { scores: number[], teacher: string }> = {};
@@ -252,19 +268,27 @@ export default function ParentGradesPage() {
         let classSize = 0;
 
         if (childClassId) {
-             const allStudentsInClassQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', childClassId), where('status', '==', 'Approved'));
-             const allGradesSnapshot = await getDocs(allStudentsInClassQuery);
-             const studentTotals: Record<string, number> = {};
+             const allGradesInClassQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', childClassId), where('status', '==', 'Approved'));
+             const allGradesSnapshot = await getDocs(allGradesInClassQuery);
+             const studentTotals: Record<string, {total: number, count: number}> = {};
              allGradesSnapshot.forEach(doc => {
                  const data = doc.data();
                  const score = parseInt(data.grade, 10);
                  if (!isNaN(score)) {
-                     studentTotals[data.studentId] = (studentTotals[data.studentId] || 0) + score;
+                    if (!studentTotals[data.studentId]) studentTotals[data.studentId] = { total: 0, count: 0 };
+                     studentTotals[data.studentId].total += score;
+                     studentTotals[data.studentId].count++;
                  }
              });
-             const sortedStudents = Object.entries(studentTotals).sort(([, a], [, b]) => b - a);
+
+             const studentAverages = Object.entries(studentTotals).map(([studentId, data]) => ({
+                 studentId,
+                 average: data.count > 0 ? data.total / data.count : 0,
+             }));
+
+             const sortedStudents = studentAverages.sort((a, b) => b.average - a.average);
              classSize = sortedStudents.length;
-             const studentIndex = sortedStudents.findIndex(([studentId]) => studentId === selectedChild);
+             const studentIndex = sortedStudents.findIndex(s => s.studentId === selectedChild);
              if (studentIndex !== -1) {
                  rank = `${studentIndex + 1}`;
              }
@@ -286,7 +310,7 @@ export default function ParentGradesPage() {
     });
 
     return () => unsubGrades();
-  }, [selectedChild, schoolId, childrenData]);
+  }, [selectedChild, schoolId, childrenData, selectedTerm]);
 
   const handleDownload = () => {
     toast({
@@ -458,4 +482,3 @@ export default function ParentGradesPage() {
     </>
   );
 }
-
