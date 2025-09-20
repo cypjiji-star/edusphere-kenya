@@ -1,5 +1,4 @@
 
-      
 'use client';
 
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
@@ -14,6 +13,7 @@ export interface AuthContextType {
   user: User | null;
   role: AllowedRole;
   loading: boolean;
+  clientReady: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,8 +22,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [role, setRole] = React.useState<AllowedRole>('unknown');
   const [loading, setLoading] = React.useState(true);
+  const [clientReady, setClientReady] = React.useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    // This effect runs only once on the client after initial mount.
+    setClientReady(true);
+  }, []);
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
@@ -69,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pathname, searchParams]);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    <AuthContext.Provider value={{ user, role, loading, clientReady }}>
       {children}
     </AuthContext.Provider>
   );
@@ -82,5 +89,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    
