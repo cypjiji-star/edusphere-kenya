@@ -1,6 +1,4 @@
 
-      
-
 'use client';
 
 import * as React from 'react';
@@ -143,7 +141,7 @@ type StudentGradeEntry = {
     admNo: string;
     score: string;
     grade: string;
-    gradeStatus: 'Unmarked' | 'Pending Approval' | 'Approved';
+    gradeStatus: 'Unmarked' | 'Pending Approval' | 'Approved' | 'Rejected';
     submissionId?: string;
     error?: string;
 }
@@ -625,7 +623,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                             onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
                                             onKeyDown={(e) => handleKeyDown(e, index)}
                                             className={cn("w-32", student.error && "border-destructive focus-visible:ring-destructive")}
-                                            disabled={isLocked}
+                                            disabled={isLocked || student.gradeStatus === 'Approved' || student.gradeStatus === 'Pending Approval'}
                                         />
                                         {student.error && <p className="text-xs text-destructive mt-1">{student.error}</p>}
                                     </div>
@@ -640,6 +638,8 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                         <Badge variant="secondary" className="bg-yellow-500 text-white">Pending</Badge> :
                                     student.gradeStatus === 'Approved' ?
                                         <Badge variant="default" className="bg-green-600">Approved</Badge> :
+                                    student.gradeStatus === 'Rejected' ?
+                                        <Badge variant="destructive">Rejected</Badge> :
                                         <Badge variant="outline">Unmarked</Badge>
                                     }
                                 </TableCell>
@@ -725,149 +725,55 @@ export default function TeacherGradesPage() {
     
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [selectedExamForGrading, setSelectedExamForGrading] = React.useState<Exam | null>(null);
-    const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
-    const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
-    const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
     const [activeTab, setActiveTab] = React.useState('exam-management');
-    const [subjectPerformanceData, setSubjectPerformanceData] = React.useState<{subject: string; average: number}[]>([]);
-    const [academicTerms] = React.useState(generateAcademicTerms());
-    
-    const [selectedGradebookClass, setSelectedGradebookClass] = React.useState<string>('');
-    const [selectedReportClass, setSelectedReportClass] = React.useState<string>('');
-    const [selectedReportTerm, setSelectedReportTerm] = React.useState(getCurrentTerm());
     const [classes, setClasses] = React.useState<{id: string, name: string}[]>([]);
-
-
+    const [subjects, setSubjects] = React.useState<string[]>([]);
+    
     React.useEffect(() => {
         if (!schoolId || !user) return;
-    
+
         const teacherId = user.uid;
-    
+
+        // Fetch classes assigned to the teacher
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
         const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
             const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
             setClasses(classData);
-            if (classData.length > 0) {
-                if (!selectedGradebookClass) setSelectedGradebookClass(classData[0].id);
-                if (!selectedReportClass) setSelectedReportClass(classData[0].id);
-            }
         });
-    
-        // This listener will now handle exam updates in real-time
-        const classIds = classes.map(c => c.id);
-        let unsubscribeExams = () => {};
-        if (classIds.length > 0) {
-            const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('classId', 'in', classIds));
-            unsubscribeExams = onSnapshot(examsQuery, (examSnapshot) => {
-                const fetchedExams = examSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
-                setExams(fetchedExams);
-            });
-        } else {
-            setExams([]);
-        }
 
-        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`));
-        const unsubscribeGrades = onSnapshot(gradesQuery, async (snapshot) => {
-            const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number> }> = {};
-            const studentPromises = [];
-            
-            for (const gradeDoc of snapshot.docs) {
-                const gradeData = gradeDoc.data();
-                if (!gradeData.studentId || !gradeData.subject || isNaN(parseInt(gradeData.grade))) continue;
-                if (!gradeData.studentRef) continue;
-
-                if (!gradesByStudent[gradeData.studentId]) {
-                    gradesByStudent[gradeData.studentId] = { studentId: gradeData.studentId, scores: {} };
-                    studentPromises.push(getDoc(gradeData.studentRef));
-                }
-                gradesByStudent[gradeData.studentId].scores[gradeData.subject] = parseInt(gradeData.grade);
-            }
-            
-            const studentDocs = await Promise.all(studentPromises);
-            const studentDataMap = new Map(studentDocs.map(doc => [doc.id, doc.data()]));
-            
-            const studentScores: StudentGrade[] = Object.values(gradesByStudent).map(data => {
-                const studentInfo = studentDataMap.get(data.studentId);
-                return {
-                    studentId: data.studentId,
-                    studentName: studentInfo?.name || 'Unknown',
-                    admNo: studentInfo?.admissionNumber || 'N/A',
-                    avatarUrl: studentInfo?.avatarUrl || '',
-                    scores: data.scores
-                }
-            });
-            
-            setStudentGrades(studentScores);
-            
-            const calculatedRanking: Omit<Ranking, 'position' | 'streamPosition'>[] = studentScores.map(student => {
-                const subjectCount = Object.keys(student.scores).length;
-                const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
-                const avg = subjectCount > 0 ? total / subjectCount : 0;
-                let grade;
-                if (avg >= 80) grade = 'A';
-                else if (avg >= 65) grade = 'B';
-                else if (avg >= 50) grade = 'C';
-                else if (avg >= 40) grade = 'D';
-                else grade = 'E';
-
-                return {
-                    name: student.studentName,
-                    admNo: student.admNo,
-                    avatarUrl: student.avatarUrl,
-                    total,
-                    avg,
-                    grade,
-                };
-            });
-            
-            const sortedRanking = calculatedRanking.sort((a, b) => b.total - a.total).map((student, index) => ({
-                ...student,
-                position: index + 1,
-                streamPosition: index + 1, 
-            }));
-            
-            setClassRanking(sortedRanking);
-
-            const perfData: Record<string, { total: number, count: number }> = {};
-            studentScores.forEach(student => {
-                Object.entries(student.scores).forEach(([subject, score]) => {
-                    if (!perfData[subject]) {
-                        perfData[subject] = { total: 0, count: 0 };
-                    }
-                    perfData[subject].total += score;
-                    perfData[subject].count++;
-                });
-            });
-             setSubjectPerformanceData(Object.entries(perfData).map(([subject, data]) => ({
-                subject: subject.substring(0, 5),
-                average: Math.round(data.total / data.count),
-            })));
+        // Fetch subjects taught by the teacher
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
+        const unsubscribeSubjects = onSnapshot(subjectsQuery, snapshot => {
+            setSubjects(snapshot.docs.map(doc => doc.data().name));
         });
 
         return () => {
-            unsubscribeGrades();
             unsubscribeClasses();
-            unsubscribeExams();
+            unsubscribeSubjects();
         };
-    }, [schoolId, selectedGradebookClass, user]);
+    }, [schoolId, user]);
 
-    const handlePrintResults = () => {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            const tableHtml = document.getElementById('class-ranking-table')?.outerHTML;
-            printWindow.document.write('<html><head><title>Class Ranking</title>');
-            // Basic styles for printing
-            printWindow.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } th { background-color: #f2f2f2; } </style>');
-            printWindow.document.write('</head><body>');
-            printWindow.document.write(`<h2>Class Ranking - ${classes.find(c => c.id === selectedReportClass)?.name} - ${selectedReportTerm}</h2>`);
-            if (tableHtml) {
-                printWindow.document.write(tableHtml);
-            }
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
-            printWindow.print();
+    React.useEffect(() => {
+        if (classes.length === 0 || subjects.length === 0) {
+            setExams([]);
+            return;
         }
-    };
+
+        const classIds = classes.map(c => c.id);
+        
+        const examsQuery = query(
+            collection(firestore, `schools/${schoolId}/exams`), 
+            where('classId', 'in', classIds),
+            where('subject', 'in', subjects)
+        );
+        const unsubscribeExams = onSnapshot(examsQuery, (examSnapshot) => {
+            const fetchedExams = examSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
+            setExams(fetchedExams);
+        });
+        
+        return () => unsubscribeExams();
+
+    }, [classes, subjects, schoolId]);
     
     if (selectedExamForGrading) {
         return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId!} teacher={{id: user!.uid, name: user!.displayName || 'Teacher'}} />;
@@ -880,7 +786,6 @@ export default function TeacherGradesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-        <ReportCardDialog student={selectedStudentForReport} studentGrades={studentGrades} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
         <p className="text-muted-foreground">Manage exams and grades for your classes.</p>
@@ -889,7 +794,7 @@ export default function TeacherGradesPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="exam-management">My Exams</TabsTrigger>
-                <TabsTrigger value="reports">Reports &amp; Analytics</TabsTrigger>
+                <TabsTrigger value="reports" disabled>Reports &amp; Analytics</TabsTrigger>
             </TabsList>
             <TabsContent value="exam-management" className="mt-4">
                 <Card>
@@ -933,103 +838,12 @@ export default function TeacherGradesPage() {
             </TabsContent>
              <TabsContent value="reports" className="mt-4 space-y-6">
                 <Card>
-                    <CardHeader>
-                         <CardTitle>Reports &amp; Analytics</CardTitle>
-                        <CardDescription>Generate reports and analyze academic performance for your classes.</CardDescription>
-                        <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
-                             <Select value={selectedReportClass} onValueChange={setSelectedReportClass}>
-                                <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select a Class"/>
-                                </SelectTrigger>
-                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Select value={selectedReportTerm} onValueChange={setSelectedReportTerm}>
-                                <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select Term/Year"/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Button variant="secondary" onClick={handlePrintResults}><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
-                        </div>
-                    </CardHeader>
+                   <CardContent className="pt-6 text-center text-muted-foreground">
+                        <p>Analytics coming soon.</p>
+                   </CardContent>
                 </Card>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Class Ranking</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <div className="w-full overflow-auto rounded-lg border" id="class-ranking-table">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Pos</TableHead>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead className="text-right">Average</TableHead>
-                                            <TableHead>Grade</TableHead>
-                                            <TableHead className="text-right">Report</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {classRanking.map(student => (
-                                            <TableRow key={student.admNo}>
-                                                <TableCell className="font-bold">{student.position}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="h-8 w-8"><AvatarImage src={student.avatarUrl}/><AvatarFallback>{student.name[0]}</AvatarFallback></Avatar>
-                                                        {student.name}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right">{student.avg.toFixed(1)}</TableCell>
-                                                <TableCell><Badge>{student.grade}</Badge></TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="outline" size="sm" onClick={() => setSelectedStudentForReport(student)}>View Report</Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Performance Analytics</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-2 gap-4 text-center mb-6">
-                                <div className="p-4 bg-muted/50 rounded-lg">
-                                    <p className="text-xs text-muted-foreground">Class Average</p>
-                                    <p className="text-2xl font-bold">{classRanking.length > 0 ? (classRanking.reduce((sum, s) => sum + s.avg, 0) / classRanking.length).toFixed(1) : 0}%</p>
-                                </div>
-                                <div className="p-4 bg-muted/50 rounded-lg">
-                                    <p className="text-xs text-muted-foreground">Pass Rate</p>
-                                    <p className="text-2xl font-bold">{classRanking.length > 0 ? (classRanking.filter(s => s.avg >= 40).length / classRanking.length * 100).toFixed(0) : 100}%</p>
-                                </div>
-                            </div>
-                             <Separator />
-                            <h4 className="font-semibold text-sm my-4 text-center">Average Score by Subject</h4>
-                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                                <BarChart data={subjectPerformanceData}>
-                                <CartesianGrid vertical={false} />
-                                <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} />
-                                <YAxis />
-                                <ChartTooltip content={<ChartTooltipContent />} />
-                                <Bar dataKey="average" fill="var(--color-average)" radius={4} />
-                                </BarChart>
-                            </ChartContainer>
-                        </CardContent>
-                    </Card>
-                </div>
              </TabsContent>
         </Tabs>
     </div>
   );
 }
-
-
-
-
-    
