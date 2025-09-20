@@ -55,6 +55,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type ExpenseStatus = 'Paid' | 'Pending Approval' | 'Reimbursed' | 'Declined';
@@ -272,6 +273,7 @@ function EditExpenseDialog({ expense, open, onOpenChange, onExpenseUpdated, scho
 export default function ExpensesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
+    const { user } = useAuth();
     const [expenses, setExpenses] = React.useState<Expense[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -336,7 +338,7 @@ export default function ExpensesPage() {
     };
 
     const handleSaveExpense = async () => {
-        if (!newExpenseCategory || !newExpenseAmount || !newExpenseDate || !newExpenseDescription || !schoolId) {
+        if (!newExpenseCategory || !newExpenseAmount || !newExpenseDate || !newExpenseDescription || !schoolId || !user) {
             toast({ title: "Missing Information", description: "Please fill out all required fields.", variant: "destructive" });
             return;
         }
@@ -359,7 +361,7 @@ export default function ExpensesPage() {
                 date: Timestamp.fromDate(newExpenseDate),
                 vendor: newExpenseVendor,
                 description: newExpenseDescription,
-                submittedBy: 'Admin User',
+                submittedBy: user.displayName || 'Admin',
                 status: 'Pending Approval' as ExpenseStatus,
                 createdAt: serverTimestamp(),
                 hasAttachment,

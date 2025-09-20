@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, onSnapshot, orderBy, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, onSnapshot, where, Timestamp, orderBy } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
@@ -232,7 +232,7 @@ export default function SupportPage() {
     };
 
     if (!schoolId) {
-        return <div className="p-8">Error: School ID is missing.</div>;
+        return <div className="p-8">Error: School ID is missing.</div>
     }
 
     return (
