@@ -304,7 +304,7 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                 <DialogFooter className="justify-between">
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" onClick={(e) => e.preventDefault()}>
+                            <Button type="button" variant="destructive" onClick={(e) => e.preventDefault()}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete Subject
                             </Button>
