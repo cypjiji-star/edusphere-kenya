@@ -373,7 +373,7 @@ export default function AttendancePage() {
     } finally {
         setIsLoading(false);
     }
-  }, [schoolId, activeTab, selectedDate, toast]);
+  }, [schoolId, activeTab, selectedDate]);
 
   useEffect(() => {
     fetchAttendanceData();
@@ -441,7 +441,7 @@ export default function AttendancePage() {
     } finally {
       setIsSaving(false);
     }
-  }, [schoolId, activeTab, selectedDate, students, teacherClasses, teacherName, toast, user]);
+  }, [schoolId, activeTab, selectedDate, students, teacherClasses, teacherName, user, toast]);
 
   const markAll = () => handleBulkUpdate('present');
   const clearAll = () => handleBulkUpdate('unmarked');
@@ -617,3 +617,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
