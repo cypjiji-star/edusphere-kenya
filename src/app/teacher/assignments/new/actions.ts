@@ -19,13 +19,6 @@ export async function createAssignmentAction(
     return { success: false, message: 'School ID is missing.' };
   }
   
-  // Validation is now primarily handled on the client, but for security,
-  // it's good practice to re-validate on the server.
-  // const result = assignmentSchema.safeParse(data);
-  // if (!result.success) {
-  //   return { success: false, message: 'Validation failed.' };
-  // }
-  
   try {
     // 1. Get all students for the selected class
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', data.classId));
@@ -42,20 +35,15 @@ export async function createAssignmentAction(
       totalStudents,
     });
 
-    // 3. Create a subcollection for submissions for this assignment
-    const batch = writeBatch(firestore);
-    studentsSnapshot.forEach((studentDoc) => {
-        const submissionRef = doc(collection(firestore, 'schools', schoolId, 'assignments', assignmentRef.id, 'submissions'));
-        batch.set(submissionRef, {
-            studentRef: doc(firestore, 'schools', schoolId, 'students', studentDoc.id),
-            status: 'Not Handed In',
-            grade: null,
-            feedback: null,
-            submittedDate: null,
-        });
+    // 3. Create notifications for students/parents in the class
+    await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+        title: 'New Assignment Posted',
+        description: `A new assignment "${data.title}" has been posted for ${className}. Due on ${format(data.dueDate, 'PPP')}.`,
+        createdAt: serverTimestamp(),
+        category: 'Academics',
+        href: `/teacher/assignments/${assignmentRef.id}?schoolId=${schoolId}`,
+        audience: 'all', // Or more specific if needed
     });
-
-    await batch.commit();
 
     revalidatePath(`/teacher/assignments?schoolId=${schoolId}`);
 

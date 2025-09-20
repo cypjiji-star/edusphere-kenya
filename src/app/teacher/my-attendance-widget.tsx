@@ -81,7 +81,7 @@ export function MyAttendanceWidget() {
             description: `${user.displayName || 'A teacher'} has checked in for the day.`,
             createdAt: serverTimestamp(),
             category: 'General',
-            href: `/admin/attendance?schoolId=${schoolId}`,
+            href: `/admin/attendance?schoolId=${schoolId}&tab=teacher`,
             audience: 'admin',
         });
         

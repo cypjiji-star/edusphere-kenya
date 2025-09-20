@@ -315,7 +315,7 @@ export default function AdminAnnouncementsPage() {
             content: values.message,
             audience: values.audience,
             category: values.category,
-            sender: { name: user.displayName || 'Admin', avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100` },
+            sender: { name: user.displayName || 'Admin User', avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100` },
             sentAt: scheduledDate && isScheduling ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
             channels: {
                 app: values.notifyApp,
