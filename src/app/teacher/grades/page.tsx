@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -403,11 +402,12 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
     React.useEffect(() => {
         setIsLoading(true);
         const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
-
+        
+        // This real-time listener will update the component whenever a grade is changed (e.g., by an admin)
         const unsubGrades = onSnapshot(gradesQuery, (gradesSnap) => {
             const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
             
-            // Only fetch students once
+            // If students list is empty, fetch it for the first time.
             if (students.length === 0) {
                 const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
                 getDocs(studentsQuery).then(studentsSnap => {
@@ -430,9 +430,10 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                     setIsLoading(false);
                 });
             } else {
+                 // If students are already loaded, just update their grade info
                  setStudents(prevStudents => prevStudents.map(student => {
                      const existingGrade = gradesMap.get(student.studentId);
-                     const score = existingGrade?.score || student.score;
+                     const score = existingGrade ? existingGrade.score : student.score; // Keep local score if no new remote data
                      return {
                         ...student,
                         score: score,
@@ -488,6 +489,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 title: 'Grade Saved!',
                 description: `The grade for ${student.studentName} is saved and awaits admin approval.`,
             });
+            // The onSnapshot listener will handle the UI update automatically
         } catch (e) {
             console.error(e);
             toast({ title: 'Error', description: 'Failed to save grade.', variant: 'destructive'});
@@ -744,16 +746,15 @@ export default function TeacherGradesPage() {
         if (!schoolId || !user) return;
 
         const teacherId = user.uid;
+        const teacherDisplayName = user.displayName || '';
 
-        // Fetch classes assigned to the teacher
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
         const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
             const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
             setClasses(classData);
         });
 
-        // Fetch subjects taught by the teacher
-        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', user.displayName));
+        const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`), where('teachers', 'array-contains', teacherDisplayName));
         const unsubscribeSubjects = onSnapshot(subjectsQuery, snapshot => {
             setSubjects(snapshot.docs.map(doc => doc.data().name));
         });
@@ -858,3 +859,4 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
+

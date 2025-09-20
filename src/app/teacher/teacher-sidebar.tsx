@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -230,7 +229,7 @@ export function TeacherSidebar() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
-                <Link href="/" onClick={handleLinkClick}>
+                <Link href="/" onClick={() => auth.signOut()}>
                     <LogOut className="mr-2" />
                     <span>Log out</span>
                 </Link>
