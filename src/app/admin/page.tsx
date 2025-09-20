@@ -89,21 +89,23 @@ export default function AdminDashboard() {
       setIsLoading(false);
       return;
     }
+    
+    const unsubscribers: (() => void)[] = [];
 
     const schoolRef = doc(firestore, 'schools', schoolId);
-    const unsubSchool = onSnapshot(schoolRef, (docSnap) => {
+    unsubscribers.push(onSnapshot(schoolRef, (docSnap) => {
       if (docSnap.exists()) {
         setSchoolName(docSnap.data().name);
       }
-    });
+    }));
 
     const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher'));
-    const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
+    unsubscribers.push(onSnapshot(teachersQuery, (snapshot) => {
       setStats(prev => ({...prev, totalTeachers: snapshot.size }));
-    });
-    
-    // Combine student and attendance fetching
-    const unsubStudents = onSnapshot(query(collection(firestore, `schools/${schoolId}/students`)), async (studentsSnapshot) => {
+    }));
+
+    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
+    unsubscribers.push(onSnapshot(studentsQuery, async (studentsSnapshot) => {
         const studentCount = studentsSnapshot.size;
         let totalBilled = 0;
         let totalPaid = 0;
@@ -113,22 +115,21 @@ export default function AdminDashboard() {
         });
         const balance = totalBilled - totalPaid;
 
+        let attendanceRate = 100;
         if (studentCount > 0) {
             const today = new Date();
             const startOfToday = new Date(today.setHours(0, 0, 0, 0));
             const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
             const attSnapshot = await getDocs(attendanceQuery);
             const presentCount = attSnapshot.docs.filter(r => ['Present', 'Late', 'present', 'late'].includes(r.data().status)).length;
-            const attendanceRate = Math.round((presentCount / studentCount) * 100);
-            setStats(prev => ({...prev, totalStudents: studentCount, overallFeeBalance: balance, attendanceRate }));
-        } else {
-            setStats(prev => ({...prev, totalStudents: 0, overallFeeBalance: 0, attendanceRate: 100 }));
+            attendanceRate = Math.round((presentCount / studentCount) * 100);
         }
-    });
+        
+        setStats(prev => ({ ...prev, totalStudents: studentCount, overallFeeBalance: balance, attendanceRate }));
+    }));
 
-    // Real-time recent activities
     const notificationsQuery = query(collection(firestore, `schools/${schoolId}/notifications`), orderBy('createdAt', 'desc'), limit(6));
-    const unsubActivities = onSnapshot(notificationsQuery, (snapshot) => {
+    unsubscribers.push(onSnapshot(notificationsQuery, (snapshot) => {
       const fetchedActivities = snapshot.docs.map(doc => {
         const data = doc.data();
         let category;
@@ -148,14 +149,11 @@ export default function AdminDashboard() {
         }
       });
       setActivities(fetchedActivities);
-      setIsLoading(false); // Set loading to false after the first fetch of activities
-    });
+      setIsLoading(false);
+    }));
 
     return () => {
-      unsubSchool();
-      unsubTeachers();
-      unsubStudents();
-      unsubActivities();
+      unsubscribers.forEach(unsub => unsub());
     };
   }, [schoolId]);
 
