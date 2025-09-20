@@ -59,30 +59,20 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc, where, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, Timestamp, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
-import { Timestamp } from 'firebase/firestore';
 import { deleteUserAction, updateUserAuthAction, createUserAction } from '../users/actions';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
 type UserStatus = 'Active' | 'Pending' | 'Suspended' | 'Transferred' | 'Graduated';
-type ParentRelationship = 'Father' | 'Mother' | 'Guardian';
-
-type ParentLink = {
-    id: string;
-    name: string;
-    relationship: ParentRelationship;
-    contact: string;
-}
 
 type User = {
     id: string;
@@ -94,21 +84,17 @@ type User = {
     lastLogin: Timestamp | 'Never' | null;
     createdAt: Timestamp;
     class?: string;
-    parents?: ParentLink[];
 };
 
 
-const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended', 'Transferred', 'Graduated'];
-const relationships: ParentRelationship[] = ['Father', 'Mother', 'Guardian'];
-const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i).toString());
+const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'Pending', 'Suspended'];
 
 const getStatusBadge = (status: UserStatus) => {
     switch (status) {
         case 'Active': return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Active</Badge>;
         case 'Pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600"><Clock className="mr-1 h-3 w-3"/>Pending</Badge>;
         case 'Suspended': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Suspended</Badge>;
-        case 'Transferred': return <Badge variant="outline"><ArrowRight className="mr-1 h-3 w-3"/>Transferred</Badge>;
-        case 'Graduated': return <Badge variant="outline" className="border-purple-500 text-purple-500"><GraduationCap className="mr-1 h-3 w-3"/>Graduated</Badge>;
+        default: return <Badge variant="outline">{status}</Badge>;
     }
 }
 
@@ -131,6 +117,7 @@ export default function UserManagementListPage() {
     const [userToDelete, setUserToDelete] = React.useState<{ id: string, name: string, role: string } | null>(null);
     const [editingUser, setEditingUser] = React.useState<User | null>(null);
     const [isSaving, setIsSaving] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(true);
     
     // State for the create user dialog
     const [newUserRole, setNewUserRole] = React.useState<string>('');
@@ -144,16 +131,11 @@ export default function UserManagementListPage() {
         if (!schoolId) return;
         setClientReady(true);
         
-        const userCollections = ['admins', 'teachers', 'parents', 'students'];
-        const unsubscribers = userCollections.map(collectionName => {
-            const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
-            return onSnapshot(q, (snapshot) => {
-                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-                setAllUsers(prevUsers => {
-                    const otherUsers = prevUsers.filter(u => u.role?.toLowerCase() + 's' !== collectionName);
-                    return [...otherUsers, ...usersData];
-                });
-            });
+        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
+        const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setAllUsers(usersData);
+            setIsLoading(false);
         });
         
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
@@ -166,7 +148,7 @@ export default function UserManagementListPage() {
         });
 
         return () => {
-            unsubscribers.forEach(unsub => unsub());
+            unsubscribe();
             unsubRoles();
             unsubClasses();
         };
@@ -215,6 +197,7 @@ export default function UserManagementListPage() {
             return;
         }
 
+        setIsSaving(true);
         try {
             const result = await createUserAction({
                 schoolId,
@@ -244,6 +227,8 @@ export default function UserManagementListPage() {
             }
         } catch(e: any) {
             toast({ title: 'Error', description: e.message || 'Could not create user.', variant: 'destructive'});
+        } finally {
+            setIsSaving(false);
         }
     };
     
@@ -282,8 +267,7 @@ export default function UserManagementListPage() {
             }
 
             // Step 2: Update Firestore document
-            const collectionName = editingUser.role.toLowerCase() + 's';
-            const userRef = doc(firestore, 'schools', schoolId, collectionName, editingUser.id);
+            const userRef = doc(firestore, 'schools', schoolId, 'users', editingUser.id);
             await updateDoc(userRef, updatedData);
 
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
@@ -309,8 +293,7 @@ export default function UserManagementListPage() {
           throw new Error(authResult.message);
         }
     
-        const collectionName = userToDelete.role.toLowerCase() + 's';
-        await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userToDelete.id));
+        await deleteDoc(doc(firestore, 'schools', schoolId, 'users', userToDelete.id));
     
         await logAuditEvent({
           schoolId,
@@ -574,7 +557,10 @@ export default function UserManagementListPage() {
                                     <DialogFooter>
                                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                                         <DialogClose asChild>
-                                            <Button onClick={handleCreateUser}>Create User Account</Button>
+                                            <Button onClick={handleCreateUser} disabled={isSaving}>
+                                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                Create User Account
+                                            </Button>
                                         </DialogClose>
                                     </DialogFooter>
                                 </DialogContent>
@@ -702,16 +688,16 @@ export default function UserManagementListPage() {
                             <TabsTrigger value="Admin">Admins</TabsTrigger>
                         </TabsList>
                         <TabsContent value="all" className="mt-4">
-                            {renderUserTable('All')}
+                            {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('All')}
                         </TabsContent>
                         <TabsContent value="Teacher" className="mt-4">
-                            {renderUserTable('Teacher')}
+                            {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('Teacher')}
                         </TabsContent>
                         <TabsContent value="Parent" className="mt-4">
-                            {renderUserTable('Parent')}
+                           {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('Parent')}
                         </TabsContent>
                          <TabsContent value="Admin" className="mt-4">
-                            {renderUserTable('Admin')}
+                           {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('Admin')}
                         </TabsContent>
                    </Tabs>
                 </CardContent>
@@ -719,7 +705,3 @@ export default function UserManagementListPage() {
         </div>
     );
 }
-
-    
-
-    

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -32,7 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import { auth, firestore, firebaseConfig } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { initialRolePermissions } from '@/app/admin/permissions/roles-data';
-import { defaultPeriods } from '@/app/teacher/timetable/timetable-data';
+import { defaultPeriods } from '@/app/admin/timetable/timetable-data';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 
@@ -80,17 +79,13 @@ export default function DeveloperDashboard() {
     const secondaryAuth = getAuth(secondaryApp);
 
     try {
-        // Generate a 6-digit numeric school code
         const schoolCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-        // 1. Create the admin user in Firebase Auth using the secondary instance
         const userCredential = await createUserWithEmailAndPassword(secondaryAuth, adminEmail, adminPassword);
         const adminUid = userCredential.user.uid;
 
         const batch = writeBatch(firestore);
         
-        // 2. Create main school document
-        const schoolRef = doc(firestore, 'schools', schoolCode); // Use schoolCode as document ID
+        const schoolRef = doc(firestore, 'schools', schoolCode); 
         batch.set(schoolRef, {
             id: schoolCode,
             name: schoolName,
@@ -102,18 +97,16 @@ export default function DeveloperDashboard() {
             createdAt: serverTimestamp(),
         });
 
-        // 3. Add default roles for the new school
         Object.entries(initialRolePermissions).forEach(([roleName, roleData]) => {
             const roleRef = doc(firestore, 'schools', schoolCode, 'roles', roleName);
             batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore, userCount: 0 });
         });
         
-        // 4. Create the admin's user document in the school's admins subcollection
-        const adminUserRef = doc(firestore, 'schools', schoolCode, 'admins', adminUid);
+        const adminUserRef = doc(firestore, 'schools', schoolCode, 'users', adminUid);
         batch.set(adminUserRef, {
             id: adminUid,
             schoolId: schoolCode,
-            name: 'School Admin', // Placeholder name
+            name: 'School Admin', 
             email: adminEmail,
             role: 'Admin',
             status: 'Active',
@@ -121,18 +114,9 @@ export default function DeveloperDashboard() {
             lastLogin: serverTimestamp()
         });
 
-        // 5. Add default timetable periods
         const periodsRef = doc(firestore, 'schools', schoolCode, 'timetableSettings', 'periods');
         batch.set(periodsRef, { periods: defaultPeriods });
-
-        // 6. Add default fee structure item
-        const feeStructureRef = doc(collection(firestore, 'schools', schoolCode, 'feeStructure'));
-        batch.set(feeStructureRef, {
-            category: 'School Fees',
-            appliesTo: 'All Students',
-            amount: 50000,
-        });
-
+        
         await batch.commit();
         
         toast({
@@ -140,7 +124,6 @@ export default function DeveloperDashboard() {
             description: `${schoolName} is being set up. School Code: ${schoolCode}`,
         });
 
-        // Simulate status change from Provisioning to Active
         setTimeout(() => {
              updateDoc(schoolRef, { status: 'Active' });
         }, 3000);

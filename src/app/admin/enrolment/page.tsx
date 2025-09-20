@@ -412,7 +412,6 @@ export default function StudentEnrolmentPage() {
         setIsSubmitting(true);
         
         try {
-             // Step 1: Handle Parent Account
             let parentUserId;
             let parentIsNew = false;
             const parentQuery = query(collection(firestore, `schools/${schoolId}/users`), where('email', '==', values.parentEmail));
@@ -442,95 +441,87 @@ export default function StudentEnrolmentPage() {
                 parentUserId = parentQuerySnapshot.docs[0].id;
             }
 
-            const batch = writeBatch(firestore);
-
-            // Step 2: Handle Student Data & Files
-            const admissionNumber = values.admissionNumber || await generateAdmissionNumber(schoolId, values.admissionYear);
-            let photoUrl = '';
-            if (profilePhotoFile) {
-                const storageRef = ref(storage, `${schoolId}/profile_photos/${Date.now()}_${profilePhotoFile.name}`);
-                await uploadBytes(storageRef, profilePhotoFile);
-                photoUrl = await getDownloadURL(storageRef);
-            }
-            const admissionDocUrls = await Promise.all(
-                admissionDocs.map(async (file) => {
-                    const storageRef = ref(storage, `${schoolId}/admission_docs/${Date.now()}_${file.name}`);
-                    await uploadBytes(storageRef, file);
-                    return getDownloadURL(storageRef);
-                })
-            );
-
-            // Step 3: Fetch Fee Structure & Calculate Balance
-            let totalFee = 0;
-            if (values.generateInvoice) {
-                const feeStructureRef = doc(firestore, `schools/${schoolId}/fee-structures`, values.classId);
-                const feeStructureSnap = await getDoc(feeStructureRef);
-                if (feeStructureSnap.exists()) {
-                    const feeItems = feeStructureSnap.data().items || [];
-                    totalFee = feeItems.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
+            await runTransaction(firestore, async (transaction) => {
+                const admissionNumber = values.admissionNumber || await generateAdmissionNumber(schoolId, values.admissionYear);
+                let photoUrl = '';
+                if (profilePhotoFile) {
+                    const storageRef = ref(storage, `${schoolId}/profile_photos/${Date.now()}_${profilePhotoFile.name}`);
+                    await uploadBytes(storageRef, profilePhotoFile);
+                    photoUrl = await getDownloadURL(storageRef);
                 }
-            }
-            const amountPaid = Number(values.amountPaid) || 0;
-            const initialBalance = totalFee - amountPaid;
+                const admissionDocUrls = await Promise.all(
+                    admissionDocs.map(async (file) => {
+                        const storageRef = ref(storage, `${schoolId}/admission_docs/${Date.now()}_${file.name}`);
+                        await uploadBytes(storageRef, file);
+                        return getDownloadURL(storageRef);
+                    })
+                );
 
-            // Step 4: Create Student Document
-            const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
-            batch.set(studentDocRef, {
-                id: studentDocRef.id, schoolId, role: 'Student', status: 'Approved',
-                name: `${values.studentFirstName} ${values.studentLastName}`,
-                firstName: values.studentFirstName, lastName: values.studentLastName,
-                dateOfBirth: Timestamp.fromDate(values.dateOfBirth),
-                gender: values.gender, admissionNumber,
-                birthCertificateNumber: values.birthCertificateNumber || null,
-                nhifNumber: values.nhifNumber || null,
-                classId: values.classId,
-                class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
-                admissionYear: values.admissionYear,
-                parentId: parentUserId,
-                parentName: `${values.parentFirstName} ${values.parentLastName}`,
-                parentRelationship: values.parentRelationship,
-                parentEmail: values.parentEmail,
-                parentPhone: values.parentPhone,
-                allergies: values.allergies || 'None',
-                medicalConditions: values.medicalConditions || 'None',
-                emergencyContactName: values.emergencyContactName || null,
-                emergencyContactPhone: values.emergencyContactPhone || null,
-                createdAt: serverTimestamp(),
-                avatarUrl: photoUrl,
-                documents: admissionDocUrls,
-                totalFee,
-                amountPaid,
-                balance: initialBalance,
+                let totalFee = 0;
+                if (values.generateInvoice) {
+                    const feeStructureRef = doc(firestore, `schools/${schoolId}/fee-structures`, values.classId);
+                    const feeStructureSnap = await transaction.get(feeStructureRef);
+                    if (feeStructureSnap.exists()) {
+                        const feeItems = feeStructureSnap.data().items || [];
+                        totalFee = feeItems.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
+                    }
+                }
+                const amountPaid = Number(values.amountPaid) || 0;
+                const initialBalance = totalFee - amountPaid;
+
+                const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
+                transaction.set(studentDocRef, {
+                    id: studentDocRef.id, schoolId, role: 'Student', status: 'Approved',
+                    name: `${values.studentFirstName} ${values.studentLastName}`,
+                    firstName: values.studentFirstName, lastName: values.studentLastName,
+                    dateOfBirth: Timestamp.fromDate(values.dateOfBirth),
+                    gender: values.gender, admissionNumber,
+                    birthCertificateNumber: values.birthCertificateNumber || null,
+                    nhifNumber: values.nhifNumber || null,
+                    classId: values.classId,
+                    class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
+                    admissionYear: values.admissionYear,
+                    parentId: parentUserId,
+                    parentName: `${values.parentFirstName} ${values.parentLastName}`,
+                    parentRelationship: values.parentRelationship,
+                    parentEmail: values.parentEmail,
+                    parentPhone: values.parentPhone,
+                    allergies: values.allergies || 'None',
+                    medicalConditions: values.medicalConditions || 'None',
+                    emergencyContactName: values.emergencyContactName || null,
+                    emergencyContactPhone: values.emergencyContactPhone || null,
+                    createdAt: serverTimestamp(),
+                    avatarUrl: photoUrl,
+                    documents: admissionDocUrls,
+                    totalFee,
+                    amountPaid,
+                    balance: initialBalance,
+                });
+
+                if (values.generateInvoice && totalFee > 0) {
+                    const chargeTransactionRef = doc(collection(studentDocRef, 'transactions'));
+                    transaction.set(chargeTransactionRef, {
+                        date: serverTimestamp(), description: 'Annual School Fees',
+                        type: 'Charge', amount: totalFee, balance: totalFee,
+                    });
+                }
+                if (amountPaid > 0) {
+                    const paymentTransactionRef = doc(collection(studentDocRef, 'transactions'));
+                    transaction.set(paymentTransactionRef, {
+                        date: serverTimestamp(), description: 'Initial Fee Payment on Enrolment',
+                        type: 'Payment', amount: -amountPaid, balance: initialBalance,
+                    });
+                    
+                    const schoolTransactionRef = doc(collection(firestore, `schools/${schoolId}/transactions`));
+                    transaction.set(schoolTransactionRef, {
+                        studentId: studentDocRef.id, studentName: `${values.studentFirstName} ${values.studentLastName}`,
+                        class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
+                        date: serverTimestamp(), description: 'Enrolment Payment', type: 'Payment',
+                        amount: -amountPaid, method: 'Manual',
+                    });
+                }
             });
 
-            // Step 5: Create Financial Transactions if applicable
-            if (values.generateInvoice && totalFee > 0) {
-                const chargeTransactionRef = doc(collection(studentDocRef, 'transactions'));
-                batch.set(chargeTransactionRef, {
-                    date: serverTimestamp(), description: 'Annual School Fees',
-                    type: 'Charge', amount: totalFee, balance: totalFee,
-                });
-            }
-            if (amountPaid > 0) {
-                const paymentTransactionRef = doc(collection(studentDocRef, 'transactions'));
-                batch.set(paymentTransactionRef, {
-                    date: serverTimestamp(), description: 'Initial Fee Payment on Enrolment',
-                    type: 'Payment', amount: -amountPaid, balance: initialBalance,
-                });
-                
-                const schoolTransactionRef = doc(collection(firestore, `schools/${schoolId}/transactions`));
-                batch.set(schoolTransactionRef, {
-                    studentId: studentDocRef.id, studentName: `${values.studentFirstName} ${values.studentLastName}`,
-                    class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
-                    date: serverTimestamp(), description: 'Enrolment Payment', type: 'Payment',
-                    amount: -amountPaid, method: 'Manual',
-                });
-            }
-
-            // Step 6: Commit all operations
-            await batch.commit();
-
-            // Step 7: Log and Notify
             const studentName = `${values.studentFirstName} ${values.studentLastName}`;
             const parentName = `${values.parentFirstName} ${values.parentLastName}`;
             await logAuditEvent({
