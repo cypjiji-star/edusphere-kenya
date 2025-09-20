@@ -42,6 +42,7 @@ import {
   serverTimestamp,
   addDoc,
   setDoc,
+  getDoc,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -50,7 +51,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
 import { Input } from '../ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Avatar, AvatarFallback } from '../ui/avatar';
 import { supportChatbot } from '@/ai/flows/support-chatbot-flow';
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
@@ -345,14 +346,18 @@ function AiChatTab() {
     const escalationMessage: AiMessage = { role: 'model', content: aiEscalationMessage };
     
     try {
+        const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const userData = userDocSnap.exists() ? userDocSnap.data() : null;
+
         const chatDocRef = doc(firestore, `schools/${schoolId}/support-chats`, user.uid);
         await setDoc(chatDocRef, {
             user: {
                 id: user.uid,
-                name: user.displayName || "User",
-                role: role,
+                name: userData?.name || user.displayName || 'User',
+                role: userData?.role || role,
             },
-            userName: user.displayName || "User",
+            userName: userData?.name || user.displayName || 'User',
             userId: user.uid,
             messages: arrayUnion(escalationMessage),
             isEscalated: true,
@@ -377,9 +382,18 @@ function AiChatTab() {
     setInput('');
     setIsLoading(true);
     
+    const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+    const userDocSnap = await getDoc(userDocRef);
+    const userData = userDocSnap.exists() ? userDocSnap.data() : null;
+    
     const chatDocRef = doc(firestore, 'schools', schoolId, 'support-chats', user.uid);
     await setDoc(chatDocRef, {
-        userName: user.displayName || "User",
+        user: {
+            id: user.uid,
+            name: userData?.name || user.displayName || 'User',
+            role: userData?.role || role,
+        },
+        userName: userData?.name || user.displayName || 'User',
         userId: user.uid,
         messages: currentMessages,
         lastMessage: input,
