@@ -1602,7 +1602,7 @@ export default function TeacherGradesPage() {
                                             <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
                                             <TableCell>{getStatusBadge(exam.status)}</TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                 <Button variant="outline" size="sm" onClick={() => setSelectedExamForGrading(exam)}>Enter Grades</Button>
+                                                 <Button variant="outline" size="sm" onClick={() => toast({ title: "View Submissions", description: "This will show a detailed submission status view."})}>View Submissions</Button>
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingExam(exam)}><Edit className="h-4 w-4"/></Button>
                                                 <Button variant="ghost" size="icon" onClick={() => setExamToDelete(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                             </TableCell>
@@ -1856,3 +1856,6 @@ export default function TeacherGradesPage() {
 
     
 
+
+
+    
