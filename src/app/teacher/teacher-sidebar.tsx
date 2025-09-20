@@ -132,9 +132,7 @@ export function TeacherSidebar() {
         let ungradedCount = 0;
         snapshot.forEach(doc => {
             const assignment = doc.data();
-            if (assignment.submissions < assignment.totalStudents) {
-                ungradedCount++;
-            }
+            if (assignment.submissions < assignment.totalStudents) ungradedCount++;
         });
         setDynamicBadges(prev => ({ ...prev, ungradedAssignments: ungradedCount }));
     });
