@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -536,16 +535,16 @@ function RejectGradeDialog({ open, onOpenChange, onSubmit, grade }: { open: bool
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 function calculateGrade(score: number): string {
-  if (isNaN(score) || score < 0 || score > 100) return '';
-  if (score >= 80) return 'A';
-  if (score >= 65) return 'B';
-  if (score >= 50) return 'C';
-  if (score >= 40) return 'D';
-  return 'E';
+    if (isNaN(score) || score < 0 || score > 100) return '';
+    if (score >= 80) return 'A';
+    if (score >= 65) return 'B';
+    if (score >= 50) return 'C';
+    if (score >= 40) return 'D';
+    return 'E';
 }
 
 function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBack: () => void, schoolId: string, teacher: { id: string, name: string } }) {
@@ -903,7 +902,7 @@ function TeacherGradesContent() {
   const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
   const [pendingGrades, setPendingGrades] = React.useState<PendingGrade[]>([]);
   const [groupedPendingGrades, setGroupedPendingGrades] = React.useState<GroupedPendingGrades>({});
-  const [activeTab, setActiveTab] = React.useState('gradebook');
+  const [activeTab, setActiveTab] = React.useState('exam-management');
   const [loadingState, setLoadingState] = React.useState({
     exams: true,
     students: true,
@@ -999,17 +998,19 @@ function TeacherGradesContent() {
             const classAvgs: Record<string, { total: number; count: number }> = {};
             studentScores.forEach(student => {
                 const avg = student.scores ? Object.values(student.scores).reduce((a, b) => a + b, 0) / Object.keys(student.scores).length : 0;
-                if (!classAvgs[student.classId]) {
-                    classAvgs[student.classId] = { total: 0, count: 0 };
+                const studentClass = classes.find(c => c.id === student.classId);
+                if (studentClass) {
+                    if (!classAvgs[studentClass.name]) {
+                        classAvgs[studentClass.name] = { total: 0, count: 0 };
+                    }
+                    classAvgs[studentClass.name].total += avg;
+                    classAvgs[studentClass.name].count++;
                 }
-                classAvgs[student.classId].total += avg;
-                classAvgs[student.classId].count++;
             });
 
-            const classMap = new Map(classes.map(c => [c.id, c.name]));
             setClassPerformanceData(
-                Object.entries(classAvgs).map(([classId, data]) => ({
-                    name: classMap.get(classId) || 'Unknown',
+                Object.entries(classAvgs).map(([className, data]) => ({
+                    name: className,
                     average: Math.round(data.total / data.count),
                 }))
             );
