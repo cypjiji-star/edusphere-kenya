@@ -99,7 +99,7 @@ export default function DeveloperDashboard() {
 
         Object.entries(initialRolePermissions).forEach(([roleName, roleData]) => {
             const roleRef = doc(firestore, 'schools', schoolCode, 'roles', roleName);
-            batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore, userCount: 0 });
+            batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore });
         });
         
         const adminUserRef = doc(firestore, 'schools', schoolCode, 'users', adminUid);

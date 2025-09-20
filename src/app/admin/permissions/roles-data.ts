@@ -11,7 +11,6 @@ export type PermissionCategory = {
 
 export type Role = {
     permissions: string[];
-    userCount: number;
     isCore: boolean;
 };
 
@@ -61,22 +60,18 @@ export const initialPermissionStructure: PermissionCategory[] = [
 export const initialRolePermissions: Record<string, Role> = {
   Admin: {
     permissions: initialPermissionStructure.flatMap(cat => cat.permissions.map(p => p.id)),
-    userCount: 0,
     isCore: true,
   },
   Teacher: {
     permissions: ['academics.grades.view'],
-    userCount: 0,
     isCore: true,
   },
   Student: {
     permissions: [],
-    userCount: 0,
     isCore: true,
   },
   Parent: {
     permissions: [],
-    userCount: 0,
     isCore: true,
   },
 };

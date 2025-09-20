@@ -18,10 +18,14 @@ export async function createAssignmentAction(
   if (!schoolId) {
     return { success: false, message: 'School ID is missing.' };
   }
-
-  // Schema is now defined and validated in the client-side form action.
-  // We can trust the data coming in here if needed, or re-validate if we want to be extra safe.
-
+  
+  // Validation is now primarily handled on the client, but for security,
+  // it's good practice to re-validate on the server.
+  // const result = assignmentSchema.safeParse(data);
+  // if (!result.success) {
+  //   return { success: false, message: 'Validation failed.' };
+  // }
+  
   try {
     // 1. Get all students for the selected class
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', data.classId));
