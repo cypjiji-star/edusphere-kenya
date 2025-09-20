@@ -108,6 +108,12 @@ type TeacherAttendanceRecord = {
     checkOutTime?: Timestamp;
 };
 
+type User = {
+    id: string;
+    name: string;
+    role: string;
+}
+
 type Student = {
     id: string;
     name: string;
@@ -167,7 +173,7 @@ const chartConfig = {
     rate: { label: 'Attendance Rate', color: 'hsl(var(--primary))' },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: AttendanceRecord[], dateRange?: DateRange, schoolId: string }) {
+function LowAttendanceAlerts({ records, dateRange, schoolId, allTeachers }: { records: AttendanceRecord[], dateRange?: DateRange, schoolId: string, allTeachers: User[] }) {
     const { toast } = useToast();
 
     const lowAttendanceAlerts = React.useMemo(() => {
@@ -210,16 +216,10 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
     const handleSendReminder = async (teacherName: string, teacherIdFromRecord?: string) => {
         let teacherId = teacherIdFromRecord;
 
-        // If teacherId is not available directly, try to find it
         if (!teacherId) {
-            try {
-                const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('name', '==', teacherName), limit(1));
-                const teacherSnap = await getDocs(teachersQuery);
-                if (!teacherSnap.empty) {
-                    teacherId = teacherSnap.docs[0].id;
-                }
-            } catch (error) {
-                 console.error("Could not fetch teacher ID by name:", error);
+            const foundTeacher = allTeachers.find(t => t.name === teacherName);
+            if(foundTeacher) {
+                teacherId = foundTeacher.id;
             }
         }
         
@@ -355,7 +355,7 @@ export default function AdminAttendancePage() {
   const [teacherAttendanceRecords, setTeacherAttendanceRecords] = React.useState<TeacherAttendanceRecord[]>([]);
   const [leaveApplications, setLeaveApplications] = React.useState<LeaveApplication[]>([]);
   const [communicationLogs, setCommunicationLogs] = React.useState<CommunicationLog[]>([]);
-  const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
+  const [teachers, setTeachers] = React.useState<User[]>([]);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
   const [academicTerms, setAcademicTerms] = React.useState(generateAcademicTerms());
@@ -371,8 +371,7 @@ export default function AdminAttendancePage() {
 
     const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
     const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
-      const teacherNames = snapshot.docs.map(doc => doc.data().name);
-      setTeachers(['All Teachers', ...teacherNames]);
+      setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
     });
 
     const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
@@ -744,7 +743,7 @@ export default function AdminAttendancePage() {
                             </div>
                         </CardContent>
                     </Card>
-                    <LowAttendanceAlerts records={allRecords} dateRange={date} schoolId={schoolId} />
+                    <LowAttendanceAlerts records={allRecords} dateRange={date} schoolId={schoolId} allTeachers={teachers} />
                 </div>
 
                 <Card className="mt-6">
@@ -839,7 +838,7 @@ export default function AdminAttendancePage() {
                                             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
-                                                    {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                                    {teachers.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
