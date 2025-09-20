@@ -14,7 +14,7 @@ import { collection, onSnapshot, query, where, orderBy, Timestamp, addDoc, serve
 import { firestore } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
 
-type Message = {
+type AdminMessage = {
   role: 'user' | 'model' | 'admin';
   content: string;
   senderName?: string;
@@ -28,7 +28,7 @@ type Conversation = {
     lastMessage: string;
     lastUpdate: Timestamp;
     isEscalated: boolean;
-    messages: Message[];
+    messages: AdminMessage[];
 };
 
 
@@ -80,12 +80,12 @@ export default function MessagingPage() {
         if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
         
         setIsSending(true);
-        const newAdminMessage: Message = {
+        const newAdminMessage: AdminMessage = {
           role: 'admin',
           content: reply,
           senderName: user.displayName || 'Admin',
         };
-        const newMessages: Message[] = [...selectedConversation.messages, newAdminMessage];
+        const newMessages: AdminMessage[] = [...selectedConversation.messages, newAdminMessage];
 
         try {
             const conversationRef = doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id);

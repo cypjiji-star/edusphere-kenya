@@ -353,6 +353,7 @@ function AiChatTab() {
                 name: user.displayName || "User",
                 role: role,
             },
+            userName: user.displayName || "User",
             userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
             messages: arrayUnion(escalationMessage),
             isEscalated: true,
@@ -379,12 +380,9 @@ function AiChatTab() {
     
     const chatDocRef = doc(firestore, 'schools', schoolId, 'support-chats', user.uid);
     await setDoc(chatDocRef, {
-        user: {
-            id: user.uid,
-            name: user.displayName || "User",
-            role: role,
-        },
+        userName: user.displayName || "User",
         userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
+        userId: user.uid,
         messages: currentMessages,
         lastMessage: input,
         lastUpdate: serverTimestamp()
