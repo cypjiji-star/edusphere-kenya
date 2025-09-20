@@ -96,7 +96,7 @@ import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LabelList } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -1489,7 +1489,7 @@ export default function TeacherGradesPage() {
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
                 <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
                 <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
-                <TabsTrigger value="reports">Analytics</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
             <TabsContent value="exam-management" className="mt-4">
                 <Card>
@@ -1825,7 +1825,7 @@ export default function TeacherGradesPage() {
                      </CardContent>
                  </Card>
             </TabsContent>
-            <TabsContent value="reports" className="mt-4 space-y-6">
+            <TabsContent value="analytics" className="mt-4 space-y-6">
                 <Card>
                     <CardHeader>
                         <CardTitle>Subject Performance</CardTitle>
@@ -1855,3 +1855,4 @@ export default function TeacherGradesPage() {
     
 
     
+
