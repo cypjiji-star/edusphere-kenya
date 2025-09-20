@@ -17,6 +17,7 @@ import { useAuth } from '@/context/auth-context';
 type Message = {
   role: 'user' | 'model' | 'admin';
   content: string;
+  senderName?: string;
 };
 
 type Conversation = {
@@ -79,7 +80,12 @@ export default function MessagingPage() {
         if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
         
         setIsSending(true);
-        const newMessages: Message[] = [...selectedConversation.messages, { role: 'admin', content: reply }];
+        const newAdminMessage: Message = {
+          role: 'admin',
+          content: reply,
+          senderName: user.displayName || 'Admin',
+        };
+        const newMessages: Message[] = [...selectedConversation.messages, newAdminMessage];
 
         try {
             const conversationRef = doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id);
@@ -165,8 +171,9 @@ export default function MessagingPage() {
                                         <div key={index} className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
                                             {(isModel || isAdmin) && (
                                                 <Avatar className="h-8 w-8">
+                                                     <AvatarImage src={isAdmin ? user?.photoURL || '' : ''} />
                                                     <AvatarFallback>
-                                                        {isModel ? <Sparkles /> : user?.displayName?.charAt(0)}
+                                                        {isModel ? <Sparkles /> : message.senderName?.charAt(0) || 'A'}
                                                     </AvatarFallback>
                                                 </Avatar>
                                             )}
@@ -174,6 +181,7 @@ export default function MessagingPage() {
                                                 isUser ? 'bg-primary text-primary-foreground' : 
                                                 (isAdmin ? 'bg-secondary text-secondary-foreground' : 'bg-muted')
                                             )}>
+                                                 {isAdmin && <p className="font-bold text-xs mb-1">{message.senderName}</p>}
                                                 <p>{message.content}</p>
                                             </div>
                                         </div>
