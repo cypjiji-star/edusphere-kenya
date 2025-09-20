@@ -396,7 +396,7 @@ export default function StudentEnrolmentPage() {
                 }
             });
         } catch (error) {
-            console.error("Transaction failed: ", error);
+            console.error("Transaction failed to generate admission number: ", error);
             // Fallback to a random number if transaction fails to avoid blocking enrolment
             return `SCH-${admissionYear}-${Math.floor(1000 + Math.random() * 9000)}`;
         }

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -143,7 +142,7 @@ type StudentGradeEntry = {
     admNo: string;
     score: string;
     grade: string;
-    gradeStatus: 'Unmarked' | 'Pending Approval' | 'Approved';
+    gradeStatus: 'Unmarked' | 'Pending Approval' | 'Approved' | 'Rejected';
     submissionId?: string;
     error?: string;
 }
@@ -231,7 +230,7 @@ function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { stud
             body: studentData ? Object.entries(studentData.scores).map(([subject, score]) => [
                 subject,
                 score,
-                score >= 80 ? 'A' : score >= 65 ? 'B' : 'C',
+                calculateGrade(score),
                 'Good progress.' // Placeholder comment
             ]) : [],
         });
@@ -293,7 +292,7 @@ function ReportCardDialog({ student, studentGrades, open, onOpenChange }: { stud
                                 <TableRow key={subject}>
                                     <TableCell>{subject}</TableCell>
                                     <TableCell className="text-center font-semibold">{score}</TableCell>
-                                    <TableCell>{score >= 80 ? 'A' : score >= 65 ? 'B' : 'C'}</TableCell>
+                                    <TableCell>{calculateGrade(score)}</TableCell>
                                     <TableCell className="text-xs text-muted-foreground italic">Good progress.</TableCell>
                                 </TableRow>
                             ))}
@@ -477,32 +476,53 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
 
     React.useEffect(() => {
         setIsLoading(true);
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
-        const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
+        let studentUnsub: () => void = () => {};
+        let gradesUnsub: () => void = () => {};
 
-        Promise.all([getDocs(studentsQuery), getDocs(gradesQuery)]).then(([studentsSnap, gradesSnap]) => {
-            const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
-            
+        // 1. Fetch students for the class just once
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
+        studentUnsub = onSnapshot(studentsQuery, (studentsSnap) => {
             const studentData = studentsSnap.docs.map(doc => {
                 const data = doc.data();
-                const existingGrade = gradesMap.get(doc.id);
-                const score = existingGrade?.score || '';
                 return {
                     studentId: doc.id,
                     studentName: data.name,
                     avatarUrl: data.avatarUrl || '',
                     admNo: data.admissionNumber || '',
-                    score: score,
-                    grade: score ? calculateGrade(Number(score)) : '',
-                    gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
-                    submissionId: existingGrade?.submissionId,
-                }
+                    score: '',
+                    grade: '',
+                    gradeStatus: 'Unmarked' as const,
+                    submissionId: undefined,
+                };
             });
-            setStudents(studentData);
-            gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
-            setIsLoading(false);
+
+            // 2. After students are loaded, set up a real-time listener for grades
+            const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
+            gradesUnsub = onSnapshot(gradesQuery, (gradesSnap) => {
+                const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
+                
+                const mergedStudents = studentData.map(student => {
+                    const existingGrade = gradesMap.get(student.studentId);
+                    const score = existingGrade?.score || '';
+                    return {
+                        ...student,
+                        score,
+                        grade: score ? calculateGrade(Number(score)) : '',
+                        gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
+                        submissionId: existingGrade?.submissionId,
+                    };
+                });
+                setStudents(mergedStudents);
+                gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
+                setIsLoading(false);
+            });
         });
-    }, [exam, schoolId]);
+
+        return () => {
+            studentUnsub();
+            gradesUnsub();
+        };
+    }, [exam.id, exam.classId, schoolId]);
     
     const handleScoreChange = (studentId: string, score: string) => {
         let error = undefined;
@@ -544,9 +564,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 title: 'Grade Saved!',
                 description: `The grade for ${student.studentName} is saved and awaits admin approval.`,
             });
-
-            setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, submissionId: gradeRef.id, gradeStatus: 'Pending Approval' } : s));
-
+            // The onSnapshot listener will handle the UI update automatically
         } catch (e) {
             console.error(e);
             toast({ title: 'Error', description: 'Failed to save grade.', variant: 'destructive'});
@@ -557,19 +575,19 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         setIsSaving(true);
         try {
             const examRef = doc(firestore, 'schools', schoolId, 'exams', exam.id);
-            await updateDoc(examRef, { status: 'Grading Complete' });
+            await updateDoc(examRef, { status: 'Pending Approval' });
             
             await logAuditEvent({
                 schoolId,
-                action: 'GRADES_SUBMITTED',
+                action: 'GRADES_SUBMITTED_FOR_APPROVAL',
                 actionType: 'Academics',
                 user: { id: teacher.id, name: teacher.name, role: 'Teacher' },
-                details: `Finished grading for exam: "${exam.title}" - ${exam.class}.`,
+                details: `Grades for exam: "${exam.title}" - ${exam.class} submitted for admin approval.`,
             });
             
             toast({
-                title: 'Grading Complete!',
-                description: 'All grades for this exam have been recorded. Any edits will require admin approval.',
+                title: 'Grades Submitted!',
+                description: 'All grades for this exam have been submitted for moderation.',
             });
             onBack();
         } catch(e) {
@@ -611,7 +629,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
     const gradedCount = students.filter(s => s.score !== '' && !s.error).length;
     const totalStudents = students.length;
     const progress = totalStudents > 0 ? (gradedCount / totalStudents) * 100 : 0;
-    const isLocked = exam.status === 'Closed';
+    const isLocked = exam.status === 'Closed' || exam.status === 'Grading Complete';
     
     return (
         <Card>
@@ -632,7 +650,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                     ) : (
                          <Button onClick={handleSubmitAllGrades} disabled={isSaving}>
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
-                            Mark as Complete
+                            Submit for Approval
                         </Button>
                     )}
                 </div>
@@ -693,7 +711,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                             onBlur={(e) => handleSaveGrade(student.studentId, e.target.value, index)}
                                             onKeyDown={(e) => handleKeyDown(e, index)}
                                             className={cn("w-32", student.error && "border-destructive focus-visible:ring-destructive")}
-                                            disabled={isLocked}
+                                            disabled={isLocked || student.gradeStatus === 'Approved' || student.gradeStatus === 'Pending Approval'}
                                         />
                                         {student.error && <p className="text-xs text-destructive mt-1">{student.error}</p>}
                                     </div>
@@ -708,6 +726,8 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                                         <Badge variant="secondary" className="bg-yellow-500 text-white">Pending</Badge> :
                                     student.gradeStatus === 'Approved' ?
                                         <Badge variant="default" className="bg-green-600">Approved</Badge> :
+                                    student.gradeStatus === 'Rejected' ?
+                                        <Badge variant="destructive">Rejected</Badge> :
                                         <Badge variant="outline">Unmarked</Badge>
                                     }
                                 </TableCell>
@@ -785,11 +805,11 @@ const getStatusBadge = (status: Exam['status']) => {
     }
 }
 
-export default function AdminGradesPage() {
+export default function TeacherGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
-    const { user: adminUser } = useAuth();
+    const { user } = useAuth();
     
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [selectedExamForGrading, setSelectedExamForGrading] = React.useState<Exam | null>(null);
@@ -1227,7 +1247,7 @@ export default function AdminGradesPage() {
                 body: studentData ? Object.entries(studentData.scores).map(([subject, score]) => [
                     subject,
                     score,
-                    score >= 80 ? 'A' : score >= 65 ? 'B' : 'C'
+                    calculateGrade(score)
                 ]) : [],
             });
 
@@ -1641,7 +1661,7 @@ export default function AdminGradesPage() {
                                             }
                                         });
                                         const mean = subjectCount > 0 ? total / subjectCount : 0;
-                                        const grade = mean >= 80 ? 'A' : mean >= 65 ? 'B' : 'C';
+                                        const grade = calculateGrade(mean);
 
                                         return (
                                         <TableRow key={student.studentId}>
@@ -1909,8 +1929,7 @@ export default function AdminGradesPage() {
   );
 }
     
+    
+    
 
-    
-    
-    
 
