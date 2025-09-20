@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -268,7 +267,13 @@ export default function ParentGradesPage() {
         let classSize = 0;
 
         if (childClassId) {
-             const allGradesInClassQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('classId', '==', childClassId), where('status', '==', 'Approved'));
+             const allGradesInClassQuery = query(
+                collection(firestore, 'schools', schoolId, 'grades'), 
+                where('classId', '==', childClassId), 
+                where('status', '==', 'Approved'),
+                where('date', '>=', Timestamp.fromDate(start)),
+                where('date', '<=', Timestamp.fromDate(end))
+            );
              const allGradesSnapshot = await getDocs(allGradesInClassQuery);
              const studentTotals: Record<string, {total: number, count: number}> = {};
              allGradesSnapshot.forEach(doc => {

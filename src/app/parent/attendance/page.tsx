@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -170,7 +169,7 @@ export default function ParentAttendancePage() {
     
     const fromDate = new Date(date.from);
     fromDate.setHours(0, 0, 0, 0);
-    const toDate = date.to ? new Date(date.to) : new Date(date.from);
+    const toDate = date.to ? new Date(date.to) : fromDate;
     toDate.setHours(23, 59, 59, 999);
     
     return attendanceRecords.filter(record => {

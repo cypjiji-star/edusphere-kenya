@@ -77,26 +77,29 @@ export function ParentSidebar() {
 
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId || !user) return;
 
-    // Unread announcements
-    const unreadAnnouncementsQuery = query(collection(firestore, `schools/${schoolId}/announcements`), where('read', '==', false));
+    const unreadAnnouncementsQuery = query(collection(firestore, `schools/${schoolId}/announcements`));
     const unsubscribeAnnouncements = onSnapshot(unreadAnnouncementsQuery, (snapshot) => {
-        setDynamicBadges(prev => ({...prev, unreadAnnouncements: snapshot.size}));
+        let unreadCount = 0;
+        snapshot.forEach(doc => {
+            const readBy = doc.data().readBy || [];
+            if (!readBy.includes(user.uid)) {
+                unreadCount++;
+            }
+        });
+        setDynamicBadges(prev => ({...prev, unreadAnnouncements: unreadCount}));
     });
 
-    // Unread messages
-    const unreadMessagesQuery = query(collection(firestore, `schools/${schoolId}/conversations`), where('unread', '==', true));
-    const unsubscribeMessages = onSnapshot(unreadMessagesQuery, (snapshot) => {
-        setDynamicBadges(prev => ({...prev, unreadMessages: snapshot.size}));
-    });
-
-    // Cleanup listeners on component unmount
+    // Unread messages - placeholder as messaging isn't fully built for parents yet.
+    // Replace with actual query when ready.
+    const unsubscribeMessages = () => {}; 
+    
     return () => {
         unsubscribeAnnouncements();
         unsubscribeMessages();
     };
-  }, [schoolId]);
+  }, [schoolId, user]);
 
   return (
     <>

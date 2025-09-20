@@ -134,7 +134,6 @@ export function FullCalendar({ schoolId }: { schoolId:string }) {
     const currentChild = childrenData.find(c => c.id === selectedChild);
     return events.filter(event => {
         const matchesType = eventTypeFilter === 'all' || event.type === eventTypeFilter;
-        // Show event if it's for everyone OR for the selected child's class
         const matchesAudience = !event.audience || event.audience === 'All' || event.audience === currentChild?.classId;
         return matchesType && matchesAudience;
     });
