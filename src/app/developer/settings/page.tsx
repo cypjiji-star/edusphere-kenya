@@ -20,7 +20,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from '@/components/ui/select';
+  } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Progress } from '@/components/ui/progress';
