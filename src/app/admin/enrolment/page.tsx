@@ -6,11 +6,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { firestore, storage, auth } from '@/lib/firebase';
+import { firestore, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, Timestamp, setDoc, doc, getDoc, writeBatch, getDocs, where, runTransaction } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import * as XLSX from 'xlsx';
 
 
@@ -416,7 +415,7 @@ export default function StudentEnrolmentPage() {
              // Step 1: Handle Parent Account
             let parentUserId;
             let parentIsNew = false;
-            const parentQuery = query(collection(firestore, `schools/${schoolId}/parents`), where('email', '==', values.parentEmail));
+            const parentQuery = query(collection(firestore, `schools/${schoolId}/users`), where('email', '==', values.parentEmail));
             const parentQuerySnapshot = await getDocs(parentQuery);
 
             if (parentQuerySnapshot.empty) {

@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 export type Assignment = {
   id: string;
@@ -44,7 +45,7 @@ export default function AssignmentsPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [filteredClass, setFilteredClass] = React.useState('All Classes');
   const [clientReady, setClientReady] = React.useState(false);
-  const user = auth.currentUser;
+  const { user } = useAuth();
 
   React.useEffect(() => {
     if (!schoolId || !user) {
