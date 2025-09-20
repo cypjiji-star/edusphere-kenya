@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -34,7 +35,8 @@ export async function saveGradeAction(
     const assignmentData = assignmentSnap.data();
 
     const isEditing = !!data.submissionId;
-    const status = isEditing ? 'Pending Approval' : 'Approved';
+    // When a teacher saves a grade, it should go into 'Pending Approval', not be auto-approved.
+    const status = 'Pending Approval';
 
     await setDoc(gradeRef, {
         grade: data.grade,
@@ -62,15 +64,15 @@ export async function saveGradeAction(
         details: description,
     });
     
-    if (isEditing) {
-        await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
-            title: 'Grade Update Awaiting Approval',
-            description: `${actor.name} updated a grade for ${studentData.name} in "${assignmentData.title}".`,
-            createdAt: serverTimestamp(),
-            category: 'Academics',
-            href: `/admin/grades?schoolId=${schoolId}&tab=moderation`,
-        });
-    }
+    // Notify admin that a grade needs moderation
+    await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+        title: 'Grade Awaiting Approval',
+        description: `${actor.name} submitted a grade for ${studentData.name} in "${assignmentData.title}".`,
+        createdAt: serverTimestamp(),
+        category: 'Academics',
+        href: `/admin/grades?schoolId=${schoolId}`,
+        audience: 'admin',
+    });
 
     revalidatePath(`/teacher/assignments/${assignmentId}?schoolId=${schoolId}`);
     return { success: true, message: 'Grade saved successfully!', status };

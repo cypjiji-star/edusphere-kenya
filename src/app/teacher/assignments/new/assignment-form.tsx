@@ -41,6 +41,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 export const assignmentSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters.'),
   classId: z.string({ required_error: 'Please select a class.' }),
+  subject: z.string({ required_error: 'Please select a subject.' }),
   dueDate: z.date({ required_error: 'A due date is required.' }),
   instructions: z.string().min(20, 'Instructions must be at least 20 characters.'),
   // attachment: z.instanceof(File).optional(),
@@ -56,6 +57,7 @@ type TeacherClass = {
 export function AssignmentForm() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
+  const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>([]);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,18 +69,31 @@ export function AssignmentForm() {
     defaultValues: {
       title: '',
       classId: '',
+      subject: '',
       instructions: '',
     },
   });
   
   React.useEffect(() => {
     if (!schoolId || !user) return;
+    // Fetch classes assigned to the teacher
     const q = query(collection(firestore, `schools/${schoolId}/classes`), where("teacherId", "==", user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const classesData: TeacherClass[] = snapshot.docs.map(d => ({ id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim() }));
         setTeacherClasses(classesData);
     });
-    return () => unsubscribe();
+
+    // Fetch subjects taught by the teacher
+    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
+    const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
+        const subjectNames = snapshot.docs.map(doc => doc.data().name);
+        setTeacherSubjects(subjectNames);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubSubjects();
+    };
   }, [schoolId, user]);
 
 
@@ -126,6 +141,29 @@ export function AssignmentForm() {
                 </FormItem>
             )}
             />
+            
+            <FormField
+            control={form.control}
+            name="subject"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Subject</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a subject" />
+                    </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                    {teacherSubjects.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
 
             <FormField
             control={form.control}
@@ -149,47 +187,48 @@ export function AssignmentForm() {
                 </FormItem>
             )}
             />
+             <FormField
+              control={form.control}
+              name="dueDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Due Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
         </div>
 
-        <FormField
-          control={form.control}
-          name="dueDate"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Due Date</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-[240px] pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+       
         <FormField
           control={form.control}
           name="instructions"
