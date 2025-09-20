@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -941,91 +942,74 @@ function TeacherGradesContent() {
   React.useEffect(() => {
     if (!schoolId) return;
 
-    setLoadingState(prev => ({ ...prev, classes: true, exams: true, grades: true, pendingGrades: true, auditLog: true }));
-
     const unsubscribers: (()=>void)[] = [];
 
-    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
-    unsubscribers.push(onSnapshot(classesQuery, snapshot => {
-      const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
-      setClasses(classData);
+    unsubscribers.push(onSnapshot(query(collection(firestore, `schools/${schoolId}/classes`)), snapshot => {
+      setClasses(snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()})));
       setLoadingState(prev => ({ ...prev, classes: false }));
     }));
 
-    const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
-    unsubscribers.push(onSnapshot(subjectsQuery, snapshot => {
+    unsubscribers.push(onSnapshot(query(collection(firestore, `schools/${schoolId}/subjects`)), snapshot => {
       setSubjects(snapshot.docs.map(doc => doc.data().name));
     }));
 
-    const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), orderBy('date', 'desc'));
-    unsubscribers.push(onSnapshot(examsQuery, (snapshot) => {
-      const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
-      setExams(fetchedExams);
+    unsubscribers.push(onSnapshot(query(collection(firestore, `schools/${schoolId}/exams`), orderBy('date', 'desc')), (snapshot) => {
+      setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
       setLoadingState(prev => ({ ...prev, exams: false }));
     }));
 
-    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved'));
-    unsubscribers.push(onSnapshot(gradesQuery, (snapshot) => {
-        const studentGradesMap: Record<string, StudentGrade> = {};
-
-        snapshot.forEach(doc => {
+    unsubscribers.push(onSnapshot(query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved')), async (snapshot) => {
+        const gradesByStudent: Record<string, { scores: Record<string, number>, classId: string, admNo: string, studentName: string, avatarUrl: string }> = {};
+        
+        for (const doc of snapshot.docs) {
             const data = doc.data();
             const studentId = data.studentId;
-            if (!studentGradesMap[studentId]) {
-                studentGradesMap[studentId] = { studentId, scores: {}, studentName: '', admNo: '', avatarUrl: '', classId: data.classId };
+
+            if (!gradesByStudent[studentId]) {
+                const studentSnap = await getDoc(data.studentRef);
+                if (studentSnap.exists()) {
+                    const sData = studentSnap.data();
+                    gradesByStudent[studentId] = { studentId, scores: {}, classId: sData.classId, admNo: sData.admissionNumber, studentName: sData.name, avatarUrl: sData.avatarUrl };
+                }
             }
-            studentGradesMap[studentId].scores[data.subject] = Number(data.grade);
-        });
+            if (gradesByStudent[studentId]) {
+                gradesByStudent[studentId].scores[data.subject] = Number(data.grade);
+            }
+        }
+        
+        const studentScores = Object.values(gradesByStudent).map(data => ({
+            studentId: data.studentId,
+            studentName: data.studentName,
+            admNo: data.admNo,
+            avatarUrl: data.avatarUrl,
+            classId: data.classId,
+            scores: data.scores
+        }));
 
-        Promise.all(
-            Object.keys(studentGradesMap).map(id => getDoc(doc(firestore, `schools/${schoolId}/students`, id)))
-        ).then(studentDocs => {
-            studentDocs.forEach(sDoc => {
-                if (sDoc.exists()) {
-                    const sData = sDoc.data();
-                    if (studentGradesMap[sDoc.id]) {
-                        studentGradesMap[sDoc.id].studentName = sData.name;
-                        studentGradesMap[sDoc.id].admNo = sData.admissionNumber;
-                        studentGradesMap[sDoc.id].avatarUrl = sData.avatarUrl;
-                    }
+        setStudentGrades(studentScores);
+        setLoadingState(prev => ({ ...prev, grades: false }));
+
+        const classAvgs: Record<string, { total: number; count: number }> = {};
+        studentScores.forEach(student => {
+            const avg = student.scores ? Object.values(student.scores).reduce((a, b) => a + b, 0) / Object.keys(student.scores).length : 0;
+            const studentClassName = classes.find(c => c.id === student.classId)?.name;
+            if (studentClassName) {
+                if (!classAvgs[studentClassName]) {
+                    classAvgs[studentClassName] = { total: 0, count: 0 };
                 }
-            });
-
-            const studentScores = Object.values(studentGradesMap);
-            setStudentGrades(studentScores);
-            setLoadingState(prev => ({ ...prev, grades: false }));
-
-            const classAvgs: Record<string, { total: number; count: number }> = {};
-            studentScores.forEach(student => {
-                const avg = student.scores ? Object.values(student.scores).reduce((a, b) => a + b, 0) / Object.keys(student.scores).length : 0;
-                const studentClass = classes.find(c => c.id === student.classId);
-                if (studentClass) {
-                    if (!classAvgs[studentClass.name]) {
-                        classAvgs[studentClass.name] = { total: 0, count: 0 };
-                    }
-                    classAvgs[studentClass.name].total += avg;
-                    classAvgs[studentClass.name].count++;
-                }
-            });
-
-            setClassPerformanceData(
-                Object.entries(classAvgs).map(([className, data]) => ({
-                    name: className,
-                    average: Math.round(data.total / data.count),
-                }))
-            );
+                classAvgs[studentClassName].total += avg;
+                classAvgs[studentClassName].count++;
+            }
         });
+        setClassPerformanceData(Object.entries(classAvgs).map(([className, data]) => ({ name: className, average: Math.round(data.total / data.count) })));
     }));
 
-    const auditLogQuery = query(collection(firestore, 'schools', schoolId, 'audit_logs'), where('action', 'in', ['GRADE_UPDATED', 'GRADE_APPROVED', 'GRADE_REJECTED']), orderBy('timestamp', 'desc'));
-    unsubscribers.push(onSnapshot(auditLogQuery, (snapshot) => {
-      const logs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as AuditLog));
-      setAuditLog(logs);
+    unsubscribers.push(onSnapshot(query(collection(firestore, 'schools', schoolId, 'audit_logs'), where('action', 'in', ['GRADE_UPDATED', 'GRADE_APPROVED', 'GRADE_REJECTED']), orderBy('timestamp', 'desc')), (snapshot) => {
+      setAuditLog(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as AuditLog)));
       setLoadingState(prev => ({ ...prev, auditLog: false }));
     }));
       
-    const pendingGradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval'));
-    unsubscribers.push(onSnapshot(pendingGradesQuery, async (snapshot) => {
+    unsubscribers.push(onSnapshot(query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval')), async (snapshot) => {
       const classMap = new Map(classes.map(c => [c.id, c.name]));
       const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
         const data = gradeDoc.data();
@@ -1049,22 +1033,15 @@ function TeacherGradesContent() {
 
       const grouped: GroupedPendingGrades = {};
       for (const grade of pendingData) {
-        if (!grouped[grade.className]) {
-          grouped[grade.className] = {};
-        }
-        if (!grouped[grade.className][grade.studentName]) {
-          grouped[grade.className][grade.studentName] = [];
-        }
+        if (!grouped[grade.className]) grouped[grade.className] = {};
+        if (!grouped[grade.className][grade.studentName]) grouped[grade.className][grade.studentName] = [];
         grouped[grade.className][grade.studentName].push(grade);
       }
       setGroupedPendingGrades(grouped);
     }));
 
-
-    return () => {
-      unsubscribers.forEach(unsub => unsub());
-    };
-  }, [schoolId]);
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [schoolId, classes]);
 
   const getTermDates = (term: string) => {
     const [termName, yearStr] = term.split('-');
@@ -1125,6 +1102,73 @@ function TeacherGradesContent() {
     });
     setTermExams(filteredExams);
   }, [selectedReportTerm, exams]);
+
+  // Ranking calculation
+  React.useEffect(() => {
+    if (!selectedReportExamTitle || studentGrades.length === 0) {
+        setClassRankings({});
+        return;
+    }
+    const relevantGrades = studentGrades.filter(sg => {
+        const studentClass = classes.find(c => c.id === sg.classId);
+        return reportClassFilter === 'all' || studentClass?.id === reportClassFilter;
+    });
+
+    const gradesForSelectedExam = termExams.filter(exam => exam.title === selectedReportExamTitle);
+    const subjectsInExam = [...new Set(gradesForSelectedExam.map(exam => exam.subject))];
+
+    const studentScores: Record<string, { name: string, admNo: string, avatarUrl: string, classId: string, scores: number[] }> = {};
+
+    relevantGrades.forEach(studentGrade => {
+        subjectsInExam.forEach(subject => {
+            if (studentGrade.scores[subject] !== undefined) {
+                if (!studentScores[studentGrade.studentId]) {
+                    studentScores[studentGrade.studentId] = { name: studentGrade.studentName, admNo: studentGrade.admNo, avatarUrl: studentGrade.avatarUrl, classId: studentGrade.classId, scores: [] };
+                }
+                studentScores[studentGrade.studentId].scores.push(studentGrade.scores[subject]);
+            }
+        });
+    });
+
+    const calculatedRankingsByClass: Record<string, Ranking[]> = {};
+    const allStudentsForRanking = Object.entries(studentScores).map(([id, data]) => {
+        const total = data.scores.reduce((a, b) => a + b, 0);
+        const avg = data.scores.length > 0 ? total / data.scores.length : 0;
+        return {
+            id,
+            ...data,
+            total,
+            avg,
+            grade: calculateGrade(avg),
+        };
+    }).sort((a, b) => b.total - a.total);
+    
+    allStudentsForRanking.forEach((studentData, index) => {
+        const classId = studentData.classId;
+        if (!calculatedRankingsByClass[classId]) {
+            calculatedRankingsByClass[classId] = [];
+        }
+        calculatedRankingsByClass[classId].push({
+            position: index + 1, // Overall position
+            streamPosition: 0, // Placeholder
+            name: studentData.name,
+            admNo: studentData.admNo,
+            avatarUrl: studentData.avatarUrl,
+            total: studentData.total,
+            avg: studentData.avg,
+            grade: studentData.grade,
+        });
+    });
+
+    // Calculate stream-specific ranks
+    Object.keys(calculatedRankingsByClass).forEach(classId => {
+        calculatedRankingsByClass[classId].sort((a,b) => b.total - a.total).forEach((student, index) => {
+            student.streamPosition = index + 1;
+        });
+    });
+
+    setClassRankings(calculatedRankingsByClass);
+  }, [selectedReportExamTitle, studentGrades, classes, reportClassFilter, termExams]);
 
   const handleCreateExam = async () => {
     if (!schoolId || !examTitle || !examClassId || !examSubject || !examDate || !examDuration || !examType) {
