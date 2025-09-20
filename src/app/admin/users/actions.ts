@@ -109,7 +109,7 @@ export async function createUserAction(params: {
     };
 
     if (role === 'Teacher' && classes) {
-      userData.classes = classes;
+      userData.classIds = classes;
     }
     
     await setDoc(userDocRef, userData);
@@ -131,5 +131,3 @@ export async function createUserAction(params: {
     return { success: false, message: error.message || 'Failed to create user.' };
   }
 }
-
-    
