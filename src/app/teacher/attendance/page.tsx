@@ -50,7 +50,6 @@ import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/context/auth-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MyAttendanceHistory } from "./my-attendance-calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { DateRange } from "react-day-picker";
@@ -466,9 +465,8 @@ export default function AttendancePage() {
         </div>
 
         <Tabs defaultValue="student-attendance">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="student-attendance">Student Attendance</TabsTrigger>
-                <TabsTrigger value="my-attendance">My Attendance History</TabsTrigger>
                 <TabsTrigger value="leave-management">Leave Management</TabsTrigger>
             </TabsList>
 
@@ -610,10 +608,6 @@ export default function AttendancePage() {
                         </Button>
                     </div>
                 )}
-            </TabsContent>
-
-            <TabsContent value="my-attendance" className="mt-4">
-               <MyAttendanceHistory />
             </TabsContent>
             
              <TabsContent value="leave-management" className="mt-4">
