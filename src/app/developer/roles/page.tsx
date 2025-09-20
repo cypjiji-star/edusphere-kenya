@@ -45,10 +45,15 @@ export default function PermissionsPage() {
     setIsLoading(true);
     const rolesUnsub = onSnapshot(collection(firestore, 'platformRoles'), (snapshot) => {
         const roles: Record<string, Role> = {};
-        snapshot.forEach(doc => {
-            roles[doc.id] = doc.data() as Role;
-        });
-        setRolePermissions(roles);
+        if (snapshot.empty) {
+            // Handle case where collection might not exist yet
+            setRolePermissions({});
+        } else {
+            snapshot.forEach(doc => {
+                roles[doc.id] = doc.data() as Role;
+            });
+            setRolePermissions(roles);
+        }
         setIsLoading(false);
     });
 
@@ -58,11 +63,12 @@ export default function PermissionsPage() {
   const handlePermissionChange = (role: string, permissionId: string, checked: boolean) => {
     setRolePermissions(prev => {
         const currentPermissions = prev[role]?.permissions || [];
-        const updatedRole = {
+        const updatedRole: Role = {
             ...prev[role],
             permissions: checked
                 ? [...currentPermissions, permissionId]
-                : currentPermissions.filter(id => id !== permissionId)
+                : currentPermissions.filter(id => id !== permissionId),
+            isCore: prev[role]?.isCore || false, // Ensure isCore is preserved
         };
         return { ...prev, [role]: updatedRole };
     });

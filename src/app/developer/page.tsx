@@ -28,12 +28,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { auth, firestore, firebaseConfig } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { initialRolePermissions } from '@/app/admin/permissions/roles-data';
 import { defaultPeriods } from '@/app/admin/timetable/timetable-data';
-import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
-import { initializeApp, deleteApp } from 'firebase/app';
+import { createUserAction } from '../admin/users/actions';
 
 
 type School = {
@@ -89,18 +88,11 @@ export default function DeveloperDashboard() {
     }
     setIsCreating(true);
 
-    const secondaryApp = initializeApp(firebaseConfig, `secondary-creation-${Date.now()}`);
-    const secondaryAuth = getAuth(secondaryApp);
-
     try {
         const schoolCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, adminEmail, adminPassword);
-        const adminUid = userCredential.user.uid;
 
-        const batch = writeBatch(firestore);
-        
         const schoolRef = doc(firestore, 'schools', schoolCode); 
-        batch.set(schoolRef, {
+        await setDoc(schoolRef, {
             id: schoolCode,
             name: schoolName,
             schoolCode: schoolCode,
@@ -110,24 +102,26 @@ export default function DeveloperDashboard() {
             plan: 'Standard Tier',
             createdAt: serverTimestamp(),
         });
+        
+        const adminResult = await createUserAction({
+            schoolId: schoolCode,
+            email: adminEmail,
+            password: adminPassword,
+            name: 'School Admin',
+            role: 'Admin',
+            actor: { id: 'system', name: 'Developer Portal' },
+        });
 
+        if (!adminResult.success) {
+            throw new Error(adminResult.message || 'Failed to create initial admin user.');
+        }
+
+        const batch = writeBatch(firestore);
+        
         // Seed initial roles
         Object.entries(initialRolePermissions).forEach(([roleName, roleData]) => {
             const roleRef = doc(firestore, 'schools', schoolCode, 'roles', roleName);
-            batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore, userCount: 0 });
-        });
-        
-        // Seed initial admin user
-        const adminUserRef = doc(firestore, 'schools', schoolCode, 'users', adminUid);
-        batch.set(adminUserRef, {
-            id: adminUid,
-            schoolId: schoolCode,
-            name: 'School Admin', 
-            email: adminEmail,
-            role: 'Admin',
-            status: 'Active',
-            createdAt: serverTimestamp(),
-            lastLogin: serverTimestamp()
+            batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore, userCount: roleName === 'Admin' ? 1 : 0 });
         });
         
         // Seed default subjects
@@ -136,7 +130,7 @@ export default function DeveloperDashboard() {
             batch.set(subjectRef, { ...subject, createdAt: serverTimestamp() });
         });
 
-        // Seed default library resources based on subjects
+        // Seed default library resources
         defaultSubjects.slice(0, 5).forEach(subject => {
             const resourceRef = doc(collection(firestore, 'schools', schoolCode, 'library-resources'));
             batch.set(resourceRef, {
@@ -144,7 +138,7 @@ export default function DeveloperDashboard() {
                 author: 'KICD',
                 type: 'Textbook',
                 subject: subject.name,
-                grade: ['Form 1'],
+                grade: 'Form 1',
                 description: `Official textbook for the ${subject.name} curriculum.`,
                 totalCopies: 50,
                 availableCopies: 50,
@@ -164,10 +158,8 @@ export default function DeveloperDashboard() {
             description: `${schoolName} is being set up. School Code: ${schoolCode}`,
         });
 
-        // Simulate final provisioning step
-        setTimeout(() => {
-             updateDoc(schoolRef, { status: 'Active' });
-        }, 3000);
+        // Finalize provisioning
+        await updateDoc(schoolRef, { status: 'Active' });
 
         setSchoolName('');
         setAdminEmail('');
@@ -179,12 +171,13 @@ export default function DeveloperDashboard() {
             errorMessage = 'This email is already in use by another account.';
         } else if (e.code === 'auth/weak-password') {
             errorMessage = 'The password is too weak. Please use at least 6 characters.';
+        } else if (e.message) {
+            errorMessage = e.message;
         }
         toast({ title: 'Error', description: errorMessage, variant: 'destructive'});
         console.error(e);
     } finally {
         setIsCreating(false);
-        await deleteApp(secondaryApp);
     }
   };
 

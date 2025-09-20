@@ -3,10 +3,8 @@
 
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import { doc, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
-import { initialRolePermissions } from '@/app/admin/permissions/roles-data';
-import { defaultPeriods } from '@/app/teacher/timetable/timetable-data';
 import { logAuditEvent } from '@/lib/audit-log.service';
 
 
@@ -38,15 +36,15 @@ export async function createDeveloperUserAction(params: {
       uid: userRecord.uid,
       email: userRecord.email,
       role: 'developer',
-      createdAt: new Date(),
+      createdAt: serverTimestamp(),
     });
     
     // Log this important security event
     await logAuditEvent({
-        schoolId: 'platform',
+        schoolId: 'platform', // This is a platform-level action
         action: 'DEVELOPER_CREATED',
         actionType: 'Security',
-        user: { id: userRecord.uid, name: 'System', role: 'System' },
+        user: { id: userRecord.uid, name: 'System', role: 'System' }, // Action performed by the system itself
         details: `New developer account created for ${email}.`
     });
 
