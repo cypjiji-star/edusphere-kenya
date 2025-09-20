@@ -92,6 +92,7 @@ export async function createUserAction(params: {
     });
 
     const uid = userRecord.uid;
+    const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
 
     // 2. Create user document in the school's 'users' collection in Firestore
     const userDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
@@ -105,7 +106,7 @@ export async function createUserAction(params: {
       status: 'Active',
       createdAt: serverTimestamp(),
       lastLogin: null,
-      avatarUrl: `https://picsum.photos/seed/${uid}/100`, // Default avatar
+      avatarUrl,
     };
 
     if (role === 'Teacher' && classes) {
@@ -113,8 +114,19 @@ export async function createUserAction(params: {
     }
     
     await setDoc(userDocRef, userData);
+
+    // 3. Add to role-specific collections if necessary
+    if (role === 'Admin') {
+        const adminDocRef = doc(firestore, 'schools', schoolId, 'admins', uid);
+        await setDoc(adminDocRef, {
+            id: uid,
+            name: name,
+            role: 'Admin',
+            avatarUrl: avatarUrl,
+        });
+    }
     
-    // 3. Log the audit event
+    // 4. Log the audit event
     await logAuditEvent({
         schoolId,
         action: 'USER_CREATED',
