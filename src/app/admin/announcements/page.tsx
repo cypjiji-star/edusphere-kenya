@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -75,7 +76,7 @@ const announcementCategories: Record<AnnouncementCategory, { label: string; colo
 type Announcement = {
     id: string;
     title: string;
-    sender: { name: string; avatarUrl: string };
+    sender: { name: string; };
     content: string;
     audience: string;
     sentAt: Timestamp;
@@ -315,7 +316,7 @@ export default function AdminAnnouncementsPage() {
             content: values.message,
             audience: values.audience,
             category: values.category,
-            sender: { name: user.displayName || 'Admin User', avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100` },
+            sender: { name: user.displayName || 'Admin User' },
             sentAt: scheduledDate && isScheduling ? Timestamp.fromDate(scheduledDate) : serverTimestamp(),
             channels: {
                 app: values.notifyApp,
@@ -435,7 +436,6 @@ export default function AdminAnnouncementsPage() {
                                      <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-3">
                                             <Avatar className="h-9 w-9">
-                                                <AvatarImage src={ann.sender.avatarUrl} alt={ann.sender.name} />
                                                 <AvatarFallback>{ann.sender.name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div>
@@ -715,5 +715,3 @@ export default function AdminAnnouncementsPage() {
     </>
   );
 }
-
-    

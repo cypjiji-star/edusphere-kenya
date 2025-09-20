@@ -200,7 +200,6 @@ export function TeacherSidebar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.photoURL || "https://picsum.photos/seed/teacher-avatar/100"} alt="Teacher" />
                 <AvatarFallback>{teacherName.charAt(0) || 'T'}</AvatarFallback>
               </Avatar>
               <div className="text-left">

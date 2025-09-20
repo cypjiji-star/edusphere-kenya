@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -17,7 +18,6 @@ import { useAuth } from '@/context/auth-context';
 type AbsentStudent = {
     id: string;
     name: string;
-    avatarUrl: string;
     className: string;
     attendance: 'absent' | 'late';
 }
@@ -71,7 +71,6 @@ export function AbsentStudentsWidget() {
                              absentStudentData.push({
                                 id: studentData.id,
                                 name: studentData.name,
-                                avatarUrl: studentData.avatarUrl,
                                 className: studentData.class,
                                 attendance: attendance.status as 'absent' | 'late',
                             });
@@ -106,7 +105,6 @@ export function AbsentStudentsWidget() {
                 {absentStudents.map((student, index) => (
                     <div key={index} className="flex items-center gap-4">
                     <Avatar>
-                        <AvatarImage src={student.avatarUrl} alt={student.name} />
                         <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">

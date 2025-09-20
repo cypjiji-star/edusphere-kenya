@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -80,7 +81,6 @@ type AdminMessage = {
 type Conversation = {
     id: string;
     userName: string;
-    userAvatar: string;
     userId: string;
     lastMessage: string;
     lastUpdate: Timestamp;
@@ -236,7 +236,6 @@ function AdminMessagesTab() {
                                     className="w-full text-left p-3 rounded-lg flex items-start gap-3 hover:bg-muted/50"
                                 >
                                     <Avatar>
-                                        <AvatarImage src={convo.userAvatar}/>
                                         <AvatarFallback><User /></AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1 overflow-hidden">
@@ -354,7 +353,7 @@ function AiChatTab() {
                 role: role,
             },
             userName: user.displayName || "User",
-            userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
+            userId: user.uid,
             messages: arrayUnion(escalationMessage),
             isEscalated: true,
             lastMessage: "Conversation escalated to admin.",
@@ -381,7 +380,6 @@ function AiChatTab() {
     const chatDocRef = doc(firestore, 'schools', schoolId, 'support-chats', user.uid);
     await setDoc(chatDocRef, {
         userName: user.displayName || "User",
-        userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
         userId: user.uid,
         messages: currentMessages,
         lastMessage: input,

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -41,7 +42,6 @@ type School = {
   schoolCode: string;
   admin: string;
   status: 'Active' | 'Provisioning';
-  logoUrl: string;
   plan: 'Premium Tier' | 'Standard Tier';
 };
 
@@ -98,7 +98,6 @@ export default function DeveloperDashboard() {
             schoolCode: schoolCode,
             admin: adminEmail,
             status: 'Provisioning',
-            logoUrl: `https://picsum.photos/seed/${schoolName}/100`,
             plan: 'Standard Tier',
             createdAt: serverTimestamp(),
         });
@@ -246,7 +245,6 @@ export default function DeveloperDashboard() {
                     <CardHeader>
                     <div className="flex items-center justify-between">
                         <Avatar>
-                        <AvatarImage src={school.logoUrl} />
                         <AvatarFallback>{school.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <Badge variant={school.status === 'Active' ? 'default' : 'secondary'} className={school.status === 'Active' ? 'bg-green-600' : ''}>

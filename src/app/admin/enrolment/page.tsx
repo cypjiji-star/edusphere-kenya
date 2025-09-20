@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -159,8 +160,6 @@ export default function StudentEnrolmentPage() {
     const { user: adminUser } = useAuth();
 
     const [bulkEnrolmentFile, setBulkEnrolmentFile] = React.useState<File | null>(null);
-    const [profilePhotoFile, setProfilePhotoFile] = React.useState<File | null>(null);
-    const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
     const [admissionDocs, setAdmissionDocs] = React.useState<File[]>([]);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
@@ -294,15 +293,6 @@ export default function StudentEnrolmentPage() {
         toast({ title: 'Coming Soon', description: 'This feature is currently in development.', variant: 'destructive' });
     };
 
-
-    const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files[0]) {
-            const file = event.target.files[0];
-            setProfilePhotoFile(file);
-            setProfilePhoto(URL.createObjectURL(file));
-        }
-    };
-
     const handleDocsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
             setAdmissionDocs(prev => [...prev, ...Array.from(event.target.files!)]);
@@ -375,12 +365,6 @@ export default function StudentEnrolmentPage() {
 
             await runTransaction(firestore, async (transaction) => {
                 const admissionNumber = values.admissionNumber || await generateAdmissionNumber(schoolId, values.admissionYear);
-                let photoUrl = '';
-                if (profilePhotoFile) {
-                    const storageRef = ref(storage, `${schoolId}/profile_photos/${Date.now()}_${profilePhotoFile.name}`);
-                    await uploadBytes(storageRef, profilePhotoFile);
-                    photoUrl = await getDownloadURL(storageRef);
-                }
                 const admissionDocUrls = await Promise.all(
                     admissionDocs.map(async (file) => {
                         const storageRef = ref(storage, `${schoolId}/admission_docs/${Date.now()}_${file.name}`);
@@ -428,7 +412,6 @@ export default function StudentEnrolmentPage() {
                     emergencyContactName: values.emergencyContactName || null,
                     emergencyContactPhone: values.emergencyContactPhone || null,
                     createdAt: serverTimestamp(),
-                    avatarUrl: photoUrl,
                     documents: admissionDocUrls,
                     totalFee,
                     amountPaid,
@@ -483,7 +466,7 @@ export default function StudentEnrolmentPage() {
                 description: `${studentName} has been enrolled and the parent account for ${parentName} is ${parentIsNew ? 'created' : 'linked'}.`,
             });
             form.reset();
-            setProfilePhoto(null); setProfilePhotoFile(null); setAdmissionDocs([]);
+            setAdmissionDocs([]);
         } catch (error: any) {
             let errorMessage = 'An error occurred. Please try again.';
             if (error.code === 'auth/email-already-in-use') errorMessage = 'This parent email is already registered. Please use a different email or log in to their existing account to add another child.';
@@ -654,32 +637,6 @@ export default function StudentEnrolmentPage() {
                              <Separator />
                              <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Initial Fee Payment (KES)</FormLabel><div className="relative"><CircleDollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><FormControl><Input type="number" placeholder="0" className="pl-10" {...field} /></FormControl></div><FormMessage /></FormItem> )}/>
                              <Separator />
-                            <div className="space-y-2">
-                                <Label>Student Profile Photo</Label>
-                                <div className="flex items-center gap-4">
-                                    <Avatar className="h-16 w-16">
-                                        <AvatarImage src={profilePhoto || ''} />
-                                        <AvatarFallback><UserPlus/></AvatarFallback>
-                                    </Avatar>
-                                    {profilePhoto ? (
-                                        <Button type="button" variant="destructive" className="w-full" onClick={() => {setProfilePhoto(null); setProfilePhotoFile(null);}}>
-                                            <X className="mr-2 h-4 w-4" />
-                                            Remove Photo
-                                        </Button>
-                                    ) : (
-                                        <Label htmlFor="photo-upload" className="w-full">
-                                            <Button type="button" variant="outline" asChild className="w-full cursor-pointer">
-                                                <span>
-                                                    <Upload className="mr-2 h-4 w-4" />
-                                                    Upload Photo
-                                                </span>
-                                            </Button>
-                                            <Input id="photo-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
-                                        </Label>
-                                    )}
-                                </div>
-                                <FormDescription>Recommended: 400x400px.</FormDescription>
-                            </div>
                              <div className="space-y-2">
                                 <Label>Admission Documents</Label>
                                 {admissionDocs.length > 0 ? (

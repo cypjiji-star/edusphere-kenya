@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -91,7 +92,6 @@ type AttendanceRecord = {
   id: string;
   studentId: string;
   studentName: string;
-  studentAvatar: string;
   class: string;
   teacher: string;
   teacherId?: string;
@@ -118,7 +118,6 @@ type Student = {
     id: string;
     name: string;
     admissionNumber: string;
-    avatarUrl: string;
 };
 
 type CommunicationLog = {
@@ -440,7 +439,6 @@ export default function AdminAttendancePage() {
           id: doc.id,
           studentId: data.studentId,
           studentName: data.studentName,
-          studentAvatar: data.avatarUrl || `https://picsum.photos/seed/${data.studentId}/100`,
           class: data.className,
           teacher: data.teacher,
           teacherId: data.teacherId,
@@ -838,7 +836,7 @@ export default function AdminAttendancePage() {
                                             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
-                                                    {teachers.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                                                    {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -912,7 +910,6 @@ export default function AdminAttendancePage() {
                                 <TableCell>
                                     <div className="flex items-center gap-3">
                                     <Avatar>
-                                        <AvatarImage src={record.studentAvatar} alt={record.studentName} />
                                         <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <span className="font-medium">{record.studentName}</span>
@@ -1065,7 +1062,6 @@ export default function AdminAttendancePage() {
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-4">
                                             <Avatar className="h-16 w-16">
-                                                <AvatarImage src={selectedStudent.avatarUrl} />
                                                 <AvatarFallback>{selectedStudent.name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div>
@@ -1162,5 +1158,3 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
-
-    

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -78,7 +79,6 @@ type User = {
     id: string;
     name: string;
     email: string;
-    avatarUrl: string;
     role: UserRole;
     status: UserStatus;
     lastLogin: Timestamp | 'Never' | null;
@@ -358,7 +358,6 @@ export default function UserManagementListPage() {
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <Avatar className="h-9 w-9">
-                                                    <AvatarImage src={user.avatarUrl} alt={user.name} />
                                                     <AvatarFallback>{user.name?.slice(0,2)}</AvatarFallback>
                                                 </Avatar>
                                                 <span className="font-medium">{user.name}</span>
@@ -667,7 +666,7 @@ export default function UserManagementListPage() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap">
+                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-wrap">
                              <Select value={statusFilter} onValueChange={(v: UserStatus | 'All Statuses') => setStatusFilter(v)}>
                                 <SelectTrigger className="w-full md:w-[150px]">
                                     <SelectValue placeholder="Filter by status" />

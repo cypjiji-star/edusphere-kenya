@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -68,7 +69,6 @@ type AuditLog = {
     id: string;
     name: string;
     role: string;
-    avatarUrl?: string;
   };
   timestamp: Timestamp;
   ipAddress?: string;
@@ -460,7 +460,6 @@ export default function AuditLogsPage() {
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <Avatar className="h-8 w-8">
-                                                                    <AvatarImage src={log.user.avatarUrl} alt={log.user.name} />
                                                                     <AvatarFallback>{log.user.name?.charAt(0)}</AvatarFallback>
                                                                 </Avatar>
                                                                 <div>
@@ -555,7 +554,6 @@ export default function AuditLogsPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex items-start gap-2">
                                 <Avatar className="h-8 w-8">
-                                    <AvatarImage src={selectedLog.user.avatarUrl} />
                                     <AvatarFallback>{selectedLog.user.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
@@ -601,6 +599,3 @@ export default function AuditLogsPage() {
     </Dialog>
   );
 }
-
-
-    

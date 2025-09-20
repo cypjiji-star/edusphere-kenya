@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -60,7 +61,6 @@ type AuditLog = {
   description: string;
   user: {
     name: string;
-    avatarUrl: string;
   };
   timestamp: Timestamp;
   details: string | { oldValue: string | null; newValue: string };
@@ -260,7 +260,6 @@ export default function AuditLogsPage() {
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <Avatar className="h-8 w-8">
-                                                                    <AvatarImage src={log.user.avatarUrl} alt={log.user.name} />
                                                                     <AvatarFallback>{log.user.name.charAt(0)}</AvatarFallback>
                                                                 </Avatar>
                                                                 <span>{log.user.name}</span>
@@ -296,11 +295,6 @@ export default function AuditLogsPage() {
                         </div>
                     )}
                 </CardContent>
-                <CardFooter>
-                    <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredLogs.length}</strong> of <strong>{logs.length}</strong> total records.
-                    </div>
-                </CardFooter>
             </Card>
         </div>
          {selectedLog && (
@@ -351,7 +345,6 @@ export default function AuditLogsPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex items-start gap-2">
                                 <Avatar className="h-8 w-8">
-                                    <AvatarImage src={selectedLog.user.avatarUrl} />
                                     <AvatarFallback>{selectedLog.user.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
