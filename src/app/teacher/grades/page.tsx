@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -401,16 +402,15 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
 
     React.useEffect(() => {
         setIsLoading(true);
-        
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
         const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
 
         const unsubGrades = onSnapshot(gradesQuery, (gradesSnap) => {
             const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
             
-            // Fetch students once and then update with grade changes
+            // Only fetch students once
             if (students.length === 0) {
-                 getDocs(studentsQuery).then(studentsSnap => {
+                const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
+                getDocs(studentsQuery).then(studentsSnap => {
                     const studentData = studentsSnap.docs.map(doc => {
                         const data = doc.data();
                         const existingGrade = gradesMap.get(doc.id);
@@ -427,19 +427,18 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                         }
                     });
                     setStudents(studentData);
-                    gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
                     setIsLoading(false);
                 });
             } else {
                  setStudents(prevStudents => prevStudents.map(student => {
                      const existingGrade = gradesMap.get(student.studentId);
-                     const score = existingGrade?.score || '';
+                     const score = existingGrade?.score || student.score;
                      return {
                         ...student,
                         score: score,
                         grade: score ? calculateGrade(Number(score)) : '',
-                        gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
-                        submissionId: existingGrade?.submissionId,
+                        gradeStatus: existingGrade ? existingGrade.status : student.gradeStatus,
+                        submissionId: existingGrade?.submissionId || student.submissionId,
                      }
                  }))
                  setIsLoading(false);
@@ -447,7 +446,7 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
         });
 
         return () => unsubGrades();
-    }, [exam, schoolId, students.length]);
+    }, [exam, schoolId]);
     
     const handleScoreChange = (studentId: string, score: string) => {
         let error = undefined;
@@ -489,9 +488,6 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
                 title: 'Grade Saved!',
                 description: `The grade for ${student.studentName} is saved and awaits admin approval.`,
             });
-
-            // The onSnapshot listener will handle the UI update, no need for local state update here.
-
         } catch (e) {
             console.error(e);
             toast({ title: 'Error', description: 'Failed to save grade.', variant: 'destructive'});
@@ -769,7 +765,7 @@ export default function TeacherGradesPage() {
     }, [schoolId, user]);
 
     React.useEffect(() => {
-        if (classes.length === 0 || subjects.length === 0) {
+        if (classes.length === 0 || subjects.length === 0 || !schoolId) {
             setExams([]);
             return;
         }
@@ -862,5 +858,3 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
-
-    

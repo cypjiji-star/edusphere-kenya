@@ -96,6 +96,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { createUserAction } from '../users/actions';
 
 const enrolmentSchema = z.object({
   studentFirstName: z.string().min(2, 'First name is required.'),
@@ -412,9 +413,7 @@ export default function StudentEnrolmentPage() {
         setIsSubmitting(true);
         
         try {
-            const batch = writeBatch(firestore);
-            
-            // Step 1: Handle Parent Account
+             // Step 1: Handle Parent Account
             let parentUserId;
             let parentIsNew = false;
             const parentQuery = query(collection(firestore, `schools/${schoolId}/parents`), where('email', '==', values.parentEmail));
@@ -424,24 +423,27 @@ export default function StudentEnrolmentPage() {
                 if (!values.parentPassword) {
                     throw new Error('Password is required for new parent accounts.');
                 }
-                const userCredential = await createUserWithEmailAndPassword(auth, values.parentEmail, values.parentPassword);
-                parentUserId = userCredential.user.uid;
-                parentIsNew = true;
                 
-                const parentDocRef = doc(firestore, 'schools', schoolId, 'parents', parentUserId);
-                batch.set(parentDocRef, {
-                    id: parentUserId, schoolId, role: 'Parent', status: 'Active',
-                    name: `${values.parentFirstName} ${values.parentLastName}`,
+                const result = await createUserAction({
+                    schoolId,
                     email: values.parentEmail,
-                    phone: values.parentPhone,
-                    altPhone: values.parentAltPhone || null,
-                    address: values.parentAddress || null,
-                    createdAt: serverTimestamp(),
-                    avatarUrl: `https://picsum.photos/seed/${values.parentEmail}/100`,
+                    password: values.parentPassword,
+                    name: `${values.parentFirstName} ${values.parentLastName}`,
+                    role: 'Parent',
+                    actor: { id: adminUser.uid, name: adminUser.displayName || 'Admin' }
                 });
+
+                if (!result.success || !result.uid) {
+                    throw new Error(result.message || 'Failed to create parent account.');
+                }
+                parentUserId = result.uid;
+                parentIsNew = true;
+
             } else {
                 parentUserId = parentQuerySnapshot.docs[0].id;
             }
+
+            const batch = writeBatch(firestore);
 
             // Step 2: Handle Student Data & Files
             const admissionNumber = values.admissionNumber || await generateAdmissionNumber(schoolId, values.admissionYear);
@@ -538,14 +540,6 @@ export default function StudentEnrolmentPage() {
                 user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
                 details: `Class: ${classOptions.find(c => c.value === values.classId)?.label}, Parent: ${parentName}`,
             });
-            if (parentIsNew) {
-                await logAuditEvent({
-                    schoolId, action: 'PARENT_ACCOUNT_CREATED', actionType: 'User Management',
-                    description: `New parent account created for ${parentName}.`,
-                    user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-                    details: `Email: ${values.parentEmail}, Linked Student: ${studentName}`,
-                });
-            }
 
             toast({
                 title: 'Enrolment Successful!',
