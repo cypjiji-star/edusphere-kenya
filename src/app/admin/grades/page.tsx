@@ -837,10 +837,11 @@ export default function TeacherGradesPage() {
     const [academicTerms] = React.useState(generateAcademicTerms());
     
     // Gradebook state
-    const [selectedGradebookClass, setSelectedGradebookClass] = React.useState<string>('');
-    const [selectedGradebookExam, setSelectedGradebookExam] = React.useState<string>('');
     const [selectedReportClass, setSelectedReportClass] = React.useState<string>('');
     const [selectedReportTerm, setSelectedReportTerm] = React.useState<string>(getCurrentTerm());
+    const [termExams, setTermExams] = React.useState<GroupedExam[]>([]);
+    const [selectedReportExam, setSelectedReportExam] = React.useState<string>('');
+
     
     const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
     const [bulkImportFile, setBulkImportFile] = React.useState<File | null>(null);
@@ -865,7 +866,6 @@ export default function TeacherGradesPage() {
             const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
             setClasses(classData);
             if (classData.length > 0) {
-                if (!selectedGradebookClass) setSelectedGradebookClass(classData[0].id);
                 if (!selectedReportClass) setSelectedReportClass(classData[0].id);
             }
         });
@@ -1014,21 +1014,7 @@ export default function TeacherGradesPage() {
             unsubscribeLogs();
             unsubscribePendingGrades();
         };
-    }, [schoolId, selectedGradebookClass, selectedReportClass, classes]);
-
-    const filteredGradebookExams = React.useMemo(() => {
-        return exams.filter(exam => exam.classId === selectedGradebookClass);
-    }, [exams, selectedGradebookClass]);
-
-    const gradebookStudents = React.useMemo(() => {
-        return studentGrades;
-    }, [studentGrades]);
-    
-    const gradebookSubjects = React.useMemo(() => {
-        if (!selectedGradebookExam) return [];
-        const exam = exams.find(e => e.id === selectedGradebookExam);
-        return exam ? [exam.subject] : [];
-    }, [exams, selectedGradebookExam]);
+    }, [schoolId, selectedReportClass, classes]);
 
     const getTermDates = (term: string) => {
         const [termName, yearStr] = term.split('-');
@@ -1076,6 +1062,20 @@ export default function TeacherGradesPage() {
             return representative;
         });
     }, [exams, subjects.length, examTermFilter]);
+    
+    // Filter exams for the report tab based on selected term
+    React.useEffect(() => {
+        const termRange = getTermDates(selectedReportTerm);
+        if (!termRange) {
+            setTermExams([]);
+            return;
+        }
+        const filteredExams = exams.filter(exam => {
+            const examDate = exam.date.toDate();
+            return examDate >= termRange.start && examDate <= termRange.end;
+        });
+        setTermExams(filteredExams);
+    }, [selectedReportTerm, exams]);
 
 
     const handleCreateExam = async () => {
@@ -1217,7 +1217,6 @@ export default function TeacherGradesPage() {
             printWindow.document.write('<html><head><title>Class Ranking</title>');
             // Basic styles for printing
             printWindow.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } th { background-color: #f2f2f2; } </style>');
-            printWindow.document.write('</head><body>');
             printWindow.document.write(`<h2>Class Ranking - ${classes.find(c => c.id === selectedReportClass)?.name} - ${selectedReportTerm}</h2>`);
             if (tableHtml) {
                 printWindow.document.write(tableHtml);
@@ -1347,7 +1346,7 @@ export default function TeacherGradesPage() {
     };
     
     if (selectedExamForGrading) {
-        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId!} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
+        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId!} teacher={{id: user!.uid, name: user!.displayName || 'Admin'}} />;
     }
 
 
@@ -1490,9 +1489,9 @@ export default function TeacherGradesPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 h-auto">
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
-                <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
+                <TabsTrigger value="gradebook" disabled>Gradebook</TabsTrigger>
                 <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
-                <TabsTrigger value="reports">Reports &amp; Analytics</TabsTrigger>
+                <TabsTrigger value="reports">Exam Reports</TabsTrigger>
             </TabsList>
             <TabsContent value="exam-management" className="mt-4">
                 <Card>
@@ -1621,75 +1620,8 @@ export default function TeacherGradesPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Gradebook</CardTitle>
-                        <CardDescription>View and manage student marks for different exams.</CardDescription>
-                        <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
-                             <Select value={selectedGradebookClass} onValueChange={setSelectedGradebookClass}>
-                                <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select a Class"/>
-                                </SelectTrigger>
-                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Select value={selectedGradebookExam} onValueChange={setSelectedGradebookExam} disabled={filteredGradebookExams.length === 0}>
-                                <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select an Exam"/>
-                                </SelectTrigger>
-                                <SelectContent>{filteredGradebookExams.map(e => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
+                        <CardDescription>This feature is coming soon.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Student</TableHead>
-                                        {gradebookSubjects.map(sub => (
-                                            <TableHead key={sub} className="text-center">{sub}</TableHead>
-                                        ))}
-                                        <TableHead className="text-right font-bold">Total</TableHead>
-                                        <TableHead className="text-right font-bold">Grade</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {gradebookStudents.map(student => {
-                                        let total = 0;
-                                        let subjectCount = 0;
-                                        gradebookSubjects.forEach(sub => {
-                                            if (student.scores[sub]) {
-                                                total += student.scores[sub];
-                                                subjectCount++;
-                                            }
-                                        });
-                                        const mean = subjectCount > 0 ? total / subjectCount : 0;
-                                        const grade = calculateGrade(mean);
-
-                                        return (
-                                        <TableRow key={student.studentId}>
-                                            <TableCell>
-                                                 <div className="flex items-center gap-3">
-                                                    <Avatar className="h-9 w-9">
-                                                        <AvatarImage src={student.avatarUrl} alt={student.studentName} />
-                                                        <AvatarFallback>{student.studentName.charAt(0)}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <span className="font-medium">{student.studentName}</span>
-                                                        <p className="text-xs text-muted-foreground">Adm: {student.admNo}</p>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                             {gradebookSubjects.map(sub => (
-                                                <TableCell key={sub} className="text-center">{student.scores[sub] || '—'}</TableCell>
-                                            ))}
-                                            <TableCell className="text-right font-bold">{total}</TableCell>
-                                            <TableCell className="text-right font-bold">
-                                                <Badge>{grade}</Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    )})}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
                 </Card>
             </TabsContent>
             <TabsContent value="moderation" className="mt-4 space-y-6">
@@ -1802,15 +1734,9 @@ export default function TeacherGradesPage() {
              <TabsContent value="reports" className="mt-4 space-y-6">
                 <Card>
                     <CardHeader>
-                         <CardTitle>Reports &amp; Analytics</CardTitle>
-                        <CardDescription>Generate reports and analyze academic performance.</CardDescription>
+                        <CardTitle>Exam Reports</CardTitle>
+                        <CardDescription>Generate and view detailed performance reports for specific exams.</CardDescription>
                         <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
-                             <Select value={selectedReportClass} onValueChange={setSelectedReportClass}>
-                                <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select a Class"/>
-                                </SelectTrigger>
-                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
                             <Select value={selectedReportTerm} onValueChange={setSelectedReportTerm}>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select Term/Year"/>
@@ -1819,117 +1745,92 @@ export default function TeacherGradesPage() {
                                     {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <div className="flex gap-2 flex-wrap">
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button variant="secondary">
-                                            <Bell className="mr-2 h-4 w-4" />
-                                            Publish Results
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Confirm Publication</DialogTitle>
-                                            <DialogDescription>
-                                                This will make results for the selected term visible to all students and parents. Are you sure you want to proceed?
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <DialogFooter>
-                                            <DialogClose asChild>
-                                                <Button variant="outline">Cancel</Button>
-                                            </DialogClose>
-                                            <DialogClose asChild>
-                                                <Button onClick={handlePublishResults}>
-                                                    Confirm &amp; Publish
-                                                </Button>
-                                            </DialogClose>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                                <Button variant="secondary" onClick={handlePrintResults}><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
-                                <Button variant="secondary" onClick={handleDownloadAllReportCards}><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
-                            </div>
+                            <Select value={selectedReportExam} onValueChange={setSelectedReportExam} disabled={termExams.length === 0}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select an Exam"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {termExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title} ({exam.subject})</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                             <Select value={selectedReportClass} onValueChange={setSelectedReportClass} disabled={!selectedReportExam}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select a Class"/>
+                                </SelectTrigger>
+                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                            </Select>
                         </div>
                     </CardHeader>
                 </Card>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {selectedReportExam && selectedReportClass && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Class Ranking</CardTitle>
+                            <CardTitle>Class Ranking for {classes.find(c => c.id === selectedReportClass)?.name}</CardTitle>
+                            <CardDescription>Performance breakdown for the selected exam.</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <Accordion type="single" collapsible className="w-full">
-                                {Object.entries(rankedClasses).map(([classId, students]) => {
-                                    const className = classes.find(c => c.id === classId)?.name || 'Unknown Class';
-                                    return (
-                                    <AccordionItem key={classId} value={classId}>
-                                        <AccordionTrigger className="text-lg font-semibold">{className}</AccordionTrigger>
-                                        <AccordionContent>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Rank</TableHead>
-                                                        <TableHead>Student</TableHead>
-                                                        <TableHead className="text-right">Total Score</TableHead>
-                                                        <TableHead className="text-right">Average</TableHead>
-                                                        <TableHead>Grade</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {students.map(student => (
-                                                        <TableRow key={student.admNo} className="cursor-pointer" onClick={() => setSelectedStudentForReport(student)}>
-                                                            <TableCell className="font-bold">{student.position}</TableCell>
-                                                            <TableCell>{student.name}</TableCell>
-                                                            <TableCell className="text-right">{student.total}</TableCell>
-                                                            <TableCell className="text-right">{student.avg.toFixed(1)}%</TableCell>
-                                                            <TableCell><Badge>{student.grade}</Badge></TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                    )
-                            })}
-                            </Accordion>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Performance Analytics</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-2 gap-4 text-center mb-6">
-                                <div className="p-4 bg-muted/50 rounded-lg">
-                                    <p className="text-xs text-muted-foreground">Class Average</p>
-                                    <p className="text-2xl font-bold">{classRanking.length > 0 ? (classRanking.reduce((sum, s) => sum + s.avg, 0) / classRanking.length).toFixed(1) : 0}%</p>
-                                </div>
-                                <div className="p-4 bg-muted/50 rounded-lg">
-                                    <p className="text-xs text-muted-foreground">Pass Rate</p>
-                                    <p className="text-2xl font-bold">{classRanking.length > 0 ? (classRanking.filter(s => s.avg >= 40).length / classRanking.length * 100).toFixed(0) : 100}%</p>
-                                </div>
+                         <CardContent>
+                            <div id="class-ranking-table">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Rank</TableHead>
+                                            <TableHead>Student</TableHead>
+                                            <TableHead className="text-right">Total Score</TableHead>
+                                            <TableHead className="text-right">Average</TableHead>
+                                            <TableHead>Grade</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(rankedClasses[selectedReportClass] || []).map(student => (
+                                            <TableRow key={student.admNo} className="cursor-pointer" onClick={() => setSelectedStudentForReport(student)}>
+                                                <TableCell className="font-bold">{student.position}</TableCell>
+                                                <TableCell>{student.name}</TableCell>
+                                                <TableCell className="text-right">{student.total}</TableCell>
+                                                <TableCell className="text-right">{student.avg.toFixed(1)}%</TableCell>
+                                                <TableCell><Badge>{student.grade}</Badge></TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </div>
-                             <Separator />
-                            <h4 className="font-semibold text-sm my-4 text-center">Average Score by Subject</h4>
-                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                                <BarChart data={subjectPerformanceData}>
-                                <CartesianGrid vertical={false} />
-                                <XAxis dataKey="subject" tickLine={false} tickMargin={10} axisLine={false} />
-                                <YAxis />
-                                <ChartTooltip content={<ChartTooltipContent />} />
-                                <Bar dataKey="average" fill="var(--color-average)" radius={4} />
-                                </BarChart>
-                            </ChartContainer>
                         </CardContent>
+                         <CardFooter className="flex-wrap gap-2">
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="secondary">
+                                        <Bell className="mr-2 h-4 w-4" />
+                                        Publish Results
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Confirm Publication</DialogTitle>
+                                        <DialogDescription>
+                                            This will make results for this exam visible to all relevant students and parents. Are you sure you want to proceed?
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter>
+                                        <DialogClose asChild>
+                                            <Button variant="outline">Cancel</Button>
+                                        </DialogClose>
+                                        <DialogClose asChild>
+                                            <Button onClick={handlePublishResults}>
+                                                Confirm &amp; Publish
+                                            </Button>
+                                        </DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                            <Button variant="secondary" onClick={handlePrintResults}><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
+                            <Button variant="secondary" onClick={handleDownloadAllReportCards}><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
+                        </CardFooter>
                     </Card>
-                </div>
+                )}
              </TabsContent>
         </Tabs>
     </div>
   );
 }
-    
-    
-    
 
-
+    
