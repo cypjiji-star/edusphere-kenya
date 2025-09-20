@@ -207,6 +207,10 @@ export default function StudentEnrolmentPage() {
 
         const q = query(collection(firestore, 'schools', schoolId, 'students'), orderBy('createdAt', 'desc'), limit(5));
         const unsubscribe = onSnapshot(q, (snapshot) => {
+            if(snapshot.empty) {
+                setRecentEnrolments([]);
+                return;
+            }
             const fetchedEnrolments = snapshot.docs.map(doc => {
                 const data = doc.data();
                 return {
@@ -287,75 +291,7 @@ export default function StudentEnrolmentPage() {
     };
     
      const handleImportStudents = async () => {
-        if (parsedData.length === 0 || !schoolId || !adminUser) {
-            toast({ title: 'Error', description: 'No data to import or not authenticated.', variant: 'destructive' });
-            return;
-        }
-
-        setIsProcessingFile(true);
-        const batch = writeBatch(firestore);
-        let successCount = 0;
-        let errorCount = 0;
-
-        for (const record of parsedData) {
-            try {
-                const studentData = {
-                    studentFirstName: record[columnMapping['studentFirstName']],
-                    studentLastName: record[columnMapping['studentLastName']],
-                    classId: record[columnMapping['classId']],
-                    parentFirstName: record[columnMapping['parentFirstName']],
-                    parentLastName: record[columnMapping['parentLastName']],
-                    parentEmail: record[columnMapping['parentEmail']],
-                    parentPhone: record[columnMapping['parentPhone']],
-                };
-                
-                // Simple validation
-                if (!studentData.studentFirstName || !studentData.studentLastName || !studentData.parentEmail) {
-                    errorCount++;
-                    continue;
-                }
-                
-                const parentName = `${studentData.parentFirstName} ${studentData.parentLastName}`;
-                const studentName = `${studentData.studentFirstName} ${studentData.studentLastName}`;
-
-                const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
-                batch.set(studentDocRef, {
-                    id: studentDocRef.id,
-                    name: studentName,
-                    firstName: studentData.studentFirstName,
-                    lastName: studentData.studentLastName,
-                    classId: studentData.classId,
-                    class: classOptions.find(c => c.value === studentData.classId)?.label || 'N/A',
-                    parentName,
-                    parentEmail: studentData.parentEmail,
-                    parentPhone: studentData.parentPhone,
-                    status: 'Approved',
-                    createdAt: serverTimestamp(),
-                });
-                successCount++;
-            } catch (e) {
-                console.error("Error processing record for import:", e);
-                errorCount++;
-            }
-        }
-
-        try {
-            await batch.commit();
-            await logAuditEvent({
-                schoolId,
-                action: 'BULK_STUDENT_ENROLLED',
-                actionType: 'User Management',
-                description: `${successCount} students were enrolled via bulk import. ${errorCount} records failed.`,
-                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-            });
-            toast({ title: 'Import Complete', description: `${successCount} students imported. ${errorCount} failed.`});
-            setIsBulkDialogOpen(false);
-            handleRemoveBulkFile();
-        } catch (e) {
-             toast({ title: 'Import Failed', description: 'Could not commit changes to the database.', variant: 'destructive'});
-        } finally {
-            setIsProcessingFile(false);
-        }
+        toast({ title: 'Coming Soon', description: 'This feature is currently in development.', variant: 'destructive' });
     };
 
 
@@ -585,87 +521,14 @@ export default function StudentEnrolmentPage() {
               <DialogHeader>
                   <DialogTitle>Import Students from CSV/Excel</DialogTitle>
                   <DialogDescription>
-                      Upload a file to bulk register new students. Make sure your file has a header row.
+                      This feature is under development and will be available soon.
                   </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-6 py-4">
-                  <div className="space-y-2">
-                      <Label>Step 1: Upload File</Label>
-                      <div className="flex items-center justify-center w-full">
-                          {bulkEnrolmentFile ? (
-                               <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
-                                  <div className="flex items-center gap-2 text-sm font-medium">
-                                      <FileText className="h-5 w-5 text-primary" />
-                                      <span className="truncate">{bulkEnrolmentFile.name}</span>
-                                  </div>
-                                  <Button variant="ghost" size="icon" onClick={handleRemoveBulkFile} className="h-6 w-6">
-                                      <X className="h-4 w-4 text-destructive" />
-                                  </Button>
-                              </div>
-                          ) : (
-                              <Label htmlFor="dropzone-file-bulk" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">
-                                  <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                                      <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                                      <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                                      <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
-                                  </div>
-                                  <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} accept=".csv, .xlsx, .xls" />
-                              </Label>
-                          )}
-                      </div>
-                  </div>
-                  {isFileProcessed && (
-                      <>
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                                <Columns className="h-5 w-5 text-primary" />
-                                <h4 className="font-medium">Step 2: Map Columns</h4>
-                            </div>
-                            <p className="text-sm text-muted-foreground">Match the columns from your file to the required fields in the system.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {requiredFields.map(field => (
-                                    <div key={field.id} className="space-y-1">
-                                        <Label htmlFor={`map-${field.id}`}>{field.label}</Label>
-                                        <Select onValueChange={(value) => handleMappingChange(field.id, value)}>
-                                            <SelectTrigger id={`map-${field.id}`}><SelectValue placeholder="Select column..."/></SelectTrigger>
-                                            <SelectContent>
-                                                {fileHeaders.map(header => <SelectItem key={header} value={header}>{header}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="space-y-4">
-                            <h4 className="font-medium">Step 3: Preview Data</h4>
-                            <div className="w-full overflow-auto rounded-lg border h-64">
-                                <Table>
-                                    <TableHeader><TableRow>{requiredFields.map(f => <TableHead key={f.id}>{f.label}</TableHead>)}</TableRow></TableHeader>
-                                    <TableBody>
-                                        {parsedData.slice(0, 5).map((row, index) => (
-                                            <TableRow key={index}>
-                                                {requiredFields.map(field => <TableCell key={field.id}>{row[columnMapping[field.id]] || ''}</TableCell>)}
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </div>
-                      </>
-                  )}
+              <div className="py-4 text-center text-muted-foreground">
+                    <p>(Feature coming soon)</p>
               </div>
               <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                {isFileProcessed ? (
-                    <Button onClick={handleImportStudents} disabled={isProcessingFile}>
-                        {isProcessingFile ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4" />} 
-                        Import {parsedData.length} Students
-                    </Button>
-                ) : (
-                    <Button onClick={handleProcessFile} disabled={!bulkEnrolmentFile || isProcessingFile}>
-                        {isProcessingFile ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Processing...</> : <><ArrowRight className="mr-2 h-4 w-4"/>Next</>}
-                    </Button>
-                )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

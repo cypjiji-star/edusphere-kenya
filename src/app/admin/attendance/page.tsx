@@ -365,7 +365,43 @@ export default function AdminAttendancePage() {
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = React.useState('');
 
-  // Fetch all data based on the selected term
+  // Fetch static data once on component mount
+  React.useEffect(() => {
+    if (!schoolId) return;
+
+    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
+      const teacherNames = snapshot.docs.map(doc => doc.data().name);
+      setTeachers(['All Teachers', ...teacherNames]);
+    });
+
+    const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
+    const unsubClasses = onSnapshot(qClasses, (snapshot) => {
+      const classNames = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return `${data.name} ${data.stream || ''}`.trim();
+      });
+      setClasses(['All Classes', ...new Set(classNames)]);
+    });
+
+     const qStudents = query(collection(firestore, 'schools', schoolId, 'students'));
+    const unsubStudents = onSnapshot(qStudents, (snapshot) => {
+        setAllStudents(snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().name,
+            admissionNumber: doc.data().admissionNumber,
+            avatarUrl: doc.data().avatarUrl,
+        })));
+    });
+
+    return () => {
+        unsubTeachers();
+        unsubClasses();
+        unsubStudents();
+    };
+  }, [schoolId]);
+
+  // Fetch term-dependent data when term changes
   React.useEffect(() => {
     if (!schoolId) {
       setIsLoading(false);
@@ -443,33 +479,7 @@ export default function AdminAttendancePage() {
       const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveApplication));
       setLeaveApplications(apps);
     });
-
-    // These don't depend on term, so they can be fetched once
-    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
-    const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
-      const teacherNames = snapshot.docs.map(doc => doc.data().name);
-      setTeachers(['All Teachers', ...teacherNames]);
-    });
     
-    const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
-    const unsubClasses = onSnapshot(qClasses, (snapshot) => {
-      const classNames = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return `${data.name} ${data.stream || ''}`.trim();
-      });
-      setClasses(['All Classes', ...new Set(classNames)]);
-    });
-
-    const qStudents = query(collection(firestore, 'schools', schoolId, 'students'));
-    const unsubStudents = onSnapshot(qStudents, (snapshot) => {
-        setAllStudents(snapshot.docs.map(doc => ({
-            id: doc.id,
-            name: doc.data().name,
-            admissionNumber: doc.data().admissionNumber,
-            avatarUrl: doc.data().avatarUrl,
-        })));
-    });
-
     const qCommLogs = query(collection(firestore, 'schools', schoolId, 'communication_logs'), where('type', '==', 'attendance'));
     const unsubCommLogs = onSnapshot(qCommLogs, (snapshot) => {
       setCommunicationLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationLog)));
@@ -480,12 +490,9 @@ export default function AdminAttendancePage() {
       unsubscribeAttendance();
       unsubTeacherAttendance();
       unsubLeave();
-      unsubTeachers();
-      unsubClasses();
-      unsubStudents();
       unsubCommLogs();
     };
-  }, [schoolId, selectedTerm]);
+  }, [schoolId, selectedTerm, toast]);
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];

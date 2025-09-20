@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -693,30 +692,26 @@ export default function FeesPage() {
       setIsLoading(false);
       return;
     }
+    
+    const unsubscribers: (() => void)[] = [];
     setIsLoading(true);
 
     const schoolRef = doc(firestore, 'schools', schoolId);
-    getDoc(schoolRef).then((doc) => {
-      if (doc.exists()) {
-        setSchoolName(doc.data().name || 'School');
-      }
-    }).catch((e: unknown) => {
-      console.error('Error fetching school name:', e);
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-      toast({ title: 'Error', description: `Failed to fetch school details: ${errorMessage}`, variant: 'destructive' });
-    });
+    unsubscribers.push(onSnapshot(schoolRef, (docSnap) => {
+        if (docSnap.exists()) setSchoolName(docSnap.data().name || 'School');
+    }));
     
     const classQuery = query(collection(firestore, `schools/${schoolId}/classes`));
-    const unsubClass = onSnapshot(classQuery, (snapshot) => {
+    unsubscribers.push(onSnapshot(classQuery, (snapshot) => {
         const classList = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
         setClasses(classList);
         if (!selectedClassForStructure && classList.length > 0) {
             setSelectedClassForStructure(classList[0].id);
         }
-    });
+    }));
 
     const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
-    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+    unsubscribers.push(onSnapshot(studentsQuery, (snapshot) => {
       let totalBilled = 0;
       let totalCollected = 0;
       let clearedCount = 0;
@@ -737,29 +732,11 @@ export default function FeesPage() {
         let status: 'Paid' | 'Partial' | 'Overdue';
         if (studentBalance <= 0) {
           status = 'Paid';
-        } else {
-          status = isPast(dueDate) ? 'Overdue' : 'Partial';
-        }
-        
-
-        studentProfiles.push({
-          id: doc.id,
-          name: data.name || '',
-          classId: data.classId || '',
-          class: data.class || '',
-          avatarUrl: data.avatarUrl || '',
-          totalBilled: data.totalFee || 0,
-          totalPaid: data.amountPaid || 0,
-          balance: studentBalance,
-          status,
-          admissionNo: data.admissionNumber,
-        });
-
-        if (studentBalance <= 0) {
           clearedCount++;
         } else {
           arrearsCount++;
-          if (isPast(dueDate)) {
+          status = isPast(dueDate) ? 'Overdue' : 'Partial';
+          if (status === 'Overdue') {
             overdueCount++;
           } else {
             if (!nextDeadline || dueDate < nextDeadline) {
@@ -767,13 +744,17 @@ export default function FeesPage() {
             }
           }
           studentDebtors.push({
-            id: doc.id,
-            name: data.name,
-            class: data.class,
-            avatarUrl: data.avatarUrl,
-            balance: studentBalance,
+            id: doc.id, name: data.name, class: data.class,
+            avatarUrl: data.avatarUrl, balance: studentBalance,
           });
         }
+        
+        studentProfiles.push({
+          id: doc.id, name: data.name || '', classId: data.classId || '',
+          class: data.class || '', avatarUrl: data.avatarUrl || '',
+          totalBilled: data.totalFee || 0, totalPaid: data.amountPaid || 0,
+          balance: studentBalance, status, admissionNo: data.admissionNumber,
+        });
       });
 
       const outstanding = totalBilled - totalCollected;
@@ -789,12 +770,8 @@ export default function FeesPage() {
       setStudentsWithFees({ cleared: clearedCount, arrears: arrearsCount, overdue: overdueCount });
       setTopDebtors(studentDebtors.sort((a, b) => b.balance - a.balance).slice(0, 5));
       setAllStudents(studentProfiles);
-    }, (error: unknown) => {
-      console.error('Error fetching students:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast({ title: 'Error', description: `Failed to load student data: ${errorMessage}`, variant: 'destructive' });
-    });
-
+    }));
+    
     const today = new Date();
     const startOfToday = new Date(today.setHours(0, 0, 0, 0));
     const paymentsQuery = query(
@@ -802,59 +779,33 @@ export default function FeesPage() {
       where('date', '>=', Timestamp.fromDate(startOfToday)),
       where('type', '==', 'Payment')
     );
-    const unsubPayments = onSnapshot(paymentsQuery, (snapshot) => {
+    unsubscribers.push(onSnapshot(paymentsQuery, (snapshot) => {
       let todaysTotal = 0;
-      snapshot.forEach((doc) => {
-        todaysTotal += Math.abs(doc.data().amount);
-      });
+      snapshot.forEach((doc) => { todaysTotal += Math.abs(doc.data().amount); });
       setFinancials((prev) => ({ ...prev, todaysCollections: todaysTotal }));
-    }, (error: unknown) => {
-      console.error('Error fetching payments:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast({ title: 'Error', description: `Failed to load payment data: ${errorMessage}`, variant: 'destructive' });
-    });
-
+    }));
+    
     const transactionsQuery = query(
       collection(firestore, `schools/${schoolId}/transactions`),
       where('type', '==', 'Payment')
     );
-    const unsubTransactions = onSnapshot(transactionsQuery, (snapshot) => {
+    unsubscribers.push(onSnapshot(transactionsQuery, (snapshot) => {
       const monthlyCollections: Record<string, number> = {};
-      const months = eachMonthOfInterval({
-        start: startOfMonth(sub(new Date(), { months: 5 })),
-        end: endOfMonth(new Date()),
-      });
-
-      months.forEach((monthStart) => {
-        const monthName = format(monthStart, 'MMM');
-        monthlyCollections[monthName] = 0;
-      });
-
+      const months = eachMonthOfInterval({ start: startOfMonth(sub(new Date(), { months: 5 })), end: endOfMonth(new Date()) });
+      months.forEach((monthStart) => { monthlyCollections[format(monthStart, 'MMM')] = 0; });
       snapshot.forEach((doc) => {
         const tx = doc.data();
-        const txMonth = getMonth(tx.date.toDate());
-        const monthName = format(new Date(2000, txMonth, 1), 'MMM');
+        const monthName = format(tx.date.toDate(), 'MMM');
         if (monthlyCollections.hasOwnProperty(monthName)) {
           monthlyCollections[monthName] += Math.abs(tx.amount);
         }
       });
-
       setCollectionTrend(Object.entries(monthlyCollections).map(([month, collected]) => ({ month, collected })));
-    }, (error: unknown) => {
-      console.error('Error fetching transactions:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast({ title: 'Error', description: `Failed to load transaction data: ${errorMessage}`, variant: 'destructive' });
-    });
+    }));
 
     setIsLoading(false);
-
-    return () => {
-      unsubClass();
-      unsubStudents();
-      unsubPayments();
-      unsubTransactions();
-    };
-  }, [schoolId, toast, selectedClassForStructure]);
+    return () => { unsubscribers.forEach(unsub => unsub()); };
+  }, [schoolId]);
   
   React.useEffect(() => {
     if (!schoolId || !selectedClassForStructure || selectedClassForStructure === 'All Classes') {
