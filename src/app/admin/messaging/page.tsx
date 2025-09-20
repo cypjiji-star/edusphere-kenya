@@ -146,7 +146,7 @@ export default function MessagingPage() {
                                 </Avatar>
                                 <div>
                                     <CardTitle>{selectedConversation.userName}</CardTitle>
-                                    <CardDescription>User ID: {selectedConversation.userId}</CardDescription>
+                                    <CardDescription>Conversation with {selectedConversation.userName}</CardDescription>
                                 </div>
                             </div>
                         ) : (

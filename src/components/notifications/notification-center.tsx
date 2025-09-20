@@ -48,7 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
 import { Input } from '../ui/input';
-import { Avatar, AvatarFallback } from '../ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { supportChatbot } from '@/ai/flows/support-chatbot-flow';
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
@@ -65,10 +65,27 @@ export type Notification = {
   userId?: string;
 };
 
-type Message = {
+type AiMessage = {
   role: 'user' | 'model';
   content: string;
 };
+
+type AdminMessage = {
+  role: 'user' | 'model' | 'admin';
+  content: string;
+};
+
+type Conversation = {
+    id: string;
+    userName: string;
+    userAvatar: string;
+    userId: string;
+    lastMessage: string;
+    lastUpdate: Timestamp;
+    isEscalated: boolean;
+    messages: AdminMessage[];
+};
+
 
 const aiEscalationMessage = "Understood. I'm escalating your request to a human administrator who will get back to you shortly.";
 
@@ -134,8 +151,152 @@ function NotificationItem({
   );
 }
 
+function AdminMessagesTab() {
+    const searchParams = useSearchParams();
+    const schoolId = searchParams.get('schoolId');
+    const { user } = useAuth();
+    const [conversations, setConversations] = React.useState<Conversation[]>([]);
+    const [selectedConversation, setSelectedConversation] = React.useState<Conversation | null>(null);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [reply, setReply] = React.useState('');
+    const [isSending, setIsSending] = React.useState(false);
+    const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [selectedConversation?.messages]);
+
+    React.useEffect(() => {
+        if (!schoolId) {
+            setIsLoading(false);
+            return;
+        }
+
+        const q = query(
+            collection(firestore, `schools/${schoolId}/support-chats`),
+            where('isEscalated', '==', true),
+            orderBy('lastUpdate', 'desc')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const convos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
+            setConversations(convos);
+
+            if (selectedConversation) {
+              const updatedConvo = convos.find(c => c.id === selectedConversation.id);
+              setSelectedConversation(updatedConvo || null);
+            }
+            
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [schoolId, selectedConversation]);
+
+    const handleSendMessage = async () => {
+        if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
+        
+        setIsSending(true);
+        const newMessages: AdminMessage[] = [...selectedConversation.messages, { role: 'admin', content: reply }];
+
+        try {
+            const conversationRef = doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id);
+            await updateDoc(conversationRef, {
+                messages: newMessages,
+                lastMessage: reply,
+                lastUpdate: serverTimestamp(),
+            });
+            setReply('');
+        } catch (error) {
+            console.error("Error sending reply:", error);
+        } finally {
+            setIsSending(false);
+        }
+    };
+    
+    return (
+        <div className="h-full flex flex-col">
+            {!selectedConversation ? (
+                <ScrollArea className="flex-1">
+                    <div className="p-2 space-y-1">
+                        {isLoading ? (
+                            <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin"/></div>
+                        ) : conversations.length > 0 ? (
+                             conversations.map(convo => (
+                                <button
+                                    key={convo.id}
+                                    onClick={() => setSelectedConversation(convo)}
+                                    className="w-full text-left p-3 rounded-lg flex items-start gap-3 hover:bg-muted/50"
+                                >
+                                    <Avatar>
+                                        <AvatarImage src={convo.userAvatar}/>
+                                        <AvatarFallback><User /></AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 overflow-hidden">
+                                        <div className="flex justify-between items-center">
+                                            <p className="font-semibold truncate text-sm">{convo.userName}</p>
+                                            <p className="text-xs text-muted-foreground">{convo.lastUpdate?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground truncate">{convo.lastMessage}</p>
+                                    </div>
+                                </button>
+                            ))
+                        ) : (
+                            <div className="text-center py-16 text-muted-foreground">
+                                <p>No escalated chats.</p>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+            ) : (
+            <>
+                <div className="p-4 border-b">
+                    <Button variant="link" onClick={() => setSelectedConversation(null)} className="p-0 h-auto text-sm">
+                        &larr; Back to all chats
+                    </Button>
+                </div>
+                 <ScrollArea className="flex-1">
+                    <div className="p-4 space-y-4">
+                        {selectedConversation.messages?.map((message, index) => {
+                            const isAdmin = message.role === 'admin';
+                            const isUser = message.role === 'user';
+                            const isModel = message.role === 'model';
+                            return (
+                            <div key={index} className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
+                                {(isModel || isAdmin) && (
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarFallback>
+                                            {isModel ? <Sparkles /> : user?.displayName?.charAt(0)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                )}
+                                <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", 
+                                    isUser ? 'bg-primary text-primary-foreground' : 
+                                    (isAdmin ? 'bg-secondary text-secondary-foreground' : 'bg-muted')
+                                )}>
+                                    <p>{message.content}</p>
+                                </div>
+                            </div>
+                        )})}
+                        <div ref={messagesEndRef} />
+                    </div>
+                </ScrollArea>
+                 <div className="p-4 border-t">
+                    <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex w-full items-center gap-2">
+                        <Input placeholder="Type your reply..." value={reply} onChange={(e) => setReply(e.target.value)} />
+                        <Button type="submit" size="icon" disabled={isSending}>
+                            <Send className="h-4 w-4" />
+                        </Button>
+                    </form>
+                </div>
+            </>
+            )}
+        </div>
+    )
+}
+
 function AiChatTab() {
-  const [messages, setMessages] = React.useState<Message[]>([
+  const [messages, setMessages] = React.useState<AiMessage[]>([
     { role: 'model', content: 'Hello! I am the EduSphere AI assistant. How can I help you?' }
   ]);
   const [input, setInput] = React.useState('');
@@ -154,7 +315,7 @@ function AiChatTab() {
     if (!schoolId || !user || isEscalated) return;
     
     setIsLoading(true);
-    const escalationMessage: Message = { role: 'model', content: aiEscalationMessage };
+    const escalationMessage: AiMessage = { role: 'model', content: aiEscalationMessage };
     
     try {
         await addDoc(collection(firestore, `schools/${schoolId}/support-chats`), {
@@ -181,7 +342,7 @@ function AiChatTab() {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const userMessage: Message = { role: 'user', content: input };
+    const userMessage: AiMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
@@ -191,12 +352,12 @@ function AiChatTab() {
         if (result.response === aiEscalationMessage) {
             await handleEscalate();
         } else {
-            const aiMessage: Message = { role: 'model', content: result.response };
+            const aiMessage: AiMessage = { role: 'model', content: result.response };
             setMessages(prev => [...prev, aiMessage]);
         }
     } catch (error) {
         console.error("Error with AI chatbot:", error);
-        const errorMessage: Message = { role: 'model', content: 'Sorry, I encountered an error. Please try again.' };
+        const errorMessage: AiMessage = { role: 'model', content: 'Sorry, I encountered an error. Please try again.' };
         setMessages(prev => [...prev, errorMessage]);
     } finally {
         setIsLoading(false);
@@ -352,12 +513,10 @@ export function NotificationCenter() {
                         Notifications
                         {unreadCount > 0 && <span className="ml-2 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">{unreadCount}</span>}
                     </TabsTrigger>
-                    {role !== 'admin' && (
-                        <TabsTrigger value="messages">
-                            <MessageCircle className="mr-2 h-4 w-4" />
-                            AI Support
-                        </TabsTrigger>
-                    )}
+                    <TabsTrigger value="messages">
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        {role === 'admin' ? 'Messages' : 'AI Support'}
+                    </TabsTrigger>
                 </TabsList>
             </SheetHeader>
             <TabsContent value="notifications" className="flex-1 mt-0">
@@ -381,11 +540,9 @@ export function NotificationCenter() {
                     </div>
                 </ScrollArea>
             </TabsContent>
-            {role !== 'admin' && (
               <TabsContent value="messages" className="flex-1 mt-0 h-full">
-                  <AiChatTab />
+                  {role === 'admin' ? <AdminMessagesTab /> : <AiChatTab />}
               </TabsContent>
-            )}
         </Tabs>
       </SheetContent>
     </Sheet>
