@@ -1487,9 +1487,9 @@ export default function TeacherGradesPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 h-auto">
                 <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
-                <TabsTrigger value="gradebook" disabled>Gradebook</TabsTrigger>
+                <TabsTrigger value="gradebook">Gradebook</TabsTrigger>
                 <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
-                <TabsTrigger value="reports">Exam Reports</TabsTrigger>
+                <TabsTrigger value="reports">Analytics</TabsTrigger>
             </TabsList>
             <TabsContent value="exam-management" className="mt-4">
                 <Card>
@@ -1618,8 +1618,104 @@ export default function TeacherGradesPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Gradebook</CardTitle>
-                        <CardDescription>This feature is coming soon.</CardDescription>
+                        <CardDescription>Generate and view detailed performance reports for specific exams.</CardDescription>
+                        <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
+                            <Select value={selectedReportTerm} onValueChange={setSelectedReportTerm}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select Term/Year"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select value={selectedReportExamTitle} onValueChange={setSelectedReportExamTitle} disabled={termExams.length === 0}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select an Exam"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {[...new Set(termExams.map(exam => exam.title))].map(title => <SelectItem key={title} value={title}>{title}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select value={reportClassFilter} onValueChange={setReportClassFilter} disabled={!selectedReportExamTitle}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Select a Class"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Classes</SelectItem>
+                                  {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </CardHeader>
+                    <CardContent className="space-y-6">
+                        {selectedReportExamTitle &&
+                        Object.entries(classRankings)
+                            .filter(([classId]) => reportClassFilter === 'all' || classId === reportClassFilter)
+                            .map(([classId, ranking]) => (
+                            <Card key={classId}>
+                                <CardHeader>
+                                    <CardTitle>Class Ranking for {classes.find(c => c.id === classId)?.name}</CardTitle>
+                                    <CardDescription>Performance breakdown for the selected exam.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div id={`class-ranking-table-${classId}`}>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Rank</TableHead>
+                                                    <TableHead>Student</TableHead>
+                                                    <TableHead className="text-right">Total Score</TableHead>
+                                                    <TableHead className="text-right">Average</TableHead>
+                                                    <TableHead>Grade</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {ranking.map(student => (
+                                                    <TableRow key={student.admNo} className="cursor-pointer" onClick={() => setSelectedStudentForReport(student)}>
+                                                        <TableCell className="font-bold">{student.position}</TableCell>
+                                                        <TableCell>{student.name}</TableCell>
+                                                        <TableCell className="text-right">{student.total}</TableCell>
+                                                        <TableCell className="text-right">{student.avg.toFixed(1)}%</TableCell>
+                                                        <TableCell><Badge>{student.grade}</Badge></TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="flex-wrap gap-2">
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="secondary">
+                                                <Bell className="mr-2 h-4 w-4" />
+                                                Publish Results
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Confirm Publication</DialogTitle>
+                                                <DialogDescription>
+                                                    This will make results for this exam visible to all relevant students and parents. Are you sure you want to proceed?
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="outline">Cancel</Button>
+                                                </DialogClose>
+                                                <DialogClose asChild>
+                                                    <Button onClick={handlePublishResults}>
+                                                        Confirm &amp; Publish
+                                                    </Button>
+                                                </DialogClose>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                    <Button variant="secondary" onClick={handlePrintResults}><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
+                                    <Button variant="secondary" onClick={handleDownloadAllReportCards}><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </CardContent>
                 </Card>
             </TabsContent>
             <TabsContent value="moderation" className="mt-4 space-y-6">
@@ -1732,105 +1828,23 @@ export default function TeacherGradesPage() {
             <TabsContent value="reports" className="mt-4 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Exam Reports</CardTitle>
-                        <CardDescription>Generate and view detailed performance reports for specific exams.</CardDescription>
-                        <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
-                            <Select value={selectedReportTerm} onValueChange={setSelectedReportTerm}>
-                                <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select Term/Year"/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={selectedReportExamTitle} onValueChange={setSelectedReportExamTitle} disabled={termExams.length === 0}>
-                                <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select an Exam"/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {[...new Set(termExams.map(exam => exam.title))].map(title => <SelectItem key={title} value={title}>{title}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={reportClassFilter} onValueChange={setReportClassFilter} disabled={!selectedReportExamTitle}>
-                                <SelectTrigger className="w-full md:w-[240px]">
-                                    <SelectValue placeholder="Select a Class"/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All Classes</SelectItem>
-                                  {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <CardTitle>Subject Performance</CardTitle>
+                        <CardDescription>Average scores across all classes for each subject.</CardDescription>
                     </CardHeader>
+                    <CardContent>
+                         <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                            <BarChart data={subjectPerformanceData} layout="vertical" margin={{ left: 10 }}>
+                                <CartesianGrid horizontal={false} />
+                                <YAxis dataKey="subject" type="category" tickLine={false} tickMargin={10} axisLine={false} />
+                                <XAxis dataKey="average" type="number" hide />
+                                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                <Bar dataKey="average" fill="var(--color-average)" radius={5}>
+                                     <LabelList dataKey="average" position="right" offset={8} className="fill-foreground" fontSize={12} formatter={(value: number) => `${value}%`} />
+                                </Bar>
+                            </BarChart>
+                        </ChartContainer>
+                    </CardContent>
                 </Card>
-
-                {selectedReportExamTitle &&
-                Object.entries(classRankings)
-                    .filter(([classId]) => reportClassFilter === 'all' || classId === reportClassFilter)
-                    .map(([classId, ranking]) => (
-                    <Card key={classId}>
-                        <CardHeader>
-                            <CardTitle>Class Ranking for {classes.find(c => c.id === classId)?.name}</CardTitle>
-                            <CardDescription>Performance breakdown for the selected exam.</CardDescription>
-                        </CardHeader>
-                         <CardContent>
-                            <div id={`class-ranking-table-${classId}`}>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Rank</TableHead>
-                                            <TableHead>Student</TableHead>
-                                            <TableHead className="text-right">Total Score</TableHead>
-                                            <TableHead className="text-right">Average</TableHead>
-                                            <TableHead>Grade</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {ranking.map(student => (
-                                            <TableRow key={student.admNo} className="cursor-pointer" onClick={() => setSelectedStudentForReport(student)}>
-                                                <TableCell className="font-bold">{student.position}</TableCell>
-                                                <TableCell>{student.name}</TableCell>
-                                                <TableCell className="text-right">{student.total}</TableCell>
-                                                <TableCell className="text-right">{student.avg.toFixed(1)}%</TableCell>
-                                                <TableCell><Badge>{student.grade}</Badge></TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                         <CardFooter className="flex-wrap gap-2">
-                             <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="secondary">
-                                        <Bell className="mr-2 h-4 w-4" />
-                                        Publish Results
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Confirm Publication</DialogTitle>
-                                        <DialogDescription>
-                                            This will make results for this exam visible to all relevant students and parents. Are you sure you want to proceed?
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <DialogFooter>
-                                        <DialogClose asChild>
-                                            <Button variant="outline">Cancel</Button>
-                                        </DialogClose>
-                                        <DialogClose asChild>
-                                            <Button onClick={handlePublishResults}>
-                                                Confirm &amp; Publish
-                                            </Button>
-                                        </DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                            <Button variant="secondary" onClick={handlePrintResults}><Printer className="mr-2 h-4 w-4"/>Print Class Results</Button>
-                            <Button variant="secondary" onClick={handleDownloadAllReportCards}><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
-                        </CardFooter>
-                    </Card>
-                ))}
              </TabsContent>
         </Tabs>
     </div>
