@@ -502,7 +502,7 @@ export default function StudentEnrolmentPage() {
                     const chargeTransactionRef = doc(collection(studentDocRef, 'transactions'));
                     transaction.set(chargeTransactionRef, {
                         date: serverTimestamp(), description: 'Annual School Fees',
-                        type: 'Charge', amount: totalFee, balance: totalFee,
+                        type: 'Charge', amount: totalFee, balance: initialBalance,
                     });
                 }
                 if (amountPaid > 0) {
@@ -887,3 +887,5 @@ export default function StudentEnrolmentPage() {
     </div>
   );
 }
+
+    

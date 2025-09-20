@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { firestore } from "@/lib/firebase";
+import { firestore, storage } from "@/lib/firebase";
 import {
   collection,
   query,
@@ -17,6 +17,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -129,7 +130,15 @@ function LeaveManagementTab({ schoolId, user }: { schoolId: string, user: any })
             return;
         }
         setIsSubmitting(true);
+        let attachmentUrl;
+
         try {
+            if (attachment) {
+                const storageRef = ref(storage, `schools/${schoolId}/leave_attachments/${Date.now()}_${attachment.name}`);
+                await uploadBytes(storageRef, attachment);
+                attachmentUrl = await getDownloadURL(storageRef);
+            }
+
             await addDoc(collection(firestore, `schools/${schoolId}/leave-applications`), {
                 teacherId: user.uid,
                 teacherName: user.displayName || 'Teacher',
@@ -139,6 +148,7 @@ function LeaveManagementTab({ schoolId, user }: { schoolId: string, user: any })
                 reason,
                 status: 'Pending',
                 submittedAt: serverTimestamp(),
+                attachmentUrl: attachmentUrl || null,
             });
             toast({ title: 'Leave Application Submitted', description: 'Your request has been sent for approval.'});
             setLeaveType('');
@@ -284,7 +294,11 @@ export default function AttendancePage() {
 
   // Fetch classes assigned to the teacher first
   useEffect(() => {
-    if (!user || !schoolId) return;
+    if (!user || !schoolId) {
+        setTeacherClasses([]);
+        setIsLoading(false);
+        return;
+    };
     setIsLoading(true);
     const q = query(
       collection(firestore, "schools", schoolId, "classes"),
@@ -609,3 +623,5 @@ export default function AttendancePage() {
     </div>
   );
 }
+
+    
