@@ -82,8 +82,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 
 
 // Define both lowercase and title case status types
-type AttendanceStatus = 'Present' | 'Absent' | 'Late';
-type AttendanceStatusLower = 'present' | 'absent' | 'late';
+type AttendanceStatus = 'Present' | 'Absent' | 'Late' | 'CheckedOut';
+type AttendanceStatusLower = 'present' | 'absent' | 'late' | 'checkedout';
 
 type AttendanceRecord = {
   id: string;
@@ -95,6 +95,15 @@ type AttendanceRecord = {
   teacherId?: string;
   date: Timestamp;
   status: AttendanceStatus;
+};
+
+type TeacherAttendanceRecord = {
+    id: string;
+    teacherName: string;
+    date: Timestamp;
+    status: AttendanceStatus;
+    checkInTime?: Timestamp;
+    checkOutTime?: Timestamp;
 };
 
 type Student = {
@@ -122,6 +131,7 @@ const normalizeStatus = (status: string): AttendanceStatus => {
     case 'present': return 'Present';
     case 'absent': return 'Absent';
     case 'late': return 'Late';
+    case 'checkedout': return 'CheckedOut';
     default: return 'Present'; // Default fallback
   }
 };
@@ -129,6 +139,7 @@ const normalizeStatus = (status: string): AttendanceStatus => {
 const getStatusBadge = (status: AttendanceStatus) => {
     switch (status) {
         case 'Present': return <Badge variant="default" className="bg-primary hover:bg-primary/90">Present</Badge>;
+        case 'CheckedOut': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Checked Out</Badge>;
         case 'Absent': return <Badge variant="destructive">Absent</Badge>;
         case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Late</Badge>;
         default: return <Badge variant="outline">Unknown</Badge>;
@@ -326,6 +337,7 @@ export default function AdminAttendancePage() {
   const [selectedTerm, setSelectedTerm] = React.useState(getCurrentTerm());
   const { toast } = useToast();
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
+  const [teacherAttendanceRecords, setTeacherAttendanceRecords] = React.useState<TeacherAttendanceRecord[]>([]);
   const [communicationLogs, setCommunicationLogs] = React.useState<CommunicationLog[]>([]);
   const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
@@ -424,12 +436,26 @@ export default function AdminAttendancePage() {
       setCommunicationLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationLog)));
     });
 
+     const qTeacherAttendance = query(collection(firestore, 'schools', schoolId, 'teacher_attendance'));
+    const unsubTeacherAttendance = onSnapshot(qTeacherAttendance, (snapshot) => {
+      const records: TeacherAttendanceRecord[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        teacherName: doc.data().teacherName,
+        date: doc.data().date,
+        status: normalizeStatus(doc.data().status),
+        checkInTime: doc.data().checkInTime,
+        checkOutTime: doc.data().checkOutTime,
+      }));
+      setTeacherAttendanceRecords(records);
+    });
+
     return () => {
       unsubscribe();
       unsubTeachers();
       unsubClasses();
       unsubStudents();
       unsubCommLogs();
+      unsubTeacherAttendance();
     };
   }, [schoolId, toast, selectedTerm]);
   
@@ -493,6 +519,20 @@ export default function AdminAttendancePage() {
 
     return isDateInRange && matchesSearch && matchesClass && matchesTeacher && matchesStatus;
   }), [allRecords, date, searchTerm, classFilter, teacherFilter, statusFilter]);
+
+   const filteredTeacherRecords = React.useMemo(() => {
+    if (!date?.from) return [];
+    
+    const fromDate = new Date(date.from);
+    fromDate.setHours(0, 0, 0, 0);
+    const toDate = date.to ? new Date(date.to) : new Date(date.from);
+    toDate.setHours(23, 59, 59, 999);
+
+    return teacherAttendanceRecords.filter(record => {
+      const recordDate = record.date.toDate();
+      return recordDate >= fromDate && recordDate <= toDate;
+    });
+  }, [teacherAttendanceRecords, date]);
   
   const handleExport = (type: 'PDF' | 'CSV') => {
     const doc = new jsPDF();
@@ -582,8 +622,9 @@ export default function AdminAttendancePage() {
       
        <Tabs defaultValue="overview">
         <TabsList className="mb-4 flex-wrap h-auto justify-start sm:justify-center">
-            <TabsTrigger value="overview">School-wide Overview</TabsTrigger>
-            <TabsTrigger value="student">Student Analytics</TabsTrigger>
+            <TabsTrigger value="overview">Student Overview</TabsTrigger>
+            <TabsTrigger value="teacher">Teacher Attendance</TabsTrigger>
+            <TabsTrigger value="student_analytics">Student Analytics</TabsTrigger>
             <TabsTrigger value="comms">Communication Log</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
@@ -852,7 +893,47 @@ export default function AdminAttendancePage() {
             </>
             )}
         </TabsContent>
-         <TabsContent value="student">
+         <TabsContent value="teacher">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Teacher Attendance</CardTitle>
+                    <CardDescription>A log of teacher check-ins and check-outs for the selected date.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="w-full overflow-auto rounded-lg border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Teacher</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Check-in Time</TableHead>
+                                    <TableHead>Check-out Time</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredTeacherRecords.length > 0 ? (
+                                    filteredTeacherRecords.map((record) => (
+                                        <TableRow key={record.id}>
+                                            <TableCell>{record.teacherName}</TableCell>
+                                            <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                            <TableCell>{record.checkInTime ? format(record.checkInTime.toDate(), 'p') : '—'}</TableCell>
+                                            <TableCell>{record.checkOutTime ? format(record.checkOutTime.toDate(), 'p') : '—'}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                     <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">
+                                            No teacher attendance records for the selected date.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+        </TabsContent>
+         <TabsContent value="student_analytics">
            <Card>
                 <CardHeader>
                     <CardTitle>Detailed Student History</CardTitle>
