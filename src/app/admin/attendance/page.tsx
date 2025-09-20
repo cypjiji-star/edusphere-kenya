@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Bar, BarChart, CartesianGrid, XAxis, ResponsiveContainer } from 'recharts';
 import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, Timestamp, getDocs, doc, getDoc, orderBy, addDoc, serverTimestamp, limit } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, Timestamp, getDocs, doc, getDoc, orderBy, addDoc, serverTimestamp, limit, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -73,6 +73,8 @@ import {
   User as UserIcon,
   Mail,
   ArrowRight,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -122,6 +124,18 @@ type CommunicationLog = {
     sentAt: Timestamp;
 };
 
+type LeaveApplication = {
+  id: string;
+  teacherName: string;
+  teacherId: string;
+  leaveType: string;
+  startDate: Timestamp;
+  endDate: Timestamp;
+  reason: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  attachmentUrl?: string;
+};
+
 
 const statuses: (AttendanceStatus | 'All Statuses')[] = ['All Statuses', 'Present', 'Absent', 'Late'];
 
@@ -136,12 +150,15 @@ const normalizeStatus = (status: string): AttendanceStatus => {
   }
 };
 
-const getStatusBadge = (status: AttendanceStatus) => {
+const getStatusBadge = (status: AttendanceStatus | LeaveApplication['status']) => {
     switch (status) {
         case 'Present': return <Badge variant="default" className="bg-primary hover:bg-primary/90">Present</Badge>;
         case 'CheckedOut': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Checked Out</Badge>;
         case 'Absent': return <Badge variant="destructive">Absent</Badge>;
         case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Late</Badge>;
+        case 'Pending': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Pending</Badge>;
+        case 'Approved': return <Badge className="bg-green-600 text-white hover:bg-green-700">Approved</Badge>;
+        case 'Rejected': return <Badge variant="destructive">Rejected</Badge>;
         default: return <Badge variant="outline">Unknown</Badge>;
     }
 }
@@ -336,6 +353,7 @@ export default function AdminAttendancePage() {
   const { toast } = useToast();
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
   const [teacherAttendanceRecords, setTeacherAttendanceRecords] = React.useState<TeacherAttendanceRecord[]>([]);
+  const [leaveApplications, setLeaveApplications] = React.useState<LeaveApplication[]>([]);
   const [communicationLogs, setCommunicationLogs] = React.useState<CommunicationLog[]>([]);
   const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
@@ -347,7 +365,7 @@ export default function AdminAttendancePage() {
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = React.useState('');
 
-  // Fetch all attendance records from the correct database structure
+  // Fetch all data based on the selected term
   React.useEffect(() => {
     if (!schoolId) {
       setIsLoading(false);
@@ -399,7 +417,7 @@ export default function AdminAttendancePage() {
       setIsLoading(false);
     }, (error) => {
         console.error('Error fetching attendance records:', error);
-        toast({ title: 'Error', description: 'Failed to load attendance records', variant: 'destructive'});
+        toast({ title: 'Error', description: 'Failed to load student attendance records', variant: 'destructive'});
         setIsLoading(false);
     });
 
@@ -419,9 +437,14 @@ export default function AdminAttendancePage() {
       }));
       setTeacherAttendanceRecords(records);
     });
+    
+    const leaveQuery = query(collection(firestore, `schools/${schoolId}/leave-applications`));
+    const unsubLeave = onSnapshot(leaveQuery, (snapshot) => {
+      const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveApplication));
+      setLeaveApplications(apps);
+    });
 
-
-    // Set up real-time listeners for teachers and classes (these don't depend on term)
+    // These don't depend on term, so they can be fetched once
     const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
     const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
       const teacherNames = snapshot.docs.map(doc => doc.data().name);
@@ -456,6 +479,7 @@ export default function AdminAttendancePage() {
     return () => {
       unsubscribeAttendance();
       unsubTeacherAttendance();
+      unsubLeave();
       unsubTeachers();
       unsubClasses();
       unsubStudents();
@@ -532,6 +556,18 @@ export default function AdminAttendancePage() {
     });
   }, [teacherAttendanceRecords, date]);
   
+    const handleLeaveAction = async (id: string, newStatus: 'Approved' | 'Rejected') => {
+    if (!schoolId) return;
+    const leaveRef = doc(firestore, `schools/${schoolId}/leave-applications`, id);
+    try {
+        await updateDoc(leaveRef, { status: newStatus });
+        toast({ title: 'Leave Updated', description: `The application has been ${newStatus.toLowerCase()}.` });
+    } catch (e) {
+        toast({ title: 'Error', description: 'Could not update leave status.', variant: 'destructive' });
+    }
+  };
+
+
   const handleExport = (type: 'PDF' | 'CSV') => {
     const doc = new jsPDF();
     const tableData = filteredRecords.map(record => [
@@ -619,9 +655,10 @@ export default function AdminAttendancePage() {
       </div>
       
        <Tabs defaultValue="overview">
-        <TabsList className="mb-4 flex-wrap h-auto justify-start sm:justify-center">
+        <TabsList className="mb-4 grid h-auto w-full grid-cols-2 md:grid-cols-5">
             <TabsTrigger value="overview">Student Overview</TabsTrigger>
             <TabsTrigger value="teacher">Teacher Attendance</TabsTrigger>
+            <TabsTrigger value="leave">Leave Requests</TabsTrigger>
             <TabsTrigger value="student_analytics">Student Analytics</TabsTrigger>
             <TabsTrigger value="comms">Communication Log</TabsTrigger>
         </TabsList>
@@ -922,6 +959,56 @@ export default function AdminAttendancePage() {
                                      <TableRow>
                                         <TableCell colSpan={4} className="h-24 text-center">
                                             No teacher attendance records for the selected date.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+        </TabsContent>
+         <TabsContent value="leave">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Leave Requests</CardTitle>
+                    <CardDescription>Review and approve leave applications submitted by staff.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="w-full overflow-auto rounded-lg border">
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Teacher</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Dates</TableHead>
+                                    <TableHead>Reason</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {leaveApplications.map(app => (
+                                    <TableRow key={app.id}>
+                                        <TableCell>{app.teacherName}</TableCell>
+                                        <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
+                                        <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
+                                        <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
+                                        <TableCell>{getStatusBadge(app.status)}</TableCell>
+                                        <TableCell className="text-right">
+                                            {app.status === 'Pending' ? (
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app.id, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
+                                                    <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app.id, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
+                                                </div>
+                                            ) : '—'}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {leaveApplications.length === 0 && (
+                                     <TableRow>
+                                        <TableCell colSpan={6} className="h-24 text-center">
+                                            No pending leave applications.
                                         </TableCell>
                                     </TableRow>
                                 )}
