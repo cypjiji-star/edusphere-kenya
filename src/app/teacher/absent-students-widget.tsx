@@ -59,27 +59,30 @@ export function AbsentStudentsWidget() {
                 where('status', 'in', ['absent', 'late'])
             );
 
-            const attendanceSnapshot = await getDocs(attendanceQuery);
-            const absentStudentData: AbsentStudent[] = [];
+            const unsubAttendance = onSnapshot(attendanceQuery, async (attendanceSnapshot) => {
+                const absentStudentData: AbsentStudent[] = [];
 
-            for (const attendanceDoc of attendanceSnapshot.docs) {
-                const attendance = attendanceDoc.data();
-                if (attendance.studentId) {
-                    const studentDocSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, attendance.studentId));
-                    if (studentDocSnap.exists()) {
-                         const studentData = studentDocSnap.data();
-                         absentStudentData.push({
-                            id: studentData.id,
-                            name: studentData.name,
-                            avatarUrl: studentData.avatarUrl,
-                            className: studentData.class,
-                            attendance: attendance.status as 'absent' | 'late',
-                        });
+                for (const attendanceDoc of attendanceSnapshot.docs) {
+                    const attendance = attendanceDoc.data();
+                    if (attendance.studentId) {
+                        const studentDocSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, attendance.studentId));
+                        if (studentDocSnap.exists()) {
+                             const studentData = studentDocSnap.data();
+                             absentStudentData.push({
+                                id: studentData.id,
+                                name: studentData.name,
+                                avatarUrl: studentData.avatarUrl,
+                                className: studentData.class,
+                                attendance: attendance.status as 'absent' | 'late',
+                            });
+                        }
                     }
                 }
-            }
-            setAbsentStudents(absentStudentData);
-            setIsLoading(false);
+                setAbsentStudents(absentStudentData);
+                setIsLoading(false);
+            });
+            
+            return () => unsubAttendance();
         });
 
         return () => unsubscribe();

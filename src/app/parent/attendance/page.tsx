@@ -139,7 +139,7 @@ export default function ParentAttendancePage() {
         setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [schoolId, user, selectedChild, toast]);
+  }, [schoolId, user, toast]);
 
   // Fetch attendance records for the selected child
   React.useEffect(() => {

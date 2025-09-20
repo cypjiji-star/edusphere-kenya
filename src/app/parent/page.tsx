@@ -309,145 +309,99 @@ export default function ParentDashboard() {
     const [selectedChild, setSelectedChild] = React.useState<Child | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
+    
+    const fetchData = React.useCallback(async () => {
+        if (!schoolId || !parentId) return;
 
-    React.useEffect(() => {
-        if (!schoolId || !parentId) {
-            setIsLoading(false);
-            return;
-        }
+        try {
+            const schoolDocPromise = getDoc(doc(firestore, 'schools', schoolId));
+            const parentDocPromise = getDoc(doc(firestore, 'schools', schoolId, 'users', parentId));
+            const [schoolDoc, parentDoc] = await Promise.all([schoolDocPromise, parentDocPromise]);
 
-        setIsLoading(true);
-        setError(null);
+            if (schoolDoc.exists()) setSchoolName(schoolDoc.data().name);
+            if (parentDoc.exists()) setParentName(parentDoc.data().name || 'Parent');
 
-        const fetchData = async () => {
-            try {
-                 // Fetch school name and parent name
-                const schoolDocPromise = getDoc(doc(firestore, 'schools', schoolId));
-                const parentDocPromise = getDoc(doc(firestore, 'schools', schoolId, 'users', parentId));
-                const [schoolDoc, parentDoc] = await Promise.all([schoolDocPromise, parentDocPromise]);
-                
-                if (schoolDoc.exists()) setSchoolName(schoolDoc.data().name);
-                if (parentDoc.exists()) setParentName(parentDoc.data().name || 'Parent');
+            const childrenQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+            const childrenSnapshot = await getDocs(childrenQuery);
 
-                // Fetch children associated with the parent
-                const childrenQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
-                const childrenSnapshot = await getDocs(childrenQuery);
-
-                if (childrenSnapshot.empty) {
-                    setChildrenData([]);
-                    setIsLoading(false);
-                    return;
-                }
-
-                const studentIds = childrenSnapshot.docs.map(doc => doc.id);
-
-                // Bulk fetch all attendance and grades for all children
-                const termStartDate = new Date();
-                termStartDate.setMonth(termStartDate.getMonth() - 3);
-
-                const attendanceQuery = query(
-                    collection(firestore, `schools/${schoolId}/attendance`), 
-                    where('studentId', 'in', studentIds), 
-                    where('date', '>=', Timestamp.fromDate(termStartDate))
-                );
-                const gradesQuery = query(
-                    collection(firestore, `schools/${schoolId}/grades`), 
-                    where('studentId', 'in', studentIds)
-                );
-
-                const [attendanceSnapshot, gradesSnapshot] = await Promise.all([
-                    getDocs(attendanceQuery),
-                    getDocs(gradesQuery)
-                ]);
-
-                // Process data in memory
-                const attendanceByStudent = new Map<string, { present: number; total: number }>();
-                attendanceSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const studentId = data.studentId;
-                    if (!attendanceByStudent.has(studentId)) {
-                        attendanceByStudent.set(studentId, { present: 0, total: 0 });
-                    }
-                    const record = attendanceByStudent.get(studentId)!;
-                    record.total++;
-                    if (['present', 'late'].includes(data.status.toLowerCase())) {
-                        record.present++;
-                    }
-                });
-
-                const gradesByStudent = new Map<string, { scores: number[], recent: { subject: string; grade: string; date: string }[] }>();
-                gradesSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const studentId = data.studentId;
-                    const score = parseInt(data.grade, 10);
-                    
-                    if (!gradesByStudent.has(studentId)) {
-                        gradesByStudent.set(studentId, { scores: [], recent: [] });
-                    }
-                    const record = gradesByStudent.get(studentId)!;
-                    if (!isNaN(score)) record.scores.push(score);
-                    
-                    // Assume grades are somewhat ordered by date from query (though not guaranteed without explicit orderBy)
-                    if (record.recent.length < 3) {
-                         record.recent.push({
-                            subject: data.subject || 'Unknown', 
-                            grade: data.grade,
-                            date: (data.date as Timestamp).toDate().toLocaleDateString('en-GB'),
-                        });
-                    }
-                });
-
-                // Map final data structure
-                const processedChildren = childrenSnapshot.docs.map(studentDoc => {
-                    const studentData = studentDoc.data();
-                    const studentId = studentDoc.id;
-
-                    const attendanceStats = attendanceByStudent.get(studentId);
-                    const attendance = attendanceStats && attendanceStats.total > 0 ? Math.round((attendanceStats.present / attendanceStats.total) * 100) : 100;
-
-                    const gradeStats = gradesByStudent.get(studentId);
-                    const overallGrade = gradeStats && gradeStats.scores.length > 0 ? Math.round(gradeStats.scores.reduce((a, b) => a + b, 0) / gradeStats.scores.length) : 0;
-                    
-                    const totalFee = studentData.totalFee || 0;
-                    const amountPaid = studentData.amountPaid || 0;
-                    const balance = totalFee - amountPaid;
-                    const dueDate = studentData.dueDate instanceof Timestamp ? studentData.dueDate.toDate() : (studentData.dueDate ? new Date(studentData.dueDate) : new Date());
-
-                    return {
-                        id: studentId,
-                        name: studentData.name || 'Unknown',
-                        class: studentData.class || 'Unknown',
-                        avatarUrl: studentData.avatarUrl || `https://picsum.photos/seed/${studentId}/100`,
-                        attendance,
-                        overallGrade,
-                        feeStatus: {
-                            total: totalFee,
-                            paid: amountPaid,
-                            balance: balance,
-                            status: balance <= 0 ? 'Paid' as const : (isPast(dueDate) ? 'Overdue' as const : 'Partial' as const),
-                            dueDate: dueDate.toISOString(),
-                        },
-                        recentGrades: gradeStats?.recent.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-                    } as Child;
-                });
-                
-                setChildrenData(processedChildren);
-                if(processedChildren.length > 0) {
-                    const currentSelectedId = selectedChild?.id;
-                    const updatedSelectedChild = currentSelectedId ? processedChildren.find(c => c.id === currentSelectedId) : undefined;
-                    setSelectedChild(updatedSelectedChild || processedChildren[0]);
-                }
-            } catch (err) {
-                console.error('Error fetching dashboard data:', err);
-                setError('Failed to load dashboard data. Please try again.');
-            } finally {
+            if (childrenSnapshot.empty) {
+                setChildrenData([]);
                 setIsLoading(false);
+                return;
             }
-        };
 
-        fetchData();
+            const studentIds = childrenSnapshot.docs.map(doc => doc.id);
+            const termStartDate = new Date();
+            termStartDate.setMonth(termStartDate.getMonth() - 3);
 
+            const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', 'in', studentIds), where('date', '>=', Timestamp.fromDate(termStartDate)));
+            const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds));
+
+            const [attendanceSnapshot, gradesSnapshot] = await Promise.all([getDocs(attendanceQuery), getDocs(gradesQuery)]);
+            
+            // Process data in memory...
+            const attendanceByStudent = new Map<string, { present: number; total: number }>();
+            attendanceSnapshot.forEach(doc => {
+                const data = doc.data();
+                const studentId = data.studentId;
+                if (!attendanceByStudent.has(studentId)) attendanceByStudent.set(studentId, { present: 0, total: 0 });
+                const record = attendanceByStudent.get(studentId)!;
+                record.total++;
+                if (['present', 'late'].includes(data.status.toLowerCase())) record.present++;
+            });
+
+            const gradesByStudent = new Map<string, { scores: number[], recent: { subject: string; grade: string; date: string }[] }>();
+            gradesSnapshot.forEach(doc => {
+                const data = doc.data();
+                const studentId = data.studentId;
+                const score = parseInt(data.grade, 10);
+                if (!gradesByStudent.has(studentId)) gradesByStudent.set(studentId, { scores: [], recent: [] });
+                const record = gradesByStudent.get(studentId)!;
+                if (!isNaN(score)) record.scores.push(score);
+                if (record.recent.length < 3) record.recent.push({ subject: data.subject || 'Unknown', grade: data.grade, date: (data.date as Timestamp).toDate().toLocaleDateString('en-GB') });
+            });
+
+            const processedChildren = childrenSnapshot.docs.map(studentDoc => {
+                const studentData = studentDoc.data();
+                const studentId = studentDoc.id;
+                const attendanceStats = attendanceByStudent.get(studentId);
+                const attendance = attendanceStats && attendanceStats.total > 0 ? Math.round((attendanceStats.present / attendanceStats.total) * 100) : 100;
+                const gradeStats = gradesByStudent.get(studentId);
+                const overallGrade = gradeStats && gradeStats.scores.length > 0 ? Math.round(gradeStats.scores.reduce((a, b) => a + b, 0) / gradeStats.scores.length) : 0;
+                const totalFee = studentData.totalFee || 0;
+                const amountPaid = studentData.amountPaid || 0;
+                const balance = totalFee - amountPaid;
+                const dueDate = studentData.dueDate instanceof Timestamp ? studentData.dueDate.toDate() : (studentData.dueDate ? new Date(studentData.dueDate) : new Date());
+
+                return {
+                    id: studentId,
+                    name: studentData.name || 'Unknown',
+                    class: studentData.class || 'Unknown',
+                    avatarUrl: studentData.avatarUrl || `https://picsum.photos/seed/${studentId}/100`,
+                    attendance,
+                    overallGrade,
+                    feeStatus: { total: totalFee, paid: amountPaid, balance, status: balance <= 0 ? 'Paid' as const : (isPast(dueDate) ? 'Overdue' as const : 'Partial' as const), dueDate: dueDate.toISOString() },
+                    recentGrades: gradeStats?.recent.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+                } as Child;
+            });
+            
+            setChildrenData(processedChildren);
+            if(processedChildren.length > 0) {
+                const currentSelectedId = selectedChild?.id;
+                const updatedSelectedChild = currentSelectedId ? processedChildren.find(c => c.id === currentSelectedId) : undefined;
+                setSelectedChild(updatedSelectedChild || processedChildren[0]);
+            }
+        } catch (err) {
+            console.error('Error fetching dashboard data:', err);
+            setError('Failed to load dashboard data. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     }, [schoolId, parentId]);
+    
+    React.useEffect(() => {
+        fetchData(); // Initial fetch
+    }, [fetchData]);
 
 
     if (isLoading) {

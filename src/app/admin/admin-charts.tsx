@@ -48,34 +48,28 @@ export function FinanceSnapshot() {
   React.useEffect(() => {
     if (!schoolId) return;
 
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            const transactionsQuery = query(collection(firestore, `schools/${schoolId}/transactions`));
-            const querySnapshot = await getDocs(transactionsQuery);
+    const transactionsQuery = query(collection(firestore, `schools/${schoolId}/transactions`));
+    const unsubscribe = onSnapshot(transactionsQuery, (querySnapshot) => {
+        let totalCollected = 0;
+        let totalBilled = 0;
 
-            let totalCollected = 0;
-            let totalBilled = 0;
+        querySnapshot.forEach(doc => {
+            const transaction = doc.data();
+            if (transaction.type === 'Payment') {
+                totalCollected += Math.abs(transaction.amount);
+            } else if (transaction.type === 'Charge') {
+                totalBilled += transaction.amount;
+            }
+        });
 
-            querySnapshot.forEach(doc => {
-                const transaction = doc.data();
-                if (transaction.type === 'Payment') {
-                    totalCollected += Math.abs(transaction.amount);
-                } else if (transaction.type === 'Charge') {
-                    totalBilled += transaction.amount;
-                }
-            });
+        setFinanceData({ totalCollected, totalBilled });
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching finance data:", error);
+        setIsLoading(false);
+    });
 
-            setFinanceData({ totalCollected, totalBilled });
-        } catch (error) {
-            console.error("Error fetching finance data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    fetchData();
-
+    return () => unsubscribe();
   }, [schoolId]);
 
   const totalOutstanding = financeData.totalBilled - financeData.totalCollected;
@@ -249,5 +243,3 @@ export function PerformanceSnapshot() {
     </Card>
   );
 }
-
-    

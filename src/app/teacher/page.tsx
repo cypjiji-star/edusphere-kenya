@@ -59,7 +59,7 @@ export default function TeacherDashboard() {
             }));
 
             const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
-            unsubscribers.push(onSnapshot(classesQuery, async (classesSnapshot) => {
+            unsubscribers.push(onSnapshot(classesQuery, (classesSnapshot) => {
                 const classIds = classesSnapshot.docs.map(doc => doc.id);
                 if (classIds.length === 0) {
                     setTotalStudents(0);
@@ -69,47 +69,50 @@ export default function TeacherDashboard() {
                     return;
                 }
 
-                // Fetch students for these classes
                 const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
-                const studentsSnapshot = await getDocs(studentsQuery);
-                const studentCount = studentsSnapshot.size;
-                const studentIds = studentsSnapshot.docs.map(doc => doc.id);
-                setTotalStudents(studentCount);
+                const unsubStudents = onSnapshot(studentsQuery, (studentsSnapshot) => {
+                    const studentCount = studentsSnapshot.size;
+                    const studentIds = studentsSnapshot.docs.map(doc => doc.id);
+                    setTotalStudents(studentCount);
 
-                // Fetch attendance for today for these students
-                if (studentCount > 0) {
-                    const today = new Date();
-                    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                    const attendanceQuery = query(
-                        collection(firestore, `schools/${schoolId}/attendance`), 
-                        where('studentId', 'in', studentIds),
-                        where('date', '>=', Timestamp.fromDate(startOfToday))
-                    );
-                    const attendanceSnapshot = await getDocs(attendanceQuery);
-                    const presentCount = attendanceSnapshot.docs.filter(r => ['present', 'late'].includes(r.data().status.toLowerCase())).length;
-                    setAttendancePercentage(Math.round((presentCount / studentCount) * 100));
-                } else {
-                    setAttendancePercentage(100);
-                }
+                    if (studentCount > 0) {
+                        const today = new Date();
+                        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                        const attendanceQuery = query(
+                            collection(firestore, `schools/${schoolId}/attendance`), 
+                            where('studentId', 'in', studentIds),
+                            where('date', '>=', Timestamp.fromDate(startOfToday))
+                        );
+                        const unsubAttendance = onSnapshot(attendanceQuery, (attendanceSnapshot) => {
+                             const presentCount = attendanceSnapshot.docs.filter(r => ['present', 'late'].includes(r.data().status.toLowerCase())).length;
+                             setAttendancePercentage(Math.round((presentCount / studentCount) * 100));
+                        });
+                        unsubscribers.push(unsubAttendance);
+                    } else {
+                        setAttendancePercentage(100);
+                    }
 
-                // Calculate average score for these students
-                if (studentIds.length > 0) {
-                    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds));
-                    const gradesSnapshot = await getDocs(gradesQuery);
-                    let totalScore = 0;
-                    let gradeCount = 0;
-                    gradesSnapshot.forEach(doc => {
-                        const score = parseInt(doc.data().grade, 10);
-                        if (!isNaN(score)) {
-                            totalScore += score;
-                            gradeCount++;
-                        }
-                    });
-                    setAvgScore(gradeCount > 0 ? Math.round(totalScore / gradeCount) : 0);
-                } else {
-                    setAvgScore(0);
-                }
-                setIsLoading(false);
+                    if (studentIds.length > 0) {
+                        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds));
+                         const unsubGrades = onSnapshot(gradesQuery, (gradesSnapshot) => {
+                            let totalScore = 0;
+                            let gradeCount = 0;
+                            gradesSnapshot.forEach(doc => {
+                                const score = parseInt(doc.data().grade, 10);
+                                if (!isNaN(score)) {
+                                    totalScore += score;
+                                    gradeCount++;
+                                }
+                            });
+                            setAvgScore(gradeCount > 0 ? Math.round(totalScore / gradeCount) : 0);
+                        });
+                        unsubscribers.push(unsubGrades);
+                    } else {
+                         setAvgScore(0);
+                    }
+                    setIsLoading(false);
+                });
+                 unsubscribers.push(unsubStudents);
             }));
             
             const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
