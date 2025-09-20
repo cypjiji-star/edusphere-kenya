@@ -282,9 +282,10 @@ export default function AttendancePage() {
     return () => unsubscribe();
   }, [user, schoolId]);
 
-  // Fetch classes assigned to the teacher
+  // Fetch classes assigned to the teacher first
   useEffect(() => {
     if (!user || !schoolId) return;
+    setIsLoading(true);
     const q = query(
       collection(firestore, "schools", schoolId, "classes"),
       where("teacherId", "==", user.uid)
@@ -294,25 +295,25 @@ export default function AttendancePage() {
       setTeacherClasses(classesData);
       if (!activeTab && classesData.length > 0) {
         setActiveTab(classesData[0].id);
-      } else if (classesData.length === 0) {
-        setIsLoading(false);
       }
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Error fetching teacher classes:", error);
+      setIsLoading(false);
     });
     return () => unsub();
   }, [user, schoolId, activeTab]);
 
-  // Main data fetching effect
+  // Main data fetching effect, dependent on activeTab and selectedDate
   const fetchAttendanceData = useCallback(async () => {
     if (!schoolId || !activeTab || !selectedDate) {
         setStudents([]);
-        setIsLoading(false);
         return;
     }
 
     setIsLoading(true);
 
     try {
-        // 1. Get all students for the class
         const studentsQuery = query(
             collection(firestore, "schools", schoolId, "students"),
             where("classId", "==", activeTab),
@@ -331,7 +332,6 @@ export default function AttendancePage() {
             };
         });
 
-        // 2. Get existing attendance records for the selected date
         const startOfDay = new Date(selectedDate);
         startOfDay.setHours(0, 0, 0, 0);
         const attendanceDate = Timestamp.fromDate(startOfDay);
@@ -348,7 +348,6 @@ export default function AttendancePage() {
             attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
         });
 
-        // 3. Merge student list with attendance data
         const mergedStudents = studentList.map(student => {
             const attendanceRecord = attendanceMap.get(student.id);
             return attendanceRecord ? { ...student, ...attendanceRecord } : student;
@@ -490,7 +489,7 @@ export default function AttendancePage() {
                 </div>
                 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-                    {teacherClasses.length > 0 && (
+                    {teacherClasses.length > 0 ? (
                         <TabsList>
                         {teacherClasses.map((c) => (
                             <TabsTrigger key={c.id} value={c.id}>
@@ -498,9 +497,7 @@ export default function AttendancePage() {
                             </TabsTrigger>
                         ))}
                         </TabsList>
-                    )}
-
-                    {teacherClasses.length === 0 && !isLoading && (
+                    ) : !isLoading && (
                         <div className="text-center py-16 text-muted-foreground">
                             <p>You are not assigned to any classes.</p>
                         </div>

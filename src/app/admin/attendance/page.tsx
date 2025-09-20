@@ -196,7 +196,7 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
         // If teacherId is not available directly, try to find it
         if (!teacherId) {
             try {
-                const teachersQuery = query(collection(firestore, `schools/${schoolId}/teachers`), where('name', '==', teacherName), limit(1));
+                const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('name', '==', teacherName), limit(1));
                 const teacherSnap = await getDocs(teachersQuery);
                 if (!teacherSnap.empty) {
                     teacherId = teacherSnap.docs[0].id;
@@ -379,7 +379,7 @@ export default function AdminAttendancePage() {
       orderBy('date', 'desc')
     );
     
-    const unsubscribe = onSnapshot(attendanceQuery, async (snapshot) => {
+    const unsubscribeAttendance = onSnapshot(attendanceQuery, async (snapshot) => {
       const records: AttendanceRecord[] = [];
       for (const doc of snapshot.docs) {
         const data = doc.data();
@@ -403,7 +403,25 @@ export default function AdminAttendancePage() {
         setIsLoading(false);
     });
 
-    // Set up real-time listeners for teachers and classes
+    const teacherAttendanceQuery = query(
+        collection(firestore, `schools/${schoolId}/teacher_attendance`),
+        where('date', '>=', termRange.start),
+        where('date', '<=', termRange.end)
+    );
+    const unsubTeacherAttendance = onSnapshot(teacherAttendanceQuery, (snapshot) => {
+      const records: TeacherAttendanceRecord[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        teacherName: doc.data().teacherName,
+        date: doc.data().date,
+        status: normalizeStatus(doc.data().status),
+        checkInTime: doc.data().checkInTime,
+        checkOutTime: doc.data().checkOutTime,
+      }));
+      setTeacherAttendanceRecords(records);
+    });
+
+
+    // Set up real-time listeners for teachers and classes (these don't depend on term)
     const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
     const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
       const teacherNames = snapshot.docs.map(doc => doc.data().name);
@@ -434,30 +452,14 @@ export default function AdminAttendancePage() {
       setCommunicationLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationLog)));
     });
 
-     const qTeacherAttendance = query(
-        collection(firestore, 'schools', schoolId, 'teacher_attendance'),
-        where('date', '>=', termRange.start),
-        where('date', '<=', termRange.end)
-    );
-    const unsubTeacherAttendance = onSnapshot(qTeacherAttendance, (snapshot) => {
-      const records: TeacherAttendanceRecord[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        teacherName: doc.data().teacherName,
-        date: doc.data().date,
-        status: normalizeStatus(doc.data().status),
-        checkInTime: doc.data().checkInTime,
-        checkOutTime: doc.data().checkOutTime,
-      }));
-      setTeacherAttendanceRecords(records);
-    });
 
     return () => {
-      unsubscribe();
+      unsubscribeAttendance();
+      unsubTeacherAttendance();
       unsubTeachers();
       unsubClasses();
       unsubStudents();
       unsubCommLogs();
-      unsubTeacherAttendance();
     };
   }, [schoolId, toast, selectedTerm]);
   
@@ -1056,10 +1058,3 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
-
-
-
-
-
-    
-    
