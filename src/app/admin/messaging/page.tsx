@@ -5,14 +5,27 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageCircle, Send, Loader2, User, Sparkles } from 'lucide-react';
+import { MessageCircle, Send, Loader2, User, Sparkles, XCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'next/navigation';
-import { collection, onSnapshot, query, where, orderBy, Timestamp, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, Timestamp, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { useAuth } from '@/context/auth-context';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useToast } from '@/hooks/use-toast';
+
 
 type AdminMessage = {
   role: 'user' | 'model' | 'admin';
@@ -42,6 +55,7 @@ export default function MessagingPage() {
     const [reply, setReply] = React.useState('');
     const [isSending, setIsSending] = React.useState(false);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
 
      React.useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,16 +79,17 @@ export default function MessagingPage() {
             
             if (selectedConversation) {
               const updatedConvo = convos.find(c => c.id === selectedConversation.id);
-              setSelectedConversation(updatedConvo || (convos.length > 0 ? convos[0] : null));
-            } else if (convos.length > 0) {
-               setSelectedConversation(convos[0]);
+              setSelectedConversation(updatedConvo || null);
+            } else if (!selectedConversation && convos.length > 0 && !isLoading) {
+              // This condition prevents auto-selecting if an admin is already in a view.
+              // But if they just landed on the page, select the first one.
             }
             
             setIsLoading(false);
         });
 
         return () => unsubscribe();
-    }, [schoolId, selectedConversation]);
+    }, [schoolId, selectedConversation, isLoading]);
 
     const handleSendMessage = async () => {
         if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
@@ -99,6 +114,31 @@ export default function MessagingPage() {
             console.error("Error sending reply:", error);
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const handleCloseConversation = async () => {
+        if (!schoolId || !selectedConversation) return;
+
+        try {
+            const conversationRef = doc(firestore, `schools/${schoolId}/support-chats`, selectedConversation.id);
+            await deleteDoc(conversationRef);
+
+            toast({
+                title: 'Conversation Closed',
+                description: 'The chat history has been deleted.',
+                variant: 'destructive'
+            });
+
+            setSelectedConversation(null);
+
+        } catch (error) {
+            console.error("Error closing conversation:", error);
+            toast({
+                title: 'Error',
+                description: 'Could not close the conversation. Please try again.',
+                variant: 'destructive',
+            });
         }
     };
     
@@ -127,7 +167,6 @@ export default function MessagingPage() {
                                     className={cn("w-full text-left p-3 rounded-lg flex items-start gap-3", selectedConversation?.id === convo.id ? 'bg-muted' : 'hover:bg-muted/50')}
                                 >
                                     <Avatar>
-                                        <AvatarImage src={convo.userAvatar}/>
                                         <AvatarFallback><User /></AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1 overflow-hidden">
@@ -143,18 +182,39 @@ export default function MessagingPage() {
                     </CardContent>
                 </Card>
                 <Card className="md:col-span-2 lg:col-span-3 flex flex-col">
-                    <CardHeader className="border-b">
+                    <CardHeader className="border-b flex-row items-center justify-between">
                         {selectedConversation ? (
-                            <div className="flex items-center gap-3">
-                                <Avatar>
-                                    <AvatarImage src={selectedConversation.userAvatar}/>
-                                    <AvatarFallback><User/></AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <CardTitle>{selectedConversation.userName}</CardTitle>
-                                    <CardDescription>Conversation with {selectedConversation.userName}</CardDescription>
+                            <>
+                                <div className="flex items-center gap-3">
+                                    <Avatar>
+                                        <AvatarFallback><User/></AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <CardTitle>{selectedConversation.userName}</CardTitle>
+                                        <CardDescription>Conversation with {selectedConversation.userName}</CardDescription>
+                                    </div>
                                 </div>
-                            </div>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive">
+                                            <XCircle className="mr-2 h-4 w-4"/>
+                                            Close Conversation
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete this conversation history for all parties. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleCloseConversation}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </>
                         ) : (
                              <CardTitle>Select a Conversation</CardTitle>
                         )}
@@ -171,7 +231,6 @@ export default function MessagingPage() {
                                         <div key={index} className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
                                             {(isModel || isAdmin) && (
                                                 <Avatar className="h-8 w-8">
-                                                     <AvatarImage src={isAdmin ? user?.photoURL || '' : ''} />
                                                     <AvatarFallback>
                                                         {isModel ? <Sparkles /> : message.senderName?.charAt(0) || 'A'}
                                                     </AvatarFallback>
@@ -192,7 +251,6 @@ export default function MessagingPage() {
                                             </div>
                                              {isUser && (
                                                 <Avatar className="h-8 w-8">
-                                                    <AvatarImage src={selectedConversation.userAvatar}/>
                                                     <AvatarFallback><User /></AvatarFallback>
                                                 </Avatar>
                                             )}
