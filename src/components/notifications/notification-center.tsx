@@ -277,11 +277,18 @@ function AdminMessagesTab() {
                                         </AvatarFallback>
                                     </Avatar>
                                 )}
-                                <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", 
-                                    isUser ? 'bg-primary text-primary-foreground' : 
-                                    (isAdmin ? 'bg-secondary text-secondary-foreground' : 'bg-muted')
-                                )}>
-                                    <p>{message.content}</p>
+                                <div className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
+                                    {(isAdmin || isUser) && (
+                                        <p className="font-bold text-xs text-muted-foreground px-1">
+                                            {isAdmin ? message.senderName : selectedConversation.userName}
+                                        </p>
+                                    )}
+                                    <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", 
+                                        isUser ? 'bg-primary text-primary-foreground' : 
+                                        (isAdmin ? 'bg-secondary text-secondary-foreground' : 'bg-muted')
+                                    )}>
+                                        <p>{message.content}</p>
+                                    </div>
                                 </div>
                             </div>
                         )})}
@@ -312,7 +319,7 @@ function AiChatTab() {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -341,8 +348,11 @@ function AiChatTab() {
     try {
         const chatDocRef = doc(firestore, `schools/${schoolId}/support-chats`, user.uid);
         await setDoc(chatDocRef, {
-            userId: user.uid,
-            userName: user.displayName || "User",
+            user: {
+                id: user.uid,
+                name: user.displayName || "User",
+                role: role,
+            },
             userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
             messages: arrayUnion(escalationMessage),
             isEscalated: true,
@@ -369,8 +379,11 @@ function AiChatTab() {
     
     const chatDocRef = doc(firestore, 'schools', schoolId, 'support-chats', user.uid);
     await setDoc(chatDocRef, {
-        userId: user.uid,
-        userName: user.displayName || 'User',
+        user: {
+            id: user.uid,
+            name: user.displayName || "User",
+            role: role,
+        },
         userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
         messages: currentMessages,
         lastMessage: input,
