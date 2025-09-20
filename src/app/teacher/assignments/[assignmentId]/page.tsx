@@ -53,7 +53,8 @@ const getStatusBadge = (status: Submission['status']) => {
     switch(status) {
         case 'Graded': return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Graded</Badge>;
         case 'Not Handed In': return <Badge variant="destructive"><Clock className="mr-1 h-3 w-3"/>Not Handed In</Badge>;
-        case 'Handed In': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600"><Clock className="mr-1 h-3 w-3"/>Handed In</Badge>;
+        case 'Handed In': return <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-500"><Clock className="mr-1 h-3 w-3"/>Handed In</Badge>;
+        default: return <Badge variant="outline">{status}</Badge>
     }
 }
 
@@ -83,36 +84,55 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
     const assignmentRef = doc(firestore, `schools/${schoolId}/assignments`, assignmentId);
     const unsubAssignment = onSnapshot(assignmentRef, (docSnap) => {
         if (docSnap.exists()) {
-            setAssignmentDetails(docSnap.data());
+            const assignmentData = docSnap.data();
+            setAssignmentDetails(assignmentData);
+
+            // Fetch students and then listen for submissions
+            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', assignmentData.classId));
+            onSnapshot(studentsQuery, (studentsSnap) => {
+                const studentList: Submission[] = studentsSnap.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        studentId: doc.id,
+                        studentName: data.name,
+                        avatarUrl: data.avatarUrl,
+                        status: 'Not Handed In',
+                    };
+                });
+
+                const submissionsQuery = query(collection(firestore, `schools/${schoolId}/assignments`, assignmentId, 'submissions'));
+                const unsubSubmissions = onSnapshot(submissionsQuery, (submissionsSnap) => {
+                    const submissionsMap = new Map();
+                    submissionsSnap.forEach(subDoc => {
+                        const subData = subDoc.data();
+                        submissionsMap.set(subData.studentRef.id, {
+                            status: subData.status,
+                            grade: subData.grade,
+                            feedback: subData.feedback,
+                            submittedDate: (subData.submittedDate as Timestamp)?.toDate().toISOString(),
+                            submissionId: subDoc.id,
+                        });
+                    });
+
+                    const mergedSubmissions = studentList.map(student => {
+                        const submissionData = submissionsMap.get(student.studentId);
+                        return submissionData ? { ...student, ...submissionData } : student;
+                    });
+
+                    setSubmissions(mergedSubmissions);
+                    setIsLoading(false);
+                });
+
+                return () => unsubSubmissions();
+            });
+
         } else {
             toast({ variant: 'destructive', title: 'Assignment not found.'});
+            setIsLoading(false);
         }
     });
 
-    const submissionsQuery = query(collection(firestore, `schools/${schoolId}/assignments`, assignmentId, 'submissions'));
-    const unsubSubmissions = onSnapshot(submissionsQuery, async (snapshot) => {
-        const subs: Submission[] = await Promise.all(snapshot.docs.map(async (doc) => {
-            const data = doc.data();
-            const studentSnap = await getDoc(data.studentRef);
-            return {
-                studentId: studentSnap.id,
-                studentName: studentSnap.data()?.name || 'Unknown',
-                avatarUrl: studentSnap.data()?.avatarUrl || '',
-                status: data.status,
-                submittedDate: (data.submittedDate as Timestamp)?.toDate().toISOString(),
-                grade: data.grade,
-                feedback: data.feedback,
-                submissionId: doc.id,
-            }
-        }));
-        setSubmissions(subs);
-        setIsLoading(false);
-    });
-
-    return () => {
-        unsubAssignment();
-        unsubSubmissions();
-    }
+    return () => unsubAssignment();
   }, [assignmentId, schoolId, toast]);
 
   const handleGradeSave = (studentId: string, grade: string, status: 'Approved' | 'Pending Approval') => {

@@ -22,6 +22,7 @@ import { collection, getDocs, query, where, Timestamp, doc, getDoc, onSnapshot }
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { MyAttendanceWidget } from './my-attendance-widget';
+import { DashboardCharts } from './dashboard-charts';
 
 export default function TeacherDashboard() {
     const searchParams = useSearchParams();
@@ -204,6 +205,7 @@ export default function TeacherDashboard() {
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
             <TimetableWidget />
+            {user && <DashboardCharts teacherId={user.uid} teacherName={teacherName} />}
         </div>
         <div className="lg:col-span-1 space-y-8">
             <AbsentStudentsWidget />
@@ -214,5 +216,3 @@ export default function TeacherDashboard() {
     </div>
   );
 }
-
-    

@@ -38,7 +38,7 @@ const assignmentChartConfig = {
     Graded: { label: 'Graded', color: 'hsl(var(--chart-1))' },
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
-export function DashboardCharts() {
+export function DashboardCharts({ teacherId, teacherName }: { teacherId: string; teacherName: string }) {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const [scheduleData, setScheduleData] = React.useState<any[]>([]);
@@ -46,12 +46,11 @@ export function DashboardCharts() {
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !teacherId || !teacherName) return;
 
         const fetchData = async () => {
             setIsLoading(true);
-            const teacherId = 'teacher-wanjiku'; // Dynamic teacher ID
-
+            
             try {
                 // Fetch Schedule Data
                 const timetablesSnapshot = await getDocs(collection(firestore, `schools/${schoolId}/timetables`));
@@ -62,7 +61,7 @@ export function DashboardCharts() {
                         const daySchedule = timetable[day];
                         if (daySchedule) {
                             classCount += Object.values(daySchedule).filter(
-                                lesson => lesson.subject.teacher === 'Ms. Wanjiku' // Hardcoded for now
+                                lesson => lesson.subject.teacher === teacherName
                             ).length;
                         }
                     });
@@ -96,7 +95,7 @@ export function DashboardCharts() {
         };
 
         fetchData();
-    }, [schoolId]);
+    }, [schoolId, teacherId, teacherName]);
 
     if (isLoading) {
         return (
