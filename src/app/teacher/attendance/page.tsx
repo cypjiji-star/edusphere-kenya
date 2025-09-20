@@ -302,7 +302,7 @@ export default function AttendancePage() {
   }, [user, schoolId, activeTab]);
 
   // Main data fetching effect
-  useEffect(() => {
+  const fetchAttendanceData = useCallback(async () => {
     if (!schoolId || !activeTab || !selectedDate) {
         setStudents([]);
         setIsLoading(false);
@@ -311,7 +311,7 @@ export default function AttendancePage() {
 
     setIsLoading(true);
 
-    const fetchAttendanceData = async () => {
+    try {
         // 1. Get all students for the class
         const studentsQuery = query(
             collection(firestore, "schools", schoolId, "students"),
@@ -355,11 +355,18 @@ export default function AttendancePage() {
         });
 
         setStudents(mergedStudents);
+    } catch (error) {
+        console.error("Failed to fetch attendance data:", error);
+        toast({ title: "Error", description: "Could not load student attendance.", variant: "destructive" });
+    } finally {
         setIsLoading(false);
-    };
+    }
+  }, [schoolId, activeTab, selectedDate, toast]);
 
+  useEffect(() => {
     fetchAttendanceData();
-  }, [schoolId, activeTab, selectedDate]);
+  }, [fetchAttendanceData]);
+
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
     setStudents(prev => prev.map(s => s.id === studentId ? { ...s, status } : s));

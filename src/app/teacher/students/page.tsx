@@ -3,7 +3,6 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -12,33 +11,6 @@ import {
   CardTitle,
   CardFooter,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { PlusCircle, Users, Search, ArrowRight, ChevronDown, ClipboardCheck, Megaphone, Save, FileDown, Printer, CheckCircle, Clock, XCircle, Edit, UserPlus, Trash2, Filter, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-  DialogClose,
-} from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -54,579 +26,619 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+    DialogTrigger,
+    DialogClose,
+  } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { ClassAnalytics } from './class-analytics';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { Users, Search, Filter, ChevronDown, PlusCircle, Edit, FileText, Phone, Mail, Loader2, TrendingUp, BarChart, History, HeartPulse, ShieldAlert, CheckCircle, XCircle, TrendingDown, Save } from 'lucide-react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, Timestamp, writeBatch, getDocs, updateDoc, addDoc } from 'firebase/firestore';
-import { format } from 'date-fns';
+import { collection, onSnapshot, query, where, Timestamp, getDocs, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'unmarked';
 
-export type Student = {
+type Student = {
     id: string;
     name: string;
-    rollNumber: string;
-    avatarUrl: string;
-    overallGrade: string;
-    attendance: AttendanceStatus;
-    notes?: string;
+    firstName: string;
+    lastName: string;
+    admissionNumber: string;
+    class: string;
     classId: string;
-    createdAt?: Timestamp;
+    gender: 'Male' | 'Female';
+    dateOfBirth: string; // Stored as ISO string
+    parentName: string;
+    parentContact: string;
+    status: 'Active' | 'Inactive' | 'Graduated';
+    avatarUrl: string;
+    balance: number;
+    feeStatus: 'Paid' | 'Partial' | 'Overdue';
+    birthCertificateNumber?: string;
+    nhifNumber?: string;
+    parentEmail?: string;
+    parentAddress?: string;
+    parentFirstName?: string;
+    parentLastName?: string;
+    parentRelationship?: 'Father' | 'Mother' | 'Guardian';
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
 };
 
-export type TeacherClass = {
-  id: string;
-  name: string;
+type AttendanceRecord = {
+    id: string;
+    date: Timestamp;
+    status: 'Present' | 'Absent' | 'Late';
+    notes?: string;
 };
 
-export default function StudentsPage() {
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
-  const [activeTab, setActiveTab] = React.useState<string | undefined>();
-  const { toast } = useToast();
-  
-  const [allClassStudents, setAllClassStudents] = React.useState<Record<string, Student[]>>({});
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [newStudentName, setNewStudentName] = React.useState('');
-  const [isAddStudentOpen, setIsAddStudentOpen] = React.useState(false);
-  const [editingStudent, setEditingStudent] = React.useState<Student | null>(null);
+type GradeRecord = {
+    id: string;
+    assessmentTitle: string;
+    subject: string;
+    grade: string;
+    date: Timestamp;
+};
+
+type Transaction = {
+    id: string;
+    date: Timestamp;
+    description: string;
+    type: 'Charge' | 'Payment' | 'Waiver' | 'Refund';
+    amount: number;
+    balance: number;
+    notes?: string;
+};
+
+type Incident = {
+    id: string;
+    date: Timestamp;
+    type: string;
+    description: string;
+    reportedBy: string;
+    status: string;
+};
+
+type SelectedStudentDetails = Student & {
+    attendance: AttendanceRecord[];
+    grades: GradeRecord[];
+    transactions: Transaction[];
+    incidents: Incident[];
+};
+
+
+const getStatusBadge = (status: Student['status']) => {
+    switch (status) {
+      case 'Active':
+        return <Badge>Active</Badge>;
+      case 'Inactive':
+        return <Badge variant="secondary">Inactive</Badge>;
+      case 'Graduated':
+        return <Badge variant="outline">Graduated</Badge>;
+    }
+};
+
+const getFeeStatusBadge = (status: Student['feeStatus']) => {
+    switch (status) {
+        case 'Paid': return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
+        case 'Partial': return <Badge className="bg-blue-500 hover:bg-blue-500">Partial</Badge>;
+        case 'Overdue': return <Badge variant="destructive">Overdue</Badge>;
+    }
+};
+
+const getAttendanceStatusBadge = (status: AttendanceRecord['status']) => {
+    switch (status) {
+        case 'Present': return <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3"/>Present</Badge>;
+        case 'Absent': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>;
+        case 'Late': return <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">Late</Badge>;
+    }
+};
+
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
+};
+
+
+export default function StudentManagementPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const [statusFilter, setStatusFilter] = React.useState<AttendanceStatus | 'all'>('all');
-  const [yearFilter, setYearFilter] = React.useState('All Years');
-  const years = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i).toString());
-  const [user, setUser] = React.useState(auth.currentUser);
+  const { toast } = useToast();
+
+  const [students, setStudents] = React.useState<Student[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [classFilter, setClassFilter] = React.useState('All Classes');
+  const [enrollmentStatusFilter, setEnrollmentStatusFilter] = React.useState('All Statuses');
+  const [feeStatusFilter, setFeeStatusFilter] = React.useState('All Fee Statuses');
+  const [classes, setClasses] = React.useState<string[]>(['All Classes']);
+  const [selectedStudent, setSelectedStudent] = React.useState<SelectedStudentDetails | null>(null);
+  const [isDialogLoading, setIsDialogLoading] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe();
-  }, []);
-
-  // Effect to fetch the teacher's classes
-  React.useEffect(() => {
-    if (!schoolId || !user) {
+    if (!schoolId) {
       setIsLoading(false);
       return;
     }
-    const teacherId = user.uid;
 
-    const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
-    const unsubscribe = onSnapshot(classesQuery, (querySnapshot) => {
-      const classesData: TeacherClass[] = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: `${doc.data().name} ${doc.data().stream || ''}`.trim(),
-      }));
-      
-      setTeacherClasses(classesData);
-      if (classesData.length > 0 && !activeTab) {
-        setActiveTab(classesData[0].id);
-      } else if (classesData.length === 0) {
-        setIsLoading(false);
-      }
-    });
+    const q = query(collection(firestore, `schools/${schoolId}/students`));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const studentData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const balance = data.balance || 0;
+        let feeStatus: 'Paid' | 'Partial' | 'Overdue' = 'Paid';
+        if (balance > 0) {
+            feeStatus = 'Partial'; // Simplified logic
+        }
 
-    return () => unsubscribe();
-  }, [schoolId, user, activeTab]);
-
-  // Effect to fetch students for the active class
-  React.useEffect(() => {
-    if (!activeTab || !schoolId) return;
-
-    setIsLoading(true);
-    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', activeTab));
-    const unsubscribeStudents = onSnapshot(studentsQuery, async (snapshot) => {
-      const studentsData = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return { ...data, id: doc.id, name: `${data.firstName} ${data.lastName}` } as Student;
+        return {
+          id: doc.id,
+          name: data.name,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          admissionNumber: data.admissionNumber,
+          class: data.class,
+          classId: data.classId,
+          gender: data.gender,
+          dateOfBirth: data.dateOfBirth?.toDate().toISOString(),
+          parentName: data.parentName,
+          parentContact: data.parentPhone,
+          status: data.status || 'Active',
+          avatarUrl: data.avatarUrl,
+          balance: balance,
+          feeStatus: feeStatus,
+          birthCertificateNumber: data.birthCertificateNumber,
+          nhifNumber: data.nhifNumber,
+          parentEmail: data.parentEmail,
+          parentAddress: data.parentAddress,
+          parentFirstName: data.parentFirstName,
+          parentLastName: data.parentLastName,
+          parentRelationship: data.parentRelationship,
+          emergencyContactName: data.emergencyContactName,
+          emergencyContactPhone: data.emergencyContactPhone,
+        } as Student;
       });
+      setStudents(studentData);
       
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const attendanceDate = Timestamp.fromDate(today);
-
-      const attendanceQuery = query(
-          collection(firestore, 'schools', schoolId, 'attendance'), 
-          where('classId', '==', activeTab),
-          where('date', '==', attendanceDate)
-      );
-      const attendanceSnapshot = await getDocs(attendanceQuery);
-      const attendanceMap = new Map();
-      attendanceSnapshot.forEach(doc => {
-          const data = doc.data();
-          attendanceMap.set(data.studentId, { status: data.status, notes: data.notes });
-      });
-
-      const studentsWithAttendance = studentsData.map(student => ({
-          ...student,
-          attendance: attendanceMap.get(student.id)?.status || 'unmarked',
-          notes: attendanceMap.get(student.id)?.notes || '',
-      }));
-
-      setAllClassStudents(prev => ({ ...prev, [activeTab]: studentsWithAttendance }));
+      const uniqueClasses = [...new Set(studentData.map(s => s.class))];
+      setClasses(['All Classes', ...uniqueClasses]);
+      
       setIsLoading(false);
     });
 
-    return () => unsubscribeStudents();
-  }, [activeTab, schoolId]);
+    return () => unsubscribe();
+  }, [schoolId]);
 
+  const openStudentDialog = async (student: Student) => {
+    if (!schoolId) return;
+    setIsDialogLoading(true);
+    setSelectedStudent({ ...student, attendance: [], grades: [], transactions: [], incidents: [] });
 
-  const studentsForCurrentTab = allClassStudents[activeTab || ''] || [];
-  
-  const filteredStudents = 
-    studentsForCurrentTab.filter(student =>
-      (student.name && student.name.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (statusFilter === 'all' || student.attendance === statusFilter) &&
-      (yearFilter === 'All Years' || (student.createdAt && student.createdAt.toDate().getFullYear().toString() === yearFilter))
-    );
+    const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
+    const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
+    const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
+    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
 
-  const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
-    setAllClassStudents(prevAllStudents => {
-      const newStudentsForClass = (prevAllStudents[activeTab!] || []).map(s =>
-        s.id === studentId ? { ...s, attendance: status } : s
-      );
-      return {
-        ...prevAllStudents,
-        [activeTab!]: newStudentsForClass,
-      };
-    });
-  };
-
-  const handleNotesChange = (studentId: string, notes: string) => {
-    setAllClassStudents(prevAllStudents => {
-      const newStudentsForClass = (prevAllStudents[activeTab!] || []).map(s =>
-        s.id === studentId ? { ...s, notes } : s
-      );
-      return {
-        ...prevAllStudents,
-        [activeTab!]: newStudentsForClass,
-      };
-    });
-  };
-  
-  const handleSaveAttendance = async () => {
-    if (!activeTab || !schoolId || !user) return;
-    const teacherId = user.uid;
-
-    const batch = writeBatch(firestore);
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    for (const student of studentsForCurrentTab) {
-        const attendanceDate = Timestamp.fromDate(today);
-        const attendanceQuery = query(
-            collection(firestore, 'schools', schoolId, 'attendance'),
-            where('studentId', '==', student.id),
-            where('date', '==', attendanceDate)
-        );
-
-        const querySnapshot = await getDocs(attendanceQuery);
-        if (!querySnapshot.empty) {
-            const docId = querySnapshot.docs[0].id;
-            const attendanceRef = doc(firestore, 'schools', schoolId, 'attendance', docId);
-            batch.update(attendanceRef, {
-                status: student.attendance,
-                notes: student.notes || '',
-            });
-        } else {
-            const attendanceRef = doc(collection(firestore, 'schools', schoolId, 'attendance'));
-            batch.set(attendanceRef, {
-                studentId: student.id,
-                classId: activeTab,
-                date: attendanceDate,
-                status: student.attendance,
-                notes: student.notes || '',
-                teacherId,
-            });
-        }
-    }
-
-    try {
-        await batch.commit();
-        toast({
-            title: 'Attendance Saved!',
-            description: `Attendance for ${teacherClasses.find(c => c.id === activeTab)?.name} has been successfully updated.`,
-        });
-    } catch (e) {
-        console.error(e);
-        toast({
-            title: 'Error Saving Attendance',
-            description: 'Could not save attendance records. Please try again.',
-            variant: 'destructive',
-        });
-    }
-  };
-  
-  const handleAddNewStudent = async () => {
-    if (!newStudentName.trim() || !activeTab || !schoolId) {
-        toast({
-            variant: 'destructive',
-            title: 'Student name and class are required.',
-        });
-        return;
-    }
-
-    try {
-        const newStudentRef = doc(collection(firestore, 'schools', schoolId, 'students'));
-        await setDoc(newStudentRef, {
-            id: newStudentRef.id,
-            name: newStudentName,
-            rollNumber: `TEMP-${Math.floor(1000 + Math.random() * 9000)}`,
-            classId: activeTab,
-            role: 'Student',
-            avatarUrl: `https://picsum.photos/seed/${newStudentRef.id}/100`,
-            overallGrade: 'N/A',
-            attendance: 'present',
-            createdAt: Timestamp.now(),
-        });
-
-        toast({
-            title: 'Student Added',
-            description: `${newStudentName} has been added to ${teacherClasses.find(c => c.id === activeTab)?.name}.`,
-        });
-
-        setNewStudentName('');
-        setIsAddStudentOpen(false);
-
-    } catch (e) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Failed to add student.'})
-    }
-  };
-  
-  const handleExport = (type: 'PDF' | 'CSV') => {
-    if (!activeTab) return;
-    const doc = new jsPDF();
-    const tableData = filteredStudents.map(student => [
-        student.name,
-        student.rollNumber,
-        student.overallGrade,
-        student.attendance.charAt(0).toUpperCase() + student.attendance.slice(1),
+    const [attendanceSnap, transactionsSnap, incidentsSnap, gradesSnap] = await Promise.all([
+        getDocs(attendanceQuery),
+        getDocs(transactionsQuery),
+        getDocs(incidentsQuery),
+        getDocs(gradesQuery),
     ]);
-    
-    const className = teacherClasses.find(c => c.id === activeTab)?.name;
 
-    if (type === 'CSV') {
-        const headers = ['Name', 'Roll Number', 'Overall Grade', 'Attendance Status'];
-        const csvContent = [
-            headers.join(','),
-            ...tableData.map(row => row.join(','))
-        ].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        if (link.download !== undefined) {
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `${className}-roster.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    } else {
-         doc.text(`${className} Roster`, 14, 16);
-         (doc as any).autoTable({
-            startY: 22,
-            head: [['Name', 'Roll Number', 'Overall Grade', 'Attendance Status']],
-            body: tableData,
-         });
-         doc.save(`${className}-roster.pdf`);
+    const attendanceRecords = attendanceSnap.docs.map(d => ({id: d.id, ...d.data()}) as AttendanceRecord);
+    const transactionRecords = transactionsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Transaction);
+    const incidentRecords = incidentsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Incident);
+    const gradeRecords = gradesSnap.docs.map(d => ({id: d.id, ...d.data(), assessmentTitle: d.data().subject + " Exam"} as GradeRecord));
+
+
+    setSelectedStudent({
+        ...student,
+        attendance: attendanceRecords,
+        grades: gradeRecords,
+        transactions: transactionRecords,
+        incidents: incidentRecords,
+    });
+    setIsDialogLoading(false);
+  };
+  
+  const handleSaveChanges = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedStudent || !schoolId) return;
+    setIsSaving(true);
+    
+    const formData = new FormData(e.currentTarget);
+    const dataToUpdate = {
+        firstName: formData.get('firstName'),
+        lastName: formData.get('lastName'),
+        name: `${formData.get('firstName')} ${formData.get('lastName')}`,
+        status: formData.get('status'),
+        parentFirstName: formData.get('parentFirstName'),
+        parentLastName: formData.get('parentLastName'),
+        parentName: `${formData.get('parentFirstName')} ${formData.get('parentLastName')}`,
+        parentPhone: formData.get('parentContact'),
+        parentEmail: formData.get('parentEmail'),
+    };
+
+    const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedStudent.id);
+
+    try {
+        await updateDoc(studentRef, dataToUpdate);
+        toast({ title: "Profile Updated", description: "Student information has been successfully saved." });
+        setIsEditing(false);
+        // Optimistically update local state or re-fetch
+        setSelectedStudent(prev => prev ? { ...prev, ...dataToUpdate } : null);
+    } catch (error) {
+        console.error("Error updating student profile:", error);
+        toast({ title: "Update Failed", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
     }
   };
 
-  const handleUpdateStudent = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!editingStudent || !schoolId) return;
+  const filteredStudents = students.filter(student => 
+    (student.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     student.admissionNumber?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (classFilter === 'All Classes' || student.class === classFilter) &&
+    (enrollmentStatusFilter === 'All Statuses' || student.status === enrollmentStatusFilter) &&
+    (feeStatusFilter === 'All Fee Statuses' || student.feeStatus === feeStatusFilter)
+  );
+  
+  const stats = React.useMemo(() => ({
+    totalStudents: students.length,
+    activeStudents: students.filter(s => s.status === 'Active').length,
+    graduatedStudents: students.filter(s => s.status === 'Graduated').length,
+    inactiveStudents: students.filter(s => s.status === 'Inactive').length,
+  }), [students]);
 
-    const formData = new FormData(e.currentTarget);
-    const updatedName = formData.get('name') as string;
-    const updatedRollNumber = formData.get('rollNumber') as string;
+  return (
+    <div className="p-4 sm:p-6 lg:p-8">
+      <Dialog onOpenChange={(open) => {
+          if (!open) {
+              setSelectedStudent(null);
+              setIsEditing(false);
+          }
+      }}>
+        <div className="mb-6">
+          <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+            <Users className="h-8 w-8 text-primary" />
+            Student Management
+          </h1>
+          <p className="text-muted-foreground">
+            A central database for all student information.
+          </p>
+        </div>
 
-    const studentRef = doc(firestore, 'schools', schoolId, 'students', editingStudent.id);
-    try {
-        await updateDoc(studentRef, {
-            name: updatedName,
-            rollNumber: updatedRollNumber,
-        });
-        toast({
-        title: 'Student Updated',
-        description: `Details for ${updatedName} have been saved.`,
-        });
-        setEditingStudent(null);
-    } catch(e) {
-        console.error(e);
-        toast({variant: 'destructive', title: 'Update failed'});
-    }
-  }
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <Card><CardHeader className="pb-2"><CardDescription>Total Students</CardDescription><CardTitle className="text-2xl font-bold">{stats.totalStudents}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Active Students</CardDescription><CardTitle className="text-2xl font-bold text-green-600">{stats.activeStudents}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Graduated</CardDescription><CardTitle className="text-2xl font-bold">{stats.graduatedStudents}</CardTitle></CardHeader></Card>
+            <Card><CardHeader className="pb-2"><CardDescription>Inactive/Transferred</CardDescription><CardTitle className="text-2xl font-bold text-muted-foreground">{stats.inactiveStudents}</CardTitle></CardHeader></Card>
+        </div>
 
-  const getAttendanceBadge = (status: AttendanceStatus, isTrigger: boolean = false) => {
-    switch (status) {
-        case 'present':
-            return <Badge variant="default" className="bg-green-600 hover:bg-green-700 w-full"><CheckCircle className="mr-2 h-4 w-4"/>Present</Badge>;
-        case 'absent':
-            return <Badge variant="destructive" className="w-full"><XCircle className="mr-2 h-4 w-4"/>Absent</Badge>;
-        case 'late':
-            return <Badge variant="secondary" className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"><Clock className="mr-2 h-4 w-4"/>Late</Badge>;
-        default:
-            return <Badge variant="outline" className="w-full">Unmarked</Badge>;
-    }
-  }
-
-  if (!schoolId) {
-    return <div className="p-8">Error: School ID is missing. Please access this page through the developer dashboard.</div>
-  }
-
-    return (
-        <div className="p-4 sm:p-6 lg:p-8">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <div className="md:flex md:items-center md:justify-between">
-                    <div className="mb-4 md:mb-0">
-                        <h1 className="font-headline text-3xl font-bold">Class &amp; Student Management</h1>
-                        <p className="text-muted-foreground">Switch between your classes to view student rosters and mark attendance.</p>
-                    </div>
-                    {teacherClasses.length > 0 && (
-                        <TabsList>
-                            {teacherClasses.map((cls) => (
-                                <TabsTrigger key={cls.id} value={cls.id}>{cls.name}</TabsTrigger>
-                            ))}
-                        </TabsList>
-                    )}
-                </div>
-
-                {teacherClasses.length === 0 && !isLoading && (
-                    <Card className="mt-6">
-                        <CardContent className="pt-6">
-                            <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                                <div className="text-center">
-                                <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-                                <h3 className="mt-4 text-xl font-semibold">No Classes Assigned</h3>
-                                <p className="mt-2 text-sm text-muted-foreground">Please contact your school administrator to be assigned to a class.</p>
-                                </div>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="relative w-full md:max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search by name or admission no..."
+                  className="w-full bg-background pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+                 <Select value={classFilter} onValueChange={setClassFilter}>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="All Classes"/></SelectTrigger>
+                    <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+                 <Select value={enrollmentStatusFilter} onValueChange={(v) => setEnrollmentStatusFilter(v as any)}>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="All Statuses"/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All Statuses">All Enrollment Statuses</SelectItem>
+                        <SelectItem value="Active">Active</SelectItem>
+                        <SelectItem value="Inactive">Inactive</SelectItem>
+                         <SelectItem value="Graduated">Graduated</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select value={feeStatusFilter} onValueChange={(v) => setFeeStatusFilter(v as any)}>
+                    <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="All Fee Statuses"/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All Fee Statuses">All Fee Statuses</SelectItem>
+                        <SelectItem value="Paid">Paid</SelectItem>
+                        <SelectItem value="Partial">Partial</SelectItem>
+                        <SelectItem value="Overdue">Overdue</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Button asChild className="w-full md:w-auto">
+                    <Link href={`/admin/enrolment?schoolId=${schoolId}`}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Enroll Student
+                    </Link>
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+                <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+            ) : (
+            <>
+                <div className="w-full overflow-auto rounded-lg border hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Admission No.</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Fee Status</TableHead>
+                    <TableHead>Enrollment Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredStudents.map((student) => (
+                    <TableRow key={student.id}>
+                        <TableCell>
+                            <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                                <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{student.name}</span>
                             </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {teacherClasses.map((cls) => (
-                    <TabsContent key={cls.id} value={cls.id}>
-                        <ClassAnalytics students={filteredStudents} />
-                        <Card className="mt-6">
+                        </TableCell>
+                        <TableCell>{student.admissionNumber}</TableCell>
+                        <TableCell>{student.class}</TableCell>
+                        <TableCell>{getFeeStatusBadge(student.feeStatus)}</TableCell>
+                        <TableCell>{getStatusBadge(student.status)}</TableCell>
+                        <TableCell className="text-right">
+                           <DialogTrigger asChild>
+                               <Button variant="ghost" size="sm" onClick={() => openStudentDialog(student)}>View Details</Button>
+                           </DialogTrigger>
+                        </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+             <div className="grid grid-cols-1 gap-4 md:hidden">
+                {filteredStudents.map((student) => (
+                    <DialogTrigger asChild key={student.id}>
+                        <Card className="cursor-pointer" onClick={() => openStudentDialog(student)}>
                             <CardHeader>
-                                <div className="md:flex-row md:items-start md:justify-between">
-                                    <CardTitle className="font-headline text-2xl">{cls.name} Roster</CardTitle>
-                                    <CardDescription>
-                                        A total of {studentsForCurrentTab.length} students are enrolled in this class.
-                                    </CardDescription>
-                                </div>
-                                <div className="mt-4 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-                                    <div className="relative w-full md:max-w-sm">
-                                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            type="search"
-                                            placeholder="Search students by name..."
-                                            className="w-full bg-background pl-8"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                            <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <CardTitle className="text-base">{student.name}</CardTitle>
+                                            <CardDescription>Adm: {student.admissionNumber}</CardDescription>
+                                        </div>
                                     </div>
-                                    <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                                        <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
-                                            <DialogTrigger asChild>
-                                                <Button className="w-full md:w-auto" variant="outline">
-                                                    <PlusCircle className="mr-2" />
-                                                    Add New Student
-                                                </Button>
-                                            </DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Add New Student</DialogTitle>
-                                                    <DialogDescription>
-                                                        This will create a new student in this class.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <div className="grid gap-4 py-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="student-name">Student Name</Label>
-                                                        <Input id="student-name" placeholder="e.g., Mary Akinyi" value={newStudentName} onChange={(e) => setNewStudentName(e.target.value)} />
-                                                    </div>
-                                                </div>
-                                                <DialogFooter>
-                                                    <DialogClose asChild>
-                                                        <Button variant="outline">Cancel</Button>
-                                                    </DialogClose>
-                                                    <Button onClick={handleAddNewStudent} disabled={!newStudentName.trim()}>Add Student</Button>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button className="w-full md:w-auto" variant="secondary">
-                                                    Actions
-                                                    <ChevronDown className="ml-2" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                <DropdownMenuItem asChild>
-                                                    <Link href={`/teacher/attendance?schoolId=${schoolId}`}>
-                                                        <ClipboardCheck className="mr-2" />
-                                                        View Full Attendance
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem asChild>
-                                                    <Link href={`/teacher/messaging?schoolId=${schoolId}`}>
-                                                        <Megaphone className="mr-2" />
-                                                        Send Class Announcement
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => handleExport('PDF')}>
-                                                    <FileDown className="mr-2" />
-                                                    Download as PDF
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleExport('CSV')}>
-                                                    <FileDown className="mr-2" />
-                                                    Download as CSV
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem>
-                                                    <Printer className="mr-2" />
-                                                    Print List
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
+                                    {getStatusBadge(student.status)}
                                 </div>
                             </CardHeader>
-                            <CardContent>
-                                {isLoading ? (
-                                    <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
-                                ) : (
-                                    <div className="w-full overflow-auto rounded-lg border">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead className="w-[80px] hidden sm:table-cell">Avatar</TableHead>
-                                                    <TableHead>Name</TableHead>
-                                                    <TableHead className="hidden md:table-cell">Roll Number</TableHead>
-                                                    <TableHead className="hidden sm:table-cell">Overall Grade</TableHead>
-                                                    <TableHead>Today's Status</TableHead>
-                                                    <TableHead>Notes</TableHead>
-                                                    <TableHead className="text-right">Actions</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {filteredStudents.length > 0 ? (
-                                                    filteredStudents.map(student => (
-                                                        <TableRow key={student.id}>
-                                                            <TableCell className="hidden sm:table-cell">
-                                                                <Avatar>
-                                                                    <AvatarImage src={student.avatarUrl} alt={student.name} />
-                                                                    <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                                                                </Avatar>
-                                                            </TableCell>
-                                                            <TableCell className="font-medium">{student.name}</TableCell>
-                                                            <TableCell className="text-muted-foreground hidden md:table-cell">{student.rollNumber}</TableCell>
-                                                            <TableCell className="hidden sm:table-cell">
-                                                                <Badge variant="outline">{student.overallGrade}</Badge>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Select
-                                                                    value={student.attendance}
-                                                                    onValueChange={(value: AttendanceStatus) => handleAttendanceChange(student.id, value)}
-                                                                >
-                                                                    <SelectTrigger className="w-32">
-                                                                        <SelectValue asChild>
-                                                                            <div>{getAttendanceBadge(student.attendance, true)}</div>
-                                                                        </SelectValue>
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="present">{getAttendanceBadge('present')}</SelectItem>
-                                                                        <SelectItem value="absent">{getAttendanceBadge('absent')}</SelectItem>
-                                                                        <SelectItem value="late">{getAttendanceBadge('late')}</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {(student.attendance === 'absent' || student.attendance === 'late') && (
-                                                                    <Input
-                                                                        placeholder="Add note..."
-                                                                        value={student.notes}
-                                                                        onChange={(e) => handleNotesChange(student.id, e.target.value)}
-                                                                        className="w-full"
-                                                                    />
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                <Dialog onOpenChange={(open) => !open && setEditingStudent(null)}>
-                                                                    <DialogTrigger asChild>
-                                                                        <Button variant="ghost" size="sm" onClick={() => setEditingStudent(student)}>
-                                                                            <Edit className="mr-2 h-4 w-4"/>Edit
-                                                                        </Button>
-                                                                    </DialogTrigger>
-                                                                </Dialog>
-                                                                <Button asChild variant="ghost" size="sm">
-                                                                    <Link href={`/teacher/students/${student.id}?schoolId=${schoolId}`}>
-                                                                        View Profile
-                                                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                                                    </Link>
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))
-                                                ) : (
-                                                    <TableRow>
-                                                        <TableCell colSpan={7} className="h-24 text-center">
-                                                            No students found matching your search.
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                )}
+                            <CardContent className="flex justify-between items-center text-sm">
+                                <span>{student.class}</span>
+                                {getFeeStatusBadge(student.feeStatus)}
                             </CardContent>
-                            <CardFooter>
-                                <Button onClick={handleSaveAttendance}>
-                                    <Save className="mr-2" />
-                                    Save Attendance
-                                </Button>
-                            </CardFooter>
                         </Card>
-                    </TabsContent>
+                    </DialogTrigger>
                 ))}
-            </Tabs>
-            <Dialog onOpenChange={(open) => !open && setEditingStudent(null)} open={!!editingStudent}>
-                {editingStudent && (
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Edit Student Details</DialogTitle>
+            </div>
+            </>
+            )}
+          </CardContent>
+           <CardFooter>
+                <div className="text-xs text-muted-foreground">
+                    Showing <strong>{filteredStudents.length}</strong> of <strong>{students.length}</strong> students.
+                </div>
+            </CardFooter>
+        </Card>
+        {selectedStudent && (
+             <DialogContent className="sm:max-w-4xl">
+                <DialogHeader>
+                    <div className="flex items-center gap-4">
+                        <Avatar className="h-16 w-16">
+                            <AvatarImage src={selectedStudent.avatarUrl} />
+                            <AvatarFallback>{selectedStudent.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <DialogTitle className="text-2xl font-bold">{selectedStudent.name}</DialogTitle>
                             <DialogDescription>
-                                Update the details for {editingStudent.name}.
+                                {selectedStudent.class} | Adm No: {selectedStudent.admissionNumber}
                             </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleUpdateStudent}>
-                            <div className="grid gap-4 py-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">Name</Label>
-                                    <Input id="name" name="name" defaultValue={editingStudent.name} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="rollNumber">Roll Number</Label>
-                                    <Input id="rollNumber" name="rollNumber" defaultValue={editingStudent.rollNumber} />
-                                </div>
+                        </div>
+                    </div>
+                </DialogHeader>
+                 {isDialogLoading ? <div className="h-64 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
+                    <form onSubmit={handleSaveChanges}>
+                    <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                        <Tabs defaultValue="bio">
+                            <div className="flex justify-between items-center">
+                                <TabsList>
+                                    <TabsTrigger value="bio">Bio Data</TabsTrigger>
+                                    <TabsTrigger value="academics">Academics</TabsTrigger>
+                                    <TabsTrigger value="finance">Finance</TabsTrigger>
+                                    <TabsTrigger value="health">Health & Incidents</TabsTrigger>
+                                </TabsList>
+                                {!isEditing && <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4"/>Edit Profile</Button>}
                             </div>
-                            <DialogFooter>
-                                <Button type="button" variant="outline" onClick={() => setEditingStudent(null)}>Cancel</Button>
-                                <Button type="submit">Save Changes</Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                )}
-            </Dialog>
-        </div>
-    );
+                            <TabsContent value="bio" className="mt-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Personal Details</CardTitle></CardHeader>
+                                    <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                                        <div className="space-y-1">
+                                            <Label htmlFor="firstName">First Name</Label>
+                                            {isEditing ? <Input name="firstName" id="firstName" defaultValue={selectedStudent.firstName} /> : <p>{selectedStudent.firstName}</p>}
+                                        </div>
+                                         <div className="space-y-1">
+                                            <Label htmlFor="lastName">Last Name</Label>
+                                            {isEditing ? <Input name="lastName" id="lastName" defaultValue={selectedStudent.lastName} /> : <p>{selectedStudent.lastName}</p>}
+                                        </div>
+                                        <div><Label>Gender</Label><p>{selectedStudent.gender}</p></div>
+                                        <div><Label>Date of Birth</Label><p>{selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : 'N/A'}</p></div>
+                                        <div><Label>Birth Certificate No.</Label><p className="font-mono">{selectedStudent.birthCertificateNumber || 'N/A'}</p></div>
+                                        <div><Label>NHIF Number</Label><p className="font-mono">{selectedStudent.nhifNumber || 'N/A'}</p></div>
+                                         <div className="space-y-1">
+                                            <Label htmlFor="status">Enrollment Status</Label>
+                                            {isEditing ? (
+                                                <Select name="status" defaultValue={selectedStudent.status}>
+                                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Active">Active</SelectItem>
+                                                        <SelectItem value="Inactive">Inactive</SelectItem>
+                                                        <SelectItem value="Graduated">Graduated</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : <p>{getStatusBadge(selectedStudent.status)}</p>}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card className="mt-4">
+                                    <CardHeader><CardTitle className="text-base">Parent / Guardian Details</CardTitle></CardHeader>
+                                    <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                                        <div className="space-y-1">
+                                            <Label htmlFor="parentFirstName">Parent First Name</Label>
+                                            {isEditing ? <Input name="parentFirstName" id="parentFirstName" defaultValue={selectedStudent.parentFirstName} /> : <p>{selectedStudent.parentFirstName}</p>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="parentLastName">Parent Last Name</Label>
+                                            {isEditing ? <Input name="parentLastName" id="parentLastName" defaultValue={selectedStudent.parentLastName} /> : <p>{selectedStudent.parentLastName}</p>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="parentContact">Parent Contact</Label>
+                                            {isEditing ? <Input name="parentContact" id="parentContact" defaultValue={selectedStudent.parentContact} /> : <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentContact}</p>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="parentEmail">Parent Email</Label>
+                                            {isEditing ? <Input name="parentEmail" id="parentEmail" type="email" defaultValue={selectedStudent.parentEmail} /> : <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground"/>{selectedStudent.parentEmail || 'N/A'}</p>}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                             <TabsContent value="academics" className="mt-4 space-y-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><History className="h-4 w-4 text-primary"/>Attendance History (Last 5)</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.attendance.map(att => <TableRow key={att.id}><TableCell>{att.date.toDate().toLocaleDateString()}</TableCell><TableCell>{getAttendanceStatusBadge(att.status)}</TableCell><TableCell>{att.notes || '—'}</TableCell></TableRow>)}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart className="h-4 w-4 text-primary"/>Grade History (Last 5)</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Assessment</TableHead><TableHead>Subject</TableHead><TableHead className="text-right">Grade</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.grades.map(grade => (
+                                                        <TableRow key={grade.id}>
+                                                            <TableCell>{grade.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell>{grade.assessmentTitle}</TableCell>
+                                                            <TableCell>{grade.subject}</TableCell>
+                                                            <TableCell className="text-right font-semibold">{grade.grade}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent value="finance" className="mt-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Full Fee Statement</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="w-full overflow-auto rounded-lg border max-h-80">
+                                            <Table>
+                                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Charge</TableHead><TableHead className="text-right">Payment</TableHead><TableHead className="text-right">Balance</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.transactions.map(tx => (
+                                                        <TableRow key={tx.id}>
+                                                            <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell>{tx.description}</TableCell>
+                                                            <TableCell className={`text-right ${tx.type === 'Charge' ? 'text-destructive' : ''}`}>{tx.type === 'Charge' ? formatCurrency(tx.amount) : '—'}</TableCell>
+                                                            <TableCell className={`text-right text-green-600`}>{tx.type === 'Payment' ? formatCurrency(Math.abs(tx.amount)) : '—'}</TableCell>
+                                                             <TableCell className="text-right font-semibold">{formatCurrency(tx.balance)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter className="font-bold flex justify-end">
+                                        Balance: {formatCurrency(selectedStudent.balance)}
+                                    </CardFooter>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent value="health" className="mt-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary"/>Incidents &amp; Health Log (Last 5)</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Reported By</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {selectedStudent.incidents.map(inc => (
+                                                        <TableRow key={inc.id}>
+                                                            <TableCell>{inc.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell><Badge variant={inc.type === 'Health' ? 'destructive' : 'secondary'}>{inc.type}</Badge></TableCell>
+                                                            <TableCell>{inc.reportedBy}</TableCell>
+                                                            <TableCell><Badge variant="outline">{inc.status}</Badge></TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
+                     <DialogFooter>
+                        {isEditing ? (
+                            <>
+                                <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                    Save Changes
+                                </Button>
+                            </>
+                        ) : (
+                            <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
+                        )}
+                    </DialogFooter>
+                    </form>
+                 )}
+             </DialogContent>
+        )}
+      </Dialog>
+    </div>
+  );
 }
-

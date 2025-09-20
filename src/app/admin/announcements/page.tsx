@@ -331,6 +331,7 @@ export default function AdminAnnouncementsPage() {
         let notificationAudience = 'all';
         if (values.audience.includes('Parent')) notificationAudience = 'parent';
         if (values.audience.includes('Staff')) notificationAudience = 'teacher';
+        if (values.audience.includes('Student')) notificationAudience = 'student';
 
         await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
             title: `New Announcement: ${values.title}`,
