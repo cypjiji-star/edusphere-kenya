@@ -156,16 +156,14 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
     const lowAttendanceAlerts = React.useMemo(() => {
         if (!records.length || !dateRange?.from) return [];
 
+        const fromDate = new Date(dateRange.from);
+        fromDate.setHours(0, 0, 0, 0);
+        const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+        toDate.setHours(23, 59, 59, 999);
+
         const recordsInPeriod = records.filter(record => {
             const recordDate = record.date.toDate();
-            // Refined date filtering logic
-            if (dateRange?.from && !dateRange.to) { // Single day selected
-                return recordDate.toDateString() === dateRange.from.toDateString();
-            }
-            if(dateRange?.from && dateRange?.to) {
-                return recordDate >= dateRange.from && recordDate <= dateRange.to;
-            }
-            return false;
+            return recordDate >= fromDate && recordDate <= toDate;
         });
 
         const classData: Record<string, { present: number, total: number, teacher: string, teacherId?: string }> = {};
@@ -1067,5 +1065,6 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
 
 
