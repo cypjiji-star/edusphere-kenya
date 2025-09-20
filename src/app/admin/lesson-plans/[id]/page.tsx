@@ -16,6 +16,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -36,7 +37,7 @@ import { Label } from '@/components/ui/label';
 import { LessonPlanForm } from '../new/lesson-plan-form';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
-import { collection, doc, onSnapshot, orderBy, query, Timestamp, deleteDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, Timestamp, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -94,10 +95,24 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
     if (!isEditMode || !schoolId || !lessonPlanId) return;
 
     try {
-      await deleteDoc(doc(firestore, 'schools', schoolId, 'lesson-plans', lessonPlanId));
+      const lessonPlanRef = doc(firestore, 'schools', schoolId, 'lesson-plans', lessonPlanId);
+      const historyCollectionRef = collection(lessonPlanRef, 'history');
+      
+      // Get all documents in the history subcollection
+      const historySnapshot = await getDocs(historyCollectionRef);
+      
+      // Create a batch to delete all history documents and the main plan
+      const batch = writeBatch(firestore);
+      historySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      batch.delete(lessonPlanRef);
+
+      await batch.commit();
+
       toast({
         title: 'Lesson Plan Deleted',
-        description: 'The lesson plan has been permanently removed.',
+        description: 'The lesson plan and all of its version history have been permanently removed.',
         variant: 'destructive',
       });
       router.push(`/admin/lesson-plans?schoolId=${schoolId}`);
