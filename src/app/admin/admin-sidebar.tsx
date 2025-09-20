@@ -211,8 +211,8 @@ export function AdminSidebar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="https://picsum.photos/seed/admin-avatar/100" alt="Admin" />
-                <AvatarFallback>A</AvatarFallback>
+                <AvatarImage src={user?.photoURL || `https://picsum.photos/seed/${user?.uid}/100`} alt="Admin" />
+                <AvatarFallback>{user?.displayName?.charAt(0) || 'A'}</AvatarFallback>
               </Avatar>
               <div className="text-left">
                 <p className="text-sm font-medium">{user?.displayName || 'Admin User'}</p>
