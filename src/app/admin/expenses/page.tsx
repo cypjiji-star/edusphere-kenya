@@ -48,11 +48,12 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormDescription } from '@/components/ui/form';
 import { firestore, storage } from '@/lib/firebase';
-import { collection, query, onSnapshot, Timestamp, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, Timestamp, addDoc, serverTimestamp, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -461,17 +462,47 @@ export default function ExpensesPage() {
         }, 1500);
     }
     
-     const handleImportExpenses = () => {
-        setIsBulkImportOpen(false); // Close the dialog
-        toast({
-            title: 'Import Successful',
-            description: 'The expenses have been added to the log for approval.',
-        });
-        // Reset dialog state after closing
-        setTimeout(() => {
-            setBulkImportFile(null);
-            setIsFileProcessed(false);
-        }, 300);
+     const handleImportExpenses = async () => {
+        if (!schoolId || !bulkImportFile) return;
+        setIsProcessingFile(true);
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                const batch = writeBatch(firestore);
+                json.forEach((row: any) => {
+                    const expenseRef = doc(collection(firestore, 'schools', schoolId, 'expenses'));
+                    batch.set(expenseRef, {
+                        date: Timestamp.fromDate(new Date(row.Date)),
+                        category: row.Category,
+                        description: row.Description,
+                        amount: Number(row.Amount),
+                        vendor: row.Vendor,
+                        submittedBy: 'Bulk Import',
+                        status: 'Pending Approval',
+                        createdAt: serverTimestamp(),
+                    });
+                });
+
+                await batch.commit();
+                toast({ title: 'Import Successful', description: `${json.length} expenses imported for approval.` });
+                setIsBulkImportOpen(false);
+                handleRemoveBulkFile();
+
+            } catch (error) {
+                console.error("Error importing expenses:", error);
+                toast({ title: 'Import Failed', description: 'Please check the file format and try again.', variant: 'destructive'});
+            } finally {
+                setIsProcessingFile(false);
+            }
+        };
+        reader.readAsArrayBuffer(bulkImportFile);
     };
 
     const handleExport = (type: 'PDF' | 'CSV') => {
@@ -759,7 +790,8 @@ export default function ExpensesPage() {
                                             <DialogFooter>
                                                 <Button variant="outline" onClick={() => setIsBulkImportOpen(false)}>Cancel</Button>
                                                 {isFileProcessed ? (
-                                                    <Button onClick={handleImportExpenses}>
+                                                    <Button onClick={handleImportExpenses} disabled={isProcessingFile}>
+                                                        {isProcessingFile && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                                                         <CheckCircle className="mr-2 h-4 w-4" /> Import Expenses
                                                     </Button>
                                                 ) : (

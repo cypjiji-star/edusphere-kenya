@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, BookOpen, Share2, Copy, FileDown, ChevronDown, History, Users, Eye } from 'lucide-react';
+import { ArrowLeft, BookOpen, Share2, Copy, FileDown, ChevronDown, History, Users, Eye, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -17,6 +17,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,8 +36,9 @@ import { Label } from '@/components/ui/label';
 import { LessonPlanForm } from '../new/lesson-plan-form';
 import * as React from 'react';
 import { firestore } from '@/lib/firebase';
-import { collection, doc, onSnapshot, orderBy, query, Timestamp } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, Timestamp, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 
 type VersionHistoryItem = {
@@ -46,6 +58,7 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = React.useState('editor');
   const [formKey, setFormKey] = React.useState(Date.now()); // Used to force re-render of form
+  const router = useRouter();
 
   React.useEffect(() => {
     if (!isEditMode || !schoolId) return;
@@ -76,6 +89,28 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
     });
     setActiveTab('editor');
   };
+  
+  const handleDelete = async () => {
+    if (!isEditMode || !schoolId || !lessonPlanId) return;
+
+    try {
+      await deleteDoc(doc(firestore, 'schools', schoolId, 'lesson-plans', lessonPlanId));
+      toast({
+        title: 'Lesson Plan Deleted',
+        description: 'The lesson plan has been permanently removed.',
+        variant: 'destructive',
+      });
+      router.push(`/admin/lesson-plans?schoolId=${schoolId}`);
+    } catch (error) {
+      console.error('Error deleting lesson plan:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not delete the lesson plan. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -121,6 +156,27 @@ export default function EditLessonPlanPage({ params, searchParams }: { params: {
                     <FileDown className="mr-2" />
                     Print / Export as PDF
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                       <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                          <Trash2 className="mr-2" />
+                          Delete Lesson Plan
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete this lesson plan and all of its version history.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
