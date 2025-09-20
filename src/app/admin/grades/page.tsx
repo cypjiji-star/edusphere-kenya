@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -44,7 +45,6 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  LabelList,
 } from 'lucide-react';
 import {
   Table,
@@ -97,7 +97,7 @@ import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LabelList } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -939,186 +939,131 @@ function TeacherGradesContent() {
   const [examTermFilter, setExamTermFilter] = React.useState<string>(getCurrentTerm());
   const [selectedExamForSubmissions, setSelectedExamForSubmissions] = React.useState<Exam | null>(null);
   
-  const allLoaded = React.useMemo(() => {
-    return Object.values(loadingState).every(state => !state);
-  }, [loadingState]);
-
   React.useEffect(() => {
     if (!schoolId) return;
 
-    setLoadingState({
-      exams: true,
-      students: true,
-      grades: true,
-      classes: true,
-      auditLog: true,
-      pendingGrades: true
-    });
+    setLoadingState(prev => ({ ...prev, classes: true, exams: true, grades: true, pendingGrades: true, auditLog: true }));
 
     const unsubscribers: (()=>void)[] = [];
 
-    try {
-      const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), orderBy('date', 'desc'));
-      unsubscribers.push(onSnapshot(examsQuery, (snapshot) => {
-        const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
-        setExams(fetchedExams);
-        setLoadingState(prev => ({ ...prev, exams: false }));
-      }));
-      
-      unsubscribers.push(onSnapshot(query(collection(firestore, `schools/${schoolId}/classes`)), snapshot => {
-        const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
-        setClasses(classData);
-        setLoadingState(prev => ({ ...prev, classes: false }));
-      }));
-      
-      unsubscribers.push(onSnapshot(query(collection(firestore, `schools/${schoolId}/subjects`)), snapshot => {
-        setSubjects(snapshot.docs.map(doc => doc.data().name));
-      }));
+    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
+    unsubscribers.push(onSnapshot(classesQuery, snapshot => {
+      const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
+      setClasses(classData);
+      setLoadingState(prev => ({ ...prev, classes: false }));
+    }));
 
-      const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved'));
-      unsubscribers.push(onSnapshot(gradesQuery, async (snapshot) => {
-        const gradesByStudent: Record<string, { studentId: string, scores: Record<string, number>, classId: string }> = {};
-        const studentPromises = [];
-        
-        for (const doc of snapshot.docs) {
-          const gradeData = doc.data();
-          if (!gradeData.studentId || !gradeData.subject || isNaN(parseInt(gradeData.grade))) continue;
-          if (!gradeData.studentRef) continue;
+    const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
+    unsubscribers.push(onSnapshot(subjectsQuery, snapshot => {
+      setSubjects(snapshot.docs.map(doc => doc.data().name));
+    }));
 
-          if (!gradesByStudent[gradeData.studentId]) {
-            gradesByStudent[gradeData.studentId] = { studentId: gradeData.studentId, scores: {}, classId: gradeData.classId };
-            studentPromises.push(getDoc(gradeData.studentRef));
-          }
-          gradesByStudent[gradeData.studentId].scores[gradeData.subject] = parseInt(gradeData.grade);
-        }
-        
-        const studentDocs = await Promise.all(studentPromises);
-        const studentDataMap = new Map(studentDocs.map(doc => [doc.id, doc.data()]));
-        
-        const studentScores: StudentGrade[] = Object.values(gradesByStudent).map(data => {
-          const studentInfo = studentDataMap.get(data.studentId);
-          return {
-            studentId: data.studentId,
-            studentName: studentInfo?.name || 'Unknown',
-            admNo: studentInfo?.admissionNumber || 'N/A',
-            avatarUrl: studentInfo?.avatarUrl || '',
-            scores: data.scores,
-            classId: data.classId
-          }
+    const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), orderBy('date', 'desc'));
+    unsubscribers.push(onSnapshot(examsQuery, (snapshot) => {
+      const fetchedExams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam));
+      setExams(fetchedExams);
+      setLoadingState(prev => ({ ...prev, exams: false }));
+    }));
+
+    const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved'));
+    unsubscribers.push(onSnapshot(gradesQuery, (snapshot) => {
+        const studentGradesMap: Record<string, StudentGrade> = {};
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const studentId = data.studentId;
+            if (!studentGradesMap[studentId]) {
+                studentGradesMap[studentId] = { studentId, scores: {}, studentName: '', admNo: '', avatarUrl: '', classId: data.classId };
+            }
+            studentGradesMap[studentId].scores[data.subject] = Number(data.grade);
         });
-        
-        setStudentGrades(studentScores);
-        setLoadingState(prev => ({ ...prev, grades: false }));
-        
-        const calculatedRankingByClass: Record<string, Omit<Ranking, 'position' | 'streamPosition'>[]> = {};
 
-        studentScores.forEach(student => {
-          const classId = student.classId;
-          if (!calculatedRankingByClass[classId]) {
-            calculatedRankingByClass[classId] = [];
-          }
+        Promise.all(
+            Object.keys(studentGradesMap).map(id => getDoc(doc(firestore, `schools/${schoolId}/students`, id)))
+        ).then(studentDocs => {
+            studentDocs.forEach(sDoc => {
+                if (sDoc.exists()) {
+                    const sData = sDoc.data();
+                    if (studentGradesMap[sDoc.id]) {
+                        studentGradesMap[sDoc.id].studentName = sData.name;
+                        studentGradesMap[sDoc.id].admNo = sData.admissionNumber;
+                        studentGradesMap[sDoc.id].avatarUrl = sData.avatarUrl;
+                    }
+                }
+            });
 
-          const subjectCount = Object.keys(student.scores).length;
-          const total = Object.values(student.scores).reduce((a, b) => a + b, 0);
-          const avg = subjectCount > 0 ? total / subjectCount : 0;
-          let grade;
-          if (avg >= 80) grade = 'A';
-          else if (avg >= 65) grade = 'B';
-          else if (avg >= 50) grade = 'C';
-          else if (avg >= 40) grade = 'D';
-          else grade = 'E';
+            const studentScores = Object.values(studentGradesMap);
+            setStudentGrades(studentScores);
+            setLoadingState(prev => ({ ...prev, grades: false }));
 
-          calculatedRankingByClass[classId].push({
-            name: student.studentName,
-            admNo: student.admNo,
-            avatarUrl: student.avatarUrl,
-            total,
-            avg,
-            grade,
-          });
+            const classAvgs: Record<string, { total: number; count: number }> = {};
+            studentScores.forEach(student => {
+                const avg = student.scores ? Object.values(student.scores).reduce((a, b) => a + b, 0) / Object.keys(student.scores).length : 0;
+                if (!classAvgs[student.classId]) {
+                    classAvgs[student.classId] = { total: 0, count: 0 };
+                }
+                classAvgs[student.classId].total += avg;
+                classAvgs[student.classId].count++;
+            });
+
+            const classMap = new Map(classes.map(c => [c.id, c.name]));
+            setClassPerformanceData(
+                Object.entries(classAvgs).map(([classId, data]) => ({
+                    name: classMap.get(classId) || 'Unknown',
+                    average: Math.round(data.total / data.count),
+                }))
+            );
         });
-        
-        const finalRankings: Record<string, Ranking[]> = {};
-        for (const classId in calculatedRankingByClass) {
-          finalRankings[classId] = calculatedRankingByClass[classId]
-            .sort((a,b) => b.total - a.total)
-            .map((student, index) => ({...student, position: index + 1, streamPosition: index + 1 }));
-        }
-        setClassRankings(finalRankings);
+    }));
+
+    const auditLogQuery = query(collection(firestore, 'schools', schoolId, 'audit_logs'), where('action', 'in', ['GRADE_UPDATED', 'GRADE_APPROVED', 'GRADE_REJECTED']), orderBy('timestamp', 'desc'));
+    unsubscribers.push(onSnapshot(auditLogQuery, (snapshot) => {
+      const logs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as AuditLog));
+      setAuditLog(logs);
+      setLoadingState(prev => ({ ...prev, auditLog: false }));
+    }));
       
-        const perfData: Record<string, { total: number; count: number }> = {};
-        
-        const classMap = new Map(classes.map(c => [c.id, c.name]));
-        for (const classId in calculatedRankingByClass) {
-          const className = classMap.get(classId) || classId;
-          const classStudents = calculatedRankingByClass[classId];
-          if (classStudents.length > 0) {
-            const totalAvg = classStudents.reduce((sum, s) => sum + s.avg, 0) / classStudents.length;
-            perfData[className] = { total: totalAvg, count: 1 };
-          }
+    const pendingGradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval'));
+    unsubscribers.push(onSnapshot(pendingGradesQuery, async (snapshot) => {
+      const classMap = new Map(classes.map(c => [c.id, c.name]));
+      const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
+        const data = gradeDoc.data();
+        const studentSnap = await getDoc(data.studentRef);
+        const examSnap = data.examId ? await getDoc(doc(firestore, 'schools', schoolId, 'exams', data.examId)) : null;
+
+        return {
+          id: gradeDoc.id,
+          studentName: studentSnap.data()?.name || 'Unknown',
+          studentId: studentSnap.id,
+          subject: data.subject,
+          grade: data.grade,
+          teacherName: data.teacherName,
+          assessmentTitle: examSnap?.data()?.title || 'N/A',
+          examId: data.examId,
+          className: classMap.get(data.classId) || 'Unknown Class',
+        };
+      }));
+      setPendingGrades(pendingData);
+      setLoadingState(prev => ({ ...prev, pendingGrades: false }));
+
+      const grouped: GroupedPendingGrades = {};
+      for (const grade of pendingData) {
+        if (!grouped[grade.className]) {
+          grouped[grade.className] = {};
         }
-        
-        setClassPerformanceData(
-          Object.entries(perfData)
-            .map(([name, data]) => ({
-              name,
-              average: Math.round(data.total / data.count),
-            }))
-            .sort((a, b) => b.average - a.average)
-        );
-      }));
-
-      const auditLogQuery = query(collection(firestore, 'schools', schoolId, 'audit_logs'), where('action', 'in', ['GRADE_UPDATED', 'GRADE_APPROVED', 'GRADE_REJECTED']), orderBy('timestamp', 'desc'));
-      unsubscribers.push(onSnapshot(auditLogQuery, (snapshot) => {
-        const logs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as AuditLog));
-        setAuditLog(logs);
-        setLoadingState(prev => ({ ...prev, auditLog: false }));
-      }));
-      
-      const pendingGradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('status', '==', 'Pending Approval'));
-      unsubscribers.push(onSnapshot(pendingGradesQuery, async (snapshot) => {
-        const classMap = new Map(classes.map(c => [c.id, c.name]));
-        const pendingData: PendingGrade[] = await Promise.all(snapshot.docs.map(async (gradeDoc) => {
-          const data = gradeDoc.data();
-          const studentSnap = await getDoc(data.studentRef);
-          const examSnap = data.examId ? await getDoc(doc(firestore, 'schools', schoolId, 'exams', data.examId)) : null;
-
-          return {
-            id: gradeDoc.id,
-            studentName: studentSnap.data()?.name || 'Unknown',
-            studentId: studentSnap.id,
-            subject: data.subject,
-            grade: data.grade,
-            teacherName: data.teacherName,
-            assessmentTitle: examSnap?.data()?.title || 'N/A',
-            examId: data.examId,
-            className: classMap.get(data.classId) || 'Unknown Class',
-          };
-        }));
-        setPendingGrades(pendingData);
-        setLoadingState(prev => ({ ...prev, pendingGrades: false }));
-
-        const grouped: GroupedPendingGrades = {};
-        for (const grade of pendingData) {
-          if (!grouped[grade.className]) {
-            grouped[grade.className] = {};
-          }
-          if (!grouped[grade.className][grade.studentName]) {
-            grouped[grade.className][grade.studentName] = [];
-          }
-          grouped[grade.className][grade.studentName].push(grade);
+        if (!grouped[grade.className][grade.studentName]) {
+          grouped[grade.className][grade.studentName] = [];
         }
-        setGroupedPendingGrades(grouped);
-      }));
-    } catch (error) {
-      console.error("Error setting up listeners:", error);
-      toast({ title: 'Error', description: 'Could not load all necessary data.', variant: 'destructive' });
-    }
+        grouped[grade.className][grade.studentName].push(grade);
+      }
+      setGroupedPendingGrades(grouped);
+    }));
+
 
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [schoolId, toast]);
+  }, [schoolId]);
 
   const getTermDates = (term: string) => {
     const [termName, yearStr] = term.split('-');
@@ -1456,27 +1401,6 @@ function TeacherGradesContent() {
     return <div className="p-8">Error: School ID is missing from URL.</div>
   }
 
-  if (!allLoaded) {
-    return (
-      <div className="p-8 flex flex-col items-center justify-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading grade data...</p>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {Object.entries(loadingState).map(([key, loading]) => (
-            <div key={key} className="flex items-center">
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-              )}
-              <span className="text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <AlertDialog open={!!examToDelete} onOpenChange={(open) => !open && setExamToDelete(null)}>
@@ -1608,10 +1532,6 @@ function TeacherGradesContent() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" onClick={() => setActiveTab('gradebook')}>
-              <BarChartIcon className="mr-2 h-4 w-4" />
-              View Reports
-            </Button>
           </CardContent>
         </Card>
       </div>
