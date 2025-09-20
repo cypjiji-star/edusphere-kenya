@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -484,7 +485,7 @@ export default function AdminAttendancePage() {
       unsubStudents();
       unsubCommLogs();
     };
-  }, [schoolId, toast, selectedTerm]);
+  }, [schoolId, selectedTerm]);
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
