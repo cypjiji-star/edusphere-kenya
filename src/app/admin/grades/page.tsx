@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -385,80 +384,6 @@ function RejectGradeDialog({ open, onOpenChange, onSubmit, grade }: { open: bool
     )
 }
 
-function EditExamDialog({ open, onOpenChange, exam, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, exam: Exam | null, onSave: (id: string, updates: Partial<Exam>) => void }) {
-    const [title, setTitle] = React.useState('');
-    const [date, setDate] = React.useState<Date | undefined>();
-    const [duration, setDuration] = React.useState('');
-    const [type, setType] = React.useState<Exam['type'] | undefined>();
-
-    React.useEffect(() => {
-        if (exam) {
-            setTitle(exam.title);
-            setDate(exam.date.toDate());
-            setDuration(String(exam.duration));
-            setType(exam.type);
-        }
-    }, [exam]);
-
-    if (!exam) return null;
-
-    const handleSave = () => {
-        onSave(exam.id, {
-            title,
-            date: Timestamp.fromDate(date!),
-            duration: Number(duration),
-            type,
-        });
-        onOpenChange(false);
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Edit Exam Details</DialogTitle>
-                    <DialogDescription>Update the information for "{exam.title}".</DialogDescription>
-                </DialogHeader>
-                 <div className="py-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-exam-title">Exam Title</Label>
-                        <Input id="edit-exam-title" value={title} onChange={e => setTitle(e.target.value)} />
-                    </div>
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-exam-date">Date</Label>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full justify-start font-normal">
-                                        <CalendarIcon className="mr-2 h-4 w-4"/>
-                                        {date ? format(date, 'PPP') : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} initialFocus/></PopoverContent>
-                            </Popover>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="edit-exam-duration">Duration (minutes)</Label>
-                            <Input id="edit-exam-duration" type="number" value={duration} onChange={e => setDuration(e.target.value)} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="edit-exam-type">Type</Label>
-                            <Select value={type} onValueChange={(v: Exam['type']) => setType(v)}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                <SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave}>Save Changes</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
 function calculateGrade(score: number): string {
     if (isNaN(score) || score < 0 || score > 100) return '';
     if (score >= 80) return 'A';
@@ -821,7 +746,7 @@ export default function TeacherGradesPage() {
     const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
     const [pendingGrades, setPendingGrades] = React.useState<PendingGrade[]>([]);
     const [groupedPendingGrades, setGroupedPendingGrades] = React.useState<GroupedPendingGrades>({});
-    const [activeTab, setActiveTab] = React.useState('exam-management');
+    const [activeTab, setActiveTab] = React.useState('reports');
 
     // State for the create exam form
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
@@ -950,10 +875,11 @@ export default function TeacherGradesPage() {
                 setClassRankings(finalRankings);
             
                 const perfData: Record<string, { total: number; count: number }> = {};
+                
                 const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
 
                 for (const classId in calculatedRankingByClass) {
-                    const className = classData.find(c => c.id === classId)?.name || classId;
+                    const className = classes.find(c => c.id === classId)?.name || classId;
                     const classStudents = calculatedRankingByClass[classId];
                     if (classStudents.length > 0) {
                         const totalAvg = classStudents.reduce((sum, s) => sum + s.avg, 0) / classStudents.length;
@@ -1025,7 +951,7 @@ export default function TeacherGradesPage() {
             unsubLogs();
             unsubPendingGrades();
         };
-    }, [schoolId, toast]);
+    }, [schoolId, toast, classes]);
 
     const getTermDates = (term: string) => {
         const [termName, yearStr] = term.split('-');
@@ -1385,7 +1311,6 @@ export default function TeacherGradesPage() {
         </AlertDialog>
         <RejectGradeDialog open={!!gradeToReject} onOpenChange={(open) => !open && setGradeToReject(null)} grade={gradeToReject} onSubmit={(feedback) => handleGradeModeration(gradeToReject!.id, gradeToReject!.studentId, gradeToReject!.studentName, gradeToReject!.subject, gradeToReject!.grade, 'Rejected', feedback)} />
         <ReportCardDialog student={selectedStudentForReport} studentGrades={studentGrades} open={!!selectedStudentForReport} onOpenChange={(open) => !open && setSelectedStudentForReport(null)} />
-        <EditExamDialog exam={editingExam} open={!!editingExam} onOpenChange={(open) => !open && setEditingExam(null)} onSave={handleUpdateExam} />
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
         <p className="text-muted-foreground">Manage exams, grades, and academic reports.</p>
@@ -1500,139 +1425,15 @@ export default function TeacherGradesPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 h-auto">
-                <TabsTrigger value="exam-management">Exam Management</TabsTrigger>
-                <TabsTrigger value="reports">Exam Reports</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 h-auto">
+                <TabsTrigger value="reports">Gradebook</TabsTrigger>
                 <TabsTrigger value="moderation">Moderation &amp; Approval</TabsTrigger>
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
-            <TabsContent value="exam-management" className="mt-4">
-                <Card>
-                    <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <CardTitle>Exam Scheduler</CardTitle>
-                            <CardDescription>Create, schedule, and manage all school examinations.</CardDescription>
-                        </div>
-                        <div className="flex w-full md:w-auto flex-col sm:flex-row gap-2 mt-4 md:mt-0">
-                            <Select value={examTermFilter} onValueChange={setExamTermFilter}>
-                                <SelectTrigger className="w-full sm:w-[200px]">
-                                    <SelectValue placeholder="Select Term/Year"/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button>
-                                        <PlusCircle className="mr-2 h-4 w-4"/>
-                                        Create Exam
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-2xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Create New Exam</DialogTitle>
-                                        <DialogDescription>Fill in the details for the new examination.</DialogDescription>
-                                    </DialogHeader>
-                                    <div className="py-4 space-y-6">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="exam-title">Exam Title</Label>
-                                            <Input id="exam-title" placeholder="e.g., Form 4 Midterm Exam" value={examTitle} onChange={e => setExamTitle(e.target.value)} />
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="exam-class">Class</Label>
-                                                <Select value={examClassId} onValueChange={setExamClassId}>
-                                                    <SelectTrigger><SelectValue placeholder="Select a class"/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="all">All Classes</SelectItem>
-                                                        {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="exam-subject">Subject</Label>
-                                                <Select value={examSubject} onValueChange={setExamSubject}>
-                                                    <SelectTrigger><SelectValue placeholder="Select a subject"/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="all">All Subjects</SelectItem>
-                                                        {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="exam-date">Date</Label>
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant="outline" className="w-full justify-start font-normal">
-                                                            <CalendarIcon className="mr-2 h-4 w-4"/>
-                                                            {examDate ? format(examDate, 'PPP') : <span>Pick a date</span>}
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={examDate} onSelect={setExamDate} initialFocus/></PopoverContent>
-                                                </Popover>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="exam-duration">Duration (minutes)</Label>
-                                                <Input id="exam-duration" type="number" placeholder="e.g., 120" value={examDuration} onChange={e => setExamDuration(e.target.value)} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="exam-type">Type</Label>
-                                                <Select value={examType} onValueChange={(v: Exam['type']) => setExamType(v)}>
-                                                    <SelectTrigger><SelectValue placeholder="Select a type"/></SelectTrigger>
-                                                    <SelectContent>{examTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                                        <Button onClick={handleCreateExam}>Create Exam</Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Exam Title</TableHead>
-                                        <TableHead>Class</TableHead>
-                                        <TableHead>Subject</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {groupedExams.map(exam => (
-                                        <TableRow key={exam.id}>
-                                            <TableCell className="font-medium">{exam.title}</TableCell>
-                                            <TableCell>{exam.class}</TableCell>
-                                            <TableCell>{exam.subject}</TableCell>
-                                            <TableCell>{format(exam.date.toDate(), 'PPP')}</TableCell>
-                                            <TableCell>{getStatusBadge(exam.status)}</TableCell>
-                                            <TableCell className="text-right space-x-2">
-                                                 <Button variant="outline" size="sm" onClick={() => setSelectedExamForSubmissions(exam)}>View Submissions</Button>
-                                                <Button variant="ghost" size="icon" onClick={() => setEditingExam(exam)}><Edit className="h-4 w-4"/></Button>
-                                                <Button variant="ghost" size="icon" onClick={() => setExamToDelete(exam)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
-            </TabsContent>
             <TabsContent value="reports" className="mt-4">
                  <Card>
                     <CardHeader>
-                        <CardTitle>Exam Reports</CardTitle>
+                        <CardTitle>Gradebook</CardTitle>
                         <CardDescription>Generate and view detailed performance reports for specific exams.</CardDescription>
                         <div className="pt-4 flex flex-col md:flex-row md:items-center gap-4">
                             <Select value={selectedReportTerm} onValueChange={setSelectedReportTerm}>
@@ -1878,5 +1679,7 @@ export default function TeacherGradesPage() {
 
     
 
+
+    
 
     
