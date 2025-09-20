@@ -457,6 +457,10 @@ export default function StudentEnrolmentPage() {
                     })
                 );
 
+                const classRef = doc(firestore, `schools/${schoolId}/classes`, values.classId);
+                const classSnap = await transaction.get(classRef);
+                const classTeacherId = classSnap.exists() ? classSnap.data().teacherId : null;
+
                 let totalFee = 0;
                 if (values.generateInvoice) {
                     const feeStructureRef = doc(firestore, `schools/${schoolId}/fee-structures`, values.classId);
@@ -480,6 +484,7 @@ export default function StudentEnrolmentPage() {
                     nhifNumber: values.nhifNumber || null,
                     classId: values.classId,
                     class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
+                    classTeacherId: classTeacherId,
                     admissionYear: values.admissionYear,
                     parentId: parentUserId,
                     parentName: `${values.parentFirstName} ${values.parentLastName}`,
