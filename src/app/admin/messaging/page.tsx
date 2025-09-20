@@ -177,13 +177,25 @@ export default function MessagingPage() {
                                                     </AvatarFallback>
                                                 </Avatar>
                                             )}
-                                            <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", 
-                                                isUser ? 'bg-primary text-primary-foreground' : 
-                                                (isAdmin ? 'bg-secondary text-secondary-foreground' : 'bg-muted')
-                                            )}>
-                                                 {isAdmin && <p className="font-bold text-xs mb-1">{message.senderName}</p>}
-                                                <p>{message.content}</p>
+                                            <div className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
+                                                {(isAdmin || isUser) && (
+                                                    <p className="font-bold text-xs text-muted-foreground px-1">
+                                                        {isAdmin ? message.senderName : selectedConversation.userName}
+                                                    </p>
+                                                )}
+                                                <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", 
+                                                    isUser ? 'bg-primary text-primary-foreground' : 
+                                                    (isAdmin ? 'bg-secondary text-secondary-foreground' : 'bg-muted')
+                                                )}>
+                                                    <p>{message.content}</p>
+                                                </div>
                                             </div>
+                                             {isUser && (
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={selectedConversation.userAvatar}/>
+                                                    <AvatarFallback><User /></AvatarFallback>
+                                                </Avatar>
+                                            )}
                                         </div>
                                     )})
                                 ) : (
