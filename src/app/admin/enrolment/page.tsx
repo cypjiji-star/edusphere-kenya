@@ -859,15 +859,23 @@ export default function StudentEnrolmentPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {recentEnrolments.map((enrolment) => (
-                                            <TableRow key={enrolment.id}>
-                                                <TableCell>
-                                                    <div className="font-medium">{enrolment.studentName}</div>
-                                                    <div className="text-xs text-muted-foreground">{enrolment.class}</div>
+                                        {recentEnrolments.length > 0 ? (
+                                            recentEnrolments.map((enrolment) => (
+                                                <TableRow key={enrolment.id}>
+                                                    <TableCell>
+                                                        <div className="font-medium">{enrolment.studentName}</div>
+                                                        <div className="text-xs text-muted-foreground">{enrolment.class}</div>
+                                                    </TableCell>
+                                                    <TableCell>{getStatusBadge(enrolment.status)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={2} className="h-24 text-center">
+                                                    No recent enrolments.
                                                 </TableCell>
-                                                <TableCell>{getStatusBadge(enrolment.status)}</TableCell>
                                             </TableRow>
-                                        ))}
+                                        )}
                                     </TableBody>
                                 </Table>
                              </ScrollArea>

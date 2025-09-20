@@ -11,7 +11,6 @@ export type PermissionCategory = {
 
 export type Role = {
     permissions: string[];
-    userCount: number;
     isCore: boolean;
 };
 
@@ -56,35 +55,23 @@ export const initialPermissionStructure: PermissionCategory[] = [
   },
 ];
 
-export const initialRolePermissions: Record<string, Role> = {
+// This initial data is used to bootstrap roles for a new school.
+// The actual role data will be read from Firestore.
+export const initialRolePermissions: Record<string, Omit<Role, 'userCount'>> = {
   Admin: {
     permissions: initialPermissionStructure.flatMap(cat => cat.permissions.map(p => p.id)),
-    userCount: 2,
-    isCore: true,
-  },
-  Principal: {
-    permissions: initialPermissionStructure.flatMap(cat => cat.permissions.map(p => p.id)).filter(p => !p.startsWith('users.')),
-    userCount: 1,
     isCore: true,
   },
   Teacher: {
     permissions: ['academics.grades.view'],
-    userCount: 45,
     isCore: true,
   },
   Student: {
     permissions: [],
-    userCount: 852,
     isCore: true,
   },
   Parent: {
     permissions: [],
-    userCount: 780,
     isCore: true,
   },
-  Security: {
-      permissions: [],
-      userCount: 4,
-      isCore: true,
-  }
 };
