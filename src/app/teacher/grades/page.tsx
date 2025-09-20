@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -177,6 +176,7 @@ type PendingGrade = {
     teacherName: string;
     assessmentTitle: string;
     examId: string;
+    className: string;
 };
 
 type GroupedPendingGrades = Record<string, Record<string, PendingGrade[]>>;
@@ -402,53 +402,57 @@ function GradeEntryView({ exam, onBack, schoolId, teacher }: { exam: Exam, onBac
 
     React.useEffect(() => {
         setIsLoading(true);
-        const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
-        
-        // This real-time listener will update the component whenever a grade is changed (e.g., by an admin)
-        const unsubGrades = onSnapshot(gradesQuery, (gradesSnap) => {
-            const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
-            
-            // If students list is empty, fetch it for the first time.
-            if (students.length === 0) {
-                const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
-                getDocs(studentsQuery).then(studentsSnap => {
-                    const studentData = studentsSnap.docs.map(doc => {
-                        const data = doc.data();
-                        const existingGrade = gradesMap.get(doc.id);
+        let studentUnsub: () => void = () => {};
+        let gradesUnsub: () => void = () => {};
+
+        // 1. Fetch students for the class just once
+        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', exam.classId));
+        getDocs(studentsQuery).then(studentsSnap => {
+            const studentData = studentsSnap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    studentId: doc.id,
+                    studentName: data.name,
+                    avatarUrl: data.avatarUrl || '',
+                    admNo: data.admissionNumber || '',
+                    score: '',
+                    grade: '',
+                    gradeStatus: 'Unmarked' as const,
+                    submissionId: undefined,
+                };
+            });
+            setStudents(studentData);
+            gradeInputRefs.current = gradeInputRefs.current.slice(0, studentData.length);
+            setIsLoading(false);
+
+            // 2. After students are loaded, set up a real-time listener for grades
+            const gradesQuery = query(collection(firestore, 'schools', schoolId, 'grades'), where('examId', '==', exam.id));
+            gradesUnsub = onSnapshot(gradesQuery, (gradesSnap) => {
+                const gradesMap = new Map(gradesSnap.docs.map(doc => [doc.data().studentId, { submissionId: doc.id, score: doc.data().grade, status: doc.data().status || 'Approved' }]));
+                
+                setStudents(currentStudents => {
+                    // If currentStudents is empty, wait for the initial fetch to complete
+                    if (currentStudents.length === 0) return [];
+
+                    return currentStudents.map(student => {
+                        const existingGrade = gradesMap.get(student.studentId);
                         const score = existingGrade?.score || '';
                         return {
-                            studentId: doc.id,
-                            studentName: data.name,
-                            avatarUrl: data.avatarUrl || '',
-                            admNo: data.admissionNumber || '',
-                            score: score,
+                            ...student,
+                            score,
                             grade: score ? calculateGrade(Number(score)) : '',
                             gradeStatus: existingGrade ? existingGrade.status : 'Unmarked',
                             submissionId: existingGrade?.submissionId,
-                        }
+                        };
                     });
-                    setStudents(studentData);
-                    setIsLoading(false);
                 });
-            } else {
-                 // If students are already loaded, just update their grade info
-                 setStudents(prevStudents => prevStudents.map(student => {
-                     const existingGrade = gradesMap.get(student.studentId);
-                     const score = existingGrade ? existingGrade.score : student.score; // Keep local score if no new remote data
-                     return {
-                        ...student,
-                        score: score,
-                        grade: score ? calculateGrade(Number(score)) : '',
-                        gradeStatus: existingGrade ? existingGrade.status : student.gradeStatus,
-                        submissionId: existingGrade?.submissionId || student.submissionId,
-                     }
-                 }))
-                 setIsLoading(false);
-            }
+            });
         });
 
-        return () => unsubGrades();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        return () => {
+            studentUnsub();
+            gradesUnsub();
+        };
     }, [exam.id, exam.classId, schoolId]);
     
     const handleScoreChange = (studentId: string, score: string) => {
@@ -861,5 +865,3 @@ export default function TeacherGradesPage() {
     </div>
   );
 }
-
-

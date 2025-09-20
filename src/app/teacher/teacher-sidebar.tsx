@@ -60,7 +60,7 @@ const navGroups = [
     items: [
       { href: '/teacher/students', label: 'Class Management', icon: Users, badgeKey: null },
       { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck, badgeKey: null },
-      { href: '/teacher/grades', label: 'Grades & Exams', icon: FileText, badgeKey: null },
+      { href: '/teacher/grades', label: 'Grades & Exams', icon: FileText, badgeKey: 'ungradedAssignments' },
       { href: '/teacher/payments', label: 'Class Funds', icon: CircleDollarSign, badgeKey: null },
       { href: '/teacher/sports', label: 'Sports', icon: Trophy, badgeKey: null },
       { href: '/teacher/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },

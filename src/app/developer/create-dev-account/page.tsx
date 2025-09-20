@@ -15,11 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { auth, firestore } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import { Loader2, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
+import { createDeveloperUserAction } from '../actions';
 
 export default function CreateDeveloperAccountPage() {
   const router = useRouter();
@@ -33,31 +31,25 @@ export default function CreateDeveloperAccountPage() {
     setIsLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const result = await createDeveloperUserAction({ email, password });
 
-      // Add user to the 'developers' collection in Firestore to assign the role
-      const devDocRef = doc(firestore, 'developers', user.uid);
-      await setDoc(devDocRef, {
-        uid: user.uid,
-        email: user.email,
-        role: 'developer',
-        createdAt: new Date(),
-      });
-
-      toast({
-        title: 'Account Created',
-        description: 'You have been registered as a developer.',
-      });
-
-      // Redirect to the developer dashboard after successful registration
-      router.push('/developer');
-
+      if (result.success) {
+        toast({
+          title: 'Account Created',
+          description: 'You have been registered as a developer.',
+        });
+        // Firebase Auth will automatically sign the user in.
+        // We can redirect them to the developer dashboard.
+        router.push('/developer');
+      } else {
+        throw new Error(result.message);
+      }
     } catch (error: any) {
       let errorMessage = 'An unexpected error occurred. Please try again.';
-      if (error.code === 'auth/email-already-in-use') {
+      // Firebase error codes are often in the message from the server action
+      if (error.message.includes('auth/email-already-in-use')) {
         errorMessage = 'This email address is already in use by another account.';
-      } else if (error.code === 'auth/weak-password') {
+      } else if (error.message.includes('auth/weak-password')) {
         errorMessage = 'The password is too weak. It must be at least 6 characters long.';
       }
       
