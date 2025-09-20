@@ -556,12 +556,22 @@ export default function AdminAttendancePage() {
     });
   }, [teacherAttendanceRecords, date]);
   
-    const handleLeaveAction = async (id: string, newStatus: 'Approved' | 'Rejected') => {
+    const handleLeaveAction = async (app: LeaveApplication, newStatus: 'Approved' | 'Rejected') => {
     if (!schoolId) return;
-    const leaveRef = doc(firestore, `schools/${schoolId}/leave-applications`, id);
+    const leaveRef = doc(firestore, `schools/${schoolId}/leave-applications`, app.id);
     try {
         await updateDoc(leaveRef, { status: newStatus });
-        toast({ title: 'Leave Updated', description: `The application has been ${newStatus.toLowerCase()}.` });
+        
+        await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+            title: `Leave Application ${newStatus}`,
+            description: `Your leave request from ${format(app.startDate.toDate(), 'PPP')} to ${format(app.endDate.toDate(), 'PPP')} has been ${newStatus.toLowerCase()}.`,
+            createdAt: serverTimestamp(),
+            userId: app.teacherId, // Notify the specific teacher
+            category: 'General',
+            href: `/teacher/attendance?schoolId=${schoolId}&tab=leave-management`,
+        });
+
+        toast({ title: 'Leave Updated', description: `The application has been ${newStatus.toLowerCase()} and the teacher has been notified.` });
     } catch (e) {
         toast({ title: 'Error', description: 'Could not update leave status.', variant: 'destructive' });
     }
@@ -998,8 +1008,8 @@ export default function AdminAttendancePage() {
                                         <TableCell className="text-right">
                                             {app.status === 'Pending' ? (
                                                 <div className="flex gap-2 justify-end">
-                                                    <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app.id, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
-                                                    <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app.id, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
+                                                    <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
+                                                    <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
                                                 </div>
                                             ) : '—'}
                                         </TableCell>
@@ -1146,3 +1156,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
