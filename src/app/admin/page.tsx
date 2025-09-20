@@ -54,6 +54,7 @@ type RecentActivity = {
     title: string;
     time: string;
     category: string;
+    href: string;
 };
 
 function formatCurrency(amount: number) {
@@ -134,7 +135,7 @@ export default function AdminDashboard() {
         if(data.href) {
             category = data.href.split('/')[2]?.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()).split(' ')[0] || 'General';
         } else {
-            category = data.actionType || 'General';
+            category = data.category || 'General';
         }
         
         return {
@@ -143,6 +144,7 @@ export default function AdminDashboard() {
           title: data.description,
           time: formatTimeAgo(data.createdAt),
           category: category,
+          href: data.href || '#',
         }
       });
       setActivities(fetchedActivities);
@@ -244,7 +246,7 @@ export default function AdminDashboard() {
                     ) : (
                         <div className="space-y-6">
                             {activities.map((activity, index) => (
-                                <Link key={activity.id} href={`${activityCategoryLinks[activity.category]}?schoolId=${schoolId}` || '#'} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
+                                <Link key={activity.id} href={`${activity.href}?schoolId=${schoolId}` || '#'} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
                                     <div className="flex items-start gap-4">
                                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
                                             <activity.icon className="h-5 w-5 text-red-600" />
@@ -253,7 +255,7 @@ export default function AdminDashboard() {
                                             <p className="text-sm font-medium">{activity.title}</p>
                                             <p className="text-xs text-muted-foreground">{activity.time}</p>
                                         </div>
-                                        <Badge variant={activity.category === 'Urgent' ? 'destructive' : 'outline'}>{activity.category}</Badge>
+                                        <Badge variant={activity.category === 'Urgent' || activity.category === 'Security' ? 'destructive' : 'outline'}>{activity.category}</Badge>
                                     </div>
                                 </Link>
                             ))}
@@ -271,5 +273,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-    
