@@ -310,7 +310,7 @@ function AdminMessagesTab() {
 }
 
 function AiChatTab() {
-  const [messages, setMessages] = React.useState<AiMessage[]>([
+  const [messages, setMessages] = React.useState<AdminMessage[]>([
     { role: 'model', content: 'Hello! I am the EduSphere AI assistant. How can I help you?' }
   ]);
   const [input, setInput] = React.useState('');
@@ -320,6 +320,9 @@ function AiChatTab() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const { user, role } = useAuth();
+  
+  const hasAdminReplied = messages.some(m => m.role === 'admin');
+  const isChatActive = !isEscalated || hasAdminReplied;
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -343,27 +346,30 @@ function AiChatTab() {
     if (!schoolId || !user || isEscalated) return;
     
     setIsLoading(true);
-    const escalationMessage: AiMessage = { role: 'model', content: aiEscalationMessage };
+    const escalationMessage: AdminMessage = { role: 'model', content: aiEscalationMessage };
     
     try {
         let userDocRef;
         const roleLower = role.toLowerCase();
-        if (roleLower === 'admin') userDocRef = doc(firestore, 'schools', schoolId, 'admins', user.uid);
-        else if (roleLower === 'teacher') userDocRef = doc(firestore, 'schools', schoolId, 'teachers', user.uid);
-        else if (roleLower === 'parent') userDocRef = doc(firestore, 'schools', schoolId, 'parents', user.uid);
-        else userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid); // Fallback
+        let userProfileCollection = 'users'; // Default
         
+        if (roleLower === 'admin') userProfileCollection = 'admins';
+        else if (roleLower === 'teacher') userProfileCollection = 'teachers';
+        else if (roleLower === 'parent') userProfileCollection = 'parents';
+
+        userDocRef = doc(firestore, 'schools', schoolId, userProfileCollection, user.uid);
         const userDocSnap = await getDoc(userDocRef);
-        const userData = userDocSnap.exists() ? userDocSnap.data() : null;
+        
+        const userData = userDocSnap.exists() ? userDocSnap.data() : { name: user.displayName, role };
 
         const chatDocRef = doc(firestore, `schools/${schoolId}/support-chats`, user.uid);
         await setDoc(chatDocRef, {
             user: {
                 id: user.uid,
-                name: userData?.name || user.displayName || 'User',
-                role: userData?.role || role,
+                name: userData.name || user.displayName || 'User',
+                role: userData.role || role,
             },
-            userName: userData?.name || user.displayName || 'User',
+            userName: userData.name || user.displayName || 'User',
             userId: user.uid,
             messages: arrayUnion(escalationMessage),
             isEscalated: true,
@@ -382,58 +388,75 @@ function AiChatTab() {
     e.preventDefault();
     if (!input.trim() || !schoolId || !user) return;
 
-    const userMessage: AiMessage = { role: 'user', content: input };
+    const userMessage: AdminMessage = { role: 'user', content: input };
     const currentMessages = [...messages, userMessage];
     setMessages(currentMessages);
     setInput('');
     setIsLoading(true);
     
-    let userDocRef;
-    const roleLower = role.toLowerCase();
-    if (roleLower === 'admin') userDocRef = doc(firestore, 'schools', schoolId, 'admins', user.uid);
-    else if (roleLower === 'teacher') userDocRef = doc(firestore, 'schools', schoolId, 'teachers', user.uid);
-    else if (roleLower === 'parent') userDocRef = doc(firestore, 'schools', schoolId, 'parents', user.uid);
-    else userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid); // Fallback
-
-    const userDocSnap = await getDoc(userDocRef);
-    const userData = userDocSnap.exists() ? userDocSnap.data() : null;
-    
     const chatDocRef = doc(firestore, 'schools', schoolId, 'support-chats', user.uid);
-    await setDoc(chatDocRef, {
-        user: {
-            id: user.uid,
-            name: userData?.name || user.displayName || 'User',
-            role: userData?.role || role,
-        },
-        userName: userData?.name || user.displayName || 'User',
-        userId: user.uid,
-        messages: currentMessages,
-        lastMessage: input,
-        lastUpdate: serverTimestamp()
-    }, { merge: true });
 
+    if (!isEscalated) { // Talk to AI
+        // Ensure user profile is created on first message
+        const chatSnap = await getDoc(chatDocRef);
+        if (!chatSnap.exists()) {
+             let userProfileCollection = 'users';
+            if (role === 'parent') userProfileCollection = 'parents';
+            if (role === 'teacher') userProfileCollection = 'teachers';
+            if (role === 'admin') userProfileCollection = 'admins';
+            const userDocRef = doc(firestore, 'schools', schoolId, userProfileCollection, user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            const userData = userDocSnap.exists() ? userDocSnap.data() : { name: user.displayName, role };
 
-    try {
-        const result = await supportChatbot({ history: currentMessages });
-        if (result.response === aiEscalationMessage) {
-            await handleEscalate();
+             await setDoc(chatDocRef, {
+                user: {
+                    id: user.uid,
+                    name: userData.name || user.displayName || 'User',
+                    role: userData.role || role,
+                },
+                userName: userData.name || user.displayName || 'User',
+                userId: user.uid,
+                messages: currentMessages,
+                lastMessage: input,
+                lastUpdate: serverTimestamp()
+            }, { merge: true });
         } else {
-            const aiMessage: AiMessage = { role: 'model', content: result.response };
             await updateDoc(chatDocRef, {
-                messages: arrayUnion(aiMessage),
-                lastMessage: result.response,
+                messages: currentMessages,
+                lastMessage: input,
                 lastUpdate: serverTimestamp()
             });
         }
-    } catch (error) {
-        console.error("Error with AI chatbot:", error);
-        const errorMessage: AiMessage = { role: 'model', content: 'Sorry, I encountered an error. Please try again.' };
-         await updateDoc(chatDocRef, {
-            messages: arrayUnion(errorMessage),
-            lastMessage: errorMessage.content,
+        
+        try {
+            const result = await supportChatbot({ history: currentMessages as AiMessage[] });
+            if (result.response === aiEscalationMessage) {
+                await handleEscalate();
+            } else {
+                const aiMessage: AdminMessage = { role: 'model', content: result.response };
+                await updateDoc(chatDocRef, {
+                    messages: arrayUnion(aiMessage),
+                    lastMessage: result.response,
+                    lastUpdate: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error("Error with AI chatbot:", error);
+            const errorMessage: AdminMessage = { role: 'model', content: 'Sorry, I encountered an error. Please try again.' };
+            await updateDoc(chatDocRef, {
+                messages: arrayUnion(errorMessage),
+                lastMessage: errorMessage.content,
+                lastUpdate: serverTimestamp()
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    } else { // Talk to Admin
+        await updateDoc(chatDocRef, {
+            messages: currentMessages,
+            lastMessage: input,
             lastUpdate: serverTimestamp()
         });
-    } finally {
         setIsLoading(false);
     }
   };
@@ -442,28 +465,37 @@ function AiChatTab() {
     <div className="h-full flex flex-col">
        <ScrollArea className="flex-1">
          <div className="p-4 space-y-4">
-            {messages.map((message, index) => (
-                <div key={index} className={cn('flex items-end gap-2', message.role === 'user' ? 'justify-end' : 'justify-start')}>
-                {message.role === 'model' && (
-                    <Avatar className="h-8 w-8">
-                        <AvatarFallback><Sparkles /></AvatarFallback>
-                    </Avatar>
-                )}
-                <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                    <p>{message.content}</p>
+            {messages.map((message, index) => {
+                 const isAdmin = message.role === 'admin';
+                 const isUser = message.role === 'user';
+                 const isModel = message.role === 'model';
+                return (
+                <div key={index} className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
+                    {(isModel || isAdmin) && (
+                        <Avatar className="h-8 w-8">
+                            <AvatarFallback>
+                                {isModel ? <Sparkles /> : message.senderName?.charAt(0) || 'A'}
+                            </AvatarFallback>
+                        </Avatar>
+                    )}
+                    <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", 
+                         isUser ? 'bg-primary text-primary-foreground' : 
+                         (isAdmin ? 'bg-secondary text-secondary-foreground' : 'bg-muted'))}>
+                        {isAdmin && <p className="font-bold text-xs mb-1">{message.senderName}</p>}
+                        <p>{message.content}</p>
+                    </div>
                 </div>
-                </div>
-            ))}
+            )})}
             {isLoading && (
                 <div className="flex items-end gap-2 justify-start">
                     <Avatar className="h-8 w-8"><AvatarFallback><Sparkles /></AvatarFallback></Avatar>
                     <div className="rounded-lg p-3 text-sm bg-muted"><Loader2 className="h-5 w-5 animate-spin"/></div>
                 </div>
             )}
-            {isEscalated && (
+            {isEscalated && !hasAdminReplied && (
                 <div className="p-4 bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-500/50 rounded-lg text-center text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4"/>
-                    An admin will respond in the Admin messaging page.
+                    Waiting for an admin to join the chat...
                 </div>
             )}
             <div ref={messagesEndRef} />
@@ -471,8 +503,8 @@ function AiChatTab() {
        </ScrollArea>
        <div className="p-4 border-t space-y-2">
           <form onSubmit={handleSendMessage} className="flex w-full items-center gap-2">
-              <Input placeholder="Type your message..." value={input} onChange={(e) => setInput(e.target.value)} disabled={isEscalated} />
-              <Button type="submit" size="icon" disabled={isLoading || isEscalated}>
+              <Input placeholder="Type your message..." value={input} onChange={(e) => setInput(e.target.value)} disabled={!isChatActive} />
+              <Button type="submit" size="icon" disabled={isLoading || !isChatActive}>
                   <Send className="h-4 w-4" />
               </Button>
           </form>
