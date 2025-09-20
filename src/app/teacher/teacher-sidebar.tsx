@@ -19,6 +19,7 @@ import {
   HeartPulse,
   Trophy,
   User,
+  Users,
   Library,
   BookOpen,
   Bell,
