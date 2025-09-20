@@ -317,6 +317,20 @@ function AiChatTab() {
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  React.useEffect(() => {
+    if (!schoolId || !user) return;
+
+    const chatDocRef = doc(firestore, `schools/${schoolId}/support-chats`, user.uid);
+    const unsubscribe = onSnapshot(chatDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            setMessages(data.messages || []);
+            setIsEscalated(data.isEscalated || false);
+        }
+    });
+    return () => unsubscribe();
+  }, [schoolId, user]);
   
   const handleEscalate = async () => {
     if (!schoolId || !user || isEscalated) return;
@@ -330,14 +344,11 @@ function AiChatTab() {
             userId: user.uid,
             userName: user.displayName || "User",
             userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
-            messages: [...messages, escalationMessage],
+            messages: arrayUnion(escalationMessage),
             isEscalated: true,
             lastMessage: "Conversation escalated to admin.",
             lastUpdate: serverTimestamp()
         }, { merge: true });
-
-        setIsEscalated(true);
-        setMessages(prev => [...prev, escalationMessage]);
 
     } catch (error) {
         console.error("Error escalating chat:", error);
@@ -348,25 +359,45 @@ function AiChatTab() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || !schoolId || !user) return;
 
     const userMessage: AiMessage = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
+    const currentMessages = [...messages, userMessage];
+    setMessages(currentMessages);
     setInput('');
     setIsLoading(true);
+    
+    const chatDocRef = doc(firestore, 'schools', schoolId, 'support-chats', user.uid);
+    await setDoc(chatDocRef, {
+        userId: user.uid,
+        userName: user.displayName || 'User',
+        userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
+        messages: currentMessages,
+        lastMessage: input,
+        lastUpdate: serverTimestamp()
+    }, { merge: true });
+
 
     try {
-        const result = await supportChatbot({ history: [...messages, userMessage] });
+        const result = await supportChatbot({ history: currentMessages });
         if (result.response === aiEscalationMessage) {
             await handleEscalate();
         } else {
             const aiMessage: AiMessage = { role: 'model', content: result.response };
-            setMessages(prev => [...prev, aiMessage]);
+            await updateDoc(chatDocRef, {
+                messages: arrayUnion(aiMessage),
+                lastMessage: result.response,
+                lastUpdate: serverTimestamp()
+            });
         }
     } catch (error) {
         console.error("Error with AI chatbot:", error);
         const errorMessage: AiMessage = { role: 'model', content: 'Sorry, I encountered an error. Please try again.' };
-        setMessages(prev => [...prev, errorMessage]);
+         await updateDoc(chatDocRef, {
+            messages: arrayUnion(errorMessage),
+            lastMessage: errorMessage.content,
+            lastUpdate: serverTimestamp()
+        });
     } finally {
         setIsLoading(false);
     }
