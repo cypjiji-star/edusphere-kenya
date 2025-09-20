@@ -811,14 +811,13 @@ export default function TeacherGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user: adminUser } = useAuth();
     
     const [exams, setExams] = React.useState<Exam[]>([]);
     const [selectedExamForGrading, setSelectedExamForGrading] = React.useState<Exam | null>(null);
     const [editingExam, setEditingExam] = React.useState<Exam | null>(null);
     const [examToDelete, setExamToDelete] = React.useState<GroupedExam | null>(null);
     const [selectedStudentForReport, setSelectedStudentForReport] = React.useState<Ranking | null>(null);
-    const [classRanking, setClassRanking] = React.useState<Ranking[]>([]);
     const [studentGrades, setStudentGrades] = React.useState<StudentGrade[]>([]);
     const [auditLog, setAuditLog] = React.useState<AuditLog[]>([]);
     const [pendingGrades, setPendingGrades] = React.useState<PendingGrade[]>([]);
@@ -839,10 +838,12 @@ export default function TeacherGradesPage() {
     const [academicTerms] = React.useState(generateAcademicTerms());
     
     // Gradebook state
-    const [selectedReportClass, setSelectedReportClass] = React.useState<string>('');
     const [selectedReportTerm, setSelectedReportTerm] = React.useState<string>(getCurrentTerm());
     const [termExams, setTermExams] = React.useState<GroupedExam[]>([]);
-    const [selectedReportExam, setSelectedReportExam] = React.useState<string>('');
+    const [selectedReportExamTitle, setSelectedReportExamTitle] = React.useState<string>('');
+    const [reportClassFilter, setReportClassFilter] = React.useState<string>('all');
+    const [classRankings, setClassRankings] = React.useState<Record<string, Ranking[]>>({});
+
 
     
     const [isUploadDialogOpen, setIsUploadDialogOpen] = React.useState(false);
@@ -850,7 +851,6 @@ export default function TeacherGradesPage() {
     const [isFileProcessed, setIsFileProcessed] = React.useState(false);
     const [isProcessingFile, setIsProcessingFile] = React.useState(false);
     const [gradeToReject, setGradeToReject] = React.useState<PendingGrade | null>(null);
-    const [rankedClasses, setRankedClasses] = React.useState<Record<string, Ranking[]>>({});
     const [examTermFilter, setExamTermFilter] = React.useState<string>(getCurrentTerm());
     
     const memoizedClasses = React.useMemo(() => classes, [classes]);
@@ -868,9 +868,6 @@ export default function TeacherGradesPage() {
         const unsubscribeClasses = onSnapshot(classesQuery, snapshot => {
             const classData = snapshot.docs.map(doc => ({id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim()}));
             setClasses(classData);
-            if (classData.length > 0) {
-                if (!selectedReportClass) setSelectedReportClass(classData[0].id);
-            }
         });
         
         const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
@@ -946,12 +943,8 @@ export default function TeacherGradesPage() {
                     .sort((a,b) => b.total - a.total)
                     .map((student, index) => ({...student, position: index + 1, streamPosition: index + 1 }));
             }
-
-            setRankedClasses(finalRankings);
-            if(selectedReportClass) {
-              setClassRanking(finalRankings[selectedReportClass] || []);
-            }
-
+            setClassRankings(finalRankings);
+           
             const perfData: Record<string, { total: number, count: number }> = {};
             studentScores.forEach(student => {
                 Object.entries(student.scores).forEach(([subject, score]) => {
@@ -1017,7 +1010,7 @@ export default function TeacherGradesPage() {
             unsubscribeLogs();
             unsubscribePendingGrades();
         };
-    }, [schoolId, selectedReportClass, memoizedClasses]);
+    }, [schoolId, memoizedClasses]);
 
     const getTermDates = (term: string) => {
         const [termName, yearStr] = term.split('-');
@@ -1220,7 +1213,7 @@ export default function TeacherGradesPage() {
             printWindow.document.write('<html><head><title>Class Ranking</title>');
             // Basic styles for printing
             printWindow.document.write('<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; } th { background-color: #f2f2f2; } </style>');
-            printWindow.document.write(`<h2>Class Ranking - ${classes.find(c => c.id === selectedReportClass)?.name} - ${selectedReportTerm}</h2>`);
+            printWindow.document.write(`<h2>Class Ranking - ${classes.find(c => c.id === reportClassFilter)?.name} - ${selectedReportTerm}</h2>`);
             if (tableHtml) {
                 printWindow.document.write(tableHtml);
             }
@@ -1233,7 +1226,10 @@ export default function TeacherGradesPage() {
     const handleDownloadAllReportCards = () => {
         const doc = new jsPDF();
         
-        classRanking.forEach((student, index) => {
+        const ranking = classRankings[reportClassFilter];
+        if (!ranking) return;
+
+        ranking.forEach((student, index) => {
             if (index > 0) {
                 doc.addPage();
             }
@@ -1257,7 +1253,7 @@ export default function TeacherGradesPage() {
             doc.text(`Total Marks: ${student.total}`, 14, finalY + 10);
             doc.text(`Average: ${student.avg.toFixed(1)}%`, 14, finalY + 16);
             doc.text(`Mean Grade: ${student.grade}`, 14, finalY + 22);
-            doc.text(`Class Rank: ${student.position} of ${classRanking.length}`, 14, finalY + 28);
+            doc.text(`Class Rank: ${student.position} of ${ranking.length}`, 14, finalY + 28);
         });
 
         doc.save('all-report-cards.pdf');
@@ -1326,7 +1322,6 @@ export default function TeacherGradesPage() {
             
             toast({ title: 'Exam Deleted', description: 'The exam has been removed.', variant: 'destructive' });
             
-            // Optimistically update UI
             setExams(prevExams => prevExams.filter(e => !examIdsToDelete.includes(e.id)));
             setExamToDelete(null);
             
@@ -1349,7 +1344,7 @@ export default function TeacherGradesPage() {
     };
     
     if (selectedExamForGrading) {
-        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId!} teacher={{id: user!.uid, name: user!.displayName || 'Admin'}} />;
+        return <GradeEntryView exam={selectedExamForGrading} onBack={() => setSelectedExamForGrading(null)} schoolId={schoolId!} teacher={{id: adminUser!.uid, name: adminUser!.displayName || 'Admin'}} />;
     }
 
 
@@ -1446,7 +1441,7 @@ export default function TeacherGradesPage() {
                                                     <p className="mb-2 text-sm text-muted-foreground">Click to upload or drag and drop</p>
                                                     <p className="text-xs text-muted-foreground">CSV or Excel (up to 5MB)</p>
                                                 </div>
-                                                <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} />
+                                                <Input id="dropzone-file-bulk" type="file" className="hidden" onChange={handleBulkFileChange} accept=".csv, .xlsx, .xls" />
                                             </Label>
                                         )}
                                     </div>
@@ -1734,7 +1729,7 @@ export default function TeacherGradesPage() {
                      </CardContent>
                  </Card>
             </TabsContent>
-             <TabsContent value="reports" className="mt-4 space-y-6">
+            <TabsContent value="reports" className="mt-4 space-y-6">
                 <Card>
                     <CardHeader>
                         <CardTitle>Exam Reports</CardTitle>
@@ -1748,32 +1743,38 @@ export default function TeacherGradesPage() {
                                     {academicTerms.map(term => <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Select value={selectedReportExam} onValueChange={setSelectedReportExam} disabled={termExams.length === 0}>
+                            <Select value={selectedReportExamTitle} onValueChange={setSelectedReportExamTitle} disabled={termExams.length === 0}>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select an Exam"/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {termExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title} ({exam.subject})</SelectItem>)}
+                                    {[...new Set(termExams.map(exam => exam.title))].map(title => <SelectItem key={title} value={title}>{title}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                             <Select value={selectedReportClass} onValueChange={setSelectedReportClass} disabled={!selectedReportExam}>
+                            <Select value={reportClassFilter} onValueChange={setReportClassFilter} disabled={!selectedReportExamTitle}>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select a Class"/>
                                 </SelectTrigger>
-                                <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                  <SelectItem value="all">All Classes</SelectItem>
+                                  {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                </SelectContent>
                             </Select>
                         </div>
                     </CardHeader>
                 </Card>
 
-                {selectedReportExam && selectedReportClass && (
-                    <Card>
+                {selectedReportExamTitle &&
+                Object.entries(classRankings)
+                    .filter(([classId]) => reportClassFilter === 'all' || classId === reportClassFilter)
+                    .map(([classId, ranking]) => (
+                    <Card key={classId}>
                         <CardHeader>
-                            <CardTitle>Class Ranking for {classes.find(c => c.id === selectedReportClass)?.name}</CardTitle>
+                            <CardTitle>Class Ranking for {classes.find(c => c.id === classId)?.name}</CardTitle>
                             <CardDescription>Performance breakdown for the selected exam.</CardDescription>
                         </CardHeader>
                          <CardContent>
-                            <div id="class-ranking-table">
+                            <div id={`class-ranking-table-${classId}`}>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -1785,7 +1786,7 @@ export default function TeacherGradesPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {(rankedClasses[selectedReportClass] || []).map(student => (
+                                        {ranking.map(student => (
                                             <TableRow key={student.admNo} className="cursor-pointer" onClick={() => setSelectedStudentForReport(student)}>
                                                 <TableCell className="font-bold">{student.position}</TableCell>
                                                 <TableCell>{student.name}</TableCell>
@@ -1829,7 +1830,7 @@ export default function TeacherGradesPage() {
                             <Button variant="secondary" onClick={handleDownloadAllReportCards}><Download className="mr-2 h-4 w-4"/>Download Report Cards</Button>
                         </CardFooter>
                     </Card>
-                )}
+                ))}
              </TabsContent>
         </Tabs>
     </div>
@@ -1837,4 +1838,6 @@ export default function TeacherGradesPage() {
 }
 
     
+    
+
     
