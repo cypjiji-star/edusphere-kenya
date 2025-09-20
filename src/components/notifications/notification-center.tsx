@@ -320,7 +320,7 @@ function AiChatTab() {
     try {
         await addDoc(collection(firestore, `schools/${schoolId}/support-chats`), {
             userId: user.uid,
-            userName: user.displayName || 'User',
+            userName: user.displayName || "User",
             userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/100`,
             messages: [...messages, escalationMessage],
             isEscalated: true,
