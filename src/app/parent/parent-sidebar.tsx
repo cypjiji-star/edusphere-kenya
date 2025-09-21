@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, doc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, getDocs, limit, orderBy } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
 
 
