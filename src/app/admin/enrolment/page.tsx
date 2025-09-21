@@ -180,7 +180,7 @@ export default function StudentEnrolmentPage() {
             studentFirstName: '',
             studentLastName: '',
             gender: '',
-            boardingStatus: '',
+            boardingStatus: 'Day Scholar',
             admissionNumber: '',
             birthCertificateNumber: '',
             classId: '',
@@ -590,7 +590,7 @@ export default function StudentEnrolmentPage() {
                                 <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><FormControl><Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue placeholder="Select a gender" /></SelectTrigger><SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select></FormControl><FormMessage /></FormItem> )}/>
                                  <FormField control={form.control} name="admissionNumber" render={({ field }) => ( <FormItem><FormLabel>Admission Number</FormLabel><FormControl><Input placeholder="e.g., SCH-1234" {...field} /></FormControl><FormDescription>Leave blank to auto-generate.</FormDescription><FormMessage /></FormItem> )}/>
                                  <FormField control={form.control} name="birthCertificateNumber" render={({ field }) => ( <FormItem><FormLabel>Birth Certificate No.</FormLabel><FormControl><Input placeholder="e.g., 1234567" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                                  <FormField control={form.control} name="boardingStatus" render={({ field }) => ( <FormItem><FormLabel>Boarding Status</FormLabel><FormControl><Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger><SelectContent><SelectItem value="boarder">Boarder</SelectItem><SelectItem value="day-scholar">Day Scholar</SelectItem></SelectContent></Select></FormControl><FormMessage /></FormItem> )}/>
+                                  <FormField control={form.control} name="boardingStatus" render={({ field }) => ( <FormItem><FormLabel>Boarding Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="Boarder">Boarder</SelectItem><SelectItem value="Day Scholar">Day Scholar</SelectItem></SelectContent></Select><FormMessage /></FormItem> )}/>
                             </div>
                         </CardContent>
                     </Card>
