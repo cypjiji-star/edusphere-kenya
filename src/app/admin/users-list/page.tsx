@@ -531,7 +531,7 @@ export default function UserManagementListPage() {
                                                     <SelectValue placeholder="Select a role" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                                    {roles.filter(r => r === 'Admin' || r === 'Teacher').map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
