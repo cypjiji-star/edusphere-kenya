@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -33,16 +32,29 @@ type Message = {
 
 const escalationTriggerMessage = "Understood. I'm escalating your request to a human administrator who will get back to you shortly.";
 
-async function getUserDisplayName(schoolId: string, userId: string, role: string): Promise<string> {
-    try {
-        const userDocRef = doc(firestore, 'schools', schoolId, 'users', userId);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-            return userDocSnap.data().name || 'User';
+async function getUserDisplayName(schoolId: string, userId: string): Promise<string> {
+    const collectionsToSearch = ['admins', 'teachers'];
+    for (const collectionName of collectionsToSearch) {
+        try {
+            const userDocRef = doc(firestore, 'schools', schoolId, collectionName, userId);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+                return userDocSnap.data().name || 'User';
+            }
+        } catch (e) {
+            console.error(`Could not find user in '${collectionName}' collection`, e);
         }
-    } catch (e) {
-        console.error("Could not find user in 'users' collection", e);
     }
+     try {
+        const parentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', userId));
+        const parentSnap = await getDocs(parentQuery);
+        if (!parentSnap.empty) {
+            return parentSnap.docs[0].data().parentName || 'Parent';
+        }
+    } catch(e) {
+        console.error("Could not find parent user details", e);
+    }
+
     return 'User';
 }
 
@@ -107,7 +119,7 @@ export function AiChat() {
       if (!currentChatId) {
         const schoolDoc = await getDoc(doc(firestore, 'schools', schoolId));
         const schoolName = schoolDoc.exists() ? schoolDoc.data().name : 'Unknown School';
-        const displayName = await getUserDisplayName(schoolId, user.uid, role);
+        const displayName = await getUserDisplayName(schoolId, user.uid);
         const docRef = await addDoc(collection(firestore, `schools/${schoolId}/support-chats`), {
           userId: user.uid,
           userName: `${displayName} (${schoolName})`,
