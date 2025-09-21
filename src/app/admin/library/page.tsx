@@ -292,8 +292,8 @@ export default function AdminLibraryPage() {
 
         const teachersQuery = query(collection(firestore, `schools/${schoolId}/teachers`));
         const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
-            const teacherNames = snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
-            setAllTeachers(teacherNames);
+            const teacherData = snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
+            setAllTeachers(teacherData);
         });
         
         const fetchStudentsAndAssignments = async () => {
@@ -837,3 +837,5 @@ export default function AdminLibraryPage() {
     </div>
   );
 }
+
+    
