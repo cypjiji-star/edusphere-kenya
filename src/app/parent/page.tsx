@@ -336,7 +336,8 @@ export default function ParentDashboard() {
                     return;
                 }
                 
-                setParentName(studentsSnapshot.docs[0].data().parentName || 'Parent');
+                const firstStudentData = studentsSnapshot.docs[0].data();
+                setParentName(firstStudentData.parentName || 'Parent');
 
                 const children = studentsSnapshot.docs.map(doc => {
                     const data = doc.data();
@@ -355,7 +356,8 @@ export default function ParentDashboard() {
                 });
                 setChildrenData(children);
                 
-                if (!selectedChild) {
+                // Set selectedChild only if it hasn't been set yet
+                if (!selectedChild && children.length > 0) {
                     setSelectedChild(children[0]);
                 }
                 setIsLoading(false);
@@ -408,7 +410,7 @@ export default function ParentDashboard() {
     if (isLoading) {
         return (
             <div className="flex h-[calc(100vh-200px)] items-center justify-center">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <LoadingSpinner message="Loading your dashboard..." />
             </div>
         );
     }

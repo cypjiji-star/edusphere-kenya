@@ -88,6 +88,12 @@ export default function ParentAnnouncementsPage() {
   const handleMarkAsRead = async (id: string) => {
     if (!schoolId || !currentUserId) return;
 
+    const announcement = announcements.find(ann => ann.id === id);
+    if (announcement?.readBy?.includes(currentUserId)) {
+      // Already marked as read, do nothing.
+      return;
+    }
+
     // Optimistically update the UI
     setAnnouncements(prev => prev.map(ann => 
         ann.id === id ? { ...ann, readBy: [...(ann.readBy || []), currentUserId] } : ann

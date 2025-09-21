@@ -78,6 +78,10 @@ export function FullCalendar({ schoolId }: { schoolId:string }) {
   const parentId = user?.uid;
 
   React.useEffect(() => {
+    setClientReady(true);
+  }, []);
+
+  React.useEffect(() => {
     if (!schoolId || !parentId) return;
     const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -96,7 +100,6 @@ export function FullCalendar({ schoolId }: { schoolId:string }) {
 
   React.useEffect(() => {
     if (!schoolId) return;
-    setClientReady(true);
     const q = query(collection(firestore, `schools/${schoolId}/calendar-events`));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const fetchedEvents = querySnapshot.docs.map(doc => {
