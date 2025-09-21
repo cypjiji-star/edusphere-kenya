@@ -36,25 +36,25 @@ const featureCards = [
   {
     icon: <Lock className="h-6 w-6 text-primary" />,
     title: 'Secure School Portals',
-    description: 'Each school gets a dedicated, isolated instance, ensuring data privacy and security. Manage your school\'s operations with peace of mind.',
+    description: 'Each institution receives a dedicated, isolated instance with its own private database. This single-tenant architecture guarantees that your student and financial data is completely secure and segregated, providing the highest level of privacy and control.',
     imageId: 'feature-portal',
   },
   {
     icon: <Users className="h-6 w-6 text-primary" />,
     title: 'Role-Based Access',
-    description: 'Admins get a full overview, teachers get tools to manage their classes, and parents get insights into their child\'s progress—all in one platform.',
+    description: 'Our platform offers distinct, tailored dashboards for every user role. Administrators gain a comprehensive overview of school operations, teachers receive powerful tools for class and grade management, and parents get a clear, concise window into their child\'s academic life.',
     imageId: 'feature-roles',
   },
   {
     icon: <Sparkles className="h-6 w-6 text-primary" />,
     title: 'AI-Powered Learning',
-    description: 'Our advanced AI analyzes student performance to create tailored learning paths, suggesting resources and activities to bridge knowledge gaps.',
+    description: 'Go beyond traditional teaching methods. Our advanced AI analyzes student performance data to generate truly personalized learning paths, identifying knowledge gaps and recommending specific resources, activities, and assessments to help every student succeed.',
     imageId: 'feature-ai',
   },
   {
     icon: <Palette className="h-6 w-6 text-primary" />,
     title: 'Portal Customization',
-    description: "Reflect your school's identity. Admins can customize logos, color schemes, and themes to create a branded, professional portal experience.",
+    description: "Fully integrate your school's brand identity. Administrators can effortlessly customize logos, color palettes, and fonts, transforming the portal into a seamless and professional extension of your institution. This reinforces school pride and community.",
     imageId: 'feature-brand',
   },
 ];

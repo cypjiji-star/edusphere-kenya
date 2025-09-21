@@ -1,3 +1,4 @@
+
 import { AppHeader } from '@/components/layout/header';
 import { AppFooter } from '@/components/layout/footer';
 import { LearningPathForm } from './learning-path-form';
