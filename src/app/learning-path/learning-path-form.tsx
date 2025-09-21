@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { learningPathSchema, generatePathAction } from './actions';
+import { generatePathAction } from './actions';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +29,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const learningPathSchema = z.object({
+  studentName: z.string().min(2, 'Student name is required.'),
+  subject: z.string().min(3, 'Subject is required.'),
+  gradeLevel: z.string().min(1, 'Grade level is required.'),
+  learningStandard: z.string().min(10, 'Learning standard must be at least 10 characters.'),
+  currentUnderstanding: z.string().min(20, 'Please provide more detail on current understanding (at least 20 characters).'),
+});
 
 type LearningPathFormValues = z.infer<typeof learningPathSchema>;
 

@@ -8,7 +8,9 @@ import {
 } from '@/ai/flows/personalized-learning-path-generator';
 import { z } from 'zod';
 
-export const learningPathSchema = z.object({
+// This is a private schema used for validation within the server action.
+// It is not exported.
+const learningPathSchema = z.object({
   studentName: z.string().min(2, 'Student name is required.'),
   subject: z.string().min(3, 'Subject is required.'),
   gradeLevel: z.string().min(1, 'Grade level is required.'),
