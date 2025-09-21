@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -89,6 +90,7 @@ export default function MyLibraryPage() {
     const { user } = useAuth();
     const [isHistoryLoading, setIsHistoryLoading] = React.useState(true);
     const [isRequestsLoading, setIsRequestsLoading] = React.useState(true);
+    const [isAssignmentsLoading, setIsAssignmentsLoading] = React.useState(true);
 
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
     const [allTeacherStudents, setAllTeacherStudents] = React.useState<TeacherStudent[]>([]);
@@ -130,6 +132,7 @@ export default function MyLibraryPage() {
         const unsubAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
             const assignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentAssignment));
             setStudentAssignments(assignments);
+            setIsAssignmentsLoading(false);
         });
 
         // Fetch classes taught by the teacher
@@ -506,42 +509,50 @@ export default function MyLibraryPage() {
 
                         <div>
                             <h3 className="font-semibold mb-2">Current Assignments</h3>
-                            <Accordion type="single" collapsible className="w-full">
-                                {Object.entries(groupedAssignments).map(([className, books]) => (
-                                    <AccordionItem key={className} value={className}>
-                                        <AccordionTrigger className="text-lg font-semibold">{className}</AccordionTrigger>
-                                        <AccordionContent>
-                                            <Accordion type="single" collapsible className="w-full pl-4">
-                                                {Object.entries(books).map(([bookTitle, assignments]) => (
-                                                    <AccordionItem key={bookTitle} value={bookTitle}>
-                                                        <AccordionTrigger>{bookTitle} ({assignments.length} copies assigned)</AccordionTrigger>
-                                                        <AccordionContent>
-                                                            <Table>
-                                                                <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Date Assigned</TableHead><TableHead className="text-right">Status</TableHead></TableRow></TableHeader>
-                                                                <TableBody>
-                                                                    {assignments.map(assignment => (
-                                                                        <TableRow key={assignment.id}>
-                                                                            <TableCell>{assignment.studentName}</TableCell>
-                                                                            <TableCell>{clientReady ? assignment.assignedDate?.toDate().toLocaleDateString() : ''}</TableCell>
-                                                                            <TableCell className="text-right">
-                                                                                {assignment.status === 'Assigned' ? (
-                                                                                    <Button variant="outline" size="sm" onClick={() => handleConfirmReturn(assignment)}>Confirm Return</Button>
-                                                                                ) : (
-                                                                                    <Badge variant="default" className="bg-green-600">Returned</Badge>
-                                                                                )}
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    ))}
-                                                                </TableBody>
-                                                            </Table>
-                                                        </AccordionContent>
-                                                    </AccordionItem>
-                                                ))}
-                                            </Accordion>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
+                             {isAssignmentsLoading ? (
+                                <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                            ) : Object.keys(groupedAssignments).length > 0 ? (
+                                <Accordion type="single" collapsible className="w-full">
+                                    {Object.entries(groupedAssignments).map(([className, books]) => (
+                                        <AccordionItem key={className} value={className}>
+                                            <AccordionTrigger className="text-lg font-semibold">{className}</AccordionTrigger>
+                                            <AccordionContent>
+                                                <Accordion type="single" collapsible className="w-full pl-4">
+                                                    {Object.entries(books).map(([bookTitle, assignments]) => (
+                                                        <AccordionItem key={bookTitle} value={bookTitle}>
+                                                            <AccordionTrigger>{bookTitle} ({assignments.length} copies assigned)</AccordionTrigger>
+                                                            <AccordionContent>
+                                                                <Table>
+                                                                    <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Date Assigned</TableHead><TableHead className="text-right">Status</TableHead></TableRow></TableHeader>
+                                                                    <TableBody>
+                                                                        {assignments.map(assignment => (
+                                                                            <TableRow key={assignment.id}>
+                                                                                <TableCell>{assignment.studentName}</TableCell>
+                                                                                <TableCell>{clientReady ? assignment.assignedDate?.toDate().toLocaleDateString() : ''}</TableCell>
+                                                                                <TableCell className="text-right">
+                                                                                    {assignment.status === 'Assigned' ? (
+                                                                                        <Button variant="outline" size="sm" onClick={() => handleConfirmReturn(assignment)}>Confirm Return</Button>
+                                                                                    ) : (
+                                                                                        <Badge variant="default" className="bg-green-600">Returned</Badge>
+                                                                                    )}
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        ))}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </AccordionContent>
+                                                        </AccordionItem>
+                                                    ))}
+                                                </Accordion>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                </Accordion>
+                            ) : (
+                                <div className="text-center text-muted-foreground py-8">
+                                    <p>No books have been assigned to students yet.</p>
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

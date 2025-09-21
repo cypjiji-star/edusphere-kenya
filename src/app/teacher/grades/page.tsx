@@ -141,7 +141,7 @@ export default function TeacherGradesPage() {
         }
 
         setIsLoading(prev => ({ ...prev, students: true }));
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', entryClassId));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', entryClassId), orderBy('name'));
         const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -155,6 +155,11 @@ export default function TeacherGradesPage() {
 
         return () => unsubscribe();
     }, [entryClassId, schoolId]);
+
+    // Effect to reset grades when context changes
+    React.useEffect(() => {
+        setGrades({});
+    }, [entryClassId, entrySubject, entryExamId]);
     
     // Fetch and compute rankings
     React.useEffect(() => {
