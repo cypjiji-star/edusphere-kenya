@@ -52,11 +52,11 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
-const subjects = ['All Subjects', 'Chemistry', 'Mathematics', 'History', 'Physics', 'English'];
 
 const typeIcons: Record<Resource['type'], React.ElementType> = {
   Textbook: Book,
@@ -82,6 +82,8 @@ export default function LibraryPage() {
   const [selectedResource, setSelectedResource] = React.useState<Resource | null>(null);
   const [clientReady, setClientReady] = React.useState(false);
   const { toast } = useToast();
+  const [teacherSubjects, setTeacherSubjects] = React.useState<string[]>(['All Subjects']);
+  const { user } = useAuth();
 
   React.useEffect(() => {
     if (!schoolId) return;
@@ -94,8 +96,21 @@ export default function LibraryPage() {
         setResources(resourcesData);
         setIsLoading(false);
     });
+
+    if (user) {
+        const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
+        const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
+            const subjectNames = snapshot.docs.map(doc => doc.data().name);
+            setTeacherSubjects(['All Subjects', ...subjectNames]);
+        });
+        return () => {
+            unsubscribe();
+            unsubSubjects();
+        };
+    }
+    
     return () => unsubscribe();
-  }, [schoolId]);
+  }, [schoolId, user]);
 
   const filteredResources = resources.filter(res => 
     res.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -198,7 +213,7 @@ export default function LibraryPage() {
                         <SelectValue placeholder="Filter by subject" />
                     </SelectTrigger>
                     <SelectContent>
-                        {subjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        {teacherSubjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                 </Select>
                 <DropdownMenu>

@@ -101,28 +101,34 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   useEffect(() => {
     if (!schoolId || !user) return;
 
-    // Fetch subjects taught by the teacher
-    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
-    const subjectsUnsub = onSnapshot(subjectsQuery, (snapshot) => {
-        const subjectData = new Set<string>();
-        snapshot.docs.forEach(doc => {
-            if (doc.data().name) subjectData.add(doc.data().name);
-        });
-        setSubjects(Array.from(subjectData));
-    });
-    
     // Fetch classes assigned to the teacher
     const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user.uid));
-    const classesUnsub = onSnapshot(classesQuery, (snapshot) => {
+    const classesUnsub = onSnapshot(classesQuery, async (snapshot) => {
         const gradeData = new Set<string>();
-        snapshot.docs.forEach(doc => {
+        const classIds = snapshot.docs.map(doc => {
             gradeData.add(doc.data().name);
+            return doc.id;
         });
         setGrades(Array.from(gradeData));
+        
+        if (classIds.length > 0) {
+            // Fetch subjects taught in those classes
+            const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'class-assignments'), where('__name__', 'in', classIds));
+            const assignmentsSnapshot = await getDocs(subjectsQuery);
+            const subjectNames = new Set<string>();
+            assignmentsSnapshot.forEach(doc => {
+                const assignments = doc.data().assignments || [];
+                assignments.forEach((assignment: { subject: string; }) => {
+                    subjectNames.add(assignment.subject);
+                });
+            });
+            setSubjects(Array.from(subjectNames));
+        } else {
+            setSubjects([]);
+        }
     });
 
     return () => {
-        subjectsUnsub();
         classesUnsub();
     }
   }, [schoolId, user]);
