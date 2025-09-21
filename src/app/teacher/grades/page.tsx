@@ -30,7 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileText, Loader2, Save } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -53,6 +53,12 @@ type TeacherClass = {
   name: string;
 };
 
+type Exam = {
+    id: string;
+    title: string;
+    date: Timestamp;
+};
+
 export default function TeacherGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
@@ -63,7 +69,9 @@ export default function TeacherGradesPage() {
     const [allSubjects, setAllSubjects] = React.useState<Subject[]>([]);
     const [studentsInClass, setStudentsInClass] = React.useState<Student[]>([]);
     const [grades, setGrades] = React.useState<Record<string, string>>({});
+    const [openExams, setOpenExams] = React.useState<Exam[]>([]);
     
+    const [selectedExamId, setSelectedExamId] = React.useState<string>('');
     const [selectedClassId, setSelectedClassId] = React.useState<string>('');
     const [selectedSubject, setSelectedSubject] = React.useState<string>('');
     
@@ -71,12 +79,19 @@ export default function TeacherGradesPage() {
         classes: true,
         subjects: true,
         students: false,
+        exams: true,
     });
     const [isSaving, setIsSaving] = React.useState(false);
 
-    // Fetch all classes and subjects
+    // Fetch exams, classes and subjects
     React.useEffect(() => {
         if (!schoolId) return;
+
+        const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('status', '==', 'Open'));
+        const unsubExams = onSnapshot(examsQuery, (snapshot) => {
+            setOpenExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+            setIsLoading(prev => ({ ...prev, exams: false }));
+        });
 
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
         const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
@@ -93,6 +108,7 @@ export default function TeacherGradesPage() {
         });
 
         return () => {
+            unsubExams();
             unsubClasses();
             unsubSubjects();
         };
@@ -126,8 +142,8 @@ export default function TeacherGradesPage() {
     };
 
     const handleSaveGrades = async () => {
-        if (!selectedClassId || !selectedSubject || Object.keys(grades).length === 0 || !user) {
-            toast({ title: 'Missing Information', description: 'Please select a class, subject, and enter at least one grade.', variant: 'destructive' });
+        if (!selectedClassId || !selectedSubject || Object.keys(grades).length === 0 || !user || !selectedExamId) {
+            toast({ title: 'Missing Information', description: 'Please select an exam, class, subject, and enter at least one grade.', variant: 'destructive' });
             return;
         }
         setIsSaving(true);
@@ -140,7 +156,7 @@ export default function TeacherGradesPage() {
           return acc;
         }, {} as { [studentId: string]: { grade: string; studentName: string } });
 
-        const result = await saveGradesAction(schoolId!, selectedClassId, selectedSubject, gradeDataForAction, { id: user.uid, name: user.displayName || 'Teacher' });
+        const result = await saveGradesAction(schoolId!, selectedClassId, selectedSubject, selectedExamId, gradeDataForAction, { id: user.uid, name: user.displayName || 'Teacher' });
 
         if (result.success) {
             toast({ title: 'Grades Saved', description: result.message });
@@ -151,7 +167,7 @@ export default function TeacherGradesPage() {
         setIsSaving(false);
     };
 
-    const isGradeEntryReady = selectedClassId && selectedSubject;
+    const isGradeEntryReady = selectedClassId && selectedSubject && selectedExamId;
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -160,15 +176,26 @@ export default function TeacherGradesPage() {
                     <FileText className="h-8 w-8 text-primary" />
                     Grade Entry
                 </h1>
-                <p className="text-muted-foreground">Select a class and subject to enter student results.</p>
+                <p className="text-muted-foreground">Select an exam, class, and subject to enter student results.</p>
             </div>
             
             <Card>
                 <CardHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                          <div className="space-y-2">
-                            <Label>Select Class</Label>
-                             <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={isLoading.classes}>
+                            <Label>1. Select Exam</Label>
+                             <Select value={selectedExamId} onValueChange={setSelectedExamId} disabled={isLoading.exams}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select an active exam..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-2">
+                            <Label>2. Select Class</Label>
+                             <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={!selectedExamId || isLoading.classes}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a class..." />
                                 </SelectTrigger>
@@ -178,8 +205,8 @@ export default function TeacherGradesPage() {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Select Subject</Label>
-                            <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={isLoading.subjects}>
+                            <Label>3. Select Subject</Label>
+                            <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={!selectedClassId || isLoading.subjects}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a subject..." />
                                 </SelectTrigger>
@@ -209,7 +236,6 @@ export default function TeacherGradesPage() {
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
                                                         <Avatar className="h-9 w-9">
-                                                            <AvatarImage src={student.avatarUrl} alt={student.name} />
                                                             <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
                                                         </Avatar>
                                                         <span className="font-medium">{student.name}</span>
@@ -228,7 +254,7 @@ export default function TeacherGradesPage() {
                                     ) : (
                                         <TableRow>
                                             <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                                                {selectedClassId ? 'No students in this class.' : 'Please select a class to view students.'}
+                                                {!selectedExamId ? 'Select an exam to begin.' : !selectedClassId ? 'Select a class to view students.' : 'No students found in this class.'}
                                             </TableCell>
                                         </TableRow>
                                     )}

@@ -59,6 +59,7 @@ type GradeRecord = {
     studentId: string;
     subject: string;
     grade: string;
+    examId: string;
 }
 
 type Exam = {
@@ -106,6 +107,7 @@ export default function AdminGradesPage() {
     const [openExams, setOpenExams] = React.useState<Exam[]>([]);
     const [archivedExams, setArchivedExams] = React.useState<Exam[]>([]);
     
+    const [selectedExamId, setSelectedExamId] = React.useState<string>('');
     const [selectedClassId, setSelectedClassId] = React.useState<string>('');
     
     const [isLoading, setIsLoading] = React.useState({
@@ -130,9 +132,6 @@ export default function AdminGradesPage() {
         const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
             const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
             setAllClasses(classesData);
-            if (classesData.length > 0 && !selectedClassId) {
-                setSelectedClassId(classesData[0].id);
-            }
             setIsLoading(prev => ({ ...prev, classes: false }));
         });
 
@@ -160,11 +159,11 @@ export default function AdminGradesPage() {
             unsubOpenExams();
             unsubArchivedExams();
         };
-    }, [schoolId, selectedClassId]);
+    }, [schoolId]);
 
-    // Fetch students and their grades when a class is selected
+    // Fetch students and their grades when a class and exam are selected
     React.useEffect(() => {
-        if (!selectedClassId || !schoolId) {
+        if (!selectedClassId || !schoolId || !selectedExamId) {
             setStudentsWithGrades([]);
             return;
         }
@@ -181,7 +180,7 @@ export default function AdminGradesPage() {
             
             if (studentList.length > 0) {
                  const studentIds = studentList.map(s => s.id);
-                 const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds));
+                 const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds), where('examId', '==', selectedExamId));
                  const gradesSnapshot = await getDocs(gradesQuery);
                  const gradesData: GradeRecord[] = gradesSnapshot.docs.map(d => d.data() as GradeRecord);
                  
@@ -216,7 +215,7 @@ export default function AdminGradesPage() {
         });
 
         return () => unsubStudents();
-    }, [selectedClassId, schoolId]);
+    }, [selectedClassId, schoolId, selectedExamId]);
     
     const subjectsInView = React.useMemo(() => {
         const subjects = new Set<string>();
@@ -280,22 +279,39 @@ export default function AdminGradesPage() {
                 <TabsContent value="rankings" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <div className="space-y-2">
-                                <Label>Select a Class to View Results</Label>
-                                <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={isLoading.classes}>
-                                    <SelectTrigger className="w-full md:w-72">
-                                        <SelectValue placeholder="Select a class..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Select an Exam to View Rankings</Label>
+                                        <Select value={selectedExamId} onValueChange={setSelectedExamId} disabled={isLoading.exams}>
+                                            <SelectTrigger><SelectValue placeholder="Select an exam..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Select a Class</Label>
+                                        <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={!selectedExamId || isLoading.classes}>
+                                            <SelectTrigger><SelectValue placeholder="Select a class..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent>
                             {isLoading.students ? (
                                 <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
                             ) : (
+                                <>
+                                {!selectedExamId ? (
+                                     <div className="text-center py-16 text-muted-foreground">Please select an active exam to view class rankings.</div>
+                                ) : !selectedClassId ? (
+                                    <div className="text-center py-16 text-muted-foreground">Please select a class to view its results for the chosen exam.</div>
+                                ) : (
                                 <div className="w-full overflow-auto rounded-lg border">
                                     <Table>
                                         <TableHeader>
@@ -316,7 +332,6 @@ export default function AdminGradesPage() {
                                                         <TableCell className="font-medium">
                                                             <div className="flex items-center gap-2">
                                                                 <Avatar className="h-9 w-9">
-                                                                    <AvatarImage src={student.avatarUrl} />
                                                                     <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
                                                                 </Avatar>
                                                                 {student.name}
@@ -333,13 +348,15 @@ export default function AdminGradesPage() {
                                             ) : (
                                                 <TableRow>
                                                     <TableCell colSpan={subjectsInView.length + 3} className="h-24 text-center text-muted-foreground">
-                                                        {selectedClassId ? 'No students or grades recorded for this class.' : 'Please select a class to view results.'}
+                                                        No grades entered for this class and exam combination yet.
                                                     </TableCell>
                                                 </TableRow>
                                             )}
                                         </TableBody>
                                     </Table>
                                 </div>
+                                )}
+                                </>
                             )}
                         </CardContent>
                     </Card>

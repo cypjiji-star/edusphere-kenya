@@ -1,7 +1,8 @@
+
 'use server';
 
 import { firestore } from '@/lib/firebase';
-import { collection, doc, writeBatch, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, writeBatch, serverTimestamp, getDoc } from 'firebase/firestore';
 import { logAuditEvent } from '@/lib/audit-log.service';
 
 interface GradeData {
@@ -15,17 +16,16 @@ export async function saveGradesAction(
   schoolId: string,
   classId: string,
   subject: string,
+  examId: string,
   grades: GradeData,
   actor: { id: string; name: string }
 ) {
-  if (!schoolId || !classId || !subject || Object.keys(grades).length === 0) {
+  if (!schoolId || !classId || !subject || !examId || Object.keys(grades).length === 0) {
     return { success: false, message: 'Missing required data.' };
   }
 
   const batch = writeBatch(firestore);
-  const now = serverTimestamp();
-
-  // For auditing, we need the class name
+  
   const classDoc = await getDoc(doc(firestore, `schools/${schoolId}/classes`, classId));
   const className = classDoc.exists() ? `${classDoc.data().name} ${classDoc.data().stream || ''}`.trim() : 'Unknown Class';
   
@@ -33,7 +33,7 @@ export async function saveGradesAction(
   
   for (const studentId in grades) {
     const { grade, studentName } = grades[studentId];
-    if (grade) { // Only save if a grade was entered
+    if (grade) {
       
       const gradeData = {
         studentId,
@@ -41,13 +41,13 @@ export async function saveGradesAction(
         classId,
         subject,
         grade,
-        date: now,
+        examId, // Store the ID of the exam
+        date: serverTimestamp(), // Use current date for grade entry
         teacherId: actor.id,
         teacherName: actor.name,
-        status: 'Pending Approval', // All grades entered by teachers must be approved
+        status: 'Pending Approval',
       };
 
-      // Create a unique ID for the grade entry to avoid overwriting
       const gradeRef = doc(collection(firestore, 'schools', schoolId, 'grades'));
       batch.set(gradeRef, gradeData);
       successfulSaves++;
