@@ -83,7 +83,7 @@ const getStatusBadge = (resource: Resource) => {
     return <Badge className="bg-green-100 text-green-800 border-green-200">Available ({resource.availableCopies}/{resource.totalCopies})</Badge>;
 }
 
-function CheckOutDialog({ resource, open, onOpenChange, users, onCheckOut }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, users: {id: string, name: string}[], onCheckOut: (userId: string, userName: string, quantity: number) => void }) {
+function CheckOutDialog({ resource, open, onOpenChange, teachers, onCheckOut }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, teachers: {id: string, name: string}[], onCheckOut: (userId: string, userName: string, quantity: number) => void }) {
     const [quantity, setQuantity] = React.useState(1);
     const [selectedUser, setSelectedUser] = React.useState<string>('');
 
@@ -96,14 +96,14 @@ function CheckOutDialog({ resource, open, onOpenChange, users, onCheckOut }: { r
 
     const handleCheckOut = () => {
         if (!selectedUser) {
-            alert("Please select a user to check out the book to.");
+            alert("Please select a teacher to check out the book to.");
             return;
         }
         if (quantity > resource.availableCopies) {
             alert("Cannot check out more copies than available.");
             return;
         }
-        const user = users.find(u => u.id === selectedUser);
+        const user = teachers.find(u => u.id === selectedUser);
         if(user) {
             onCheckOut(user.id, user.name, quantity);
         }
@@ -115,7 +115,7 @@ function CheckOutDialog({ resource, open, onOpenChange, users, onCheckOut }: { r
                 <DialogHeader>
                     <DialogTitle>Check Out: {resource.title}</DialogTitle>
                     <DialogDescription>
-                        Issue this resource to a student or teacher.
+                        Issue this resource to a teacher.
                         <span className="font-semibold text-foreground block mt-2">
                            {resource.availableCopies} copies available.
                         </span>
@@ -126,11 +126,11 @@ function CheckOutDialog({ resource, open, onOpenChange, users, onCheckOut }: { r
                         <Label htmlFor="checkout-user">Borrower</Label>
                          <Select value={selectedUser} onValueChange={setSelectedUser}>
                             <SelectTrigger id="checkout-user">
-                                <SelectValue placeholder="Select a student or teacher..." />
+                                <SelectValue placeholder="Select a teacher..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {users.map(user => (
-                                    <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                {teachers.map(teacher => (
+                                    <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -244,11 +244,10 @@ export default function AdminLibraryPage() {
     const [newSubject, setNewSubject] = React.useState<string | undefined>();
     const [newGrades, setNewGrades] = React.useState<string[]>([]);
     const [newCopies, setNewCopies] = React.useState('');
-    const [newDesc, setNewDesc] = React.useState('');
 
     const [dbSubjects, setDbSubjects] = React.useState<string[]>([]);
     const [dbGrades, setDbGrades] = React.useState<string[]>([]);
-    const [allUsers, setAllUsers] = React.useState<{id: string, name: string}[]>([]);
+    const [allTeachers, setAllTeachers] = React.useState<{id: string, name: string}[]>([]);
     
     // State for returns tab
     const [selectedReturnUser, setSelectedReturnUser] = React.useState<string>('');
@@ -290,10 +289,10 @@ export default function AdminLibraryPage() {
             setDbGrades([...new Set(gradeNames)]);
         });
 
-        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
-        const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
-            const userNames = snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
-            setAllUsers(userNames);
+        const teachersQuery = query(collection(firestore, `schools/${schoolId}/teachers`));
+        const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
+            const teacherNames = snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
+            setAllTeachers(teacherNames);
         });
         
         const fetchStudentsAndAssignments = async () => {
@@ -320,7 +319,7 @@ export default function AdminLibraryPage() {
             unsubscribe();
             unsubSubjects();
             unsubClasses();
-            unsubUsers();
+            unsubTeachers();
             unsubAssignmentsPromise.then(unsub => unsub());
         };
     }, [schoolId]);
@@ -349,7 +348,7 @@ export default function AdminLibraryPage() {
             return;
         }
 
-        const borrowedBooksQuery = query(collection(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowed-items'));
+        const borrowedBooksQuery = query(collection(firestore, 'schools', schoolId, 'teachers', selectedReturnUser, 'borrowed-items'));
         const unsubscribe = onSnapshot(borrowedBooksQuery, (snapshot) => {
             const books = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -377,7 +376,7 @@ export default function AdminLibraryPage() {
                 if (!bookToReturn) throw new Error("Book to return not found");
 
                 const resourceRef = doc(firestore, 'schools', schoolId, 'library-resources', bookToReturn.bookId);
-                const userBorrowedItemRef = doc(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowed-items', bookToReturn.id);
+                const userBorrowedItemRef = doc(firestore, 'schools', schoolId, 'teachers', selectedReturnUser, 'borrowed-items', bookToReturn.id);
                 
                 const resourceSnap = await transaction.get(resourceRef);
                 const userItemSnap = await transaction.get(userBorrowedItemRef);
@@ -408,7 +407,7 @@ export default function AdminLibraryPage() {
                 }
                 
                 // Add to user's history
-                const historyRef = doc(collection(firestore, 'schools', schoolId, 'users', selectedReturnUser, 'borrowing-history'));
+                const historyRef = doc(collection(firestore, 'schools', schoolId, 'teachers', selectedReturnUser, 'borrowing-history'));
                 transaction.set(historyRef, {
                     title: userItemData.title,
                     borrowedDate: userItemData.borrowedDate,
@@ -443,7 +442,7 @@ export default function AdminLibraryPage() {
                 }
                 const resourceDoc = resourceSnapshot.docs[0];
                 const resourceRef = resourceDoc.ref;
-                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/users/${assignment.teacherId}/borrowed-items`, resourceDoc.id);
+                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/teachers/${assignment.teacherId}/borrowed-items`, resourceDoc.id);
 
                 const resourceSnap = await transaction.get(resourceRef);
                 const teacherItemSnap = await transaction.get(teacherBorrowedItemRef);
@@ -580,7 +579,7 @@ export default function AdminLibraryPage() {
                 borrowedBy: newBorrowedBy
             });
 
-            const borrowedItemRef = doc(firestore, `schools/${schoolId}/users`, userId, 'borrowed-items', checkingOutResource.id);
+            const borrowedItemRef = doc(firestore, `schools/${schoolId}/teachers`, userId, 'borrowed-items', checkingOutResource.id);
             const dueDate = new Date();
             dueDate.setDate(dueDate.getDate() + 14); // 2 week loan period
 
@@ -730,18 +729,18 @@ export default function AdminLibraryPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Process Book Returns</CardTitle>
-                        <CardDescription>Select a user and the book they are returning.</CardDescription>
+                        <CardDescription>Select a teacher and the book they are returning.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Select User (Student or Teacher)</Label>
+                                <Label>Select Teacher</Label>
                                 <Select value={selectedReturnUser} onValueChange={setSelectedReturnUser}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Search user by name..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {allUsers.map(user => (
+                                        {allTeachers.map(user => (
                                             <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
                                         ))}
                                     </SelectContent>
@@ -833,7 +832,7 @@ export default function AdminLibraryPage() {
             </TabsContent>
         </Tabs>
       <EditResourceDialog resource={editingResource} open={!!editingResource} onOpenChange={(open) => !open && setEditingResource(null)} onSave={handleUpdateResource} onDelete={handleDeleteResource} />
-      <CheckOutDialog resource={checkingOutResource} open={!!checkingOutResource} users={allUsers} onOpenChange={(open) => !open && setCheckingOutResource(null)} onCheckOut={handleCheckOut} />
+      <CheckOutDialog resource={checkingOutResource} open={!!checkingOutResource} teachers={allTeachers} onOpenChange={(open) => !open && setCheckingOutResource(null)} onCheckOut={handleCheckOut} />
     </div>
   );
 }
