@@ -31,7 +31,6 @@ export default function CalendarPage() {
        </div>
 
         <Alert className="mb-6">
-            <Bell className="h-4 w-4" />
             <AlertTitle>Exam Reminder</AlertTitle>
             <AlertDescription>
                 The Form 4 Chemistry Practical exam is scheduled for today at 1:00 PM.
@@ -47,4 +46,3 @@ export default function CalendarPage() {
   );
 }
 
-    

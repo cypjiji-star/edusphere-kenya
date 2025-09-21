@@ -118,6 +118,7 @@ export default function ParentFeesPage() {
     const [paymentAmount, setPaymentAmount] = React.useState(0);
     const { toast } = useToast();
 
+    // Fetch children once
     React.useEffect(() => {
         if (!schoolId || !parentId) return;
         setClientReady(true);
@@ -131,11 +132,14 @@ export default function ParentFeesPage() {
             }
         });
         return () => unsubscribe();
-    }, [schoolId, selectedChild, parentId]);
+    }, [schoolId, parentId]);
 
+
+    // Fetch data for the selected child
     React.useEffect(() => {
         if (!selectedChild || !schoolId) return;
 
+        // Listener for student summary data
         const studentDocRef = doc(firestore, `schools/${schoolId}/students`, selectedChild);
         const unsubStudent = onSnapshot(studentDocRef, (studentSnap) => {
             if (studentSnap.exists()) {
@@ -148,7 +152,7 @@ export default function ParentFeesPage() {
                     totalPaid: studentData.amountPaid || 0,
                     balance,
                     dueDate: dueDate.toISOString(),
-                    status: balance <= 0 ? 'Paid' : (isPast(dueDate) ? 'Overdue' : 'Partial'),
+                    status: balance <= 0 ? 'Paid' as const : (isPast(dueDate) ? 'Overdue' as const : 'Partial' as const),
                 };
                 setFeeSummary(summary);
                 if (balance > 0) {
@@ -157,6 +161,7 @@ export default function ParentFeesPage() {
             }
         });
         
+        // Listener for transactions
         const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students`, selectedChild, 'transactions'), orderBy('date', 'desc'));
         const unsubTransactions = onSnapshot(transactionsQuery, (snapshot) => {
             const fetchedLedger = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
