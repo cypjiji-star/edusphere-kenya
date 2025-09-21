@@ -103,7 +103,7 @@ const navGroups = [
     items: [
         { href: '/admin/sports', label: 'Teams & Clubs', icon: Trophy },
         { href: '/admin/library', label: 'Library', icon: Library },
-        { href: '/admin/resources', label: 'School Resources', icon: Package },
+        { href: '/admin/storage', label: 'School Storage', icon: Package },
     ]
   },
   {
