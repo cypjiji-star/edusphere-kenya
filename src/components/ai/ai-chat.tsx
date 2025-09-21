@@ -182,8 +182,6 @@ export function AiChat() {
                     'max-w-[80%] rounded-lg p-3 text-sm shadow-md',
                      isUser
                       ? 'bg-primary text-primary-foreground rounded-br-none'
-                      : isAdmin
-                      ? 'bg-blue-600 text-white rounded-bl-none'
                       : 'bg-muted rounded-bl-none'
                   )}
                 >
