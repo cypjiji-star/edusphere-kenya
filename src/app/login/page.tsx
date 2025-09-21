@@ -30,7 +30,7 @@ function LoginPageContent() {
                     alt="School campus"
                     fill
                     className="absolute inset-0 h-full w-full object-cover"
-                    data-ai-hint="school campus"
+                    data-ai-hint="kenyan children"
                     priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/30" />
@@ -51,7 +51,13 @@ function LoginPageContent() {
                     </div>
                     <h1 className="text-3xl font-bold font-headline">{profile.name}</h1>
                     <p className="mt-2 text-lg italic">"{profile.motto}"</p>
-                    <p className="text-sm mt-8 text-white/70">© {new Date().getFullYear()} EduSphere. All rights reserved.</p>
+                    <div className="mt-8 text-sm text-white/70">
+                      <p>Built & Maintained By</p>
+                      <a href="https://github.com/rodgersxy" target="_blank" rel="noopener noreferrer" className="font-semibold text-white hover:underline">
+                        Rodgers Kiserian
+                      </a>
+                    </div>
+                    <p className="text-xs mt-2 text-white/50">© {new Date().getFullYear()} EduSphere. All rights reserved.</p>
                 </div>
             </div>
             <div className="flex items-center justify-center py-12 px-6 bg-background lg:h-screen lg:overflow-y-auto">
