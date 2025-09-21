@@ -145,10 +145,10 @@ export function AiChat() {
   };
 
   const handleTalkToAdmin = () => {
+    // Optimistically set escalated state for instant UI feedback
+    setIsEscalated(true); 
     sendMessage("I need to talk to an admin.");
   };
-
-  const hasEscalated = messages.some(m => m.content === escalationTriggerMessage);
 
   return (
     <div className="flex flex-col h-full">
@@ -209,7 +209,7 @@ export function AiChat() {
         </div>
       </ScrollArea>
       <div className="border-t p-4 space-y-4">
-        {hasEscalated ? (
+        {isEscalated ? (
             <div className="text-center text-sm text-muted-foreground p-4 rounded-md bg-muted">
                 An administrator will be with you shortly. You will be notified when they reply.
             </div>
