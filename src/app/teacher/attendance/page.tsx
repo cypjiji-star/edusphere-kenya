@@ -45,7 +45,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save, ClipboardCheck, User, Plane, PlusCircle, FileText, Upload, X } from "lucide-react";
+import { CheckCircle, Clock, XCircle, CalendarIcon, Loader2, Save, ClipboardCheck, User, Plane, PlusCircle, FileText, Upload, X, Percent, UserCheck, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/context/auth-context";
@@ -54,6 +54,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Label } from "@/components/ui/label";
 import { DateRange } from "react-day-picker";
 import { Textarea } from "@/components/ui/textarea";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
@@ -65,6 +66,7 @@ export type Student = {
   avatarUrl: string;
   status: AttendanceStatus;
   notes?: string;
+  admissionNumber?: string;
 };
 
 type TeacherClass = {
@@ -272,12 +274,19 @@ export default function AttendancePage() {
   const { toast } = useToast();
 
   const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([]);
-  const [activeTab, setActiveTab] = useState<string | undefined>();
+  const [activeTab, setActiveTab] = useState<string>('student-attendance');
+  const [activeClassId, setActiveClassId] = useState<string | undefined>();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [teacherName, setTeacherName] = useState('Teacher');
+  
+  // States for student analytics
+  const [allTeacherStudents, setAllTeacherStudents] = useState<Student[]>([]);
+  const [allStudentAttendance, setAllStudentAttendance] = useState<any[]>([]);
+  const [selectedStudentForAnalytics, setSelectedStudentForAnalytics] = React.useState<Student | null>(null);
+  const [studentSearchTerm, setStudentSearchTerm] = React.useState('');
 
   // Fetch teacher's details (name)
   useEffect(() => {
@@ -306,8 +315,8 @@ export default function AttendancePage() {
     const unsub = onSnapshot(q, (snap) => {
       const classesData: TeacherClass[] = snap.docs.map(d => ({ id: d.id, name: `${d.data().name} ${d.data().stream || ''}`.trim() }));
       setTeacherClasses(classesData);
-      if (!activeTab && classesData.length > 0) {
-        setActiveTab(classesData[0].id);
+      if (!activeClassId && classesData.length > 0) {
+        setActiveClassId(classesData[0].id);
       }
       setIsLoading(false);
     }, (error) => {
@@ -315,11 +324,35 @@ export default function AttendancePage() {
       setIsLoading(false);
     });
     return () => unsub();
-  }, [user, schoolId, activeTab]);
+  }, [user, schoolId, activeClassId]);
+  
+   // Fetch all students for all of the teacher's classes for analytics tab
+  useEffect(() => {
+    if (teacherClasses.length === 0 || !schoolId) return;
+    
+    const classIds = teacherClasses.map(c => c.id);
+    if (classIds.length === 0) return;
 
-  // Main data fetching effect, dependent on activeTab and selectedDate
+    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+    const unsub = onSnapshot(studentsQuery, (snapshot) => {
+        setAllTeacherStudents(snapshot.docs.map(doc => doc.data() as Student));
+    });
+
+    const allAttendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('classId', 'in', classIds));
+    const unsubAttendance = onSnapshot(allAttendanceQuery, (snapshot) => {
+        setAllStudentAttendance(snapshot.docs.map(doc => doc.data()));
+    });
+    
+    return () => {
+        unsub();
+        unsubAttendance();
+    }
+  }, [teacherClasses, schoolId]);
+
+
+  // Main data fetching effect, dependent on activeClassId and selectedDate
   const fetchAttendanceData = useCallback(async () => {
-    if (!schoolId || !activeTab) {
+    if (!schoolId || !activeClassId) {
         setStudents([]);
         return;
     }
@@ -329,7 +362,7 @@ export default function AttendancePage() {
     try {
         const studentsQuery = query(
             collection(firestore, "schools", schoolId, "students"),
-            where("classId", "==", activeTab),
+            where("classId", "==", activeClassId),
             orderBy("name")
         );
         const studentsSnapshot = await getDocs(studentsQuery);
@@ -351,7 +384,7 @@ export default function AttendancePage() {
 
         const attendanceQuery = query(
             collection(firestore, "schools", schoolId, "attendance"),
-            where("classId", "==", activeTab),
+            where("classId", "==", activeClassId),
             where("date", "==", attendanceDate)
         );
         const attendanceSnapshot = await getDocs(attendanceQuery);
@@ -373,11 +406,13 @@ export default function AttendancePage() {
     } finally {
         setIsLoading(false);
     }
-  }, [schoolId, activeTab, selectedDate, toast]);
+  }, [schoolId, activeClassId, selectedDate, toast]);
 
   useEffect(() => {
-    fetchAttendanceData();
-  }, [fetchAttendanceData, selectedDate]);
+    if (activeTab === 'student-attendance') {
+        fetchAttendanceData();
+    }
+  }, [fetchAttendanceData, selectedDate, activeTab]);
 
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {
@@ -389,14 +424,14 @@ export default function AttendancePage() {
   };
 
   const handleSaveAttendance = useCallback(async () => {
-    if (!activeTab || !schoolId || !user || students.length === 0 || !selectedDate) {
+    if (!activeClassId || !schoolId || !user || students.length === 0 || !selectedDate) {
       toast({ title: 'Cannot Save', description: 'Missing required information.', variant: 'destructive'});
       return;
     }
     
     setIsSaving(true);
     const batch = writeBatch(firestore);
-    const currentClass = teacherClasses.find((c) => c.id === activeTab);
+    const currentClass = teacherClasses.find((c) => c.id === activeClassId);
     
     const startOfDay = new Date(selectedDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -412,7 +447,7 @@ export default function AttendancePage() {
         studentId: student.id,
         studentName: student.name,
         studentAvatar: student.avatarUrl,
-        classId: activeTab,
+        classId: activeClassId,
         className: currentClass?.name || "Unknown",
         date: attendanceDate,
         status: student.status,
@@ -442,7 +477,7 @@ export default function AttendancePage() {
     } finally {
       setIsSaving(false);
     }
-  }, [schoolId, activeTab, selectedDate, students, teacherClasses, teacherName, user, toast]);
+  }, [schoolId, activeClassId, selectedDate, students, teacherClasses, teacherName, user, toast]);
 
   const markAll = () => handleBulkUpdate('present');
   const clearAll = () => handleBulkUpdate('unmarked');
@@ -450,6 +485,24 @@ export default function AttendancePage() {
   const handleBulkUpdate = (status: AttendanceStatus) => {
     setStudents(prev => prev.map(s => ({ ...s, status })));
   };
+
+  const studentFilteredRecords = React.useMemo(() => {
+    if (!selectedStudentForAnalytics) return [];
+    return allStudentAttendance.filter(record => record.studentId === selectedStudentForAnalytics.id);
+  }, [allStudentAttendance, selectedStudentForAnalytics]);
+
+  const studentSummaryStats = React.useMemo(() => {
+    const present = studentFilteredRecords.filter(r => r.status === 'present').length;
+    const absent = studentFilteredRecords.filter(r => r.status === 'absent').length;
+    const late = studentFilteredRecords.filter(r => r.status === 'late').length;
+    const total = present + absent + late;
+    return { present, absent, late, rate: total > 0 ? Math.round(((present + late) / total) * 100) : 100 };
+  }, [studentFilteredRecords]);
+
+  const displayedStudents = allTeacherStudents.filter(s =>
+    s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+    (s.admissionNumber && s.admissionNumber.includes(studentSearchTerm))
+  );
 
   if (!user || !schoolId) {
     return <div className="flex h-full items-center justify-center p-8"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
@@ -465,9 +518,10 @@ export default function AttendancePage() {
             <p className="text-muted-foreground">Manage attendance for your classes and view your own record.</p>
         </div>
 
-        <Tabs defaultValue="student-attendance">
-            <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="student-attendance">Student Attendance</TabsTrigger>
+                <TabsTrigger value="student-analytics">Student Analytics</TabsTrigger>
                 <TabsTrigger value="leave-management">Leave Management</TabsTrigger>
             </TabsList>
 
@@ -501,7 +555,7 @@ export default function AttendancePage() {
                     </div>
                 </div>
                 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+                <Tabs value={activeClassId} onValueChange={setActiveClassId} className="mt-4">
                     {teacherClasses.length > 0 ? (
                         <TabsList>
                         {teacherClasses.map((c) => (
@@ -611,6 +665,91 @@ export default function AttendancePage() {
                 )}
             </TabsContent>
             
+             <TabsContent value="student-analytics" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Detailed Student History</CardTitle>
+                        <CardDescription>Search for a student to view their complete attendance history for the term.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Command className="rounded-lg border shadow-md">
+                            <CommandInput
+                                placeholder="Search student by name or admission number..."
+                                value={studentSearchTerm}
+                                onValueChange={setStudentSearchTerm}
+                            />
+                            <CommandList>
+                                <CommandEmpty>{studentSearchTerm ? "No students found." : "Start typing to search..."}</CommandEmpty>
+                                {displayedStudents.map(student => (
+                                    <CommandItem key={student.id} onSelect={() => { setSelectedStudentForAnalytics(student); setStudentSearchTerm(''); }}>
+                                        <User className="mr-2" />
+                                        <span>{student.name}</span>
+                                    </CommandItem>
+                                ))}
+                            </CommandList>
+                        </Command>
+
+                        {selectedStudentForAnalytics && (
+                            <div className="mt-6">
+                                <Card className="border-primary">
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <Avatar className="h-16 w-16">
+                                                    <AvatarImage src={selectedStudentForAnalytics.avatarUrl} />
+                                                    <AvatarFallback>{selectedStudentForAnalytics.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <CardTitle className="text-2xl">{selectedStudentForAnalytics.name}</CardTitle>
+                                                    <CardDescription>Admission No: {selectedStudentForAnalytics.admissionNumber}</CardDescription>
+                                                </div>
+                                            </div>
+                                            <Button variant="outline" onClick={() => setSelectedStudentForAnalytics(null)}>Clear Selection</Button>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center my-4">
+                                            <div className="p-4 bg-muted/50 rounded-lg">
+                                                <p className="text-2xl font-bold">{studentSummaryStats.rate}%</p>
+                                                <p className="text-xs text-muted-foreground">Overall Attendance</p>
+                                            </div>
+                                            <div className="p-4 bg-muted/50 rounded-lg">
+                                                <p className="text-2xl font-bold">{studentSummaryStats.present}</p>
+                                                <p className="text-xs text-muted-foreground">Days Present</p>
+                                            </div>
+                                            <div className="p-4 bg-muted/50 rounded-lg">
+                                                <p className="text-2xl font-bold">{studentSummaryStats.absent}</p>
+                                                <p className="text-xs text-muted-foreground">Days Absent</p>
+                                            </div>
+                                            <div className="p-4 bg-muted/50 rounded-lg">
+                                                <p className="text-2xl font-bold">{studentSummaryStats.late}</p>
+                                                <p className="text-xs text-muted-foreground">Days Late</p>
+                                            </div>
+                                        </div>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Recorded By</TableHead></TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                {studentFilteredRecords.map((record: any) => (
+                                                    <TableRow key={record.date.seconds}>
+                                                        <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
+                                                        <TableCell>{getAttendanceBadge(record.status)}</TableCell>
+                                                        <TableCell>{record.teacherName}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
              <TabsContent value="leave-management" className="mt-4">
                 <LeaveManagementTab schoolId={schoolId} user={user} teacherName={teacherName} />
             </TabsContent>
