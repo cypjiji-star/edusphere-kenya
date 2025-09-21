@@ -36,7 +36,7 @@ export async function createAssignmentAction(
       totalStudents,
     });
     
-    // 3. Create submission placeholders for each student (This is what was missing)
+    // 3. Create submission placeholders for each student
     const batch = writeBatch(firestore);
     studentsSnapshot.forEach((studentDoc) => {
         const submissionRef = doc(collection(firestore, `schools/${schoolId}/assignments/${assignmentRef.id}/submissions`));
@@ -69,3 +69,4 @@ export async function createAssignmentAction(
     return { success: false, message: 'Failed to create assignment in the database.' };
   }
 }
+
