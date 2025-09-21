@@ -38,6 +38,11 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
     return null;
   }
   
+  // If a developer is trying to access an admin page, allow it.
+  if (role === 'developer' && requiredRole === 'admin') {
+    return <>{children}</>;
+  }
+
   // If role is determined but does not match, show access denied
   if (role !== 'unknown' && role !== requiredRole) {
     return (

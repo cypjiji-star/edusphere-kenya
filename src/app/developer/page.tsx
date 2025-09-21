@@ -268,7 +268,7 @@ export default function DeveloperDashboard() {
                     </CardContent>
                     <CardFooter>
                     <Button asChild variant="outline" className="w-full" disabled={school.status !== 'Active'}>
-                        <Link href={`/login?schoolCode=${school.schoolCode}`}>
+                        <Link href={`/admin?schoolId=${school.id}`}>
                             Manage School
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
