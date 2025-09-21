@@ -51,13 +51,17 @@ export function LoginForm() {
 
       if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
-          userIsAssociatedWithSchool = true;
-          userRoleInDb = userData.role?.toLowerCase();
-          userName = userData.name || userName;
+          // *** CRITICAL CHECK: Ensure the user record belongs to this school ***
+          if (userData.schoolId === schoolCode) {
+              userIsAssociatedWithSchool = true;
+              userRoleInDb = userData.role?.toLowerCase();
+              userName = userData.name || userName;
+          }
       } else if (role === 'parent') {
         const studentsQuery = query(collection(firestore, `schools/${schoolCode}/students`), where('parentId', '==', user.uid));
         const studentsSnapshot = await getDocs(studentsQuery);
         if (!studentsSnapshot.empty) {
+            // A parent is associated if they have a child in the school
             userIsAssociatedWithSchool = true;
             userRoleInDb = 'parent';
             userName = studentsSnapshot.docs[0].data().parentName || userName;
@@ -82,7 +86,7 @@ export function LoginForm() {
         toast({
           title: 'Access Denied',
           description: userIsAssociatedWithSchool 
-            ? `Your credentials are correct, but you do not have the "${role}" role.`
+            ? `Your credentials are correct, but you do not have the "${role}" role for this school.`
             : "This user account is not associated with the provided school code.",
           variant: 'destructive',
         });
