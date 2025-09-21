@@ -203,15 +203,13 @@ export default function ParentAttendancePage() {
     }
 
     try {
-        await addDoc(collection(firestore, 'schools', schoolId, 'absences'), {
-            studentId: selectedChild,
-            studentName: childrenData.find(c => c.id === selectedChild)?.name,
-            date: Timestamp.fromDate(absenceDate),
-            reason: absenceReason,
-            reportedBy: user.displayName || 'Parent',
-            reporterId: user.uid,
-            reportedAt: serverTimestamp(),
-            status: 'Pending',
+        await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+            title: 'Student Absence Reported',
+            description: `Absence reported for ${childrenData.find(c => c.id === selectedChild)?.name} on ${format(absenceDate, 'PPP')}. Reason: ${absenceReason}`,
+            createdAt: serverTimestamp(),
+            category: 'Attendance',
+            href: `/admin/attendance?schoolId=${schoolId}`,
+            audience: 'admin',
         });
 
         toast({

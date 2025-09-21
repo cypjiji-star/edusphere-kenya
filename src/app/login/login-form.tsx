@@ -10,7 +10,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { auth, firestore } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, DocumentData, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, DocumentData, updateDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { logAuditEvent } from '@/lib/audit-log.service';
@@ -46,7 +46,7 @@ export function LoginForm() {
       let userFound = false;
 
       for (const collectionName of collectionsToSearch) {
-        const userDocRef = doc(firestore, 'schools', schoolCode, collectionName, user.uid);
+        const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
@@ -95,6 +95,15 @@ export function LoginForm() {
           description = 'Please check your credentials and school code.';
           break;
       }
+      
+      await addDoc(collection(firestore, `schools/${schoolCode || 'unknown'}/notifications`), {
+        title: 'Failed Login Attempt',
+        description: `An unsuccessful login attempt was made for the email: ${email}.`,
+        createdAt: serverTimestamp(),
+        category: 'Security',
+        href: `/admin/logs?schoolId=${schoolCode || 'unknown'}`,
+        audience: 'admin'
+      });
 
       await logAuditEvent({
           schoolId: schoolCode || 'unknown',
