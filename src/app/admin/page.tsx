@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shapes, PlusCircle, Users, Megaphone, CircleDollarSign, ArrowUp, UserCheck, UserPlus, ClipboardCheck, Calendar, ShieldAlert, FileText, AlertTriangle, BookOpen, Loader2 } from 'lucide-react';
+import { Shapes, PlusCircle, Users, Megaphone, CircleDollarSign, ArrowUp, UserCheck, UserPlus, ClipboardCheck, Calendar, ShieldAlert, FileText, AlertTriangle, BookOpen, Loader2, ArrowRight } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDoc, doc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { SecurityAlertsWidget } from './security-alerts-widget';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const overviewLinks: Record<string, string> = {
     "Total Students": "/admin/students",
@@ -128,7 +129,7 @@ export default function AdminDashboard() {
         setStats(prev => ({ ...prev, totalStudents: studentCount, overallFeeBalance: balance, attendanceRate }));
     }));
 
-    const notificationsQuery = query(collection(firestore, `schools/${schoolId}/notifications`), orderBy('createdAt', 'desc'), limit(6));
+    const notificationsQuery = query(collection(firestore, `schools/${schoolId}/notifications`), orderBy('createdAt', 'desc'), limit(15));
     unsubscribers.push(onSnapshot(notificationsQuery, (snapshot) => {
       const fetchedActivities = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -229,7 +230,7 @@ export default function AdminDashboard() {
        </div>
 
        <div className="mt-8 grid gap-8 lg:grid-cols-3">
-         <div className="lg:col-span-1 space-y-8 overflow-auto">
+         <div className="lg:col-span-1 space-y-8">
             <SecurityAlertsWidget schoolId={schoolId} />
             <Card>
                 <CardHeader>
@@ -242,22 +243,24 @@ export default function AdminDashboard() {
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <div className="space-y-6">
-                            {activities.map((activity, index) => (
-                                <Link key={activity.id} href={`${activity.href}?schoolId=${schoolId}` || '#'} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
-                                    <div className="flex items-start gap-4">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                            <activity.icon className="h-5 w-5 text-red-600" />
+                        <ScrollArea className="h-[500px] pr-4">
+                            <div className="space-y-6">
+                                {activities.map((activity, index) => (
+                                    <Link key={activity.id} href={`${activity.href}?schoolId=${schoolId}` || '#'} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                                                <activity.icon className="h-5 w-5 text-red-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium">{activity.title}</p>
+                                                <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                            </div>
+                                            <Badge variant={activity.category === 'Urgent' || activity.category === 'Security' ? 'destructive' : 'outline'}>{activity.category}</Badge>
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium">{activity.title}</p>
-                                            <p className="text-xs text-muted-foreground">{activity.time}</p>
-                                        </div>
-                                        <Badge variant={activity.category === 'Urgent' || activity.category === 'Security' ? 'destructive' : 'outline'}>{activity.category}</Badge>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </ScrollArea>
                     )}
                 </CardContent>
             </Card>
