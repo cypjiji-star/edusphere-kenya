@@ -21,6 +21,7 @@ import {
   serverTimestamp,
   getDoc,
   getDocs,
+  limit
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { supportChatbot, SupportChatbotInput } from '@/ai/flows/support-chatbot-flow';
@@ -46,7 +47,7 @@ async function getUserDisplayName(schoolId: string, userId: string): Promise<str
         }
     }
      try {
-        const parentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', userId));
+        const parentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', userId), limit(1));
         const parentSnap = await getDocs(parentQuery);
         if (!parentSnap.empty) {
             return parentSnap.docs[0].data().parentName || 'Parent';

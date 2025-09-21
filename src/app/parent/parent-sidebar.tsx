@@ -48,7 +48,6 @@ const navItems = [
     { href: '/parent/announcements', label: 'Announcements', icon: Megaphone, badgeKey: 'unreadAnnouncements' },
     { href: '/parent/attendance', label: 'Attendance', icon: ClipboardCheck, badgeKey: null },
     { href: '/parent/grades', label: 'Grades & Exams', icon: FileText, badgeKey: null },
-    { href: '/parent/timetable', label: 'Timetable', icon: Calendar, badgeKey: null },
     { href: '/parent/fees', label: 'Fees & Payments', icon: CircleDollarSign, badgeKey: null },
     { href: '/parent/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },
     { href: '/parent/calendar', label: 'Events Calendar', icon: Calendar, badgeKey: null },
@@ -60,7 +59,7 @@ export function ParentSidebar() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const isActive = (href: string) => pathname.startsWith(href);
-  const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
+  const [dynamicBadges, setDynamicBadgets] = React.useState<Record<string, number>>({});
   const { user } = useAuth();
   const [parentName, setParentName] = React.useState('Parent');
   const [parentEmail, setParentEmail] = React.useState('');
@@ -91,8 +90,8 @@ export function ParentSidebar() {
   React.useEffect(() => {
     if (!schoolId || !user) return;
 
-    const unreadAnnouncementsQuery = query(collection(firestore, `schools/${schoolId}/announcements`));
-    const unsubscribeAnnouncements = onSnapshot(unreadAnnouncementsQuery, (snapshot) => {
+    const q = query(collection(firestore, `schools/${schoolId}/announcements`));
+    const unsubscribeAnnouncements = onSnapshot(q, (snapshot) => {
         let unreadCount = 0;
         snapshot.forEach(doc => {
             const readBy = doc.data().readBy || [];
@@ -100,7 +99,7 @@ export function ParentSidebar() {
                 unreadCount++;
             }
         });
-        setDynamicBadges(prev => ({...prev, unreadAnnouncements: unreadCount}));
+        setDynamicBadgets(prev => ({...prev, unreadAnnouncements: unreadCount}));
     });
     
     return () => {

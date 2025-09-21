@@ -355,7 +355,7 @@ export default function ParentDashboard() {
                 });
                 setChildrenData(children);
                 
-                if (!selectedChild || !children.find(c => c.id === selectedChild.id)) {
+                if (!selectedChild) {
                     setSelectedChild(children[0]);
                 }
                 setIsLoading(false);
@@ -367,7 +367,7 @@ export default function ParentDashboard() {
         }
 
         return () => unsubscribers.forEach(unsub => unsub());
-    }, [schoolId, parentId, selectedChild]);
+    }, [schoolId, parentId]);
 
     // This effect fetches detailed academic data for the *selected* child
     React.useEffect(() => {
