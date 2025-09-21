@@ -53,7 +53,7 @@ import { ClassAnalytics } from './class-analytics';
 import { useAuth } from '@/context/auth-context';
 
 
-type Student = {
+export type Student = {
     id: string;
     name: string;
     admissionNumber: string;
@@ -122,11 +122,12 @@ export default function TeacherClassManagementPage() {
         if (classesData.length > 0) {
             const classIds = classesData.map(c => c.id);
             const qStudents = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
-            const unsubscribeStudents = onSnapshot(qStudents, (studentsSnapshot) => {
-                const studentData = studentsSnapshot.docs.map(doc => {
+            
+            const unsubscribeStudents = onSnapshot(qStudents, async (studentsSnapshot) => {
+                const studentList = studentsSnapshot.docs.map(doc => {
                     const data = doc.data();
                     let feeStatus: 'Paid' | 'Partial' | 'Overdue' = 'Paid';
-                    if ((data.balance || 0) > 0) feeStatus = 'Partial'; // Simplified
+                    if ((data.balance || 0) > 0) feeStatus = 'Partial';
 
                     return {
                         id: doc.id,
@@ -140,7 +141,41 @@ export default function TeacherClassManagementPage() {
                         ...data,
                     } as Student;
                 });
-                setStudents(studentData);
+                
+                // Fetch attendance for today
+                const today = new Date();
+                const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
+                const attendanceSnapshot = await getDocs(attendanceQuery);
+                const attendanceMap = new Map();
+                attendanceSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    attendanceMap.set(data.studentId, data.status);
+                });
+                
+                // Fetch grades to compute overall grade
+                const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('status', '==', 'Approved'));
+                const gradesSnapshot = await getDocs(gradesQuery);
+                const studentGrades: Record<string, number[]> = {};
+                gradesSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (!studentGrades[data.studentId]) {
+                        studentGrades[data.studentId] = [];
+                    }
+                    const grade = parseInt(data.grade, 10);
+                    if (!isNaN(grade)) {
+                        studentGrades[data.studentId].push(grade);
+                    }
+                });
+
+                const studentDataWithDetails = studentList.map(student => {
+                    const attendance = attendanceMap.get(student.id) || 'unmarked';
+                    const grades = studentGrades[student.id] || [];
+                    const overallGrade = grades.length > 0 ? Math.round(grades.reduce((a,b) => a + b, 0) / grades.length) : undefined;
+                    return { ...student, attendance, overallGrade: overallGrade ? `${overallGrade}%` : undefined };
+                });
+
+                setStudents(studentDataWithDetails);
                 setIsLoading(false);
             });
             return () => unsubscribeStudents();
@@ -177,7 +212,7 @@ export default function TeacherClassManagementPage() {
           </p>
         </div>
 
-        <ClassAnalytics students={students} />
+        <ClassAnalytics students={filteredStudents} />
 
         <Card>
           <CardHeader>
