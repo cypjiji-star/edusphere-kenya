@@ -35,7 +35,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { firestore, auth } from '@/lib/firebase';
-import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where, writeBatch, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
 
 
@@ -113,13 +113,16 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         
         if (classIds.length > 0) {
             // Fetch subjects taught in those classes
-            const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'class-assignments'), where('__name__', 'in', classIds));
-            const assignmentsSnapshot = await getDocs(subjectsQuery);
+            const assignmentsQuery = query(collection(firestore, 'schools', schoolId, 'class-assignments'), where('__name__', 'in', classIds));
+            const assignmentsSnapshot = await getDocs(assignmentsQuery);
             const subjectNames = new Set<string>();
             assignmentsSnapshot.forEach(doc => {
                 const assignments = doc.data().assignments || [];
-                assignments.forEach((assignment: { subject: string; }) => {
-                    subjectNames.add(assignment.subject);
+                assignments.forEach((assignment: { subject: string; teacher: string | null; }) => {
+                    // Also check if the current teacher is assigned to that subject in the class
+                    if (assignment.teacher === user.displayName) {
+                        subjectNames.add(assignment.subject);
+                    }
                 });
             });
             setSubjects(Array.from(subjectNames));
@@ -496,3 +499,5 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
     </Form>
   );
 }
+
+    
