@@ -243,6 +243,7 @@ export default function AdminLibraryPage() {
     const [newType, setNewType] = React.useState<ResourceType | undefined>();
     const [newSubject, setNewSubject] = React.useState<string | undefined>();
     const [newGrades, setNewGrades] = React.useState<string[]>([]);
+    const [newDesc, setNewDesc] = React.useState('');
     const [newCopies, setNewCopies] = React.useState('');
 
     const [dbSubjects, setDbSubjects] = React.useState<string[]>([]);
