@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
 
 
@@ -74,13 +74,14 @@ export function ParentSidebar() {
 
   React.useEffect(() => {
     if (user && schoolId) {
-      const userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
-      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const userData = docSnap.data();
-          setParentName(userData.name || 'Parent');
-          setParentEmail(userData.email || '');
+      // Parents might not have a direct user doc, so we find their name from one of their children's records.
+      const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', user.uid), limit(1));
+      const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
+        if (!snapshot.empty) {
+          const studentData = snapshot.docs[0].data();
+          setParentName(studentData.parentName || 'Parent');
         }
+        setParentEmail(user.email || '');
       });
       return () => unsubscribe();
     }

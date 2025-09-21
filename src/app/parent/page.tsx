@@ -314,29 +314,31 @@ export default function ParentDashboard() {
         if (!schoolId || !parentId) {
             setIsLoading(false);
             return;
-        };
+        }
 
         const unsubscribers: (() => void)[] = [];
         setIsLoading(true);
 
         try {
-            unsubscribers.push(onSnapshot(doc(firestore, 'schools', schoolId), (docSnap) => {
+            const schoolRef = doc(firestore, 'schools', schoolId);
+            unsubscribers.push(onSnapshot(schoolRef, (docSnap) => {
                 if(docSnap.exists()) setSchoolName(docSnap.data().name);
-            }));
-
-            unsubscribers.push(onSnapshot(doc(firestore, 'schools', schoolId, 'users', parentId), (docSnap) => {
-                if (docSnap.exists()) setParentName(docSnap.data().name || 'Parent');
             }));
 
             const childrenQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
             unsubscribers.push(onSnapshot(childrenQuery, async (studentsSnapshot) => {
-                const studentIds = studentsSnapshot.docs.map(doc => doc.id);
-                if (studentIds.length === 0) {
+                if (studentsSnapshot.empty) {
                     setChildrenData([]);
                     setSelectedChild(null);
+                    setParentName('Parent');
                     setIsLoading(false);
                     return;
                 }
+                
+                // Set parent name from the first child record found
+                setParentName(studentsSnapshot.docs[0].data().parentName || 'Parent');
+
+                const studentIds = studentsSnapshot.docs.map(doc => doc.id);
                 
                 const termStartDate = new Date();
                 termStartDate.setMonth(termStartDate.getMonth() - 3);
@@ -400,6 +402,10 @@ export default function ParentDashboard() {
                 }
 
                 setIsLoading(false);
+            }, (err) => {
+              console.error("Error fetching children or sub-data:", err);
+              setError('Failed to load dashboard data. Please try again.');
+              setIsLoading(false);
             }));
         } catch (err) {
             console.error('Error setting up dashboard listeners:', err);

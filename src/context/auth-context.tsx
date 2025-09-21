@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { auth, firestore } from '@/lib/firebase';
 import { usePathname, useSearchParams } from 'next/navigation';
 
@@ -57,11 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (userDocSnap.exists()) {
               const userData = userDocSnap.data();
-              setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
+              const userRole = userData.role?.toLowerCase() as AllowedRole;
+              if (userRole === 'parent') {
+                // If the 'users' collection correctly identifies a parent, we can stop here.
+                setRole('parent');
+              } else {
+                setRole(userRole || 'unknown');
+              }
           } else {
-             // If user is not in the general 'users' collection, they might be a parent.
-             // This is a fallback check. Ideally, all users have an entry in the 'users' collection.
-             const parentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', authUser.uid));
+             // Fallback for parents who might not have a separate user doc.
+             const parentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', authUser.uid), limit(1));
              const parentSnap = await getDocs(parentQuery);
              if (!parentSnap.empty) {
                 setRole('parent');
