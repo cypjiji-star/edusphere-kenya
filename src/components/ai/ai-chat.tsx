@@ -106,14 +106,16 @@ export function AiChat() {
         });
       }
 
-      // Check if an admin has ever been involved. If so, AI stays silent.
+      // Check if an admin has ever been involved in the chat history.
       const hasAdminReplied = messages.some(m => m.role === 'admin');
 
-      if (isEscalated || hasAdminReplied) {
+      // If an admin has replied, or the chat is currently escalated, do not call the AI.
+      // Just save the user's message for the admin to see.
+      if (hasAdminReplied || isEscalated) {
           setIsLoading(false);
           return;
       }
-
+      
       // Generate AI response if not escalated and no admin has replied
       const aiInput: SupportChatbotInput = {
         history: newMessages.filter((m) => m.role === 'user' || m.role === 'model'),
@@ -210,7 +212,7 @@ export function AiChat() {
         </div>
       </ScrollArea>
       <div className="border-t p-4 space-y-4">
-        {isEscalated ? (
+        {isEscalated || messages.some(m => m.role === 'admin') ? (
             <div className="text-center text-sm text-muted-foreground p-4 rounded-md bg-muted">
                 An administrator will be with you shortly. You will be notified when they reply.
             </div>
