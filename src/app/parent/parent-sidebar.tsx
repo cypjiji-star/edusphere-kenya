@@ -141,7 +141,6 @@ export function ParentSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="flex items-center gap-2 p-2">
-        <ThemeSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">

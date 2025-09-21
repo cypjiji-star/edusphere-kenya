@@ -4,6 +4,7 @@ import { AdminSidebar } from './admin-sidebar';
 import { Suspense } from 'react';
 import { AuthCheck } from '@/lib/auth-check';
 import { FloatingChatWidget } from './floating-chat-widget';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 export default function AdminLayout({
   children,
@@ -20,8 +21,11 @@ export default function AdminLayout({
         </Sidebar>
         <SidebarInset>
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
-            <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm md:hidden">
-              <SidebarTrigger />
+            <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm">
+              <div className="flex-1 md:hidden">
+                <SidebarTrigger />
+              </div>
+              <ThemeSwitcher />
             </header>
             <div className="p-4 sm:p-6 lg:p-8">{children}</div>
             <Suspense>

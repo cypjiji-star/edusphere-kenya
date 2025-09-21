@@ -4,6 +4,7 @@ import { TeacherSidebar } from './teacher-sidebar';
 import { Suspense } from 'react';
 import { AuthCheck } from '@/lib/auth-check';
 import { FloatingSupportWidget } from '@/components/layout/floating-support-widget';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 export default function TeacherLayout({
   children,
@@ -20,8 +21,11 @@ export default function TeacherLayout({
         </Sidebar>
         <SidebarInset>
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
-             <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm md:hidden">
-              <SidebarTrigger />
+             <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm">
+                <div className="flex-1 md:hidden">
+                    <SidebarTrigger />
+                </div>
+                <ThemeSwitcher />
             </header>
             {children}
             <FloatingSupportWidget />
