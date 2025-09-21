@@ -43,16 +43,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc, Timestamp, setDoc, getDocs, runTransaction, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, getDoc, Timestamp, setDoc, getDocs, runTransaction, where, arrayRemove } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { Resource, ResourceType, ResourceStatus } from '@/app/teacher/library/types';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-
-const resourceTypes: ResourceType[] = ['Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
-const statuses: ResourceStatus[] = ['Available', 'Out', 'Digital'];
 
 type StudentAssignment = {
     id: string;
@@ -63,6 +60,14 @@ type StudentAssignment = {
     teacherName: string;
     assignedDate: Timestamp;
     status: 'Assigned' | 'Returned' | 'Pending Return';
+};
+
+const resourceTypes: ResourceType[] = ['Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
+const statuses: ResourceStatus[] = ['Available', 'Out', 'Digital'];
+
+type Teacher = {
+    id: string;
+    name: string;
 };
 
 const typeIcons: Record<Resource['type'], React.ElementType> = {
@@ -83,7 +88,7 @@ const getStatusBadge = (resource: Resource) => {
     return <Badge className="bg-green-100 text-green-800 border-green-200">Available ({resource.availableCopies}/{resource.totalCopies})</Badge>;
 }
 
-function CheckOutDialog({ resource, open, onOpenChange, teachers, onCheckOut }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, teachers: {id: string, name: string}[], onCheckOut: (userId: string, userName: string, quantity: number) => void }) {
+function CheckOutDialog({ resource, open, onOpenChange, teachers, onCheckOut }: { resource: Resource | null, open: boolean, onOpenChange: (open: boolean) => void, teachers: Teacher[], onCheckOut: (userId: string, userName: string, quantity: number) => void }) {
     const [quantity, setQuantity] = React.useState(1);
     const [selectedUser, setSelectedUser] = React.useState<string>('');
 
@@ -223,6 +228,47 @@ function EditResourceDialog({ resource, open, onOpenChange, onSave, onDelete }: 
     );
 }
 
+function ReturnDialog({ item, open, onOpenChange, onReturn }: { item: any | null; open: boolean; onOpenChange: (open: boolean) => void; onReturn: (item: any, quantity: number) => void; }) {
+    const [quantity, setQuantity] = React.useState(1);
+
+    React.useEffect(() => {
+        if (item) {
+            setQuantity(item.quantityBorrowed);
+        }
+    }, [item]);
+
+    if (!item) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Process Return for {item.title}</DialogTitle>
+                    <DialogDescription>
+                        Confirm the number of copies being returned by {item.borrowerName}.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-2">
+                    <Label htmlFor="return-quantity">Quantity to Return</Label>
+                    <Input
+                        id="return-quantity"
+                        type="number"
+                        min={1}
+                        max={item.quantityBorrowed}
+                        value={quantity}
+                        onChange={(e) => setQuantity(Number(e.target.value))}
+                    />
+                     <p className="text-sm text-muted-foreground">{item.borrowerName} has {item.quantityBorrowed} copies.</p>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button onClick={() => onReturn(item, quantity)}>Confirm Return</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function AdminLibraryPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
@@ -234,13 +280,14 @@ export default function AdminLibraryPage() {
     const [filteredStatus, setFilteredStatus] = React.useState('All Statuses');
     const [editingResource, setEditingResource] = React.useState<Resource | null>(null);
     const [checkingOutResource, setCheckingOutResource] = React.useState<Resource | null>(null);
+    const [returningItem, setReturningItem] = React.useState<any | null>(null);
     const { toast } = useToast();
     
     // State for new resource dialog
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [newTitle, setNewTitle] = React.useState('');
-    const [newAuthor, setNewAuthor] = React.useState('');
     const [newDesc, setNewDesc] = React.useState('');
+    const [newAuthor, setNewAuthor] = React.useState('');
     const [newType, setNewType] = React.useState<ResourceType | undefined>();
     const [newSubject, setNewSubject] = React.useState<string | undefined>();
     const [newGrades, setNewGrades] = React.useState<string[]>([]);
@@ -248,7 +295,7 @@ export default function AdminLibraryPage() {
 
     const [dbSubjects, setDbSubjects] = React.useState<string[]>([]);
     const [dbGrades, setDbGrades] = React.useState<string[]>([]);
-    const [allTeachers, setAllTeachers] = React.useState<{id: string, name: string}[]>([]);
+    const [allTeachers, setAllTeachers] = React.useState<Teacher[]>([]);
     
     // State for student assignments tab
     const [studentAssignments, setStudentAssignments] = React.useState<StudentAssignment[]>([]);
@@ -381,8 +428,8 @@ export default function AdminLibraryPage() {
                 author: newAuthor,
                 type: newType,
                 subject: newSubject,
-                grade: newGrades,
                 description: newDesc,
+                grade: newGrades,
                 totalCopies: numCopies,
                 availableCopies: numCopies,
                 status: newType === 'Digital' ? 'Digital' : 'Available',
@@ -461,42 +508,59 @@ export default function AdminLibraryPage() {
         }
     };
     
-    const handleReturn = async (item: typeof checkedOutItems[number]) => {
-        if (!schoolId) return;
-
+    const handleReturn = async (item: any, quantityToReturn: number) => {
+        if (!schoolId || !item || quantityToReturn <= 0) return;
+    
         try {
             await runTransaction(firestore, async (transaction) => {
                 const resourceRef = doc(firestore, `schools/${schoolId}/library-resources`, item.id);
                 const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/teachers/${item.borrowerId}/borrowed-items`, item.id);
                 
                 const resourceDoc = await transaction.get(resourceRef);
+                const borrowedItemDoc = await transaction.get(teacherBorrowedItemRef);
+    
                 if (!resourceDoc.exists()) throw new Error("Resource not found");
-
+    
                 const resourceData = resourceDoc.data() as Resource;
-                const newAvailableCopies = resourceData.availableCopies + item.quantityBorrowed;
-                const newBorrowedBy = (resourceData.borrowedBy || []).filter(b => b.teacherId !== item.borrowerId);
-                const newStatus = newAvailableCopies > 0 ? 'Available' : 'Out';
-
+                const newAvailableCopies = (resourceData.availableCopies || 0) + quantityToReturn;
+    
+                const borrowedBy = resourceData.borrowedBy || [];
+                const borrowerRecord = borrowedBy.find(b => b.teacherId === item.borrowerId);
+    
+                if (!borrowerRecord) throw new Error("Borrower record not found on resource.");
+    
+                const newBorrowedByArray = borrowerRecord.quantity - quantityToReturn > 0
+                    ? borrowedBy.map(b => b.teacherId === item.borrowerId ? { ...b, quantity: b.quantity - quantityToReturn } : b)
+                    : borrowedBy.filter(b => b.teacherId !== item.borrowerId);
+    
                 transaction.update(resourceRef, {
                     availableCopies: newAvailableCopies,
-                    borrowedBy: newBorrowedBy,
-                    status: newStatus,
+                    borrowedBy: newBorrowedByArray,
+                    status: newAvailableCopies > 0 ? 'Available' : 'Out',
                 });
                 
-                transaction.delete(teacherBorrowedItemRef);
-                
+                if (borrowedItemDoc.exists()) {
+                    const currentBorrowedQty = borrowedItemDoc.data().quantity || 0;
+                    if (currentBorrowedQty - quantityToReturn > 0) {
+                        transaction.update(teacherBorrowedItemRef, { quantity: currentBorrowedQty - quantityToReturn });
+                    } else {
+                        transaction.delete(teacherBorrowedItemRef);
+                    }
+                }
+    
                 const historyRef = doc(collection(firestore, `schools/${schoolId}/teachers/${item.borrowerId}/borrowing-history`));
                 transaction.set(historyRef, {
                     title: item.title,
-                    borrowedDate: item.borrowedBy?.find(b => b.teacherId === item.borrowerId)?.borrowedDate || serverTimestamp(), // Placeholder
+                    quantity: quantityToReturn,
                     returnedDate: serverTimestamp(),
                 });
             });
-
-            toast({ title: "Return Processed", description: `${item.title} returned by ${item.borrowerName}.` });
+    
+            toast({ title: "Return Processed", description: `${quantityToReturn} copies of ${item.title} returned by ${item.borrowerName}.` });
+            setReturningItem(null);
         } catch (error) {
             console.error("Error processing return:", error);
-            toast({ title: 'Return Failed', variant: 'destructive' });
+            toast({ title: 'Return Failed', description: (error as Error).message, variant: 'destructive' });
         }
     };
 
@@ -649,7 +713,7 @@ export default function AdminLibraryPage() {
                                                 <TableCell>{item.borrowerName}</TableCell>
                                                 <TableCell>{item.quantityBorrowed}</TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="secondary" onClick={() => handleReturn(item)}>
+                                                    <Button variant="secondary" onClick={() => setReturningItem(item)}>
                                                         <RotateCw className="mr-2 h-4 w-4" />
                                                         Process Return
                                                     </Button>
@@ -702,8 +766,7 @@ export default function AdminLibraryPage() {
         </Tabs>
       <EditResourceDialog resource={editingResource} open={!!editingResource} onOpenChange={(open) => !open && setEditingResource(null)} onSave={handleUpdateResource} onDelete={handleDeleteResource} />
       <CheckOutDialog resource={checkingOutResource} open={!!checkingOutResource} teachers={allTeachers} onOpenChange={(open) => !open && setCheckingOutResource(null)} onCheckOut={handleCheckOut} />
+      <ReturnDialog item={returningItem} open={!!returningItem} onOpenChange={(open) => !open && setReturningItem(null)} onReturn={handleReturn} />
     </div>
   );
 }
-
-    
