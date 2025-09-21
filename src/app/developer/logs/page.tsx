@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -115,9 +114,12 @@ export default function AuditLogsPage() {
       if (!log.timestamp) return false;
       const recordDate = log.timestamp.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
-      const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (typeof log.details === 'string' && log.details.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                            (log.schoolId && log.schoolId.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = (log.description && log.description.toLowerCase().includes(searchLower)) || 
+                            (typeof log.details === 'string' && log.details.toLowerCase().includes(searchLower)) ||
+                            (log.schoolId && log.schoolId.toLowerCase().includes(searchLower));
+                            
       const matchesUser = userFilter === 'All Users' || log.user.name === userFilter;
       const matchesAction = actionFilter === 'All Types' || log.actionType === actionFilter;
 
