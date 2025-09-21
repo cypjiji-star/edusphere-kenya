@@ -232,44 +232,46 @@ export default function AdminDashboard() {
        <div className="mt-8 grid gap-8 lg:grid-cols-3">
          <div className="lg:col-span-1 space-y-8">
             <SecurityAlertsWidget schoolId={schoolId} />
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-1">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                        <CardDescription>A live feed of important events across the school.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? (
-                            <div className="flex items-center justify-center h-48">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                        ) : (
-                            <ScrollArea className="h-[500px] pr-4">
-                                <div className="space-y-6">
-                                    {activities.map((activity, index) => (
-                                        <Link key={activity.id} href={`${activity.href}?schoolId=${schoolId}` || '#'} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
-                                            <div className="flex items-start gap-4">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                                    <activity.icon className="h-5 w-5 text-red-600" />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="text-sm font-medium">{activity.title}</p>
-                                                    <p className="text-xs text-muted-foreground">{activity.time}</p>
-                                                </div>
-                                                <Badge variant={activity.category === 'Urgent' || activity.category === 'Security' ? 'destructive' : 'outline'}>{activity.category}</Badge>
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </ScrollArea>
-                        )}
-                    </CardContent>
-                </Card>
-                <CalendarWidget />
-            </div>
          </div>
           <div className="lg:col-span-2 space-y-8 overflow-auto">
             <FinanceSnapshot />
+          </div>
+          <div className="lg:col-span-3">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                    <CardDescription>A live feed of important events across the school.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-48">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                    ) : (
+                        <ScrollArea className="h-[500px] pr-4">
+                            <div className="space-y-6">
+                                {activities.map((activity, index) => (
+                                    <Link key={activity.id} href={`${activity.href}?schoolId=${schoolId}` || '#'} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                                                <activity.icon className="h-5 w-5 text-red-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium">{activity.title}</p>
+                                                <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                            </div>
+                                            <Badge variant={activity.category === 'Urgent' || activity.category === 'Security' ? 'destructive' : 'outline'}>{activity.category}</Badge>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    )}
+                </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-3">
+             <CalendarWidget />
           </div>
       </div>
     </div>
