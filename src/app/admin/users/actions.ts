@@ -3,7 +3,7 @@
 
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import { addDoc, collection, serverTimestamp, setDoc, doc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, setDoc, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { logAuditEvent } from '@/lib/audit-log.service';
 
@@ -105,8 +105,6 @@ export async function createUserAction(params: {
     const uid = userRecord.uid;
     const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
 
-    const batch = writeBatch(firestore);
-
     // 2. Create user document in the appropriate collection based on role
     const roleCollection = role.toLowerCase() + 's'; // e.g., 'teachers', 'admins', 'parents'
     const userDocRef = doc(firestore, 'schools', schoolId, roleCollection, uid);
@@ -127,11 +125,9 @@ export async function createUserAction(params: {
       userData.classIds = classes;
     }
     
-    batch.set(userDocRef, userData);
+    await setDoc(userDocRef, userData);
     
-    await batch.commit();
-
-    // 4. Log the audit event
+    // 3. Log the audit event
     await logAuditEvent({
         schoolId,
         action: 'USER_CREATED',

@@ -41,15 +41,13 @@ export function LoginForm() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
-      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+      
+      const roleCollectionName = role.toLowerCase() + 's';
+      const userDocRef = doc(firestore, 'schools', schoolCode, roleCollectionName, user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
-      if (userDocSnap.exists() && userDocSnap.data().role.toLowerCase() === role) {
-        const userDocForUpdate = doc(firestore, `schools/${schoolCode}/${role}s`, user.uid);
-        if ((await getDoc(userDocForUpdate)).exists()) {
-            await updateDoc(userDocForUpdate, { lastLogin: serverTimestamp() });
-        }
+      if (userDocSnap.exists()) {
+        await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
 
         await logAuditEvent({
             schoolId: schoolCode,
@@ -63,9 +61,7 @@ export function LoginForm() {
         await auth.signOut();
         toast({
           title: 'Access Denied',
-          description: userDocSnap.exists()
-            ? `Your credentials are correct, but you do not have the "${role}" role for this school.`
-            : "This user account is not associated with the provided school code.",
+          description: `Your credentials are correct, but you do not have the "${role}" role for this school.`,
           variant: 'destructive',
         });
       }
@@ -162,5 +158,3 @@ export function LoginForm() {
     </form>
   );
 }
-
-    
