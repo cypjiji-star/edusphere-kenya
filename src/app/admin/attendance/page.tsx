@@ -121,6 +121,7 @@ type Student = {
     id: string;
     name: string;
     admissionNumber: string;
+    avatarUrl: string;
 };
 
 type CommunicationLog = {
@@ -361,11 +362,16 @@ export default function AdminAttendancePage() {
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
   const [academicTerms, setAcademicTerms] = React.useState<{value: string, label: string}[]>([]);
+  const [clientReady, setClientReady] = React.useState(false);
 
   // New state for student analytics
   const [allStudents, setAllStudents] = React.useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = React.useState('');
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   // Fetch static data once on component mount
   React.useEffect(() => {
@@ -405,7 +411,7 @@ export default function AdminAttendancePage() {
             name: doc.data().name,
             admissionNumber: doc.data().admissionNumber,
             avatarUrl: doc.data().avatarUrl,
-        })));
+        } as Student)));
     });
 
     return () => {
@@ -695,7 +701,7 @@ export default function AdminAttendancePage() {
   
   const displayedStudents = allStudents.filter(s =>
         s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
-        s.admissionNumber?.includes(studentSearchTerm)
+        (s.admissionNumber && s.admissionNumber.includes(studentSearchTerm))
     );
 
   if (!schoolId) {
@@ -727,10 +733,12 @@ export default function AdminAttendancePage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Attendance Summary</CardTitle>
-                            <CardDescription>
-                                Summary for the selected period: {date?.from && format(date.from, 'LLL dd, y')}
-                                {date?.to && date.from?.getTime() !== date.to?.getTime() ? ` - ${format(date.to, 'LLL dd, y')}` : ''}
-                            </CardDescription>
+                            {clientReady && (
+                                <CardDescription>
+                                    Summary for the selected period: {date?.from && format(date.from, 'LLL dd, y')}
+                                    {date?.to && date.from?.getTime() !== date.to?.getTime() ? ` - ${format(date.to, 'LLL dd, y')}` : ''}
+                                </CardDescription>
+                            )}
                         </CardHeader>
                         <CardContent>
                            <div className="grid gap-6 sm:grid-cols-3">
@@ -905,7 +913,7 @@ export default function AdminAttendancePage() {
                                         className={cn('w-full justify-start text-left font-normal md:w-[300px]', !date && 'text-muted-foreground')}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date?.from ? (
+                                        {clientReady && date?.from ? (
                                         date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
                                         ) : <span>Pick a date range</span>}
                                     </Button>
@@ -962,7 +970,7 @@ export default function AdminAttendancePage() {
                                 </TableCell>
                                 <TableCell>{record.class}</TableCell>
                                 <TableCell>{record.teacher}</TableCell>
-                                <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
+                                <TableCell>{clientReady && record.date.toDate().toLocaleDateString()}</TableCell>
                                 <TableCell>{getStatusBadge(record.status)}</TableCell>
                                 </TableRow>
                             ))
@@ -1026,10 +1034,10 @@ export default function AdminAttendancePage() {
                                                 <TableBody>
                                                     {records.map((record) => (
                                                         <TableRow key={record.id}>
-                                                            <TableCell>{format(record.date.toDate(), 'PPP')}</TableCell>
+                                                            <TableCell>{clientReady && format(record.date.toDate(), 'PPP')}</TableCell>
                                                             <TableCell>{getStatusBadge(record.status)}</TableCell>
-                                                            <TableCell>{record.checkInTime ? format(record.checkInTime.toDate(), 'p') : '—'}</TableCell>
-                                                            <TableCell>{record.checkOutTime ? format(record.checkOutTime.toDate(), 'p') : '—'}</TableCell>
+                                                            <TableCell>{clientReady && record.checkInTime ? format(record.checkInTime.toDate(), 'p') : '—'}</TableCell>
+                                                            <TableCell>{clientReady && record.checkOutTime ? format(record.checkOutTime.toDate(), 'p') : '—'}</TableCell>
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>
@@ -1094,7 +1102,7 @@ export default function AdminAttendancePage() {
                                                             {apps.map(app => (
                                                                 <TableRow key={app.id}>
                                                                     <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
-                                                                    <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
+                                                                    <TableCell>{clientReady && format(app.startDate.toDate(), 'dd/MM/yy')} - {clientReady && format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
                                                                     <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
                                                                     <TableCell>{getStatusBadge(app.status)}</TableCell>
                                                                     <TableCell className="text-right">
@@ -1146,7 +1154,7 @@ export default function AdminAttendancePage() {
                                         {studentLeaveApps.map(app => (
                                             <TableRow key={app.id}>
                                                 <TableCell>{app.studentName}</TableCell>
-                                                <TableCell>{format(app.date.toDate(), 'PPP')}</TableCell>
+                                                <TableCell>{clientReady && format(app.date.toDate(), 'PPP')}</TableCell>
                                                 <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
                                                 <TableCell>{app.reportedBy}</TableCell>
                                                 <TableCell>{getStatusBadge(app.status)}</TableCell>
@@ -1244,7 +1252,7 @@ export default function AdminAttendancePage() {
                                             <TableBody>
                                             {studentFilteredRecords.map(record => (
                                                 <TableRow key={record.id}>
-                                                    <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
+                                                    <TableCell>{clientReady && record.date.toDate().toLocaleDateString()}</TableCell>
                                                     <TableCell>{getStatusBadge(record.status)}</TableCell>
                                                     <TableCell>{record.teacher}</TableCell>
                                                 </TableRow>
@@ -1280,7 +1288,7 @@ export default function AdminAttendancePage() {
                              <TableBody>
                                 {communicationLogs.length > 0 ? communicationLogs.map(log => (
                                     <TableRow key={log.id}>
-                                        <TableCell>{log.sentAt.toDate().toLocaleString()}</TableCell>
+                                        <TableCell>{clientReady && log.sentAt.toDate().toLocaleString()}</TableCell>
                                         <TableCell>{log.studentName}</TableCell>
                                         <TableCell>{log.parentName} ({log.parentContact})</TableCell>
                                         <TableCell><Badge variant="secondary">{log.reason}</Badge></TableCell>
@@ -1303,6 +1311,7 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
 
 
 
