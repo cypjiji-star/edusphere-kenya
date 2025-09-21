@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -62,7 +61,6 @@ const navGroups = [
     items: [
       { href: '/teacher/students', label: 'Class Management', icon: Users, badgeKey: null },
       { href: '/teacher/attendance', label: 'Attendance', icon: ClipboardCheck, badgeKey: null },
-      { href: '/teacher/grades', label: 'Grades & Exams', icon: FileText, badgeKey: 'ungradedAssignments' },
       { href: '/teacher/payments', label: 'Class Funds', icon: CircleDollarSign, badgeKey: null },
       { href: '/teacher/sports', label: 'Sports', icon: Trophy, badgeKey: null },
       { href: '/teacher/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },
@@ -219,11 +217,11 @@ export function TeacherSidebar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled><Settings className="mr-2" />Profile & Settings</DropdownMenuItem>
+            <DropdownMenuItem disabled><Settings className="mr-2" />Profile &amp; Settings</DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link href={`/teacher/support?schoolId=${schoolId}`} onClick={handleLinkClick}>
                     <HelpCircle className="mr-2" />
-                    Support & Feedback
+                    Support &amp; Feedback
                 </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

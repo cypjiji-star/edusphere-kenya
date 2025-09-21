@@ -1,6 +1,4 @@
 
-
-      
 'use client';
 
 import Link from 'next/link';
@@ -68,7 +66,6 @@ const navGroups = [
     title: 'Academics',
     items: [
       { href: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
-      { href: '/admin/grades', label: 'Grades & Exams', icon: FileText },
       { href: '/admin/timetable', label: 'Timetable', icon: Calendar },
       { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
       { href: '/admin/lesson-plans', label: 'Lesson Plans', icon: BookOpen },

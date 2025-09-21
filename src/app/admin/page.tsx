@@ -14,7 +14,7 @@ import { Shapes, PlusCircle, Users, Megaphone, CircleDollarSign, ArrowUp, UserCh
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { FinanceSnapshot, PerformanceSnapshot } from './admin-charts';
+import { FinanceSnapshot } from './admin-charts';
 import { CalendarWidget } from './calendar-widget';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDoc, doc, getDocs } from 'firebase/firestore';
@@ -265,7 +265,6 @@ export default function AdminDashboard() {
          </div>
           <div className="lg:col-span-2 space-y-8 overflow-auto">
             <FinanceSnapshot />
-            <PerformanceSnapshot />
           </div>
       </div>
     </div>

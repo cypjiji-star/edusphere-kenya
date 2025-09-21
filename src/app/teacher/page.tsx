@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -34,7 +33,6 @@ export default function TeacherDashboard() {
     const [totalStudents, setTotalStudents] = React.useState(0);
     const [ungradedAssignments, setUngradedAssignments] = React.useState(0);
     const [attendancePercentage, setAttendancePercentage] = React.useState(0);
-    const [avgScore, setAvgScore] = React.useState(0);
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
@@ -65,7 +63,6 @@ export default function TeacherDashboard() {
                 if (classIds.length === 0) {
                     setTotalStudents(0);
                     setAttendancePercentage(100);
-                    setAvgScore(0);
                     setIsLoading(false);
                     return;
                 }
@@ -91,25 +88,6 @@ export default function TeacherDashboard() {
                         unsubscribers.push(unsubAttendance);
                     } else {
                         setAttendancePercentage(100);
-                    }
-
-                    if (studentIds.length > 0) {
-                        const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds));
-                         const unsubGrades = onSnapshot(gradesQuery, (gradesSnapshot) => {
-                            let totalScore = 0;
-                            let gradeCount = 0;
-                            gradesSnapshot.forEach(doc => {
-                                const score = parseInt(doc.data().grade, 10);
-                                if (!isNaN(score)) {
-                                    totalScore += score;
-                                    gradeCount++;
-                                }
-                            });
-                            setAvgScore(gradeCount > 0 ? Math.round(totalScore / gradeCount) : 0);
-                        });
-                        unsubscribers.push(unsubGrades);
-                    } else {
-                         setAvgScore(0);
                     }
                     setIsLoading(false);
                 });
@@ -155,13 +133,7 @@ export default function TeacherDashboard() {
             icon: <BookMarked className="h-6 w-6 text-muted-foreground" />,
             href: `/teacher/assignments?schoolId=${schoolId}`,
         },
-        {
-            title: "Avg. Last Exam Score",
-            stat: `${avgScore}%`,
-            icon: <Percent className="h-6 w-6 text-muted-foreground" />,
-            href: `/teacher/grades?schoolId=${schoolId}`,
-        }
-    ], [totalStudents, attendancePercentage, ungradedAssignments, avgScore, schoolId]);
+    ], [totalStudents, attendancePercentage, ungradedAssignments, schoolId]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -175,8 +147,8 @@ export default function TeacherDashboard() {
        </div>
 
        {isLoading ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {Array(4).fill(0).map((_, index) => (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {Array(3).fill(0).map((_, index) => (
                     <Card key={index}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                              <div className="h-5 w-32 rounded-md bg-muted animate-pulse" />
@@ -189,7 +161,7 @@ export default function TeacherDashboard() {
                 ))}
             </div>
        ) : (
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {quickStats.map((stat) => (
                 <Link href={stat.href} key={stat.title} aria-label={`View ${stat.title}`}>
                   <Card>
