@@ -1,3 +1,4 @@
+
 'use server';
 
 import { firestore } from '@/lib/firebase';
@@ -30,6 +31,7 @@ export async function createExamAction(schoolId: string, formData: FormData) {
   try {
     await addDoc(collection(firestore, 'schools', schoolId, 'exams'), {
       ...validation.data,
+      status: 'Open', // Default status for new exams
       createdAt: serverTimestamp(),
     });
     return { success: true, message: 'Exam created successfully.' };

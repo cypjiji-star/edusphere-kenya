@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -27,9 +26,9 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { FileText, Loader2, CalendarIcon, PlusCircle } from 'lucide-react';
+import { FileText, Loader2, CalendarIcon, PlusCircle, Archive, ArchiveRestore } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, getDocs, Timestamp, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, getDocs, Timestamp, orderBy, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -67,6 +66,7 @@ type Exam = {
     title: string;
     term: string;
     date: Timestamp;
+    status: 'Open' | 'Closed';
 }
 
 const getCurrentTerm = (): string => {
@@ -87,9 +87,9 @@ const generateAcademicTerms = () => {
     const currentYear = new Date().getFullYear();
     const terms = [];
     for (let year = currentYear - 1; year <= currentYear + 1; year++) {
-        terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
-        terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
-        terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
+        terms.push({ value: `Term 1, ${year}`, label: `Term 1, ${year}` });
+        terms.push({ value: `Term 2, ${year}`, label: `Term 2, ${year}` });
+        terms.push({ value: `Term 3, ${year}`, label: `Term 3, ${year}` });
     }
     return terms;
 };
@@ -103,7 +103,8 @@ export default function AdminGradesPage() {
     const [allClasses, setAllClasses] = React.useState<TeacherClass[]>([]);
     const [allSubjects, setAllSubjects] = React.useState<string[]>([]);
     const [studentsWithGrades, setStudentsWithGrades] = React.useState<Student[]>([]);
-    const [exams, setExams] = React.useState<Exam[]>([]);
+    const [openExams, setOpenExams] = React.useState<Exam[]>([]);
+    const [archivedExams, setArchivedExams] = React.useState<Exam[]>([]);
     
     const [selectedClassId, setSelectedClassId] = React.useState<string>('');
     
@@ -142,16 +143,22 @@ export default function AdminGradesPage() {
             setIsLoading(prev => ({ ...prev, subjects: false }));
         });
 
-        const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), orderBy('date', 'desc'));
-        const unsubExams = onSnapshot(examsQuery, (snapshot) => {
-            setExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+        const openExamsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('status', '==', 'Open'), orderBy('date', 'desc'));
+        const unsubOpenExams = onSnapshot(openExamsQuery, (snapshot) => {
+            setOpenExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
             setIsLoading(prev => ({ ...prev, exams: false }));
+        });
+
+        const archivedExamsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('status', '==', 'Closed'), orderBy('date', 'desc'));
+        const unsubArchivedExams = onSnapshot(archivedExamsQuery, (snapshot) => {
+            setArchivedExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
         });
 
         return () => {
             unsubClasses();
             unsubSubjects();
-            unsubExams();
+            unsubOpenExams();
+            unsubArchivedExams();
         };
     }, [schoolId, selectedClassId]);
 
@@ -238,6 +245,20 @@ export default function AdminGradesPage() {
         }
         setIsCreatingExam(false);
     }
+    
+    const handleExamStatusChange = async (examId: string, status: 'Open' | 'Closed') => {
+        if (!schoolId) return;
+        const examRef = doc(firestore, 'schools', schoolId, 'exams', examId);
+        try {
+            await updateDoc(examRef, { status });
+            toast({
+                title: `Exam ${status}`,
+                description: `The exam has been moved to ${status === 'Closed' ? 'archives' : 'active list'}.`
+            });
+        } catch(e) {
+            toast({ title: 'Error updating exam status.', variant: 'destructive'});
+        }
+    }
 
 
     return (
@@ -251,9 +272,10 @@ export default function AdminGradesPage() {
             </div>
 
             <Tabs defaultValue="rankings">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="rankings">Class Rankings</TabsTrigger>
                     <TabsTrigger value="exams">Manage Exams</TabsTrigger>
+                    <TabsTrigger value="archives">Exam Archives</TabsTrigger>
                 </TabsList>
                 <TabsContent value="rankings" className="mt-4">
                     <Card>
@@ -369,21 +391,26 @@ export default function AdminGradesPage() {
                         </Card>
                         <Card>
                              <CardHeader>
-                                <CardTitle>Existing Exams</CardTitle>
-                                <CardDescription>A log of all examination periods created.</CardDescription>
+                                <CardTitle>Active Exams</CardTitle>
+                                <CardDescription>A log of all open examination periods.</CardDescription>
                              </CardHeader>
                              <CardContent>
                                 {isLoading.exams ? <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div> :
                                     <Table>
-                                        <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+                                        <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Date</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                                         <TableBody>
-                                            {exams.map(exam => (
+                                            {openExams.map(exam => (
                                                 <TableRow key={exam.id}>
                                                     <TableCell className="font-medium">{exam.title}</TableCell>
                                                     <TableCell>{exam.date.toDate().toLocaleDateString()}</TableCell>
+                                                    <TableCell>
+                                                        <Button variant="outline" size="sm" onClick={() => handleExamStatusChange(exam.id, 'Closed')}>
+                                                            <Archive className="mr-2 h-4 w-4" /> Close
+                                                        </Button>
+                                                    </TableCell>
                                                 </TableRow>
                                             ))}
-                                            {exams.length === 0 && <TableRow><TableCell colSpan={2} className="text-center h-24">No exams created yet.</TableCell></TableRow>}
+                                            {openExams.length === 0 && <TableRow><TableCell colSpan={3} className="text-center h-24">No open exams.</TableCell></TableRow>}
                                         </TableBody>
                                     </Table>
                                 }
@@ -391,8 +418,37 @@ export default function AdminGradesPage() {
                         </Card>
                      </div>
                 </TabsContent>
+                 <TabsContent value="archives" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Archived Exams</CardTitle>
+                            <CardDescription>A historical record of all closed examination periods.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoading.exams ? <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div> :
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Term</TableHead><TableHead>Date</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {archivedExams.map(exam => (
+                                            <TableRow key={exam.id}>
+                                                <TableCell className="font-medium">{exam.title}</TableCell>
+                                                <TableCell>{exam.term}</TableCell>
+                                                <TableCell>{exam.date.toDate().toLocaleDateString()}</TableCell>
+                                                 <TableCell>
+                                                    <Button variant="ghost" size="sm" onClick={() => handleExamStatusChange(exam.id, 'Open')}>
+                                                        <ArchiveRestore className="mr-2 h-4 w-4" /> Re-open
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {archivedExams.length === 0 && <TableRow><TableCell colSpan={4} className="text-center h-24">No archived exams.</TableCell></TableRow>}
+                                    </TableBody>
+                                </Table>
+                            }
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </div>
     );
 }
-
