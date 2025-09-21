@@ -53,7 +53,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -102,7 +102,7 @@ export default function NonTeachingStaffPage() {
     
     const [searchTerm, setSearchTerm] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState<UserStatus | 'All Statuses'>('All Statuses');
-    const [roleFilter, setRoleFilter] = React.useState<UserRole | 'All Roles'>('All Roles');
+    const [roleFilter, setRoleFilter] = React.useState<UserRole | 'All Staff'>('All Staff');
     const { toast } = useToast();
     const [userToDelete, setUserToDelete] = React.useState<{ id: string, name: string, role: string } | null>(null);
     const [editingUser, setEditingUser] = React.useState<User | null>(null);
@@ -229,12 +229,14 @@ export default function NonTeachingStaffPage() {
           setUserToDelete(null);
       }
     };
+    
+    const uniqueRoles = ['All Staff', ...Array.from(new Set(staff.map(s => s.role)))];
 
     const filteredStaff = staff.filter(user => {
         const searchLower = searchTerm.toLowerCase();
         const matchesSearch = user.name?.toLowerCase().includes(searchLower) || user.email?.toLowerCase().includes(searchLower);
         const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
-        const matchesRole = roleFilter === 'All Roles' || user.role === roleFilter;
+        const matchesRole = roleFilter === 'All Staff' || user.role === roleFilter;
         return matchesSearch && matchesStatus && matchesRole;
     });
 
@@ -289,8 +291,7 @@ export default function NonTeachingStaffPage() {
                             <Input type="search" placeholder="Search by name or email..." className="w-full bg-background pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                             <Select value={roleFilter} onValueChange={(v: UserRole | 'All Roles') => setRoleFilter(v)}><SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="All Roles">All Roles</SelectItem>{roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select>
-                             <Select value={statusFilter} onValueChange={(v: UserStatus | 'All Statuses') => setStatusFilter(v)}><SelectTrigger className="w-full md:w-[160px]"><SelectValue /></SelectTrigger><SelectContent>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+                             <Select value={statusFilter} onValueChange={(v: UserStatus | 'All Statuses') => setStatusFilter(v)}><SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="All Statuses"/></SelectTrigger><SelectContent>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
                              <Dialog>
                                 <DialogTrigger asChild><Button><PlusCircle className="mr-2 h-4 w-4"/>Create User</Button></DialogTrigger>
                                 <DialogContent className="sm:max-w-xl">
@@ -310,28 +311,35 @@ export default function NonTeachingStaffPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                        <Table>
-                            <TableHeader><TableRow><TableHead>User</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                                ) : filteredStaff.length > 0 ? (
-                                    filteredStaff.map((user) => (
-                                        <TableRow key={user.id}>
-                                            <TableCell><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarFallback>{user.name?.slice(0,2)}</AvatarFallback></Avatar><span className="font-medium">{user.name}</span></div></TableCell>
-                                            <TableCell>{user.email}</TableCell>
-                                            <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
-                                            <TableCell>{getStatusBadge(user.status)}</TableCell>
-                                            <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setEditingUser(user)}><Edit className="mr-2 h-4 w-4" /> Edit</Button></TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">No staff found for the selected filters.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                    <Tabs value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | 'All Staff')}>
+                        <TabsList className="mb-4">
+                            {uniqueRoles.map(role => (
+                                <TabsTrigger key={role} value={role}>{role}</TabsTrigger>
+                            ))}
+                        </TabsList>
+                         <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader><TableRow><TableHead>User</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                                    ) : filteredStaff.length > 0 ? (
+                                        filteredStaff.map((user) => (
+                                            <TableRow key={user.id}>
+                                                <TableCell><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarFallback>{user.name?.slice(0,2)}</AvatarFallback></Avatar><span className="font-medium">{user.name}</span></div></TableCell>
+                                                <TableCell>{user.email}</TableCell>
+                                                <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
+                                                <TableCell>{getStatusBadge(user.status)}</TableCell>
+                                                <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setEditingUser(user)}><Edit className="mr-2 h-4 w-4" /> Edit</Button></TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow><TableCell colSpan={5} className="h-24 text-center">No staff found for the selected filters.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </Tabs>
                 </CardContent>
                  <CardFooter>
                     <div className="text-xs text-muted-foreground">Showing <strong>{filteredStaff.length}</strong> of <strong>{staff.length}</strong> staff members.</div>
