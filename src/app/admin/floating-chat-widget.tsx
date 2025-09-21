@@ -181,9 +181,9 @@ export function FloatingChatWidget() {
                                 <div className="p-4 space-y-4">
                                 {selectedConversation.messages.map((message, index) =>
                                     message.role === 'admin' ? (
-                                        <AdminMessageBubble key={index} message={message} />
+                                        <AdminMessageBubble key={`${index}-${message.content}`} message={message} />
                                     ) : (
-                                        <UserMessageBubble key={index} message={message} />
+                                        <UserMessageBubble key={`${index}-${message.content}`} message={message} />
                                     )
                                 )}
                                  <div ref={messagesEndRef} />
