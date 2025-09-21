@@ -57,9 +57,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2, Contact2 } from 'lucide-react';
+import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2, Contact2, Crown } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, Timestamp, getDocs, setDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -83,6 +83,11 @@ type User = {
     createdAt: Timestamp;
 };
 
+type DepartmentHead = {
+    headId: string;
+    headName: string;
+};
+
 const statuses: (UserStatus | 'All Statuses')[] = ['All Statuses', 'Active', 'On Leave', 'Suspended', 'Terminated'];
 const roles: UserRole[] = ['Cook', 'Watchman', 'Cleaner', 'Farm Worker', 'Board Member', 'PTA Member', 'Matron', 'Patron'];
 
@@ -94,6 +99,92 @@ const getStatusBadge = (status: UserStatus) => {
         case 'Terminated': return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3"/>Terminated</Badge>;
         default: return <Badge variant="outline">{status}</Badge>;
     }
+}
+
+function DepartmentHeadManager({ role, staffInRole, schoolId }: { role: string; staffInRole: User[]; schoolId: string }) {
+    const { toast } = useToast();
+    const [departmentHead, setDepartmentHead] = React.useState<DepartmentHead | null>(null);
+    const [selectedHeadId, setSelectedHeadId] = React.useState<string>('');
+
+    React.useEffect(() => {
+        const headRef = doc(firestore, `schools/${schoolId}/department_heads`, role);
+        const unsubscribe = onSnapshot(headRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setDepartmentHead(docSnap.data() as DepartmentHead);
+                setSelectedHeadId(docSnap.data().headId);
+            } else {
+                setDepartmentHead(null);
+                setSelectedHeadId('');
+            }
+        });
+        return () => unsubscribe();
+    }, [role, schoolId]);
+
+    const handleAssignHead = async () => {
+        if (!selectedHeadId) {
+            toast({ title: 'No staff member selected.', variant: 'destructive'});
+            return;
+        }
+        const selectedStaff = staffInRole.find(s => s.id === selectedHeadId);
+        if (!selectedStaff) return;
+
+        try {
+            const headRef = doc(firestore, `schools/${schoolId}/department_heads`, role);
+            await setDoc(headRef, { headId: selectedHeadId, headName: selectedStaff.name });
+            toast({ title: 'Head of Department Assigned', description: `${selectedStaff.name} is now in charge of ${role}s.`});
+        } catch (error) {
+            console.error("Error assigning department head:", error);
+            toast({ title: 'Assignment Failed', variant: 'destructive'});
+        }
+    };
+
+    return (
+        <Card className="mb-6 bg-muted/50">
+            <CardHeader>
+                <CardTitle className="text-lg">Head of Department: {role}s</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <Crown className="h-8 w-8 text-yellow-500" />
+                        <div>
+                            <p className="font-semibold text-lg">{departmentHead?.headName || 'Not Assigned'}</p>
+                            <p className="text-sm text-muted-foreground">Currently in charge</p>
+                        </div>
+                    </div>
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="secondary">Change</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Assign Head of {role}s</DialogTitle>
+                                <DialogDescription>Select a staff member to be responsible for this department.</DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                                <Select value={selectedHeadId} onValueChange={setSelectedHeadId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a staff member..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {staffInRole.map(staff => (
+                                            <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                <DialogClose asChild>
+                                    <Button onClick={handleAssignHead} disabled={!selectedHeadId}>Assign</Button>
+                                </DialogClose>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </CardContent>
+        </Card>
+    )
 }
 
 export default function NonTeachingStaffPage() {
@@ -243,13 +334,15 @@ export default function NonTeachingStaffPage() {
     
     const uniqueRoles = ['All Staff', ...Array.from(new Set(staff.map(s => s.role)))];
 
-    const filteredStaff = staff.filter(user => {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesSearch = user.name?.toLowerCase().includes(searchLower) || user.phone?.toLowerCase().includes(searchLower);
-        const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
-        const matchesRole = roleFilter === 'All Staff' || user.role === roleFilter;
-        return matchesSearch && matchesStatus && matchesRole;
-    });
+    const getFilteredStaff = (role: UserRole | 'All Staff') => {
+        return staff.filter(user => {
+            const searchLower = searchTerm.toLowerCase();
+            const matchesSearch = user.name?.toLowerCase().includes(searchLower) || user.phone?.toLowerCase().includes(searchLower);
+            const matchesStatus = statusFilter === 'All Statuses' || user.status === statusFilter;
+            const matchesRole = role === 'All Staff' || user.role === role;
+            return matchesSearch && matchesStatus && matchesRole;
+        });
+    }
 
     if (!schoolId) {
         return <div className="p-8">Error: School ID is missing.</div>
@@ -282,7 +375,7 @@ export default function NonTeachingStaffPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2"><Label htmlFor="role">Role</Label><Select name="role" defaultValue={editingUser?.role}><SelectTrigger id="role"><SelectValue /></SelectTrigger><SelectContent>{roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}</SelectContent></Select></div>
-                                <div className="space-y-2"><Label htmlFor="status">Status</Label><Select name="status" defaultValue={editingUser?.status}><SelectTrigger id="status"><SelectValue /></SelectTrigger><SelectContent>{statuses.filter(s => s !== 'All Statuses').map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select></div>
+                                <div className="space-y-2"><Label htmlFor="status">Status</Label><Select name="status" defaultValue={editingUser?.status}><SelectTrigger id="status"><SelectValue /></SelectTrigger><SelectContent>{statuses.filter(s => s !== 'All Statuses').map(status => <SelectItem key={status} value={status as string}>{status}</SelectItem>)}</SelectContent></Select></div>
                             </div>
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2"><Label htmlFor="startYear">Start Year</Label><Input id="startYear" name="startYear" type="number" defaultValue={editingUser?.startYear} /></div>
@@ -357,33 +450,40 @@ export default function NonTeachingStaffPage() {
                                 <TabsTrigger key={role} value={role}>{role}</TabsTrigger>
                             ))}
                         </TabsList>
-                         <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Phone</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {isLoading ? (
-                                        <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
-                                    ) : filteredStaff.length > 0 ? (
-                                        filteredStaff.map((user) => (
-                                            <TableRow key={user.id}>
-                                                <TableCell><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarFallback>{user.name?.slice(0,2)}</AvatarFallback></Avatar><span className="font-medium">{user.name}</span></div></TableCell>
-                                                <TableCell>{user.phone}</TableCell>
-                                                <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
-                                                <TableCell>{getStatusBadge(user.status)}</TableCell>
-                                                <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setEditingUser(user)}><Edit className="mr-2 h-4 w-4" /> Edit</Button></TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow><TableCell colSpan={5} className="h-24 text-center">No staff found for the selected filters.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        {uniqueRoles.map(role => {
+                            const filteredForTab = getFilteredStaff(role as UserRole | 'All Staff');
+                            const staffInRole = role === 'All Staff' ? [] : staff.filter(s => s.role === role);
+                            return (
+                            <TabsContent key={role} value={role} className="mt-4">
+                                {role !== 'All Staff' && schoolId && (
+                                    <DepartmentHeadManager role={role} staffInRole={staffInRole} schoolId={schoolId} />
+                                )}
+                                <div className="w-full overflow-auto rounded-lg border">
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Phone</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {isLoading ? (
+                                                <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                                            ) : filteredForTab.length > 0 ? (
+                                                filteredForTab.map((user) => (
+                                                    <TableRow key={user.id}>
+                                                        <TableCell><div className="flex items-center gap-3"><Avatar className="h-9 w-9"><AvatarFallback>{user.name?.slice(0,2)}</AvatarFallback></Avatar><span className="font-medium">{user.name}</span></div></TableCell>
+                                                        <TableCell>{user.phone}</TableCell>
+                                                        <TableCell><Badge variant="outline">{user.role}</Badge></TableCell>
+                                                        <TableCell>{getStatusBadge(user.status)}</TableCell>
+                                                        <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setEditingUser(user)}><Edit className="mr-2 h-4 w-4" /> Edit</Button></TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No staff found for the selected filters.</TableCell></TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </TabsContent>
+                        )})}
                     </Tabs>
                 </CardContent>
-                 <CardFooter>
-                    <div className="text-xs text-muted-foreground">Showing <strong>{filteredStaff.length}</strong> of <strong>{staff.length}</strong> staff members.</div>
-                 </CardFooter>
              </Card>
         </div>
     );
