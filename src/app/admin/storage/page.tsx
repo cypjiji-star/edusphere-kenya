@@ -69,7 +69,7 @@ type UsageLog = {
     recordedBy: string;
 };
 
-type Teacher = {
+type UserRecord = {
     id: string;
     name: string;
 };
@@ -85,7 +85,7 @@ export default function SchoolStoragePage() {
 
     const [resources, setResources] = React.useState<ResourceItem[]>([]);
     const [usageLogs, setUsageLogs] = React.useState<UsageLog[]>([]);
-    const [allTeachers, setAllTeachers] = React.useState<Teacher[]>([]);
+    const [allUsers, setAllUsers] = React.useState<UserRecord[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -121,16 +121,24 @@ export default function SchoolStoragePage() {
             setUsageLogs(logs);
         });
 
-        const teachersQuery = query(collection(firestore, `schools/${schoolId}/teachers`));
-        const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
-            const teachersData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-            setAllTeachers(teachersData);
+        const userCollections = ['teachers', 'admins', 'parents', 'non_teaching_staff'];
+        const unsubscribers = userCollections.map(col => {
+            const userQuery = query(collection(firestore, `schools/${schoolId}/${col}`));
+            return onSnapshot(userQuery, (snapshot) => {
+                const usersData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+                setAllUsers(prev => {
+                    const existingIds = new Set(prev.map(u => u.id));
+                    const newUsers = usersData.filter(u => !existingIds.has(u.id));
+                    return [...prev, ...newUsers];
+                });
+            });
         });
+        
 
         return () => {
             unsubResources();
             unsubUsage();
-            unsubTeachers();
+            unsubscribers.forEach(unsub => unsub());
         }
     }, [schoolId]);
 
@@ -141,7 +149,7 @@ export default function SchoolStoragePage() {
         }
         setIsSubmitting(true);
         try {
-            const responsibleTeacher = allTeachers.find(t => t.id === newItemResponsible);
+            const responsibleUser = allUsers.find(u => u.id === newItemResponsible);
 
             await addDoc(collection(firestore, `schools/${schoolId}/storage_inventory`), {
                 name: newItemName,
@@ -150,7 +158,7 @@ export default function SchoolStoragePage() {
                 initialQuantity: Number(newItemQuantity),
                 unit: newItemUnit,
                 responsiblePersonId: newItemResponsible,
-                responsiblePersonName: responsibleTeacher?.name || 'Unknown',
+                responsiblePersonName: responsibleUser?.name || 'Unknown',
                 createdAt: serverTimestamp(),
             });
 
@@ -278,7 +286,9 @@ export default function SchoolStoragePage() {
                                 <Label>Person Responsible</Label>
                                 <Select value={newItemResponsible} onValueChange={setNewItemResponsible}>
                                     <SelectTrigger><SelectValue placeholder="Select a staff member..."/></SelectTrigger>
-                                    <SelectContent>{allTeachers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                                    <SelectContent>
+                                        {allUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                                    </SelectContent>
                                 </Select>
                             </div>
                         </div>
@@ -402,5 +412,3 @@ export default function SchoolStoragePage() {
         </div>
     );
 }
-
-    
