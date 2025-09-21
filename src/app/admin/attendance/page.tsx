@@ -103,6 +103,7 @@ type AttendanceRecord = {
 type TeacherAttendanceRecord = {
     id: string;
     teacherName: string;
+    teacherId: string;
     date: Timestamp;
     status: AttendanceStatus;
     checkInTime?: Timestamp;
@@ -470,11 +471,13 @@ export default function AdminAttendancePage() {
     const teacherAttendanceQuery = query(
         collection(firestore, `schools/${schoolId}/teacher_attendance`),
         where('date', '>=', termRange.start),
-        where('date', '<=', termRange.end)
+        where('date', '<=', termRange.end),
+        orderBy('date', 'desc')
     );
     const unsubTeacherAttendance = onSnapshot(teacherAttendanceQuery, (snapshot) => {
       const records: TeacherAttendanceRecord[] = snapshot.docs.map(doc => ({
         id: doc.id,
+        teacherId: doc.data().teacherId,
         teacherName: doc.data().teacherName,
         date: doc.data().date,
         status: normalizeStatus(doc.data().status),
@@ -521,6 +524,17 @@ export default function AdminAttendancePage() {
         });
         return grouped;
     }, [leaveApplications]);
+
+    const groupedTeacherAttendance = React.useMemo(() => {
+        const grouped: Record<string, TeacherAttendanceRecord[]> = {};
+        teacherAttendanceRecords.forEach(record => {
+            if (!grouped[record.teacherId]) {
+                grouped[record.teacherId] = [];
+            }
+            grouped[record.teacherId].push(record);
+        });
+        return grouped;
+    }, [teacherAttendanceRecords]);
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
@@ -575,21 +589,6 @@ export default function AdminAttendancePage() {
         return isDateInRange && matchesSearch && matchesClass && matchesTeacher && matchesStatus;
       });
   }, [allRecords, date, searchTerm, classFilter, teacherFilter, statusFilter]);
-
-   const filteredTeacherRecords = React.useMemo(() => {
-    if (!date?.from) return [];
-    
-    const fromDate = new Date(date.from);
-    fromDate.setHours(0, 0, 0, 0);
-    const toDate = date.to ? new Date(date.to) : new Date(date.from);
-    toDate.setHours(23, 59, 59, 999);
-
-    return teacherAttendanceRecords.filter(record => {
-      const recordDate = record.date.toDate();
-      const isDateInRange = recordDate >= fromDate && recordDate <= toDate;
-      return isDateInRange;
-    });
-  }, [teacherAttendanceRecords, date]);
   
     const handleLeaveAction = async (app: LeaveApplication, newStatus: 'Approved' | 'Rejected') => {
     if (!schoolId) return;
@@ -878,6 +877,7 @@ export default function AdminAttendancePage() {
                                             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
+                                                     <SelectItem value="All Teachers">All Teachers</SelectItem>
                                                     {teachers.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
@@ -986,40 +986,62 @@ export default function AdminAttendancePage() {
          <TabsContent value="teacher">
              <Card>
                 <CardHeader>
-                    <CardTitle>Teacher Attendance</CardTitle>
-                    <CardDescription>A log of teacher check-ins and check-outs for the selected date.</CardDescription>
+                    <CardTitle>Teacher Attendance History</CardTitle>
+                    <CardDescription>A log of teacher attendance records for the selected term.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Teacher</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Check-in Time</TableHead>
-                                    <TableHead>Check-out Time</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredTeacherRecords.length > 0 ? (
-                                    filteredTeacherRecords.map((record) => (
-                                        <TableRow key={record.id}>
-                                            <TableCell>{record.teacherName}</TableCell>
-                                            <TableCell>{getStatusBadge(record.status)}</TableCell>
-                                            <TableCell>{record.checkInTime ? format(record.checkInTime.toDate(), 'p') : '—'}</TableCell>
-                                            <TableCell>{record.checkOutTime ? format(record.checkOutTime.toDate(), 'p') : '—'}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">
-                                            No teacher attendance records for the selected date.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                    <Accordion type="single" collapsible className="w-full">
+                        {Object.entries(groupedTeacherAttendance).map(([teacherId, records]) => {
+                            const teacher = teachers.find(t => t.id === teacherId);
+                            if (!teacher) return null;
+                            const presentDays = records.filter(r => r.status === 'Present' || r.status === 'CheckedOut').length;
+                            const totalDays = new Set(records.map(r => r.date.toDate().toDateString())).size;
+
+                            return (
+                                <AccordionItem value={teacherId} key={teacherId}>
+                                    <AccordionTrigger>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarImage src={teacher.avatarUrl} />
+                                                <AvatarFallback>{teacher.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-semibold">{teacher.name}</span>
+                                            <Badge variant="outline">{presentDays} / {totalDays} days present</Badge>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead>Status</TableHead>
+                                                        <TableHead>Check-in</TableHead>
+                                                        <TableHead>Check-out</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {records.map((record) => (
+                                                        <TableRow key={record.id}>
+                                                            <TableCell>{format(record.date.toDate(), 'PPP')}</TableCell>
+                                                            <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                                            <TableCell>{record.checkInTime ? format(record.checkInTime.toDate(), 'p') : '—'}</TableCell>
+                                                            <TableCell>{record.checkOutTime ? format(record.checkOutTime.toDate(), 'p') : '—'}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            );
+                        })}
+                    </Accordion>
+                    {teacherAttendanceRecords.length === 0 && (
+                        <div className="text-center py-16 text-muted-foreground">
+                            No teacher attendance records found for this term.
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </TabsContent>
@@ -1278,3 +1300,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
