@@ -59,7 +59,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, Timestamp, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -134,14 +134,14 @@ export default function UserManagementListPage() {
         setClientReady(true);
         setIsLoading(true);
 
-        const collectionsToFetch = ['admins', 'teachers', 'parents'];
+        const collectionsToFetch = ['admins', 'teachers', 'parents', 'non_teaching_staff'];
         const unsubscribers = collectionsToFetch.map(collectionName => {
             const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
             return onSnapshot(q, (snapshot) => {
                 const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
                 
                 setAllUsers(prevUsers => {
-                    const otherUsers = prevUsers.filter(u => u.role.toLowerCase() + 's' !== collectionName);
+                    const otherUsers = prevUsers.filter(u => u.role.toLowerCase().replace(/ /g, '_') + 's' !== collectionName);
                     return [...otherUsers, ...usersData];
                 });
             });
@@ -332,10 +332,16 @@ export default function UserManagementListPage() {
       }
     };
 
-    const renderUserTable = (roleFilter: UserRole | 'All') => {
-        const usersToFilter = roleFilter === 'All'
-            ? allUsers
-            : allUsers.filter(u => u.role === roleFilter);
+    const renderUserTable = (roleFilter: UserRole | 'All' | 'Non-Teaching') => {
+        let usersToFilter = allUsers;
+
+        if (roleFilter === 'Non-Teaching') {
+             const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
+             usersToFilter = allUsers.filter(u => nonTeachingRoles.includes(u.role));
+        } else if (roleFilter !== 'All') {
+            usersToFilter = allUsers.filter(u => u.role === roleFilter);
+        }
+
 
         const filteredUsers = usersToFilter.filter(user => {
             const searchLower = searchTerm.toLowerCase();
@@ -401,7 +407,7 @@ export default function UserManagementListPage() {
                 </div>
                  <CardFooter className="px-0 pt-6">
                     <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredUsers.length}</strong> of <strong>{allUsers.filter(u => roleFilter === 'All' || u.role === roleFilter).length}</strong> users.
+                        Showing <strong>{filteredUsers.length}</strong> of <strong>{usersToFilter.length}</strong> users.
                     </div>
                 </CardFooter>
             </>
@@ -533,7 +539,7 @@ export default function UserManagementListPage() {
                                                     <SelectValue placeholder="Select a role" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {roles.filter(r => r === 'Admin' || r === 'Teacher' || r === 'Parent').map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                                    {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -691,11 +697,12 @@ export default function UserManagementListPage() {
                 </CardHeader>
                 <CardContent>
                    <Tabs defaultValue="all" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
                             <TabsTrigger value="all">All Users</TabsTrigger>
                             <TabsTrigger value="Teacher">Teachers</TabsTrigger>
                             <TabsTrigger value="Parent">Parents</TabsTrigger>
                             <TabsTrigger value="Admin">Admins</TabsTrigger>
+                            <TabsTrigger value="Non-Teaching">Other Staff</TabsTrigger>
                         </TabsList>
                         <TabsContent value="all" className="mt-4">
                             {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('All')}
@@ -708,6 +715,9 @@ export default function UserManagementListPage() {
                         </TabsContent>
                          <TabsContent value="Admin" className="mt-4">
                            {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('Admin')}
+                        </TabsContent>
+                        <TabsContent value="Non-Teaching" className="mt-4">
+                           {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('Non-Teaching')}
                         </TabsContent>
                    </Tabs>
                 </CardContent>

@@ -48,8 +48,13 @@ export async function deleteUserAction(uid: string, schoolId: string, role: stri
         }
     }
     
-    // Delete from role-specific collection (e.g., 'teachers', 'admins')
-    const roleCollectionName = role.toLowerCase() + 's';
+    // Determine the correct collection based on the role
+    const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
+    let roleCollectionName = role.toLowerCase() + 's';
+    if (nonTeachingRoles.includes(role)) {
+      roleCollectionName = 'non_teaching_staff';
+    }
+
     const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
     await deleteDoc(userDocRef);
     
@@ -105,9 +110,14 @@ export async function createUserAction(params: {
     const uid = userRecord.uid;
     const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
 
-    // 2. Create user document in the appropriate collection based on role
-    const roleCollection = role.toLowerCase() + 's'; // e.g., 'teachers', 'admins', 'parents'
-    const userDocRef = doc(firestore, 'schools', schoolId, roleCollection, uid);
+    // 2. Determine the correct collection and create the user document
+    const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
+    let roleCollectionName = role.toLowerCase() + 's'; 
+    if (nonTeachingRoles.includes(role)) {
+      roleCollectionName = 'non_teaching_staff';
+    }
+    
+    const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
     
     const userData: any = {
       id: uid,
