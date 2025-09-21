@@ -115,24 +115,26 @@ export function AiChat() {
       }
       
       // Generate AI response if not escalated
-      const aiInput: SupportChatbotInput = {
-        history: newMessages.filter((m) => m.role === 'user' || m.role === 'model'),
-      };
-      const result = await supportChatbot(aiInput);
+      if (!isEscalated) {
+        const aiInput: SupportChatbotInput = {
+            history: newMessages.filter((m) => m.role === 'user' || m.role === 'model'),
+        };
+        const result = await supportChatbot(aiInput);
 
-      if (result.response) {
-        const modelMessage: Message = { role: 'model', content: result.response };
-        const finalMessages = [...newMessages, modelMessage];
-        
-        const escalate = result.response === escalationTriggerMessage;
+        if (result.response) {
+            const modelMessage: Message = { role: 'model', content: result.response };
+            const finalMessages = [...newMessages, modelMessage];
+            
+            const escalate = result.response === escalationTriggerMessage;
 
-        // Update the chat document with AI response
-        await updateDoc(doc(firestore, `schools/${schoolId}/support-chats`, currentChatId!), {
-          messages: finalMessages,
-          lastMessage: result.response,
-          lastUpdate: serverTimestamp(),
-          isEscalated: escalate,
-        });
+            // Update the chat document with AI response
+            await updateDoc(doc(firestore, `schools/${schoolId}/support-chats`, currentChatId!), {
+            messages: finalMessages,
+            lastMessage: result.response,
+            lastUpdate: serverTimestamp(),
+            isEscalated: escalate,
+            });
+        }
       }
     } catch (error) {
       console.error('Error in chat:', error);
@@ -148,6 +150,7 @@ export function AiChat() {
 
   const handleTalkToAdmin = () => {
     // This will trigger the escalation message in the AI flow
+    setIsEscalated(true);
     sendMessage("I need to talk to an admin.");
   };
 
@@ -165,12 +168,12 @@ export function AiChat() {
             return (
               <div
                 key={index}
-                className={cn('flex items-end gap-2', isUser || isAdmin ? 'justify-end' : 'justify-start')}
+                className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}
               >
-                {!isUser && !isAdmin && (
+                {!isUser && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
-                      <Sparkles />
+                      {isAdmin ? 'A' : <Sparkles />}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -180,16 +183,16 @@ export function AiChat() {
                      isUser
                       ? 'bg-primary text-primary-foreground rounded-br-none'
                       : isAdmin
-                      ? 'bg-blue-600 text-white rounded-br-none'
+                      ? 'bg-blue-600 text-white rounded-bl-none'
                       : 'bg-muted rounded-bl-none'
                   )}
                 >
                   <p>{message.content}</p>
                 </div>
-                {(isUser || isAdmin) && (
+                {isUser && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
-                      {isAdmin ? 'A' : <User />}
+                      <User />
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -237,12 +240,12 @@ export function AiChat() {
             </div>
         )}
 
-        {!hasAdminReplied && !isEscalated && (
+        {!hasAdminReplied && (
             <Button
                 variant="outline"
                 className="w-full"
                 onClick={handleTalkToAdmin}
-                disabled={isLoading}
+                disabled={isLoading || isEscalated}
             >
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Talk to an Admin
