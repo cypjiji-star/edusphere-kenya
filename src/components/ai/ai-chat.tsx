@@ -37,6 +37,7 @@ export function AiChat() {
   const schoolId = searchParams.get('schoolId');
   const [chatId, setChatId] = React.useState<string | null>(null);
   const [messages, setMessages] = React.useState<Message[]>([]);
+  const [isEscalated, setIsEscalated] = React.useState(false);
   const [input, setInput] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -55,10 +56,12 @@ export function AiChat() {
         const chatDoc = snapshot.docs[0];
         setChatId(chatDoc.id);
         setMessages(chatDoc.data().messages || []);
+        setIsEscalated(chatDoc.data().isEscalated || false);
       } else {
         // No existing chat, state is already reset
         setChatId(null);
         setMessages([]);
+        setIsEscalated(false);
       }
     });
 
@@ -76,6 +79,7 @@ export function AiChat() {
     const newMessages: Message[] = [...messages, userMessage];
 
     setMessages(newMessages);
+    setInput('');
     setIsLoading(true);
 
     let currentChatId = chatId;
@@ -94,9 +98,21 @@ export function AiChat() {
         });
         currentChatId = docRef.id;
         setChatId(docRef.id);
+      } else {
+         await updateDoc(doc(firestore, `schools/${schoolId}/support-chats`, currentChatId), {
+            messages: newMessages,
+            lastMessage: messageContent,
+            lastUpdate: serverTimestamp(),
+        });
       }
 
-      // Generate AI response
+      // If already escalated, just save user message and return. Admin will reply.
+      if (isEscalated) {
+          setIsLoading(false);
+          return;
+      }
+
+      // Generate AI response if not escalated
       const aiInput: SupportChatbotInput = {
         history: newMessages.filter((m) => m.role === 'user' || m.role === 'model'),
       };
@@ -105,15 +121,15 @@ export function AiChat() {
       if (result.response) {
         const modelMessage: Message = { role: 'model', content: result.response };
         const finalMessages = [...newMessages, modelMessage];
+        
+        const escalate = result.response === escalationTriggerMessage;
 
-        const isEscalated = result.response === escalationTriggerMessage;
-
-        // Update the chat document
+        // Update the chat document with AI response
         await updateDoc(doc(firestore, `schools/${schoolId}/support-chats`, currentChatId!), {
           messages: finalMessages,
           lastMessage: result.response,
           lastUpdate: serverTimestamp(),
-          isEscalated: isEscalated,
+          isEscalated: escalate,
         });
       }
     } catch (error) {
@@ -126,12 +142,13 @@ export function AiChat() {
 
   const handleSendMessage = () => {
     sendMessage(input);
-    setInput('');
   };
 
   const handleTalkToAdmin = () => {
     sendMessage("I need to talk to an admin.");
   };
+
+  const hasEscalated = messages.some(m => m.content === escalationTriggerMessage);
 
   return (
     <div className="flex flex-col h-full">
@@ -169,7 +186,7 @@ export function AiChat() {
                 {(isUser || isAdmin) && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
-                      {isUser ? <User /> : <Sparkles />}
+                      {isAdmin ? 'A' : <User />}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -192,33 +209,41 @@ export function AiChat() {
         </div>
       </ScrollArea>
       <div className="border-t p-4 space-y-4">
-        <div className="relative">
-          <Input
-            placeholder="Type your message..."
-            className="pr-12"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            disabled={isLoading}
-          />
-          <Button
-            size="icon"
-            className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8"
-            onClick={handleSendMessage}
-            disabled={isLoading || !input.trim()}
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
-         <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleTalkToAdmin}
-            disabled={isLoading}
-        >
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Talk to an Admin
-        </Button>
+        {hasEscalated ? (
+            <div className="text-center text-sm text-muted-foreground p-4 rounded-md bg-muted">
+                An administrator will be with you shortly. You will be notified when they reply.
+            </div>
+        ) : (
+            <>
+                <div className="relative">
+                <Input
+                    placeholder="Type your message..."
+                    className="pr-12"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    disabled={isLoading}
+                />
+                <Button
+                    size="icon"
+                    className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8"
+                    onClick={handleSendMessage}
+                    disabled={isLoading || !input.trim()}
+                >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+                </div>
+                <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleTalkToAdmin}
+                    disabled={isLoading}
+                >
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Talk to an Admin
+                </Button>
+            </>
+        )}
       </div>
     </div>
   );
