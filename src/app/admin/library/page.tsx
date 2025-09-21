@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -241,23 +240,16 @@ export default function AdminLibraryPage() {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [newTitle, setNewTitle] = React.useState('');
     const [newAuthor, setNewAuthor] = React.useState('');
+    const [newDesc, setNewDesc] = React.useState('');
     const [newType, setNewType] = React.useState<ResourceType | undefined>();
     const [newSubject, setNewSubject] = React.useState<string | undefined>();
     const [newGrades, setNewGrades] = React.useState<string[]>([]);
-    const [newDesc, setNewDesc] = React.useState('');
     const [newCopies, setNewCopies] = React.useState('');
 
     const [dbSubjects, setDbSubjects] = React.useState<string[]>([]);
     const [dbGrades, setDbGrades] = React.useState<string[]>([]);
     const [allTeachers, setAllTeachers] = React.useState<{id: string, name: string}[]>([]);
     
-    // State for returns tab
-    const [selectedReturnUser, setSelectedReturnUser] = React.useState<string>('');
-    const [userBorrowedBooks, setUserBorrowedBooks] = React.useState<{id: string, title: string, quantity: number, bookId: string}[]>([]);
-    const [selectedBookToReturn, setSelectedBookToReturn] = React.useState<string>('');
-    const [returnQuantity, setReturnQuantity] = React.useState(1);
-    const [isReturning, setIsReturning] = React.useState(false);
-
     // State for student assignments tab
     const [studentAssignments, setStudentAssignments] = React.useState<StudentAssignment[]>([]);
     const [studentMap, setStudentMap] = React.useState<Record<string, { className: string }>>({});
@@ -327,161 +319,18 @@ export default function AdminLibraryPage() {
     }, [schoolId]);
 
     const groupedAssignments = React.useMemo(() => {
-        const byClass: Record<string, Record<string, StudentAssignment[]>> = {};
+        const byClass: Record<string, StudentAssignment[]> = {};
         studentAssignments.forEach(assignment => {
             const studentInfo = studentMap[assignment.studentId];
             const className = studentInfo ? studentInfo.className : 'Unknown Class';
-            
             if (!byClass[className]) {
-                byClass[className] = {};
+                byClass[className] = [];
             }
-            if (!byClass[className][assignment.bookTitle]) {
-                byClass[className][assignment.bookTitle] = [];
-            }
-            byClass[className][assignment.bookTitle].push(assignment);
+            byClass[className].push(assignment);
         });
         return byClass;
     }, [studentAssignments, studentMap]);
 
-    // Fetch borrowed books for the selected user
-    React.useEffect(() => {
-        if (!selectedReturnUser || !schoolId) {
-            setUserBorrowedBooks([]);
-            return;
-        }
-
-        const borrowedBooksQuery = query(collection(firestore, 'schools', schoolId, 'teachers', selectedReturnUser, 'borrowed-items'));
-        const unsubscribe = onSnapshot(borrowedBooksQuery, (snapshot) => {
-            const books = snapshot.docs.map(doc => ({
-                id: doc.id,
-                title: doc.data().title,
-                quantity: doc.data().quantity || 1,
-                bookId: doc.id, // The document ID is the book ID
-            }));
-            setUserBorrowedBooks(books);
-        });
-
-        return () => unsubscribe();
-    }, [selectedReturnUser, schoolId]);
-    
-    const handleProcessReturn = async () => {
-        if (!selectedReturnUser || !selectedBookToReturn || returnQuantity <= 0 || !schoolId) {
-            toast({ title: 'Invalid return information', variant: 'destructive'});
-            return;
-        }
-
-        setIsReturning(true);
-        const bookToReturn = userBorrowedBooks.find(b => b.id === selectedBookToReturn);
-
-        try {
-            await runTransaction(firestore, async (transaction) => {
-                if (!bookToReturn) throw new Error("Book to return not found");
-
-                const resourceRef = doc(firestore, 'schools', schoolId, 'library-resources', bookToReturn.bookId);
-                const userBorrowedItemRef = doc(firestore, 'schools', schoolId, 'teachers', selectedReturnUser, 'borrowed-items', bookToReturn.id);
-                
-                const resourceSnap = await transaction.get(resourceRef);
-                const userItemSnap = await transaction.get(userBorrowedItemRef);
-
-                if (!resourceSnap.exists() || !userItemSnap.exists()) {
-                    throw new Error("Book or borrowed record not found.");
-                }
-
-                const resourceData = resourceSnap.data() as Resource;
-                const userItemData = userItemSnap.data() as { quantity: number; title: string; borrowedDate: Timestamp };
-                
-                if (returnQuantity > userItemData.quantity) {
-                    throw new Error("Cannot return more copies than were borrowed.");
-                }
-
-                // Update main inventory
-                transaction.update(resourceRef, {
-                    availableCopies: (resourceData.availableCopies || 0) + returnQuantity
-                });
-                
-                // Update or delete user's borrowed record
-                if (returnQuantity === userItemData.quantity) {
-                    transaction.delete(userBorrowedItemRef);
-                } else {
-                    transaction.update(userBorrowedItemRef, {
-                        quantity: userItemData.quantity - returnQuantity
-                    });
-                }
-                
-                // Add to user's history
-                const historyRef = doc(collection(firestore, 'schools', schoolId, 'teachers', selectedReturnUser, 'borrowing-history'));
-                transaction.set(historyRef, {
-                    title: userItemData.title,
-                    borrowedDate: userItemData.borrowedDate,
-                    returnedDate: serverTimestamp(),
-                });
-            });
-
-            toast({ title: 'Return Processed', description: 'Inventory has been updated.'});
-            setSelectedBookToReturn('');
-            setReturnQuantity(1);
-
-        } catch (error: any) {
-            console.error("Error processing return:", error);
-            toast({ title: 'Return Failed', description: error.message, variant: 'destructive'});
-        } finally {
-            setIsReturning(false);
-        }
-    };
-    
-    const handleConfirmReturn = async (assignment: StudentAssignment) => {
-        if (!schoolId) return;
-
-        try {
-            await runTransaction(firestore, async (transaction) => {
-                // --- READS FIRST ---
-                const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignment.id);
-                const resourceQuery = query(collection(firestore, `schools/${schoolId}/library-resources`), where('title', '==', assignment.bookTitle));
-                const resourceSnapshot = await getDocs(resourceQuery); // This is a non-transactional read, which is fine before the transaction starts.
-
-                if (resourceSnapshot.empty) {
-                    throw new Error(`Book "${assignment.bookTitle}" not found in library.`);
-                }
-                const resourceDoc = resourceSnapshot.docs[0];
-                const resourceRef = resourceDoc.ref;
-                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/teachers/${assignment.teacherId}/borrowed-items`, resourceDoc.id);
-
-                const resourceSnap = await transaction.get(resourceRef);
-                const teacherItemSnap = await transaction.get(teacherBorrowedItemRef);
-                
-                if (!resourceSnap.exists()) {
-                    throw new Error(`Book "${assignment.bookTitle}" not found in library inventory.`);
-                }
-
-                // --- WRITES SECOND ---
-                const resourceData = resourceSnap.data() as Resource;
-
-                // Update assignment status
-                transaction.update(assignmentRef, { status: 'Returned' });
-
-                // Update inventory
-                transaction.update(resourceRef, { availableCopies: (resourceData.availableCopies || 0) + 1 });
-
-                // Update teacher's borrowed count
-                if (teacherItemSnap.exists()) {
-                    const currentQuantity = teacherItemSnap.data().quantity;
-                    if (currentQuantity > 1) {
-                        transaction.update(teacherBorrowedItemRef, { quantity: currentQuantity - 1 });
-                    } else {
-                        transaction.delete(teacherBorrowedItemRef);
-                    }
-                }
-            });
-
-            toast({
-                title: 'Return Confirmed',
-                description: `${assignment.bookTitle} has been returned to the library inventory.`,
-            });
-        } catch (error: any) {
-            console.error("Error confirming return:", error);
-            toast({ title: 'Confirmation Failed', description: error.message, variant: 'destructive' });
-        }
-    };
 
     const filteredResources = resources.filter(res => 
         res.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -581,7 +430,7 @@ export default function AdminLibraryPage() {
                 borrowedBy: newBorrowedBy
             });
 
-            const borrowedItemRef = doc(firestore, `schools/${schoolId}/teachers`, userId, 'borrowed-items', checkingOutResource.id);
+            const borrowedItemRef = doc(firestore, 'schools', schoolId, 'teachers', userId, 'borrowed-items', checkingOutResource.id);
             const dueDate = new Date();
             dueDate.setDate(dueDate.getDate() + 14); // 2 week loan period
 
@@ -730,46 +579,12 @@ export default function AdminLibraryPage() {
             <TabsContent value="checkin" className="mt-4">
                  <Card>
                     <CardHeader>
-                        <CardTitle>Process Book Returns</CardTitle>
-                        <CardDescription>Select a teacher and the book they are returning.</CardDescription>
+                        <CardTitle>Process Returns</CardTitle>
+                        <CardDescription>Record books returned by teachers.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Select Teacher</Label>
-                                <Select value={selectedReturnUser} onValueChange={setSelectedReturnUser}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Search user by name..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {allTeachers.map(user => (
-                                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Select Book</Label>
-                                <Select value={selectedBookToReturn} onValueChange={setSelectedBookToReturn} disabled={!selectedReturnUser || userBorrowedBooks.length === 0}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a book to return..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {userBorrowedBooks.map(book => (
-                                            <SelectItem key={book.id} value={book.id}>{book.title} ({book.quantity} borrowed)</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="return-quantity">Quantity to Return</Label>
-                            <Input id="return-quantity" type="number" placeholder="1" value={returnQuantity} onChange={e => setReturnQuantity(Number(e.target.value))} />
-                        </div>
-                         <Button onClick={handleProcessReturn} disabled={!selectedBookToReturn || returnQuantity <= 0 || isReturning}>
-                            {isReturning && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            Process Return
-                        </Button>
+                    <CardContent>
+                        {/* The logic for this is complex and would be part of a larger implementation */}
+                        <p className="text-muted-foreground text-center py-8">Return processing functionality coming soon.</p>
                     </CardContent>
                  </Card>
             </TabsContent>
@@ -777,54 +592,27 @@ export default function AdminLibraryPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Student Book Assignments</CardTitle>
-                        <CardDescription>Track books assigned to individual students by teachers, grouped by class.</CardDescription>
+                        <CardDescription>Track books assigned to individual students, grouped by class.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <Accordion type="single" collapsible className="w-full">
-                           {Object.entries(groupedAssignments).map(([className, books]) => (
+                           {Object.entries(groupedAssignments).map(([className, assignments]) => (
                                 <AccordionItem key={className} value={className}>
                                     <AccordionTrigger className="text-lg font-semibold">{className}</AccordionTrigger>
                                     <AccordionContent>
-                                        <Accordion type="single" collapsible className="w-full pl-4">
-                                             {Object.entries(books).map(([bookTitle, assignments]) => (
-                                                 <AccordionItem key={bookTitle} value={bookTitle}>
-                                                    <AccordionTrigger>{bookTitle} ({assignments.length} copies)</AccordionTrigger>
-                                                    <AccordionContent>
-                                                         <Table>
-                                                            <TableHeader>
-                                                                <TableRow>
-                                                                    <TableHead>Student</TableHead>
-                                                                    <TableHead>Assigned By</TableHead>
-                                                                    <TableHead>Date</TableHead>
-                                                                    <TableHead className="text-right">Status</TableHead>
-                                                                </TableRow>
-                                                            </TableHeader>
-                                                            <TableBody>
-                                                                {assignments.map(assignment => (
-                                                                    <TableRow key={assignment.id}>
-                                                                        <TableCell>{assignment.studentName}</TableCell>
-                                                                        <TableCell>{assignment.teacherName}</TableCell>
-                                                                        <TableCell>{assignment.assignedDate.toDate().toLocaleDateString()}</TableCell>
-                                                                        <TableCell className="text-right">
-                                                                            {assignment.status === 'Assigned' ? (
-                                                                                <Badge variant="secondary">Assigned</Badge>
-                                                                            ) : assignment.status === 'Pending Return' ? (
-                                                                                <Button variant="outline" size="sm" onClick={() => handleConfirmReturn(assignment)}>
-                                                                                    <CheckCircle className="mr-2 h-4 w-4 text-orange-500" />
-                                                                                    Confirm Return
-                                                                                </Button>
-                                                                            ) : (
-                                                                                <Badge variant="default" className="bg-green-600">Returned</Badge>
-                                                                            )}
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                ))}
-                                                            </TableBody>
-                                                        </Table>
-                                                    </AccordionContent>
-                                                 </AccordionItem>
-                                             ))}
-                                        </Accordion>
+                                        <Table>
+                                            <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Book Title</TableHead><TableHead>Assigned By</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+                                            <TableBody>
+                                                {assignments.map(assignment => (
+                                                    <TableRow key={assignment.id}>
+                                                        <TableCell>{assignment.studentName}</TableCell>
+                                                        <TableCell>{assignment.bookTitle}</TableCell>
+                                                        <TableCell>{assignment.teacherName}</TableCell>
+                                                        <TableCell>{assignment.assignedDate.toDate().toLocaleDateString()}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
                                     </AccordionContent>
                                 </AccordionItem>
                            ))}

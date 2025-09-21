@@ -59,7 +59,7 @@ type StudentAssignment = {
     teacherId: string;
     teacherName: string;
     assignedDate: Timestamp;
-    status: 'Assigned' | 'Returned';
+    status: 'Assigned' | 'Returned' | 'Pending Return';
 };
 
 type TeacherStudent = {
@@ -309,7 +309,7 @@ export default function MyLibraryPage() {
                     status: 'Assigned',
                 });
                 
-                // Decrement the teacher's count of the book
+                // Decrement the teacher's count of the book by exactly one
                 transaction.update(teacherBorrowedItemRef, {
                     quantity: book.quantity - 1
                 });
@@ -356,8 +356,8 @@ export default function MyLibraryPage() {
                 
                 const borrowedItemSnap = await transaction.get(teacherBorrowedItemRef);
                 
-                // Delete the student assignment
-                transaction.delete(assignmentRef);
+                // Instead of deleting, update status to "Returned" to keep a record.
+                transaction.update(assignmentRef, { status: 'Returned' });
                 
                 // Increment the teacher's book count
                 if (borrowedItemSnap.exists()) {
@@ -484,7 +484,7 @@ export default function MyLibraryPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {borrowedItems.map(item => (
-                                            <SelectItem key={item.id} value={item.id}>{item.title} ({item.quantity} copies)</SelectItem>
+                                            <SelectItem key={item.id} value={item.id} disabled={item.quantity === 0}>{item.title} ({item.quantity} available)</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
