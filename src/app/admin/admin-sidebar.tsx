@@ -33,6 +33,7 @@ import {
   Library,
   Bed,
   Package,
+  Contact2,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -81,6 +82,7 @@ const navGroups = [
       { href: '/admin/students', label: 'Student Management', icon: GraduationCap },
       { href: '/admin/boarding', label: 'Boarding', icon: Bed },
       { href: '/admin/users-list', label: 'User Management', icon: Users },
+      { href: '/admin/non-teaching-staff', label: 'Non-Teaching Staff', icon: Contact2 },
       { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
   },

@@ -87,4 +87,24 @@ export const initialRolePermissions: Record<string, Omit<Role, 'userCount'>> = {
     permissions: ['finance.fees.manage', 'admin.logs'],
     isCore: false,
   },
+  'PTA Member': {
+    permissions: [],
+    isCore: false,
+  },
+  Matron: {
+    permissions: [],
+    isCore: false,
+  },
+  Patron: {
+    permissions: [],
+    isCore: false,
+  },
+  'Farm Worker': {
+    permissions: [],
+    isCore: false,
+  },
+  Cleaner: {
+    permissions: [],
+    isCore: false,
+  },
 };

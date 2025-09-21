@@ -134,14 +134,14 @@ export default function UserManagementListPage() {
         setClientReady(true);
         setIsLoading(true);
 
-        const collectionsToFetch = ['admins', 'teachers', 'parents', 'non_teaching_staff'];
+        const collectionsToFetch = ['admins', 'teachers', 'parents'];
         const unsubscribers = collectionsToFetch.map(collectionName => {
             const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
             return onSnapshot(q, (snapshot) => {
                 const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
                 
                 setAllUsers(prevUsers => {
-                    const otherUsers = prevUsers.filter(u => u.role.toLowerCase().replace(/ /g, '_') + 's' !== collectionName);
+                    const otherUsers = prevUsers.filter(u => u.role.toLowerCase() + 's' !== collectionName);
                     return [...otherUsers, ...usersData];
                 });
             });
@@ -332,13 +332,10 @@ export default function UserManagementListPage() {
       }
     };
 
-    const renderUserTable = (roleFilter: UserRole | 'All' | 'Non-Teaching') => {
+    const renderUserTable = (roleFilter: UserRole | 'All') => {
         let usersToFilter = allUsers;
 
-        if (roleFilter === 'Non-Teaching') {
-             const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
-             usersToFilter = allUsers.filter(u => nonTeachingRoles.includes(u.role));
-        } else if (roleFilter !== 'All') {
+        if (roleFilter !== 'All') {
             usersToFilter = allUsers.filter(u => u.role === roleFilter);
         }
 
@@ -697,12 +694,11 @@ export default function UserManagementListPage() {
                 </CardHeader>
                 <CardContent>
                    <Tabs defaultValue="all" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
+                        <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="all">All Users</TabsTrigger>
                             <TabsTrigger value="Teacher">Teachers</TabsTrigger>
                             <TabsTrigger value="Parent">Parents</TabsTrigger>
                             <TabsTrigger value="Admin">Admins</TabsTrigger>
-                            <TabsTrigger value="Non-Teaching">Other Staff</TabsTrigger>
                         </TabsList>
                         <TabsContent value="all" className="mt-4">
                             {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('All')}
@@ -715,9 +711,6 @@ export default function UserManagementListPage() {
                         </TabsContent>
                          <TabsContent value="Admin" className="mt-4">
                            {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('Admin')}
-                        </TabsContent>
-                        <TabsContent value="Non-Teaching" className="mt-4">
-                           {isLoading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div> : renderUserTable('Non-Teaching')}
                         </TabsContent>
                    </Tabs>
                 </CardContent>
