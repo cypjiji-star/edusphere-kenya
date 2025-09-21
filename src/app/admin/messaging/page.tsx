@@ -229,30 +229,34 @@ export default function MessagingPage() {
                                         const isUser = message.role === 'user';
                                         const isModel = message.role === 'model';
                                         return (
-                                        <div key={index} className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}>
-                                            {(isModel || isAdmin) && (
+                                        <div key={index} className={cn('flex items-end gap-2', (isUser || isAdmin) ? 'justify-end' : 'justify-start')}>
+                                            {isModel && (
                                                 <Avatar className="h-8 w-8">
                                                     <AvatarFallback>
-                                                        {isModel ? <Sparkles /> : message.senderName?.charAt(0) || 'A'}
+                                                        <Sparkles />
                                                     </AvatarFallback>
                                                 </Avatar>
                                             )}
-                                            <div className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
-                                                {(isAdmin || isUser) && (
+                                            <div className={cn('flex flex-col gap-1', (isUser || isAdmin) ? 'items-end' : 'items-start')}>
+                                                {(isUser) && (
                                                     <p className="font-bold text-xs text-muted-foreground px-1">
-                                                        {isAdmin ? message.senderName : selectedConversation.userName}
+                                                        {selectedConversation.userName}
                                                     </p>
                                                 )}
-                                                <div className={cn("rounded-lg p-3 text-sm max-w-[80%]", 
-                                                    isUser ? 'bg-primary text-primary-foreground' : 
-                                                    (isAdmin ? 'bg-secondary text-secondary-foreground' : 'bg-muted')
+                                                <div className={cn(
+                                                    "p-3 text-sm shadow-md", 
+                                                    isUser ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-none' : 
+                                                    isAdmin ? 'bg-blue-600 text-white rounded-2xl rounded-bl-none max-w-xs' : 
+                                                    'bg-muted rounded-lg'
                                                 )}>
                                                     <p>{message.content}</p>
                                                 </div>
                                             </div>
-                                             {isUser && (
+                                             {(isUser || isAdmin) && (
                                                 <Avatar className="h-8 w-8">
-                                                    <AvatarFallback><User /></AvatarFallback>
+                                                    <AvatarFallback>
+                                                        {isAdmin ? message.senderName?.charAt(0) || 'A' : <User />}
+                                                    </AvatarFallback>
                                                 </Avatar>
                                             )}
                                         </div>
