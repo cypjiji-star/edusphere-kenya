@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import * as React from 'react';
+* as React from 'react';
 import Link from 'next/link';
 import { auth, firestore } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -55,23 +55,15 @@ export function LoginForm() {
             userName = studentsSnapshot.docs[0].data().parentName || userName;
         }
       } else {
-        // Check both 'users' and 'admins' collections for the user
+        // For Admin or Teacher, check the 'users' collection
         const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-        const adminDocRef = doc(firestore, 'schools', schoolCode, 'admins', user.uid);
-        
-        const [userDocSnap, adminDocSnap] = await Promise.all([getDoc(userDocRef), getDoc(adminDocRef)]);
+        const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             userIsAssociatedWithSchool = true;
             userRole = userData.role?.toLowerCase();
             userName = userData.name || userName;
-        } else if (adminDocSnap.exists()) {
-            // This is the key fix: check if the user is in the admins subcollection
-            const adminData = adminDocSnap.data();
-            userIsAssociatedWithSchool = true;
-            userRole = adminData.role?.toLowerCase();
-            userName = adminData.name || userName;
         }
       }
 
