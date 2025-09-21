@@ -430,7 +430,7 @@ export default function AuditLogsPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[250px] font-mono">Action</TableHead>
+                                        <TableHead className="w-[250px]">Action</TableHead>
                                         <TableHead>User</TableHead>
                                         <TableHead className="font-mono">Date & Time</TableHead>
                                         <TableHead>Details</TableHead>
@@ -454,7 +454,7 @@ export default function AuditLogsPage() {
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <Icon className={cn("h-5 w-5", config?.color || 'text-gray-500')} />
-                                                                <span className="font-mono text-xs">{log.action}</span>
+                                                                <span className="font-mono text-xs bg-muted px-2 py-1 rounded-md">{log.action}</span>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>

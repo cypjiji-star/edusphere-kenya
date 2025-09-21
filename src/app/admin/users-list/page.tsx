@@ -70,6 +70,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { deleteUserAction, updateUserAuthAction, createUserAction } from '../users/actions';
+import { Separator } from '@/components/ui/separator';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -360,7 +361,7 @@ export default function UserManagementListPage() {
                                                 <Avatar className="h-9 w-9">
                                                     <AvatarFallback>{user.name?.slice(0,2)}</AvatarFallback>
                                                 </Avatar>
-                                                <span className="font-medium">{user.name}</span>
+                                                <span className="font-medium bg-muted px-2 py-1 rounded-md">{user.name}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell>{user.email}</TableCell>

@@ -402,7 +402,7 @@ export default function StudentManagementPage() {
                                 <AvatarImage src={student.avatarUrl} alt={student.name} />
                                 <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
-                            <span className="font-medium">{student.name}</span>
+                            <span className="font-medium bg-muted px-2 py-1 rounded-md">{student.name}</span>
                             </div>
                         </TableCell>
                         <TableCell>{student.admissionNumber}</TableCell>

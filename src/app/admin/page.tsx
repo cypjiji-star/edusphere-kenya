@@ -181,7 +181,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="py-6 sm:py-8">
+    <div>
       <div className="mb-8 flex justify-between items-start">
         <div>
             <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
@@ -264,7 +264,7 @@ export default function AdminDashboard() {
                                                 <activity.icon className="h-5 w-5 text-red-600" />
                                             </div>
                                             <div className="flex-1">
-                                                <p className="text-sm font-medium">{activity.title}</p>
+                                                <p className="text-sm font-medium"><span className="bg-muted px-2 py-1 rounded-md">{activity.title}</span></p>
                                                 <p className="text-xs text-muted-foreground">{activity.time}</p>
                                             </div>
                                             <Badge variant={activity.category === 'Urgent' || activity.category === 'Security' ? 'destructive' : 'outline'}>{activity.category}</Badge>
