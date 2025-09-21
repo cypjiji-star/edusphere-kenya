@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import * as React from 'react';
 import { useAuth } from '@/context/auth-context';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 export function DeveloperSidebar() {
   const pathname = usePathname();
@@ -94,7 +95,8 @@ export function DeveloperSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="flex items-center gap-2 p-2">
+        <ThemeSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">

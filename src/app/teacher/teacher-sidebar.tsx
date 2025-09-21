@@ -53,6 +53,7 @@ import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 
 const navGroups = [
@@ -195,7 +196,8 @@ export function TeacherSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="p-2">
+      <SidebarFooter className="p-2 flex items-center gap-2">
+        <ThemeSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">

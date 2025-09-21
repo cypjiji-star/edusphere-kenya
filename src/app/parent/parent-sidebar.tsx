@@ -41,6 +41,7 @@ import {
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 
 const navItems = [
@@ -139,7 +140,8 @@ export function ParentSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="flex items-center gap-2 p-2">
+        <ThemeSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">

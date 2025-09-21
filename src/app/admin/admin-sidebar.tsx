@@ -58,6 +58,7 @@ import { cn } from '@/lib/utils';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, limit, updateDoc, doc, where } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 
 const navGroups = [
@@ -202,6 +203,7 @@ export function AdminSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="flex items-center gap-2 p-2">
+        <ThemeSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">

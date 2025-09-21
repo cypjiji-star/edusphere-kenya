@@ -7,6 +7,7 @@ import { Suspense } from 'react';
 import { AuthProvider } from '@/context/auth-context';
 import { SplashScreen } from '@/components/layout/splash-screen';
 import Script from 'next/script';
+import { ThemeProvider } from '@/context/theme-provider';
 
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
@@ -40,12 +41,19 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <SplashScreen />
-          <ClientPageLoader />
-          <Suspense>{children}</Suspense>
-          <Toaster />
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <SplashScreen />
+            <ClientPageLoader />
+            <Suspense>{children}</Suspense>
+            <Toaster />
+          </AuthProvider>
+        </ThemeProvider>
         <Script src="/sw-register.js" />
       </body>
     </html>
