@@ -92,7 +92,7 @@ export default function NewLessonPlanPage() {
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
             <CardTitle className="font-headline text-2xl flex items-center gap-2">
-              <BookOpen className="h-6 w-6 text-primary"/>
+              <BookOpen className="h-6 w-6 text-primary" />
               {isEditMode ? 'Edit Lesson Plan' : 'Lesson Plan Builder'}
             </CardTitle>
             <CardDescription>
