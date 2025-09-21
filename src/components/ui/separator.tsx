@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -18,7 +19,7 @@ const Separator = React.forwardRef<
       decorative={decorative}
       orientation={orientation}
       className={cn(
-        "shrink-0",
+        "shrink-0 rounded-full",
         orientation === "horizontal"
           ? "h-px w-full bg-gradient-to-r from-transparent via-border to-transparent"
           : "h-full w-px bg-gradient-to-b from-transparent via-border to-transparent",
