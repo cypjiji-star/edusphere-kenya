@@ -37,7 +37,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Library, Search, PlusCircle, Book, FileText, Newspaper, Upload, Edit, Trash2, Loader2, Filter, ChevronDown, FileDown, Printer, AlertTriangle, User, Hand, CheckCircle } from 'lucide-react';
+import { Library, Search, PlusCircle, Book, FileText, Newspaper, Upload, Edit, Trash2, Loader2, Filter, ChevronDown, FileDown, Printer, AlertTriangle, User, Hand, CheckCircle, RotateCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -338,6 +338,15 @@ export default function AdminLibraryPage() {
         (filteredSubject === 'All Subjects' || res.subject === filteredSubject) &&
         (filteredStatus === 'All Statuses' || res.status === filteredStatus)
     );
+
+    const checkedOutItems = resources.flatMap(res => 
+        (res.borrowedBy || []).map(borrower => ({
+            ...res,
+            borrowerName: borrower.teacherName,
+            borrowerId: borrower.teacherId,
+            quantityBorrowed: borrower.quantity,
+        }))
+    );
     
     const dashboardStats = React.useMemo(() => {
         const total = resources.reduce((sum, res) => sum + (res.totalCopies || 0), 0);
@@ -449,6 +458,45 @@ export default function AdminLibraryPage() {
         } catch (error) {
             console.error("Error checking out item:", error);
             toast({ variant: 'destructive', title: 'Action Failed' });
+        }
+    };
+    
+    const handleReturn = async (item: typeof checkedOutItems[number]) => {
+        if (!schoolId) return;
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const resourceRef = doc(firestore, `schools/${schoolId}/library-resources`, item.id);
+                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/teachers/${item.borrowerId}/borrowed-items`, item.id);
+                
+                const resourceDoc = await transaction.get(resourceRef);
+                if (!resourceDoc.exists()) throw new Error("Resource not found");
+
+                const resourceData = resourceDoc.data() as Resource;
+                const newAvailableCopies = resourceData.availableCopies + item.quantityBorrowed;
+                const newBorrowedBy = (resourceData.borrowedBy || []).filter(b => b.teacherId !== item.borrowerId);
+                const newStatus = newAvailableCopies > 0 ? 'Available' : 'Out';
+
+                transaction.update(resourceRef, {
+                    availableCopies: newAvailableCopies,
+                    borrowedBy: newBorrowedBy,
+                    status: newStatus,
+                });
+                
+                transaction.delete(teacherBorrowedItemRef);
+                
+                const historyRef = doc(collection(firestore, `schools/${schoolId}/teachers/${item.borrowerId}/borrowing-history`));
+                transaction.set(historyRef, {
+                    title: item.title,
+                    borrowedDate: item.borrowedBy?.find(b => b.teacherId === item.borrowerId)?.borrowedDate || serverTimestamp(), // Placeholder
+                    returnedDate: serverTimestamp(),
+                });
+            });
+
+            toast({ title: "Return Processed", description: `${item.title} returned by ${item.borrowerName}.` });
+        } catch (error) {
+            console.error("Error processing return:", error);
+            toast({ title: 'Return Failed', variant: 'destructive' });
         }
     };
 
@@ -583,8 +631,39 @@ export default function AdminLibraryPage() {
                         <CardDescription>Record books returned by teachers.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {/* The logic for this is complex and would be part of a larger implementation */}
-                        <p className="text-muted-foreground text-center py-8">Return processing functionality coming soon.</p>
+                         <div className="w-full overflow-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Book Title</TableHead>
+                                        <TableHead>Borrowed By</TableHead>
+                                        <TableHead>Quantity</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {checkedOutItems.length > 0 ? (
+                                        checkedOutItems.map((item, index) => (
+                                            <TableRow key={`${item.id}-${index}`}>
+                                                <TableCell>{item.title}</TableCell>
+                                                <TableCell>{item.borrowerName}</TableCell>
+                                                <TableCell>{item.quantityBorrowed}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="secondary" onClick={() => handleReturn(item)}>
+                                                        <RotateCw className="mr-2 h-4 w-4" />
+                                                        Process Return
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center h-24">No items are currently checked out.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                  </Card>
             </TabsContent>
