@@ -8,15 +8,16 @@ import { Library, ArrowRight, AlertTriangle, Gift } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { differenceInDays, parseISO } from 'date-fns';
 import * as React from 'react';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type BorrowedItem = {
     id: string;
     title: string;
-    dueDate: string;
+    dueDate: Timestamp;
 };
 
 type NewResource = {
@@ -30,19 +31,19 @@ export function LibraryNoticesWidget() {
   const schoolId = searchParams.get('schoolId');
   const [overdueItems, setOverdueItems] = React.useState<BorrowedItem[]>([]);
   const [newArrivals, setNewArrivals] = React.useState<NewResource[]>([]);
-  const user = auth.currentUser;
+  const { user } = useAuth();
 
   React.useEffect(() => {
     if (!schoolId || !user) return;
     const teacherId = user.uid;
 
     // Fetch overdue items
-    const borrowedQuery = query(collection(firestore, 'schools', schoolId, 'users', teacherId, 'borrowed-items'));
+    const borrowedQuery = query(collection(firestore, 'schools', schoolId, 'teachers', teacherId, 'borrowed-items'));
     const unsubBorrowed = onSnapshot(borrowedQuery, (snapshot) => {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowedItem));
         const overdue = items.filter(item => {
             if (!item.dueDate) return false;
-            const dueDate = new Date(item.dueDate);
+            const dueDate = item.dueDate.toDate();
             return differenceInDays(new Date(), dueDate) > 0;
         });
         setOverdueItems(overdue);
@@ -80,7 +81,7 @@ export function LibraryNoticesWidget() {
                                 <p className="font-semibold text-sm">{item.title}</p>
                                 <div className="flex items-center gap-2 text-xs text-red-600">
                                     <AlertTriangle className="h-4 w-4" />
-                                    <span>Due: {new Date(item.dueDate).toLocaleDateString()}</span>
+                                    <span>Due: {new Date(item.dueDate.toDate()).toLocaleDateString()}</span>
                                 </div>
                             </div>
                             <Button asChild size="sm" variant="secondary">
