@@ -14,13 +14,13 @@ const Card = React.forwardRef<
       ref={ref}
       className={cn(
         "rounded-2xl border bg-card text-card-foreground",
-        // Base transition
+        // Base transition for a premium feel
         "transition-all duration-300",
         // Light mode styles
-        "shadow-sm hover:shadow-lg hover:-translate-y-1",
-        // Dark mode styles
-        "dark:border-white/10 dark:bg-card/60 dark:backdrop-blur-lg",
-        "dark:hover:border-white/20 dark:hover:shadow-2xl dark:hover:shadow-accent/10 dark:hover:-translate-y-1",
+        "shadow-sm hover:shadow-xl hover:shadow-black/5",
+        "dark:border-white/10 dark:bg-card/60 dark:hover:border-white/20 dark:shadow-2xl dark:shadow-accent/10",
+        // Premium hover effect
+        "hover:-translate-y-1 hover:scale-[1.01]",
         className
       )}
       {...props}
