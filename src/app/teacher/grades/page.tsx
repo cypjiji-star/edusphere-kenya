@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -43,7 +42,7 @@ type Student = {
     id: string;
     name: string;
     avatarUrl: string;
-    grades?: Record<string, string>; 
+    grades?: Record<string, { grade: string, status: string }>; 
     average?: number;
     rank?: number;
 };
@@ -69,6 +68,7 @@ type GradeRecord = {
     subject: string;
     grade: string;
     examId: string;
+    status: string;
 }
 
 export default function TeacherGradesPage() {
@@ -187,15 +187,15 @@ export default function TeacherGradesPage() {
                      const subjectsInView = new Set<string>();
                      
                      const studentsWithGradesData = studentList.map(student => {
-                        const studentGrades: Record<string, string> = {};
+                        const studentGrades: Record<string, { grade: string, status: string }> = {};
                          gradesData.forEach(grade => {
                              if (grade.studentId === student.id) {
-                                 studentGrades[grade.subject] = grade.grade;
+                                 studentGrades[grade.subject] = { grade: grade.grade, status: grade.status };
                                  subjectsInView.add(grade.subject);
                              }
                          });
 
-                        const numericGrades = Object.values(studentGrades).map(g => parseInt(g, 10)).filter(g => !isNaN(g));
+                        const numericGrades = Object.values(studentGrades).map(g => parseInt(g.grade, 10)).filter(g => !isNaN(g));
                         const average = numericGrades.length > 0 ? Math.round(numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length) : 0;
                          
                          return { ...student, grades: studentGrades, average };
@@ -424,7 +424,7 @@ export default function TeacherGradesPage() {
                                                         </TableCell>
                                                         {rankingSubjects.map(subject => (
                                                             <TableCell key={subject} className="text-center font-semibold">
-                                                                {student.grades?.[subject] || '—'}
+                                                                {student.grades?.[subject]?.grade || '—'}
                                                             </TableCell>
                                                         ))}
                                                         <TableCell className="text-right font-extrabold text-primary">{student.average?.toFixed(1)}%</TableCell>
@@ -450,3 +450,5 @@ export default function TeacherGradesPage() {
         </div>
     );
 }
+
+    
