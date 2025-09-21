@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shapes, PlusCircle, Users, Megaphone, CircleDollarSign, ArrowUp, UserCheck, UserPlus, ClipboardCheck, Calendar, ShieldAlert, FileText, AlertTriangle, BookOpen, Loader2, ArrowRight } from 'lucide-react';
+import { Shapes, PlusCircle, Users, Megaphone, CircleDollarSign, ArrowUp, UserCheck, UserPlus, ClipboardCheck, Calendar, ShieldAlert, FileText, AlertTriangle, BookOpen, Loader2, ArrowRight, LayoutDashboard } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -182,7 +182,10 @@ export default function AdminDashboard() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="font-headline text-3xl font-bold">{schoolName || 'Admin Dashboard'}</h1>
+        <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+            <LayoutDashboard className="h-8 w-8 text-primary"/>
+            {schoolName || 'Admin Dashboard'}
+        </h1>
         <p className="text-muted-foreground">School-wide overview and management.</p>
       </div>
       
