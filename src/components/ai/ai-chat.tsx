@@ -106,13 +106,15 @@ export function AiChat() {
         });
       }
 
-      // If already escalated, just save user message and return. Admin will reply.
-      if (isEscalated) {
+      // Check if an admin has ever been involved. If so, AI stays silent.
+      const hasAdminReplied = messages.some(m => m.role === 'admin');
+
+      if (isEscalated || hasAdminReplied) {
           setIsLoading(false);
           return;
       }
 
-      // Generate AI response if not escalated
+      // Generate AI response if not escalated and no admin has replied
       const aiInput: SupportChatbotInput = {
         history: newMessages.filter((m) => m.role === 'user' || m.role === 'model'),
       };
@@ -145,8 +147,7 @@ export function AiChat() {
   };
 
   const handleTalkToAdmin = () => {
-    // Optimistically set escalated state for instant UI feedback
-    setIsEscalated(true); 
+    setIsEscalated(true); // Optimistically disable input
     sendMessage("I need to talk to an admin.");
   };
 
