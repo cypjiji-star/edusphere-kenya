@@ -59,9 +59,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, deleteDoc, Timestamp, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -128,18 +127,24 @@ export default function UserManagementListPage() {
 
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId) {
+            setIsLoading(false);
+            return;
+        }
         setClientReady(true);
-        
-        // Use the central 'users' collection as the source of truth for the list
-        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
-        const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-            setAllUsers(usersData);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching users:", error);
-            setIsLoading(false);
+        setIsLoading(true);
+
+        const collectionsToFetch = ['admins', 'teachers', 'parents'];
+        const unsubscribers = collectionsToFetch.map(collectionName => {
+            const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
+            return onSnapshot(q, (snapshot) => {
+                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+                
+                setAllUsers(prevUsers => {
+                    const otherUsers = prevUsers.filter(u => u.role.toLowerCase() + 's' !== collectionName);
+                    return [...otherUsers, ...usersData];
+                });
+            });
         });
 
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
@@ -151,8 +156,10 @@ export default function UserManagementListPage() {
             setClasses(classData);
         });
 
+        setIsLoading(false);
+
         return () => {
-            unsubscribeUsers();
+            unsubscribers.forEach(unsub => unsub());
             unsubRoles();
             unsubClasses();
         };
@@ -274,11 +281,6 @@ export default function UserManagementListPage() {
             const collectionName = editingUser.role.toLowerCase() + 's';
             const userRef = doc(firestore, 'schools', schoolId, collectionName, editingUser.id);
             await updateDoc(userRef, updatedData);
-            
-             // Also update the central 'users' collection
-            const genericUserRef = doc(firestore, 'schools', schoolId, 'users', editingUser.id);
-            await updateDoc(genericUserRef, updatedData);
-
 
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
             setEditingUser(null);
@@ -531,7 +533,7 @@ export default function UserManagementListPage() {
                                                     <SelectValue placeholder="Select a role" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {roles.filter(r => r === 'Admin' || r === 'Teacher').map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                                                    {roles.filter(r => r === 'Admin' || r === 'Teacher' || r === 'Parent').map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>

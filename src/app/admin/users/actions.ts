@@ -48,18 +48,10 @@ export async function deleteUserAction(uid: string, schoolId: string, role: stri
         }
     }
     
-    const batch = writeBatch(firestore);
-
     // Delete from role-specific collection (e.g., 'teachers', 'admins')
     const roleCollectionName = role.toLowerCase() + 's';
     const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
-    batch.delete(userDocRef);
-
-    // Also delete from the central 'users' collection
-    const genericUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
-    batch.delete(genericUserDocRef);
-
-    await batch.commit();
+    await deleteDoc(userDocRef);
     
     // Create a notification for this security event
     await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
@@ -116,7 +108,7 @@ export async function createUserAction(params: {
     const batch = writeBatch(firestore);
 
     // 2. Create user document in the appropriate collection based on role
-    const roleCollection = role.toLowerCase() + 's'; // e.g., 'teachers', 'admins'
+    const roleCollection = role.toLowerCase() + 's'; // e.g., 'teachers', 'admins', 'parents'
     const userDocRef = doc(firestore, 'schools', schoolId, roleCollection, uid);
     
     const userData: any = {
@@ -136,10 +128,6 @@ export async function createUserAction(params: {
     }
     
     batch.set(userDocRef, userData);
-
-    // Also add to the general 'users' collection for easy role lookup
-    const genericUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
-    batch.set(genericUserDocRef, { role, name, email, status: 'Active', id: uid, avatarUrl });
     
     await batch.commit();
 
