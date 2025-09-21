@@ -82,6 +82,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 // Define both lowercase and title case status types
@@ -112,7 +113,8 @@ type User = {
     id: string;
     name: string;
     role: string;
-}
+    avatarUrl: string;
+};
 
 type Student = {
     id: string;
@@ -379,7 +381,7 @@ export default function AdminAttendancePage() {
   React.useEffect(() => {
     if (!schoolId) return;
 
-    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const qTeachers = query(collection(firestore, 'schools', schoolId, 'teachers'));
     const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
       setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
     });
@@ -482,13 +484,13 @@ export default function AdminAttendancePage() {
       setTeacherAttendanceRecords(records);
     });
     
-    const leaveQuery = query(collection(firestore, `schools/${schoolId}/leave-applications`));
+    const leaveQuery = query(collection(firestore, `schools/${schoolId}/leave-applications`), orderBy('startDate', 'desc'));
     const unsubLeave = onSnapshot(leaveQuery, (snapshot) => {
       const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveApplication));
       setLeaveApplications(apps);
     });
 
-     const studentLeaveQuery = query(collection(firestore, `schools/${schoolId}/absences`));
+     const studentLeaveQuery = query(collection(firestore, `schools/${schoolId}/absences`), orderBy('date', 'desc'));
     const unsubStudentLeave = onSnapshot(studentLeaveQuery, (snapshot) => {
       const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), status: 'Pending' } as StudentLeaveApplication)); // Assume status, needs schema update
       setStudentLeaveApps(apps);
@@ -508,6 +510,17 @@ export default function AdminAttendancePage() {
       unsubStudentLeave();
     };
   }, [schoolId, selectedTerm, toast]);
+  
+    const groupedLeaveApplications = React.useMemo(() => {
+        const grouped: Record<string, LeaveApplication[]> = {};
+        leaveApplications.forEach(app => {
+            if (!grouped[app.teacherId]) {
+                grouped[app.teacherId] = [];
+            }
+            grouped[app.teacherId].push(app);
+        });
+        return grouped;
+    }, [leaveApplications]);
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
@@ -865,7 +878,7 @@ export default function AdminAttendancePage() {
                                             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
-                                                    {teachers.map(t => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}
+                                                    {teachers.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -1023,46 +1036,65 @@ export default function AdminAttendancePage() {
                             <CardDescription>Review and approve leave applications submitted by staff.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="w-full overflow-auto rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Teacher</TableHead>
-                                            <TableHead>Type</TableHead>
-                                            <TableHead>Dates</TableHead>
-                                            <TableHead>Reason</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {leaveApplications.map(app => (
-                                            <TableRow key={app.id}>
-                                                <TableCell>{app.teacherName}</TableCell>
-                                                <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
-                                                <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
-                                                <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
-                                                <TableCell>{getStatusBadge(app.status)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {app.status === 'Pending' ? (
-                                                        <div className="flex gap-2 justify-end">
-                                                            <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
-                                                            <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
-                                                        </div>
-                                                    ) : '—'}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {leaveApplications.length === 0 && (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="h-24 text-center">
-                                                    No pending leave applications.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                            <Accordion type="single" collapsible className="w-full">
+                                {Object.entries(groupedLeaveApplications).map(([teacherId, apps]) => {
+                                    const teacher = teachers.find(t => t.id === teacherId);
+                                    if (!teacher) return null;
+                                    const pendingCount = apps.filter(app => app.status === 'Pending').length;
+                                    return (
+                                        <AccordionItem value={teacherId} key={teacherId}>
+                                            <AccordionTrigger>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar>
+                                                        <AvatarImage src={teacher.avatarUrl} />
+                                                        <AvatarFallback>{teacher.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="font-semibold">{teacher.name}</span>
+                                                    {pendingCount > 0 && <Badge>{pendingCount} Pending</Badge>}
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                <div className="w-full overflow-auto rounded-lg border">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Type</TableHead>
+                                                                <TableHead>Dates</TableHead>
+                                                                <TableHead>Reason</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                                <TableHead className="text-right">Actions</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {apps.map(app => (
+                                                                <TableRow key={app.id}>
+                                                                    <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
+                                                                    <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
+                                                                    <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
+                                                                    <TableCell>{getStatusBadge(app.status)}</TableCell>
+                                                                    <TableCell className="text-right">
+                                                                        {app.status === 'Pending' ? (
+                                                                            <div className="flex gap-2 justify-end">
+                                                                                <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
+                                                                                <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
+                                                                            </div>
+                                                                        ) : '—'}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    );
+                                })}
+                            </Accordion>
+                             {leaveApplications.length === 0 && (
+                                <div className="text-center py-16 text-muted-foreground">
+                                    No leave applications found.
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
