@@ -53,9 +53,9 @@ function LoginPageContent() {
                     <p className="mt-2 text-lg italic">"{profile.motto}"</p>
                     <div className="mt-8 text-sm text-white/70">
                       <p>Built & Maintained By</p>
-                      <a href="https://github.com/rodgersxy" target="_blank" rel="noopener noreferrer" className="font-semibold text-white hover:underline">
+                      <Link href="/developer-contact" className="font-semibold text-white hover:underline">
                         Rodgers Kiserian
-                      </a>
+                      </Link>
                     </div>
                     <p className="text-xs mt-2 text-white/50">© {new Date().getFullYear()} EduSphere. All rights reserved.</p>
                 </div>
