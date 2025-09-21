@@ -87,6 +87,8 @@ export default function MyLibraryPage() {
     const [newRequestTitle, setNewRequestTitle] = React.useState('');
     const { toast } = useToast();
     const { user } = useAuth();
+    const [isHistoryLoading, setIsHistoryLoading] = React.useState(true);
+    const [isRequestsLoading, setIsRequestsLoading] = React.useState(true);
 
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
     const [allTeacherStudents, setAllTeacherStudents] = React.useState<TeacherStudent[]>([]);
@@ -108,16 +110,20 @@ export default function MyLibraryPage() {
             setBorrowedItems(items);
         });
 
+        setIsHistoryLoading(true);
         const historyQuery = query(collection(firestore, `schools/${schoolId}/teachers/${teacherId}/borrowing-history`));
         const unsubHistory = onSnapshot(historyQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HistoryItem));
             setHistoryItems(items);
+            setIsHistoryLoading(false);
         });
         
+        setIsRequestsLoading(true);
         const requestsQuery = query(collection(firestore, `schools/${schoolId}/library-requests`), where('requestedBy', '==', teacherId));
         const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RequestItem));
             setRequestItems(items);
+            setIsRequestsLoading(false);
         });
 
         const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/student-assignments`), where('teacherId', '==', teacherId));
@@ -554,7 +560,9 @@ export default function MyLibraryPage() {
                         </Button>
                     </CardHeader>
                     <CardContent>
-                         {historyItems.length > 0 ? (
+                         {isHistoryLoading ? (
+                            <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                         ) : historyItems.length > 0 ? (
                             <div className="space-y-4">
                                 {historyItems.map(item => (
                                      <Card key={item.id} className="bg-muted/50">
@@ -613,7 +621,9 @@ export default function MyLibraryPage() {
                         </Dialog>
                     </CardHeader>
                     <CardContent>
-                         {requestItems.length > 0 ? (
+                        {isRequestsLoading ? (
+                             <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+                        ) : requestItems.length > 0 ? (
                             <div className="space-y-4">
                                 {requestItems.map(item => (
                                      <Card key={item.id}>
