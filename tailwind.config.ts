@@ -73,12 +73,13 @@ export default {
         },
       },
       borderRadius: {
+        '2xl': "calc(var(--radius) + 4px)",
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
       boxShadow: {
-        'glow-accent': '0 0 15px 5px hsl(var(--accent) / 0.4)',
+        'glow-accent': '0 0 15px 5px hsl(var(--accent) / 0.1)',
         'glow-sidebar': 'inset 4px 0 0 hsl(var(--primary))',
       },
       keyframes: {
