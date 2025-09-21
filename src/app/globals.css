@@ -24,7 +24,6 @@
     --border: 214.3 31.8% 85%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
 
     --sidebar-background: 220 24% 9%;
     --sidebar-foreground: 210 20% 96%;
@@ -89,6 +88,18 @@
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--accent));
+    background: hsl(var(--accent-foreground) / 0.2);
+  }
+
+  [data-sidebar] ::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-border));
+  }
+  
+  .dark [data-sidebar] ::-webkit-scrollbar-thumb {
+      background: hsl(var(--sidebar-border));
+  }
+
+  [data-sidebar] ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--sidebar-accent) / 0.8);
   }
 }
