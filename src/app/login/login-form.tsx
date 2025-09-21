@@ -45,6 +45,13 @@ export function LoginForm() {
       let userIsAssociatedWithSchool = false;
       let userRole: string | null = null;
       let userName: string = user.displayName || user.email || 'Unknown';
+      let isDeveloper = false;
+      
+      const devDocRef = doc(firestore, 'developers', user.uid);
+      const devDocSnap = await getDoc(devDocRef);
+      if (devDocSnap.exists()) {
+          isDeveloper = true;
+      }
 
       if (role === 'parent') {
         const studentsQuery = query(collection(firestore, `schools/${schoolCode}/students`), where('parentId', '==', user.uid));
@@ -52,11 +59,9 @@ export function LoginForm() {
         if (!studentsSnapshot.empty) {
             userIsAssociatedWithSchool = true;
             userRole = 'parent';
-            // Use the parentName from the first child record
             userName = studentsSnapshot.docs[0].data().parentName || userName;
         }
       } else {
-        // Logic for Admin and Teacher
         const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
@@ -68,8 +73,7 @@ export function LoginForm() {
         }
       }
 
-      if (userIsAssociatedWithSchool && userRole === role) {
-        // Update lastLogin timestamp
+      if ((userIsAssociatedWithSchool && userRole === role) || (isDeveloper && role === 'admin')) {
         const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
         if((await getDoc(userDocRef)).exists()) {
           await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
