@@ -41,7 +41,7 @@ import { Library, Search, Book, FileText, Newspaper, Eye, Printer, FileDown, Che
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ResourceDetailsDialog } from './resource-details-dialog';
-import type { Resource } from './types';
+import type { Resource, ResourceType } from './types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,7 +56,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
-const resourceTypes = ['All Types', 'Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
+const resourceTypes: ResourceType[] = ['Textbook', 'Past Paper', 'Curriculum Guide', 'Journal'];
 
 const typeIcons: Record<Resource['type'], React.ElementType> = {
   Textbook: Book,
