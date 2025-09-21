@@ -47,6 +47,8 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { sendQuickReplyAction } from './actions';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AiChat } from '../ai/ai-chat';
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
 
@@ -241,6 +243,8 @@ export function NotificationBell() {
     return b.createdAt.seconds - a.createdAt.seconds;
   });
 
+  const isUserPortal = role === 'parent' || role === 'teacher';
+
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -255,37 +259,53 @@ export function NotificationBell() {
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-full">
-        <SheetHeader className="p-6 pb-2">
-            <SheetTitle className="flex items-center justify-between">
-                <span>Notifications</span>
-                {unreadCount > 0 && (
-                    <Button variant="link" size="sm" className="h-auto p-0" onClick={handleMarkAllAsRead}>
-                        <CheckCheck className="mr-2 h-4 w-4"/>
-                        Mark all as read
-                    </Button>
-                )}
-            </SheetTitle>
-        </SheetHeader>
-        <ScrollArea className="flex-1">
-            <div className="p-4 pt-2 space-y-2">
-                {sortedNotifications.length > 0 ? (
-                    sortedNotifications.map((notification) => (
-                        <NotificationItem
-                        key={notification.id}
-                        notification={notification}
-                        schoolId={schoolId!}
-                        onDismiss={handleMarkAsRead}
-                        currentUserId={user!.uid}
-                        currentUser={{ id: user!.uid, name: user!.displayName || 'Admin' }}
-                        />
-                    ))
-                ) : (
-                    <div className="text-center text-muted-foreground py-16">
-                        <p>No new notifications.</p>
+         <Tabs defaultValue="notifications" className="flex-1 flex flex-col">
+            <SheetHeader className="p-4 border-b">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="notifications">
+                        <Bell className="mr-2 h-4 w-4" />
+                        Notifications
+                        {unreadCount > 0 && <Badge className="ml-2">{unreadCount}</Badge>}
+                    </TabsTrigger>
+                    {isUserPortal && <TabsTrigger value="support">Support Chat</TabsTrigger>}
+                </TabsList>
+            </SheetHeader>
+            <TabsContent value="notifications" className="flex-1 min-h-0">
+                <div className="flex justify-end p-2 border-b">
+                    {unreadCount > 0 && (
+                        <Button variant="link" size="sm" className="h-auto p-0" onClick={handleMarkAllAsRead}>
+                            <CheckCheck className="mr-2 h-4 w-4"/>
+                            Mark all as read
+                        </Button>
+                    )}
+                </div>
+                <ScrollArea className="h-full">
+                    <div className="p-2 space-y-2">
+                        {sortedNotifications.length > 0 ? (
+                            sortedNotifications.map((notification) => (
+                                <NotificationItem
+                                key={notification.id}
+                                notification={notification}
+                                schoolId={schoolId!}
+                                onDismiss={handleMarkAsRead}
+                                currentUserId={user!.uid}
+                                currentUser={{ id: user!.uid, name: user!.displayName || 'Admin' }}
+                                />
+                            ))
+                        ) : (
+                            <div className="text-center text-muted-foreground py-16">
+                                <p>No new notifications.</p>
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
-        </ScrollArea>
+                </ScrollArea>
+            </TabsContent>
+            {isUserPortal && (
+                <TabsContent value="support" className="flex-1 min-h-0">
+                   <AiChat />
+                </TabsContent>
+            )}
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

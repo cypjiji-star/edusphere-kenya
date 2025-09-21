@@ -87,7 +87,6 @@ const navGroups = [
     items: [
         { href: '/teacher/library', label: 'Library Access', icon: Library, disabled: false, badgeKey: null },
         { href: '/teacher/my-library', label: 'My Library', icon: User, disabled: false, badgeKey: null },
-        { href: '/teacher/support', label: 'Support Chat', icon: HelpCircle, disabled: false, badgeKey: null },
     ],
   },
 ];
@@ -222,12 +221,6 @@ export function TeacherSidebar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled><Settings className="mr-2" />Profile &amp; Settings</DropdownMenuItem>
-            <DropdownMenuItem asChild>
-                <Link href={`/teacher/support?schoolId=${schoolId}`} onClick={handleLinkClick}>
-                    <HelpCircle className="mr-2" />
-                    Support &amp; Feedback
-                </Link>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
                 <Link href="/" onClick={() => auth.signOut()}>

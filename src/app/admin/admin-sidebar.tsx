@@ -116,7 +116,6 @@ const navGroups = [
     title: 'System',
     items: [
         { href: '/admin/logs', label: 'Audit Logs', icon: FileClock },
-        { href: '/admin/support', label: 'Support & Feedback', icon: HelpCircle },
     ]
   }
 ];
@@ -233,11 +232,9 @@ export function AdminSidebar() {
                     <Settings className="mr-2" />Profile
                 </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-                <Link href={`/admin/support?schoolId=${schoolId}`} onClick={handleLinkClick}>
-                    <HelpCircle className="mr-2" />
-                    Support
-                </Link>
+            <DropdownMenuItem disabled>
+                <HelpCircle className="mr-2" />
+                Support
             </DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
