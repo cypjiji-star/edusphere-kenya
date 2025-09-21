@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -108,6 +109,12 @@ type TeacherAttendanceRecord = {
     checkOutTime?: Timestamp;
 };
 
+type User = {
+    id: string;
+    name: string;
+    role: string;
+}
+
 type Student = {
     id: string;
     name: string;
@@ -167,7 +174,7 @@ const chartConfig = {
     rate: { label: 'Attendance Rate', color: 'hsl(var(--primary))' },
 } satisfies React.ComponentProps<typeof ChartContainer>['config'];
 
-function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: AttendanceRecord[], dateRange?: DateRange, schoolId: string }) {
+function LowAttendanceAlerts({ records, dateRange, schoolId, allTeachers }: { records: AttendanceRecord[], dateRange?: DateRange, schoolId: string, allTeachers: User[] }) {
     const { toast } = useToast();
 
     const lowAttendanceAlerts = React.useMemo(() => {
@@ -210,16 +217,10 @@ function LowAttendanceAlerts({ records, dateRange, schoolId }: { records: Attend
     const handleSendReminder = async (teacherName: string, teacherIdFromRecord?: string) => {
         let teacherId = teacherIdFromRecord;
 
-        // If teacherId is not available directly, try to find it
         if (!teacherId) {
-            try {
-                const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('name', '==', teacherName), limit(1));
-                const teacherSnap = await getDocs(teachersQuery);
-                if (!teacherSnap.empty) {
-                    teacherId = teacherSnap.docs[0].id;
-                }
-            } catch (error) {
-                 console.error("Could not fetch teacher ID by name:", error);
+            const foundTeacher = allTeachers.find(t => t.name === teacherName);
+            if(foundTeacher) {
+                teacherId = foundTeacher.id;
             }
         }
         
@@ -354,8 +355,9 @@ export default function AdminAttendancePage() {
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
   const [teacherAttendanceRecords, setTeacherAttendanceRecords] = React.useState<TeacherAttendanceRecord[]>([]);
   const [leaveApplications, setLeaveApplications] = React.useState<LeaveApplication[]>([]);
+  const [studentLeaveApps, setStudentLeaveApps] = React.useState<StudentLeaveApplication[]>([]);
   const [communicationLogs, setCommunicationLogs] = React.useState<CommunicationLog[]>([]);
-  const [teachers, setTeachers] = React.useState<string[]>(['All Teachers']);
+  const [teachers, setTeachers] = React.useState<User[]>([]);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
   const [academicTerms, setAcademicTerms] = React.useState(generateAcademicTerms());
@@ -365,7 +367,42 @@ export default function AdminAttendancePage() {
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = React.useState('');
 
-  // Fetch all data based on the selected term
+  // Fetch static data once on component mount
+  React.useEffect(() => {
+    if (!schoolId) return;
+
+    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
+      setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+    });
+
+    const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
+    const unsubClasses = onSnapshot(qClasses, (snapshot) => {
+      const classNames = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return `${data.name} ${data.stream || ''}`.trim();
+      });
+      setClasses(['All Classes', ...new Set(classNames)]);
+    });
+
+     const qStudents = query(collection(firestore, 'schools', schoolId, 'students'));
+    const unsubStudents = onSnapshot(qStudents, (snapshot) => {
+        setAllStudents(snapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().name,
+            admissionNumber: doc.data().admissionNumber,
+            avatarUrl: doc.data().avatarUrl,
+        })));
+    });
+
+    return () => {
+        unsubTeachers();
+        unsubClasses();
+        unsubStudents();
+    };
+  }, [schoolId]);
+
+  // Fetch term-dependent data when term changes
   React.useEffect(() => {
     if (!schoolId) {
       setIsLoading(false);
@@ -405,7 +442,6 @@ export default function AdminAttendancePage() {
           id: doc.id,
           studentId: data.studentId,
           studentName: data.studentName,
-          studentAvatar: data.avatarUrl || `https://picsum.photos/seed/${data.studentId}/100`,
           class: data.className,
           teacher: data.teacher,
           teacherId: data.teacherId,
@@ -444,32 +480,12 @@ export default function AdminAttendancePage() {
       setLeaveApplications(apps);
     });
 
-    // These don't depend on term, so they can be fetched once
-    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
-    const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
-      const teacherNames = snapshot.docs.map(doc => doc.data().name);
-      setTeachers(['All Teachers', ...teacherNames]);
+     const studentLeaveQuery = query(collection(firestore, `schools/${schoolId}/absences`));
+    const unsubStudentLeave = onSnapshot(studentLeaveQuery, (snapshot) => {
+      const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), status: 'Pending' } as StudentLeaveApplication)); // Assume status, needs schema update
+      setStudentLeaveApps(apps);
     });
     
-    const qClasses = query(collection(firestore, 'schools', schoolId, 'classes'));
-    const unsubClasses = onSnapshot(qClasses, (snapshot) => {
-      const classNames = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return `${data.name} ${data.stream || ''}`.trim();
-      });
-      setClasses(['All Classes', ...new Set(classNames)]);
-    });
-
-    const qStudents = query(collection(firestore, 'schools', schoolId, 'students'));
-    const unsubStudents = onSnapshot(qStudents, (snapshot) => {
-        setAllStudents(snapshot.docs.map(doc => ({
-            id: doc.id,
-            name: doc.data().name,
-            admissionNumber: doc.data().admissionNumber,
-            avatarUrl: doc.data().avatarUrl,
-        })));
-    });
-
     const qCommLogs = query(collection(firestore, 'schools', schoolId, 'communication_logs'), where('type', '==', 'attendance'));
     const unsubCommLogs = onSnapshot(qCommLogs, (snapshot) => {
       setCommunicationLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationLog)));
@@ -480,12 +496,10 @@ export default function AdminAttendancePage() {
       unsubscribeAttendance();
       unsubTeacherAttendance();
       unsubLeave();
-      unsubTeachers();
-      unsubClasses();
-      unsubStudents();
       unsubCommLogs();
+      unsubStudentLeave();
     };
-  }, [schoolId, selectedTerm]);
+  }, [schoolId, selectedTerm, toast]);
   
   const dailyTrendData = React.useMemo(() => {
     if (!allRecords.length) return [];
@@ -574,6 +588,17 @@ export default function AdminAttendancePage() {
         toast({ title: 'Leave Updated', description: `The application has been ${newStatus.toLowerCase()} and the teacher has been notified.` });
     } catch (e) {
         toast({ title: 'Error', description: 'Could not update leave status.', variant: 'destructive' });
+    }
+  };
+    
+    const handleStudentLeaveAction = async (appId: string, newStatus: 'Approved' | 'Rejected') => {
+    if (!schoolId) return;
+    const leaveRef = doc(firestore, `schools/${schoolId}/absences`, appId);
+    try {
+        await updateDoc(leaveRef, { status: newStatus });
+        toast({ title: 'Student Leave Updated', description: `The absence request has been ${newStatus.toLowerCase()}.` });
+    } catch(e) {
+        toast({ title: 'Error', description: 'Could not update the absence status.', variant: 'destructive' });
     }
   };
 
@@ -737,7 +762,7 @@ export default function AdminAttendancePage() {
                             </div>
                         </CardContent>
                     </Card>
-                    <LowAttendanceAlerts records={allRecords} dateRange={date} schoolId={schoolId} />
+                    <LowAttendanceAlerts records={allRecords} dateRange={date} schoolId={schoolId} allTeachers={teachers} />
                 </div>
 
                 <Card className="mt-6">
@@ -906,7 +931,6 @@ export default function AdminAttendancePage() {
                                 <TableCell>
                                     <div className="flex items-center gap-3">
                                     <Avatar>
-                                        <AvatarImage src={record.studentAvatar} alt={record.studentName} />
                                         <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <span className="font-medium">{record.studentName}</span>
@@ -979,54 +1003,112 @@ export default function AdminAttendancePage() {
             </Card>
         </TabsContent>
          <TabsContent value="leave">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Leave Requests</CardTitle>
-                    <CardDescription>Review and approve leave applications submitted by staff.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Teacher</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Dates</TableHead>
-                                    <TableHead>Reason</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {leaveApplications.map(app => (
-                                    <TableRow key={app.id}>
-                                        <TableCell>{app.teacherName}</TableCell>
-                                        <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
-                                        <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
-                                        <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
-                                        <TableCell>{getStatusBadge(app.status)}</TableCell>
-                                        <TableCell className="text-right">
-                                            {app.status === 'Pending' ? (
-                                                <div className="flex gap-2 justify-end">
-                                                    <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
-                                                    <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
-                                                </div>
-                                            ) : '—'}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {leaveApplications.length === 0 && (
-                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
-                                            No pending leave applications.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+             <Tabs defaultValue="staff-leave">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="staff-leave">Staff Leave</TabsTrigger>
+                    <TabsTrigger value="student-leave">Student Leave</TabsTrigger>
+                </TabsList>
+                <TabsContent value="staff-leave" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Staff Leave Requests</CardTitle>
+                            <CardDescription>Review and approve leave applications submitted by staff.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Teacher</TableHead>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>Dates</TableHead>
+                                            <TableHead>Reason</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {leaveApplications.map(app => (
+                                            <TableRow key={app.id}>
+                                                <TableCell>{app.teacherName}</TableCell>
+                                                <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
+                                                <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
+                                                <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
+                                                <TableCell>{getStatusBadge(app.status)}</TableCell>
+                                                <TableCell className="text-right">
+                                                    {app.status === 'Pending' ? (
+                                                        <div className="flex gap-2 justify-end">
+                                                            <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
+                                                            <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
+                                                        </div>
+                                                    ) : '—'}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {leaveApplications.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="h-24 text-center">
+                                                    No pending leave applications.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="student-leave" className="mt-4">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Student Leave/Absence Reports</CardTitle>
+                            <CardDescription>Review absence notifications submitted by parents.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Student</TableHead>
+                                            <TableHead>Date of Absence</TableHead>
+                                            <TableHead>Reason</TableHead>
+                                            <TableHead>Reported By</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {studentLeaveApps.map(app => (
+                                            <TableRow key={app.id}>
+                                                <TableCell>{app.studentName}</TableCell>
+                                                <TableCell>{format(app.date.toDate(), 'PPP')}</TableCell>
+                                                <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
+                                                <TableCell>{app.reportedBy}</TableCell>
+                                                <TableCell>{getStatusBadge(app.status)}</TableCell>
+                                                <TableCell className="text-right">
+                                                    {app.status === 'Pending' ? (
+                                                        <div className="flex gap-2 justify-end">
+                                                            <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleStudentLeaveAction(app.id, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
+                                                            <Button size="sm" variant="destructive" onClick={() => handleStudentLeaveAction(app.id, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
+                                                        </div>
+                                                    ) : '—'}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {studentLeaveApps.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="h-24 text-center">
+                                                    No student absence reports found.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+             </Tabs>
         </TabsContent>
          <TabsContent value="student_analytics">
            <Card>
@@ -1156,3 +1238,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
