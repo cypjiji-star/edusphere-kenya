@@ -76,7 +76,7 @@ export function FloatingChatWidget() {
         if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
         
         setIsSending(true);
-        const newAdminMessage = {
+        const newAdminMessage: AdminMessage = {
           role: 'admin',
           content: reply,
           senderName: user.displayName || 'Admin',
@@ -115,7 +115,7 @@ export function FloatingChatWidget() {
             <p className="text-sm">{message.content}</p>
           </div>
           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-             <span>{message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+             {message.timestamp && <span>{message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
              <CheckCheck className="h-4 w-4 text-blue-400"/>
           </div>
         </div>
@@ -134,7 +134,7 @@ export function FloatingChatWidget() {
               <div className="bg-muted p-3 rounded-2xl rounded-bl-none">
                 <p className="text-sm">{message.content}</p>
               </div>
-              <span className="text-xs text-muted-foreground mt-1">{message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              {message.timestamp && <span className="text-xs text-muted-foreground mt-1">{message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
             </div>
         </div>
     );
@@ -249,4 +249,3 @@ export function FloatingChatWidget() {
         </Popover>
     );
 }
-
