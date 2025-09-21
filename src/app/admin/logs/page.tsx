@@ -454,7 +454,7 @@ export default function AuditLogsPage() {
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <Icon className={cn("h-5 w-5", config?.color || 'text-gray-500')} />
-                                                                <span className="font-mono text-xs bg-muted px-2 py-1 rounded-md">{log.action}</span>
+                                                                <span className="font-mono text-xs bg-muted dark:bg-transparent px-2 py-1 rounded-md">{log.action}</span>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>

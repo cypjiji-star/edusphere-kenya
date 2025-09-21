@@ -281,7 +281,7 @@ export default function StudentManagementPage() {
         await updateDoc(studentRef, dataToUpdate);
         toast({ title: "Profile Updated", description: "Student information has been successfully saved." });
         setIsEditing(false);
-        // Optimistically update local state or re-fetch
+        // Optimistically update local state
         setSelectedStudent(prev => prev ? { ...prev, ...dataToUpdate } : null);
     } catch (error) {
         console.error("Error updating student profile:", error);
@@ -402,7 +402,7 @@ export default function StudentManagementPage() {
                                 <AvatarImage src={student.avatarUrl} alt={student.name} />
                                 <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
-                            <span className="font-medium bg-muted px-2 py-1 rounded-md">{student.name}</span>
+                            <span className="font-medium bg-muted dark:bg-transparent px-2 py-1 rounded-md">{student.name}</span>
                             </div>
                         </TableCell>
                         <TableCell>{student.admissionNumber}</TableCell>

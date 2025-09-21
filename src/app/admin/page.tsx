@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -264,7 +265,7 @@ export default function AdminDashboard() {
                                                 <activity.icon className="h-5 w-5 text-red-600" />
                                             </div>
                                             <div className="flex-1">
-                                                <p className="text-sm font-medium"><span className="bg-muted px-2 py-1 rounded-md">{activity.title}</span></p>
+                                                <p className="text-sm font-medium"><span className="bg-muted dark:bg-transparent px-2 py-1 rounded-md">{activity.title}</span></p>
                                                 <p className="text-xs text-muted-foreground">{activity.time}</p>
                                             </div>
                                             <Badge variant={activity.category === 'Urgent' || activity.category === 'Security' ? 'destructive' : 'outline'}>{activity.category}</Badge>
