@@ -180,7 +180,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="py-6 sm:py-8">
       <div className="mb-8">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
             <LayoutDashboard className="h-8 w-8 text-primary"/>

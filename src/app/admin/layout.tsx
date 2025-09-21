@@ -27,7 +27,7 @@ export default function AdminLayout({
               </div>
               <ThemeSwitcher />
             </header>
-            <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+            <div className="px-4 sm:px-6 lg:px-8">{children}</div>
             <Suspense>
               <FloatingChatWidget />
             </Suspense>
