@@ -170,8 +170,9 @@ export default function AdminGradesPage() {
         }
         
         setIsLoading(prev => ({ ...prev, rankings: true }));
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', rankingClassId));
-        const unsubStudents = onSnapshot(studentsQuery, async (studentsSnapshot) => {
+        
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', rankingClassId), orderBy('name'));
+        const unsubStudents = onSnapshot(studentsQuery, (studentsSnapshot) => {
             const studentList: Student[] = studentsSnapshot.docs.map(doc => ({
                 id: doc.id,
                 name: doc.data().name,
@@ -182,40 +183,44 @@ export default function AdminGradesPage() {
             if (studentList.length > 0) {
                  const studentIds = studentList.map(s => s.id);
                  const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds), where('examId', '==', rankingExamId));
-                 const gradesSnapshot = await getDocs(gradesQuery);
-                 const gradesData: GradeRecord[] = gradesSnapshot.docs.map(d => d.data() as GradeRecord);
-
-                 const subjectsInView = new Set<string>();
                  
-                 const studentsWithGradesData = studentList.map(student => {
-                    const studentGrades: Record<string, string> = {};
-                     gradesData.forEach(grade => {
-                         if (grade.studentId === student.id) {
-                             studentGrades[grade.subject] = grade.grade;
-                             subjectsInView.add(grade.subject);
-                         }
+                 const unsubGrades = onSnapshot(gradesQuery, (gradesSnapshot) => {
+                     const gradesData: GradeRecord[] = gradesSnapshot.docs.map(d => d.data() as GradeRecord);
+                     const subjectsInView = new Set<string>();
+                     
+                     const studentsWithGradesData = studentList.map(student => {
+                        const studentGrades: Record<string, string> = {};
+                         gradesData.forEach(grade => {
+                             if (grade.studentId === student.id) {
+                                 studentGrades[grade.subject] = grade.grade;
+                                 subjectsInView.add(grade.subject);
+                             }
+                         });
+
+                        const numericGrades = Object.values(studentGrades).map(g => parseInt(g, 10)).filter(g => !isNaN(g));
+                        const average = numericGrades.length > 0 ? Math.round(numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length) : 0;
+                         
+                         return { ...student, grades: studentGrades, average };
                      });
 
-                    const numericGrades = Object.values(studentGrades).map(g => parseInt(g, 10)).filter(g => !isNaN(g));
-                    const average = numericGrades.length > 0 ? Math.round(numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length) : 0;
-                     
-                     return { ...student, grades: studentGrades, average };
+                    studentsWithGradesData.sort((a, b) => (b.average || 0) - (a.average || 0));
+                    
+                    const finalRankedList = studentsWithGradesData.map((student, index) => ({
+                        ...student,
+                        rank: index + 1
+                    }));
+
+                    setRankedStudents(finalRankedList);
+                    setRankingSubjects(Array.from(subjectsInView).sort());
                  });
-
-                studentsWithGradesData.sort((a, b) => (b.average || 0) - (a.average || 0));
-                
-                const finalRankedList = studentsWithGradesData.map((student, index) => ({
-                    ...student,
-                    rank: index + 1
-                }));
-
-                setRankedStudents(finalRankedList);
-                setRankingSubjects(Array.from(subjectsInView).sort());
+                 
+                 setIsLoading(prev => ({ ...prev, rankings: false }));
+                 return () => unsubGrades();
             } else {
                 setRankedStudents([]);
                 setRankingSubjects([]);
+                setIsLoading(prev => ({ ...prev, rankings: false }));
             }
-            setIsLoading(prev => ({ ...prev, rankings: false }));
         });
 
         return () => unsubStudents();
@@ -485,5 +490,3 @@ export default function AdminGradesPage() {
         </div>
     );
 }
-
-    
