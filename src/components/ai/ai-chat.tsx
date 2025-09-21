@@ -42,6 +42,8 @@ export function AiChat() {
   const [isLoading, setIsLoading] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
+  const hasAdminReplied = React.useMemo(() => messages.some(m => m.role === 'admin'), [messages]);
+
   React.useEffect(() => {
     if (!user || !schoolId) return;
 
@@ -106,14 +108,10 @@ export function AiChat() {
         });
       }
 
-      // Check if an admin has ever been involved in the chat history.
-      const hasAdminReplied = messages.some(m => m.role === 'admin');
-
-      // If an admin has replied, or the chat is currently escalated, do not call the AI.
-      // Just save the user's message for the admin to see.
-      if (hasAdminReplied || isEscalated) {
-          setIsLoading(false);
-          return;
+      // If an admin has ever replied, do not call the AI. Just save the user's message for the admin.
+      if (hasAdminReplied) {
+        setIsLoading(false);
+        return;
       }
       
       // Generate AI response if not escalated and no admin has replied
@@ -149,7 +147,7 @@ export function AiChat() {
   };
 
   const handleTalkToAdmin = () => {
-    setIsEscalated(true); // Optimistically disable input
+    // This will trigger the escalation message in the AI flow
     sendMessage("I need to talk to an admin.");
   };
 
@@ -212,15 +210,45 @@ export function AiChat() {
         </div>
       </ScrollArea>
       <div className="border-t p-4 space-y-4">
-        {isEscalated || messages.some(m => m.role === 'admin') ? (
+        {isEscalated || hasAdminReplied ? (
             <div className="text-center text-sm text-muted-foreground p-4 rounded-md bg-muted">
-                An administrator will be with you shortly. You will be notified when they reply.
+                {isEscalated ? 'An administrator will be with you shortly.' : 'You are speaking with an administrator.'}
             </div>
         ) : (
-            <>
+             <>
                 <div className="relative">
+                    <Input
+                        placeholder="Type your message..."
+                        className="pr-12"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                        disabled={isLoading}
+                    />
+                    <Button
+                        size="icon"
+                        className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8"
+                        onClick={handleSendMessage}
+                        disabled={isLoading || !input.trim()}
+                    >
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                </div>
+                <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleTalkToAdmin}
+                    disabled={isLoading}
+                >
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Talk to an Admin
+                </Button>
+            </>
+        )}
+         {hasAdminReplied && !isEscalated && (
+              <div className="relative">
                 <Input
-                    placeholder="Type your message..."
+                    placeholder="Reply to the admin..."
                     className="pr-12"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -235,17 +263,7 @@ export function AiChat() {
                 >
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
-                </div>
-                <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleTalkToAdmin}
-                    disabled={isLoading}
-                >
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Talk to an Admin
-                </Button>
-            </>
+            </div>
         )}
       </div>
     </div>
