@@ -43,30 +43,28 @@ export function LoginForm() {
       const user = userCredential.user;
 
       let userIsAssociatedWithSchool = false;
-      let userRole: string | null = null;
+      let userRoleInDb: string | null = null;
       let userName: string = user.displayName || user.email || 'Unknown';
       
-      // For any non-parent role, check the 'users' collection
       const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
           userIsAssociatedWithSchool = true;
-          userRole = userData.role?.toLowerCase();
+          userRoleInDb = userData.role?.toLowerCase();
           userName = userData.name || userName;
       } else if (role === 'parent') {
-        // Only if role is parent, check the students collection
         const studentsQuery = query(collection(firestore, `schools/${schoolCode}/students`), where('parentId', '==', user.uid));
         const studentsSnapshot = await getDocs(studentsQuery);
         if (!studentsSnapshot.empty) {
             userIsAssociatedWithSchool = true;
-            userRole = 'parent';
+            userRoleInDb = 'parent';
             userName = studentsSnapshot.docs[0].data().parentName || userName;
         }
       }
 
-      if (userIsAssociatedWithSchool && userRole === role) {
+      if (userIsAssociatedWithSchool && userRoleInDb === role) {
         if(userDocSnap.exists()) {
           await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
         }
@@ -84,7 +82,7 @@ export function LoginForm() {
         toast({
           title: 'Access Denied',
           description: userIsAssociatedWithSchool 
-            ? "Your credentials are correct, but you do not have access with the selected role."
+            ? `Your credentials are correct, but you do not have the "${role}" role.`
             : "This user account is not associated with the provided school code.",
           variant: 'destructive',
         });
