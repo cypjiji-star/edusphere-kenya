@@ -12,6 +12,8 @@ import {
   Settings,
   X,
   AlertTriangle,
+  Send,
+  Loader2,
 } from 'lucide-react';
 import {
   Sheet,
@@ -40,6 +42,11 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
 import { ScrollArea } from '../ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Textarea } from '../ui/textarea';
+import { Label } from '../ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { sendQuickReplyAction } from './actions';
 
 export type NotificationCategory = 'Academics' | 'Finance' | 'Communication' | 'System' | 'General' | 'Security';
 
@@ -53,37 +60,77 @@ export type Notification = {
   category: NotificationCategory;
   audience?: 'all' | 'admin' | 'teacher' | 'parent' | 'parents-and-students';
   userId?: string;
+  chatId?: string; // Add chatId for communication notifications
 };
 
 const categoryConfig: Record<NotificationCategory, { icon: React.ElementType, color: string, priority: number }> = {
   Academics: { icon: FileText, color: 'text-purple-500', priority: 3 },
   Finance: { icon: CircleDollarSign, color: 'text-green-500', priority: 3 },
-  Communication: { icon: MessageCircle, color: 'text-blue-500', priority: 4 },
-  System: { icon: Settings, color: 'text-orange-500', priority: 2 },
+  Communication: { icon: MessageCircle, color: 'text-blue-500', priority: 2 },
+  System: { icon: Settings, color: 'text-orange-500', priority: 4 },
   Security: { icon: AlertTriangle, color: 'text-red-500', priority: 1 },
   General: { icon: Bell, color: 'text-gray-500', priority: 5 },
 };
+
+function QuickReplyPopover({ schoolId, chatId, actor }: { schoolId: string, chatId: string, actor: { id: string; name: string }}) {
+    const [reply, setReply] = React.useState('');
+    const [isSending, setIsSending] = React.useState(false);
+    const { toast } = useToast();
+
+    const handleSend = async () => {
+        if (!reply.trim()) return;
+        setIsSending(true);
+        const result = await sendQuickReplyAction(schoolId, chatId, reply, actor);
+        if (result.success) {
+            toast({ title: 'Reply Sent!' });
+            setReply('');
+        } else {
+            toast({ title: 'Error', description: result.message, variant: 'destructive' });
+        }
+        setIsSending(false);
+    };
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button variant="secondary" size="sm" className="h-auto px-2 py-1 text-xs">Quick Reply</Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-2">
+                <div className="space-y-2">
+                    <Label htmlFor="quick-reply-input" className="sr-only">Reply</Label>
+                    <Textarea id="quick-reply-input" placeholder="Type your reply..." className="min-h-[80px] text-sm" value={reply} onChange={(e) => setReply(e.target.value)} />
+                    <Button size="sm" className="w-full" onClick={handleSend} disabled={isSending}>
+                        {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Send
+                    </Button>
+                </div>
+            </PopoverContent>
+        </Popover>
+    )
+}
 
 function NotificationItem({
   notification,
   schoolId,
   onDismiss,
   currentUserId,
+  currentUser,
 }: {
   notification: Notification;
   schoolId: string;
   onDismiss: (id: string) => void;
   currentUserId: string;
+  currentUser: { id: string, name: string };
 }) {
   const config = categoryConfig[notification.category] || categoryConfig.General;
   const Icon = config.icon;
   const isRead = notification.readBy?.includes(currentUserId);
-  const isUrgent = notification.category === 'Security';
+  const isUrgent = notification.category === 'Security' || notification.category === 'Communication';
 
   return (
     <div
       className={cn(
-        'flex items-start gap-4 p-4 rounded-lg transition-colors hover:bg-muted/50 border-l-4',
+        'relative flex items-start gap-4 p-4 rounded-lg transition-colors hover:bg-muted/50 border-l-4',
         'border-primary',
         isUrgent && !isRead && 'border-destructive',
         !isRead && 'bg-primary/5',
@@ -103,11 +150,16 @@ function NotificationItem({
             {notification.createdAt?.toDate().toLocaleString()}
           </p>
         </Link>
+         {notification.category === 'Communication' && notification.chatId && (
+            <div className="pt-2">
+                <QuickReplyPopover schoolId={schoolId} chatId={notification.chatId} actor={currentUser} />
+            </div>
+        )}
       </div>
       <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="absolute top-2 right-2 h-7 w-7"
           onClick={() => onDismiss(notification.id)}
         >
           <X className="h-4 w-4" />
@@ -224,6 +276,7 @@ export function NotificationBell() {
                         schoolId={schoolId!}
                         onDismiss={handleMarkAsRead}
                         currentUserId={user!.uid}
+                        currentUser={{ id: user!.uid, name: user!.displayName || 'Admin' }}
                         />
                     ))
                 ) : (

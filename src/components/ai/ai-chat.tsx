@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/context/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { firestore } from '@/lib/firebase';
-import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, serverTimestamp, getDoc, addDoc, collection } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { supportChatbot } from '@/ai/flows/support-chatbot-flow';
 import { MessageCircle, Send, Loader2, Sparkles, User, AlertTriangle } from 'lucide-react';
@@ -89,6 +89,18 @@ export function AiChat() {
             lastUpdate: serverTimestamp()
         }, { merge: true });
 
+        // Create a notification for the admin
+        await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+            title: 'Support Chat Escalated',
+            description: `A chat with ${userData.name || user.displayName} requires your attention.`,
+            createdAt: serverTimestamp(),
+            category: 'Communication',
+            href: `/admin/messaging?chatId=${user.uid}`,
+            chatId: user.uid,
+            audience: 'admin'
+        });
+
+
     } catch (error) {
         console.error("Error escalating chat:", error);
     } finally {
@@ -106,7 +118,7 @@ export function AiChat() {
     setInput('');
     setIsLoading(true);
     
-    const chatDocRef = doc(firestore, 'schools', schoolId, 'support-chats', user.uid);
+    const chatDocRef = doc(firestore, `schools/${schoolId}/support-chats`, user.uid);
 
     if (!isEscalated) { // Talk to AI
         const chatSnap = await getDoc(chatDocRef);
