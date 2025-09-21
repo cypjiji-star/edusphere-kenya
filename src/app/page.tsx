@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Lock, Sparkles, Users, Palette } from 'lucide-react';
@@ -35,25 +36,25 @@ const featureCards = [
   {
     icon: <Lock className="h-6 w-6 text-primary" />,
     title: 'Secure School Portals',
-    description: 'Isolated data architecture ensures each school operates in its own secure, private environment.',
+    description: 'Each school gets a dedicated, isolated instance, ensuring data privacy and security. Manage your school\'s operations with peace of mind.',
     imageId: 'feature-portal',
   },
   {
     icon: <Users className="h-6 w-6 text-primary" />,
     title: 'Role-Based Access',
-    description: 'Dedicated portals for Admins, Teachers, and Students with role-specific tools and permissions.',
+    description: 'Admins get a full overview, teachers get tools to manage their classes, and parents get insights into their child\'s progress—all in one platform.',
     imageId: 'feature-roles',
   },
   {
     icon: <Sparkles className="h-6 w-6 text-primary" />,
     title: 'AI-Powered Learning',
-    description: 'Generate personalized learning paths for students to master standards at their own pace.',
+    description: 'Our advanced AI analyzes student performance to create tailored learning paths, suggesting resources and activities to bridge knowledge gaps.',
     imageId: 'feature-ai',
   },
   {
     icon: <Palette className="h-6 w-6 text-primary" />,
     title: 'Portal Customization',
-    description: "School admins can tailor their portal's theme and style to match their school's unique brand.",
+    description: "Reflect your school's identity. Admins can customize logos, color schemes, and themes to create a branded, professional portal experience.",
     imageId: 'feature-brand',
   },
 ];
