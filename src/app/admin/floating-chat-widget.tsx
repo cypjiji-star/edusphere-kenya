@@ -46,14 +46,15 @@ export function FloatingChatWidget() {
 
     const unreadCount = conversations.filter(c => c.isEscalated).length;
 
+    // Effect to fetch the list of all conversations
     React.useEffect(() => {
         if (!schoolId) {
             setIsLoading(false);
             return;
         }
-
+        setIsLoading(true);
         const q = query(
-            collection(firestore, `schools/${schoolId}/support-chats`), 
+            collection(firestore, `schools/${schoolId}/support-chats`),
             orderBy('lastUpdate', 'desc'),
             limit(10)
         );
@@ -61,16 +62,28 @@ export function FloatingChatWidget() {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const convos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
             setConversations(convos);
-            
-            if (selectedConversation) {
-                const updatedConvo = convos.find(c => c.id === selectedConversation.id);
-                setSelectedConversation(updatedConvo || null);
-            }
             setIsLoading(false);
         });
 
         return () => unsubscribe();
-    }, [schoolId, selectedConversation]);
+    }, [schoolId]);
+
+    // Effect to listen to updates for ONLY the selected conversation
+    React.useEffect(() => {
+        if (!selectedConversation || !schoolId) return;
+
+        const docRef = doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id);
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setSelectedConversation({ id: docSnap.id, ...docSnap.data() } as Conversation);
+            } else {
+                setSelectedConversation(null); // The chat was deleted
+            }
+        });
+
+        return () => unsubscribe();
+    }, [selectedConversation?.id, schoolId]);
+
 
     const handleSendMessage = async () => {
         if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
@@ -85,6 +98,7 @@ export function FloatingChatWidget() {
 
         try {
             const conversationRef = doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id);
+            // We only write to Firestore. The onSnapshot listener will handle updating the state.
             await updateDoc(conversationRef, {
                 messages: arrayUnion(newAdminMessage),
                 lastMessage: reply,
@@ -179,13 +193,14 @@ export function FloatingChatWidget() {
                             </div>
                             <ScrollArea className="flex-1">
                                 <div className="p-4 space-y-4">
-                                {selectedConversation.messages.map((message, index) =>
-                                    message.role === 'admin' ? (
-                                        <AdminMessageBubble key={`${index}-${message.content}`} message={message} />
+                                {selectedConversation.messages.map((message, index) => {
+                                   const key = `${index}-${message.content}-${message.timestamp?.seconds}`;
+                                    return message.role === 'admin' ? (
+                                        <AdminMessageBubble key={key} message={message} />
                                     ) : (
-                                        <UserMessageBubble key={`${index}-${message.content}`} message={message} />
+                                        <UserMessageBubble key={key} message={message} />
                                     )
-                                )}
+                                })}
                                  <div ref={messagesEndRef} />
                                 </div>
                             </ScrollArea>
