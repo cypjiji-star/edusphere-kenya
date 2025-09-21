@@ -98,6 +98,7 @@ type AttendanceRecord = {
   teacherId?: string;
   date: Timestamp;
   status: AttendanceStatus;
+  avatarUrl?: string;
 };
 
 type TeacherAttendanceRecord = {
@@ -467,6 +468,7 @@ export default function AdminAttendancePage() {
           teacherId: data.teacherId,
           date: data.date,
           status: normalizeStatus(data.status || 'present'),
+          avatarUrl: data.studentAvatar,
         });
       }
       setAllRecords(records);
@@ -945,45 +947,76 @@ export default function AdminAttendancePage() {
                     </div>
                     </CardHeader>
                     <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Class</TableHead>
-                            <TableHead>Teacher</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredRecords.length > 0 ? (
-                            filteredRecords.map((record) => (
-                                <TableRow key={record.id}>
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                    <Avatar>
-                                        <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">{record.studentName}</span>
+                        {/* Desktop Table */}
+                        <div className="w-full overflow-auto rounded-lg border hidden md:block">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Student</TableHead>
+                                        <TableHead>Class</TableHead>
+                                        <TableHead>Teacher</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredRecords.length > 0 ? (
+                                    filteredRecords.map((record) => (
+                                        <TableRow key={record.id}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-3">
+                                                <Avatar>
+                                                    <AvatarImage src={record.avatarUrl} alt={record.studentName} />
+                                                    <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium">{record.studentName}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{record.class}</TableCell>
+                                            <TableCell>{record.teacher}</TableCell>
+                                            <TableCell>{clientReady && record.date.toDate().toLocaleDateString()}</TableCell>
+                                            <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                    ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center">
+                                        No records found for the selected filters.
+                                        </TableCell>
+                                    </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        {/* Mobile Cards */}
+                        <div className="grid grid-cols-1 gap-4 md:hidden">
+                        {filteredRecords.map((record) => (
+                            <Card key={record.id}>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarImage src={record.avatarUrl} alt={record.studentName} />
+                                                <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <CardTitle className="text-base">{record.studentName}</CardTitle>
+                                        </div>
+                                        {getStatusBadge(record.status)}
                                     </div>
-                                </TableCell>
-                                <TableCell>{record.class}</TableCell>
-                                <TableCell>{record.teacher}</TableCell>
-                                <TableCell>{clientReady && record.date.toDate().toLocaleDateString()}</TableCell>
-                                <TableCell>{getStatusBadge(record.status)}</TableCell>
-                                </TableRow>
-                            ))
-                            ) : (
-                            <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
-                                No records found for the selected filters.
-                                </TableCell>
-                            </TableRow>
-                            )}
-                        </TableBody>
-                        </Table>
-                    </div>
+                                    <CardDescription>{record.class}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">Date: {clientReady ? record.date.toDate().toLocaleDateString() : ''}</p>
+                                    <p className="text-sm text-muted-foreground">Teacher: {record.teacher}</p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                        {filteredRecords.length === 0 && (
+                            <div className="text-center text-muted-foreground py-12">
+                                <p>No records found for the selected filters.</p>
+                            </div>
+                        )}
+                        </div>
                     </CardContent>
                     <CardFooter>
                         <div className="text-xs text-muted-foreground">
@@ -1311,6 +1344,7 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
 
 
 

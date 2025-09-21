@@ -366,6 +366,11 @@ export default function AdminAttendancePage() {
   const [allStudents, setAllStudents] = React.useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
   const [studentSearchTerm, setStudentSearchTerm] = React.useState('');
+  const [clientReady, setClientReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   // Fetch static data once on component mount
   React.useEffect(() => {
@@ -857,7 +862,8 @@ export default function AdminAttendancePage() {
                                             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
-                                                    {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                                     <SelectItem value="All Teachers">All Teachers</SelectItem>
+                                                    {teachers.map(t => <SelectItem key={t} value={t.name}>{t.name}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -881,7 +887,7 @@ export default function AdminAttendancePage() {
                                         className={cn('w-full justify-start text-left font-normal md:w-[300px]', !date && 'text-muted-foreground')}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date?.from ? (
+                                        {clientReady && date?.from ? (
                                         date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
                                         ) : <span>Pick a date range</span>}
                                     </Button>
@@ -938,7 +944,7 @@ export default function AdminAttendancePage() {
                                 </TableCell>
                                 <TableCell>{record.class}</TableCell>
                                 <TableCell>{record.teacher}</TableCell>
-                                <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
+                                <TableCell>{clientReady && record.date.toDate().toLocaleDateString()}</TableCell>
                                 <TableCell>{getStatusBadge(record.status)}</TableCell>
                                 </TableRow>
                             ))
@@ -965,40 +971,62 @@ export default function AdminAttendancePage() {
          <TabsContent value="teacher">
              <Card>
                 <CardHeader>
-                    <CardTitle>Teacher Attendance</CardTitle>
-                    <CardDescription>A log of teacher check-ins and check-outs for the selected date.</CardDescription>
+                    <CardTitle>Teacher Attendance History</CardTitle>
+                    <CardDescription>A log of teacher attendance records for the selected term.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Teacher</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Check-in Time</TableHead>
-                                    <TableHead>Check-out Time</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredTeacherRecords.length > 0 ? (
-                                    filteredTeacherRecords.map((record) => (
-                                        <TableRow key={record.id}>
-                                            <TableCell>{record.teacherName}</TableCell>
-                                            <TableCell>{getStatusBadge(record.status)}</TableCell>
-                                            <TableCell>{record.checkInTime ? format(record.checkInTime.toDate(), 'p') : '—'}</TableCell>
-                                            <TableCell>{record.checkOutTime ? format(record.checkOutTime.toDate(), 'p') : '—'}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">
-                                            No teacher attendance records for the selected date.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                    <Accordion type="single" collapsible className="w-full">
+                        {Object.entries(groupedTeacherAttendance).map(([teacherId, records]) => {
+                            const teacher = teachers.find(t => t.id === teacherId);
+                            if (!teacher) return null;
+                            const presentDays = records.filter(r => r.status === 'Present' || r.status === 'CheckedOut').length;
+                            const totalDays = new Set(records.map(r => r.date.toDate().toDateString())).size;
+
+                            return (
+                                <AccordionItem value={teacherId} key={teacherId}>
+                                    <AccordionTrigger>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarImage src={teacher.avatarUrl} />
+                                                <AvatarFallback>{teacher.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-semibold">{teacher.name}</span>
+                                            <Badge variant="outline">{presentDays} / {totalDays} days present</Badge>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead>Status</TableHead>
+                                                        <TableHead>Check-in</TableHead>
+                                                        <TableHead>Check-out</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {records.map((record) => (
+                                                        <TableRow key={record.id}>
+                                                            <TableCell>{clientReady && format(record.date.toDate(), 'PPP')}</TableCell>
+                                                            <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                                            <TableCell>{clientReady && record.checkInTime ? format(record.checkInTime.toDate(), 'p') : '—'}</TableCell>
+                                                            <TableCell>{clientReady && record.checkOutTime ? format(record.checkOutTime.toDate(), 'p') : '—'}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            );
+                        })}
+                    </Accordion>
+                    {teacherAttendanceRecords.length === 0 && (
+                        <div className="text-center py-16 text-muted-foreground">
+                            No teacher attendance records found for this term.
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </TabsContent>
@@ -1015,46 +1043,65 @@ export default function AdminAttendancePage() {
                             <CardDescription>Review and approve leave applications submitted by staff.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="w-full overflow-auto rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Teacher</TableHead>
-                                            <TableHead>Type</TableHead>
-                                            <TableHead>Dates</TableHead>
-                                            <TableHead>Reason</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {leaveApplications.map(app => (
-                                            <TableRow key={app.id}>
-                                                <TableCell>{app.teacherName}</TableCell>
-                                                <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
-                                                <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
-                                                <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
-                                                <TableCell>{getStatusBadge(app.status)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {app.status === 'Pending' ? (
-                                                        <div className="flex gap-2 justify-end">
-                                                            <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
-                                                            <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
-                                                        </div>
-                                                    ) : '—'}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {leaveApplications.length === 0 && (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="h-24 text-center">
-                                                    No pending leave applications.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                            <Accordion type="single" collapsible className="w-full">
+                                {Object.entries(groupedLeaveApplications).map(([teacherId, apps]) => {
+                                    const teacher = teachers.find(t => t.id === teacherId);
+                                    if (!teacher) return null;
+                                    const pendingCount = apps.filter(app => app.status === 'Pending').length;
+                                    return (
+                                        <AccordionItem value={teacherId} key={teacherId}>
+                                            <AccordionTrigger>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar>
+                                                        <AvatarImage src={teacher.avatarUrl} />
+                                                        <AvatarFallback>{teacher.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="font-semibold">{teacher.name}</span>
+                                                    {pendingCount > 0 && <Badge>{pendingCount} Pending</Badge>}
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                <div className="w-full overflow-auto rounded-lg border">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Type</TableHead>
+                                                                <TableHead>Dates</TableHead>
+                                                                <TableHead>Reason</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                                <TableHead className="text-right">Actions</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {apps.map(app => (
+                                                                <TableRow key={app.id}>
+                                                                    <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
+                                                                    <TableCell>{clientReady && format(app.startDate.toDate(), 'dd/MM/yy')} - {clientReady && format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
+                                                                    <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
+                                                                    <TableCell>{getStatusBadge(app.status)}</TableCell>
+                                                                    <TableCell className="text-right">
+                                                                        {app.status === 'Pending' ? (
+                                                                            <div className="flex gap-2 justify-end">
+                                                                                <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
+                                                                                <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
+                                                                            </div>
+                                                                        ) : '—'}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    );
+                                })}
+                            </Accordion>
+                             {leaveApplications.length === 0 && (
+                                <div className="text-center py-16 text-muted-foreground">
+                                    No leave applications found.
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -1081,7 +1128,7 @@ export default function AdminAttendancePage() {
                                         {studentLeaveApps.map(app => (
                                             <TableRow key={app.id}>
                                                 <TableCell>{app.studentName}</TableCell>
-                                                <TableCell>{format(app.date.toDate(), 'PPP')}</TableCell>
+                                                <TableCell>{clientReady && format(app.date.toDate(), 'PPP')}</TableCell>
                                                 <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
                                                 <TableCell>{app.reportedBy}</TableCell>
                                                 <TableCell>{getStatusBadge(app.status)}</TableCell>
@@ -1179,7 +1226,7 @@ export default function AdminAttendancePage() {
                                             <TableBody>
                                             {studentFilteredRecords.map(record => (
                                                 <TableRow key={record.id}>
-                                                    <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
+                                                    <TableCell>{clientReady && record.date.toDate().toLocaleDateString()}</TableCell>
                                                     <TableCell>{getStatusBadge(record.status)}</TableCell>
                                                     <TableCell>{record.teacher}</TableCell>
                                                 </TableRow>
@@ -1215,7 +1262,7 @@ export default function AdminAttendancePage() {
                              <TableBody>
                                 {communicationLogs.length > 0 ? communicationLogs.map(log => (
                                     <TableRow key={log.id}>
-                                        <TableCell>{log.sentAt.toDate().toLocaleString()}</TableCell>
+                                        <TableCell>{clientReady && log.sentAt.toDate().toLocaleString()}</TableCell>
                                         <TableCell>{log.studentName}</TableCell>
                                         <TableCell>{log.parentName} ({log.parentContact})</TableCell>
                                         <TableCell><Badge variant="secondary">{log.reason}</Badge></TableCell>
@@ -1238,4 +1285,8 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
+
+
+
 
