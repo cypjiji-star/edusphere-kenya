@@ -27,21 +27,22 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 
-type AdminMessage = {
-  role: 'user' | 'model' | 'admin';
+type Message = {
+  role: 'user' | 'model' | 'admin' | 'parent' | 'teacher';
   content: string;
   senderName?: string;
+  timestamp: Timestamp;
 };
 
 type Conversation = {
     id: string;
-    userName: string;
-    userAvatar: string;
-    userId: string;
+    parentName?: string;
+    teacherName?: string;
+    studentName?: string;
     lastMessage: string;
     lastUpdate: Timestamp;
-    isEscalated: boolean;
-    messages: AdminMessage[];
+    unreadByAdmin?: boolean;
+    participants: string[];
 };
 
 
@@ -51,6 +52,7 @@ export default function MessagingPage() {
     const { user } = useAuth();
     const [conversations, setConversations] = React.useState<Conversation[]>([]);
     const [selectedConversation, setSelectedConversation] = React.useState<Conversation | null>(null);
+    const [messages, setMessages] = React.useState<Message[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [reply, setReply] = React.useState('');
     const [isSending, setIsSending] = React.useState(false);
@@ -59,7 +61,7 @@ export default function MessagingPage() {
 
      React.useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [selectedConversation?.messages]);
+    }, [messages]);
 
     React.useEffect(() => {
         if (!schoolId) {
@@ -68,7 +70,7 @@ export default function MessagingPage() {
         }
 
         const q = query(
-            collection(firestore, `schools/${schoolId}/support-chats`), 
+            collection(firestore, `schools/${schoolId}/conversations`), 
             orderBy('lastUpdate', 'desc')
         );
 
@@ -87,19 +89,35 @@ export default function MessagingPage() {
         return () => unsubscribe();
     }, [schoolId, selectedConversation]);
 
+     React.useEffect(() => {
+      if (!selectedConversation) {
+        setMessages([]);
+        return;
+      }
+      const unsub = onSnapshot(
+        doc(firestore, `schools/${schoolId}/conversations`, selectedConversation.id),
+        (doc) => {
+          setMessages(doc.data()?.messages || []);
+        }
+      );
+      return () => unsub();
+    }, [selectedConversation, schoolId]);
+
+
     const handleSendMessage = async () => {
         if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
         
         setIsSending(true);
-        const newAdminMessage: AdminMessage = {
+        const newAdminMessage: Message = {
           role: 'admin',
           content: reply,
           senderName: user.displayName || 'Admin',
+          timestamp: Timestamp.now(),
         };
-        const newMessages: AdminMessage[] = [...selectedConversation.messages, newAdminMessage];
+        const newMessages: Message[] = [...messages, newAdminMessage];
 
         try {
-            const conversationRef = doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id);
+            const conversationRef = doc(firestore, 'schools', schoolId, 'conversations', selectedConversation.id);
             await updateDoc(conversationRef, {
                 messages: newMessages,
                 lastMessage: reply,
@@ -117,7 +135,7 @@ export default function MessagingPage() {
         if (!schoolId || !selectedConversation) return;
 
         try {
-            const conversationRef = doc(firestore, `schools/${schoolId}/support-chats`, selectedConversation.id);
+            const conversationRef = doc(firestore, `schools/${schoolId}/conversations`, selectedConversation.id);
             await deleteDoc(conversationRef);
 
             toast({
@@ -167,10 +185,11 @@ export default function MessagingPage() {
                                     </Avatar>
                                     <div className="flex-1 overflow-hidden">
                                         <div className="flex justify-between items-center">
-                                            <p className="font-semibold truncate">{convo.userName}</p>
+                                            <p className="font-semibold truncate">{convo.parentName || convo.teacherName || 'User'}</p>
                                             <p className="text-xs text-muted-foreground">{convo.lastUpdate?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                         </div>
-                                        <p className="text-sm text-muted-foreground truncate">{convo.isEscalated && <span className="text-red-500 font-bold">! </span>}{convo.lastMessage}</p>
+                                        {convo.studentName && <p className="text-sm text-muted-foreground truncate">{convo.studentName}</p>}
+                                        <p className="text-sm text-muted-foreground truncate">{convo.unreadByAdmin && <span className="text-primary font-bold">! </span>}{convo.lastMessage}</p>
                                     </div>
                                 </button>
                             ))}
@@ -191,8 +210,8 @@ export default function MessagingPage() {
                                         <AvatarFallback><User/></AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <CardTitle>{selectedConversation.userName}</CardTitle>
-                                        <CardDescription>Conversation with {selectedConversation.userName}</CardDescription>
+                                        <CardTitle>{selectedConversation.parentName || selectedConversation.teacherName || 'User'}</CardTitle>
+                                        <CardDescription>Conversation with {selectedConversation.parentName || selectedConversation.teacherName || 'User'}</CardDescription>
                                     </div>
                                 </div>
                                 <AlertDialog>
@@ -224,29 +243,29 @@ export default function MessagingPage() {
                         <ScrollArea className="h-[calc(100vh-320px)]">
                             <div className="p-4 space-y-4">
                                 {selectedConversation ? (
-                                    selectedConversation.messages?.map((message, index) => {
+                                    messages.map((message, index) => {
                                         const isAdmin = message.role === 'admin';
-                                        const isUser = message.role === 'user';
+                                        const isUser = message.role === 'user' || message.role === 'parent' || message.role === 'teacher';
                                         const isModel = message.role === 'model';
                                         return (
                                         <div key={index} className={cn('flex items-end gap-2', (isUser || isAdmin) ? 'justify-end' : 'justify-start')}>
-                                            {isModel && (
+                                            {!isUser && !isAdmin && (
                                                 <Avatar className="h-8 w-8">
                                                     <AvatarFallback>
-                                                        <Sparkles />
+                                                        {isModel ? <Sparkles /> : <User />}
                                                     </AvatarFallback>
                                                 </Avatar>
                                             )}
                                             <div className={cn('flex flex-col gap-1', (isUser || isAdmin) ? 'items-end' : 'items-start')}>
                                                 {(isUser) && (
                                                     <p className="font-bold text-xs text-muted-foreground px-1">
-                                                        {selectedConversation.userName}
+                                                        {selectedConversation.parentName || selectedConversation.teacherName || 'User'}
                                                     </p>
                                                 )}
                                                 <div className={cn(
                                                     "p-3 text-sm shadow-md", 
-                                                    isUser ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-none' : 
-                                                    isAdmin ? 'bg-blue-600 text-white rounded-2xl rounded-bl-none max-w-xs' : 
+                                                    isUser ? 'bg-muted rounded-2xl rounded-bl-none' : 
+                                                    isAdmin ? 'bg-blue-600 text-white rounded-2xl rounded-br-none' : 
                                                     'bg-muted rounded-lg'
                                                 )}>
                                                     <p>{message.content}</p>
