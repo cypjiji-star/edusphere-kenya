@@ -52,7 +52,7 @@ export default function DeveloperContactPage() {
                                     <CardContent className="space-y-4">
                                         <div className="flex items-center gap-4">
                                             <Avatar className="h-24 w-24">
-                                                <AvatarImage src="https://i.postimg.cc/mDwqx5F8/IMG-20240428-WA0023.jpg" alt="Derick Kisero" />
+                                                <AvatarImage src="https://i.postimg.cc/mg8cDv6H/Whats-App-Image-2025-09-21-at-5-28-36-PM.jpg" alt="Derick Kisero" />
                                                 <AvatarFallback>DK</AvatarFallback>
                                             </Avatar>
                                             <div>
