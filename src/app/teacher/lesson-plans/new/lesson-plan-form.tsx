@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -119,7 +120,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
             assignmentsSnapshot.forEach(doc => {
                 const assignments = doc.data().assignments || [];
                 assignments.forEach((assignment: { subject: string; teacher: string | null; }) => {
-                    // Also check if the current teacher is assigned to that subject in the class
+                    // Check if the current teacher is assigned to that subject in the class
                     if (assignment.teacher === user.displayName) {
                         subjectNames.add(assignment.subject);
                     }

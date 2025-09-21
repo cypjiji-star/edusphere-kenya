@@ -338,7 +338,7 @@ export default function StudentEnrolmentPage() {
         try {
             let parentUserId;
             let parentIsNew = false;
-            const parentQuery = query(collection(firestore, `schools/${schoolId}/users`), where('email', '==', values.parentEmail));
+            const parentQuery = query(collection(firestore, `schools/${schoolId}/parents`), where('email', '==', values.parentEmail));
             const parentQuerySnapshot = await getDocs(parentQuery);
 
             if (parentQuerySnapshot.empty) {

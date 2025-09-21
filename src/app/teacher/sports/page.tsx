@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -34,7 +35,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, where, getDocs, serverTimestamp, doc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { generateTeamIcon } from '@/ai/flows/generate-team-icon-flow';
 import { Textarea } from '@/components/ui/textarea';
@@ -90,7 +91,7 @@ export default function SportsPage() {
         setIsLoading(false);
     });
 
-    const teachersQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
+    const teachersQuery = query(collection(firestore, 'schools', schoolId, 'teachers'));
     const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
         const teachers = snapshot.docs.map(doc => ({ 
             id: doc.id, 
