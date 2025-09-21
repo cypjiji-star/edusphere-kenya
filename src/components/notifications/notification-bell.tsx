@@ -122,7 +122,7 @@ function NotificationItem({
   schoolId: string;
   onDismiss: (id: string) => void;
   currentUserId: string;
-  currentUser: { id: string, name: string };
+  currentUser: { id: string, name: string, role: string };
 }) {
   const config = categoryConfig[notification.category] || categoryConfig.General;
   const Icon = config.icon;
@@ -152,7 +152,7 @@ function NotificationItem({
             {notification.createdAt?.toDate().toLocaleString()}
           </p>
         </Link>
-         {notification.category === 'Communication' && notification.chatId && (
+         {currentUser.role === 'admin' && notification.category === 'Communication' && notification.chatId && (
             <div className="pt-2">
                 <QuickReplyPopover schoolId={schoolId} chatId={notification.chatId} actor={currentUser} />
             </div>
@@ -261,7 +261,7 @@ export function NotificationBell() {
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-full">
          <Tabs defaultValue="notifications" className="flex-1 flex flex-col">
             <SheetHeader className="p-4 border-b">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className={cn("grid w-full", isUserPortal ? "grid-cols-2" : "grid-cols-1")}>
                     <TabsTrigger value="notifications">
                         <Bell className="mr-2 h-4 w-4" />
                         Notifications
@@ -289,7 +289,7 @@ export function NotificationBell() {
                                 schoolId={schoolId!}
                                 onDismiss={handleMarkAsRead}
                                 currentUserId={user!.uid}
-                                currentUser={{ id: user!.uid, name: user!.displayName || 'Admin' }}
+                                currentUser={{ id: user!.uid, name: user!.displayName || 'Admin', role: role }}
                                 />
                             ))
                         ) : (

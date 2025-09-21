@@ -144,7 +144,7 @@ export default function MessagingPage() {
 
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col p-4 sm:p-6 lg:p-8">
             <div className="mb-6">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><MessageCircle className="h-8 w-8 text-primary"/>Support Messaging</h1>
                 <p className="text-muted-foreground">Respond to support requests from parents and teachers.</p>
