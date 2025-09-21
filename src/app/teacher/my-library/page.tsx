@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -320,8 +319,10 @@ export default function MyLibraryPage() {
                 });
                 
                 // Decrement the teacher's count of the book by exactly one
+                const borrowedItemSnap = await transaction.get(teacherBorrowedItemRef);
+                const currentQuantity = borrowedItemSnap.exists() ? borrowedItemSnap.data().quantity : 0;
                 transaction.update(teacherBorrowedItemRef, {
-                    quantity: book.quantity - 1
+                    quantity: currentQuantity - 1
                 });
             });
             

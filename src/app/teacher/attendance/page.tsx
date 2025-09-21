@@ -124,7 +124,7 @@ function LeaveManagementTab({ schoolId, user, teacherName }: { schoolId: string,
     }, [schoolId, user]);
 
     const handleSubmitLeave = async () => {
-        if (!leaveType || !dateRange?.from || !dateRange?.to || !reason) {
+        if (!leaveType || !dateRange?.from || !dateRange?.to || !reason || !user) {
             toast({ title: 'Missing Information', description: 'Please fill out all fields.', variant: 'destructive'});
             return;
         }
@@ -282,7 +282,7 @@ export default function AttendancePage() {
   // Fetch teacher's details (name)
   useEffect(() => {
     if (!user || !schoolId) return;
-    const teacherDocRef = doc(firestore, `schools/${schoolId}/teachers`, user.uid);
+    const teacherDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
     const unsubscribe = onSnapshot(teacherDocRef, (docSnap) => {
       if (docSnap.exists()) {
         setTeacherName(docSnap.data().name || 'Teacher');
@@ -338,7 +338,7 @@ export default function AttendancePage() {
             return {
                 id: d.id,
                 name: data.name || "Unknown",
-                rollNumber: data.rollNumber || '',
+                rollNumber: data.admissionNumber || '',
                 avatarUrl: data.avatarUrl || `https://picsum.photos/seed/${d.id}/100`,
                 status: "unmarked",
                 notes: "",
@@ -545,7 +545,7 @@ export default function AttendancePage() {
                                             <div className="flex flex-col">
                                             <span className="font-medium">{student.name}</span>
                                             {student.rollNumber && (
-                                                <span className="text-sm text-muted-foreground">Roll: {student.rollNumber}</span>
+                                                <span className="text-sm text-muted-foreground">Adm: {student.rollNumber}</span>
                                             )}
                                             </div>
                                         </div>
