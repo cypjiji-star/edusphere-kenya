@@ -107,14 +107,14 @@ export function AiChat() {
             lastUpdate: serverTimestamp(),
         });
       }
-
+      
       // If an admin has ever replied, do not call the AI. Just save the user's message for the admin.
       if (hasAdminReplied) {
         setIsLoading(false);
         return;
       }
       
-      // Generate AI response if not escalated and no admin has replied
+      // Generate AI response if not escalated
       const aiInput: SupportChatbotInput = {
         history: newMessages.filter((m) => m.role === 'user' || m.role === 'model'),
       };
@@ -150,6 +150,8 @@ export function AiChat() {
     // This will trigger the escalation message in the AI flow
     sendMessage("I need to talk to an admin.");
   };
+
+  const canReply = !isEscalated || hasAdminReplied;
 
   return (
     <div className="flex flex-col h-full">
@@ -210,45 +212,10 @@ export function AiChat() {
         </div>
       </ScrollArea>
       <div className="border-t p-4 space-y-4">
-        {isEscalated || hasAdminReplied ? (
-            <div className="text-center text-sm text-muted-foreground p-4 rounded-md bg-muted">
-                {isEscalated ? 'An administrator will be with you shortly.' : 'You are speaking with an administrator.'}
-            </div>
-        ) : (
-             <>
-                <div className="relative">
-                    <Input
-                        placeholder="Type your message..."
-                        className="pr-12"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                        disabled={isLoading}
-                    />
-                    <Button
-                        size="icon"
-                        className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8"
-                        onClick={handleSendMessage}
-                        disabled={isLoading || !input.trim()}
-                    >
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    </Button>
-                </div>
-                <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleTalkToAdmin}
-                    disabled={isLoading}
-                >
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Talk to an Admin
-                </Button>
-            </>
-        )}
-         {hasAdminReplied && !isEscalated && (
-              <div className="relative">
+        {canReply ? (
+             <div className="relative">
                 <Input
-                    placeholder="Reply to the admin..."
+                    placeholder={hasAdminReplied ? "Reply to the admin..." : "Type your message..."}
                     className="pr-12"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -264,6 +231,22 @@ export function AiChat() {
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
             </div>
+        ) : (
+             <div className="text-center text-sm text-muted-foreground p-4 rounded-md bg-muted">
+                An administrator will be with you shortly.
+            </div>
+        )}
+
+        {!hasAdminReplied && !isEscalated && (
+            <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleTalkToAdmin}
+                disabled={isLoading}
+            >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Talk to an Admin
+            </Button>
         )}
       </div>
     </div>
