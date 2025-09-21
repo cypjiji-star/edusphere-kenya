@@ -45,14 +45,7 @@ export function LoginForm() {
       let userIsAssociatedWithSchool = false;
       let userRole: string | null = null;
       let userName: string = user.displayName || user.email || 'Unknown';
-      let isDeveloper = false;
       
-      const devDocRef = doc(firestore, 'developers', user.uid);
-      const devDocSnap = await getDoc(devDocRef);
-      if (devDocSnap.exists()) {
-          isDeveloper = true;
-      }
-
       if (role === 'parent') {
         const studentsQuery = query(collection(firestore, `schools/${schoolCode}/students`), where('parentId', '==', user.uid));
         const studentsSnapshot = await getDocs(studentsQuery);
@@ -62,18 +55,27 @@ export function LoginForm() {
             userName = studentsSnapshot.docs[0].data().parentName || userName;
         }
       } else {
+        // Check both 'users' and 'admins' collections for the user
         const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        const adminDocRef = doc(firestore, 'schools', schoolCode, 'admins', user.uid);
+        
+        const [userDocSnap, adminDocSnap] = await Promise.all([getDoc(userDocRef), getDoc(adminDocRef)]);
 
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             userIsAssociatedWithSchool = true;
             userRole = userData.role?.toLowerCase();
             userName = userData.name || userName;
+        } else if (adminDocSnap.exists()) {
+            // This is the key fix: check if the user is in the admins subcollection
+            const adminData = adminDocSnap.data();
+            userIsAssociatedWithSchool = true;
+            userRole = adminData.role?.toLowerCase();
+            userName = adminData.name || userName;
         }
       }
 
-      if ((userIsAssociatedWithSchool && userRole === role) || (isDeveloper && role === 'admin')) {
+      if (userIsAssociatedWithSchool && userRole === role) {
         const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
         if((await getDoc(userDocRef)).exists()) {
           await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
