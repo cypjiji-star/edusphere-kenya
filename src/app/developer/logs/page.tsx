@@ -50,6 +50,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health' | 'General';
@@ -110,7 +111,7 @@ export default function AuditLogsPage() {
     return () => unsubscribe();
   }, []);
 
-  const filteredLogs = logs.filter(log => {
+  const filteredLogs = React.useMemo(() => logs.filter(log => {
       if (!log.timestamp) return false;
       const recordDate = log.timestamp.toDate();
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
@@ -124,7 +125,18 @@ export default function AuditLogsPage() {
       const matchesAction = actionFilter === 'All Types' || log.actionType === actionFilter;
 
       return isDateInRange && matchesSearch && matchesUser && matchesAction;
-  });
+  }), [logs, date, searchTerm, userFilter, actionFilter]);
+
+  const groupedLogs = React.useMemo(() => {
+    return filteredLogs.reduce((acc, log) => {
+        const key = log.schoolId || 'Platform';
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(log);
+        return acc;
+    }, {} as Record<string, AuditLog[]>);
+  }, [filteredLogs]);
 
   return (
     <Dialog onOpenChange={(open) => !open && setSelectedLog(null)}>
@@ -227,73 +239,66 @@ export default function AuditLogsPage() {
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[250px]">Action</TableHead>
-                                        <TableHead>Performed By</TableHead>
-                                        <TableHead>School ID</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Details</TableHead>
-                                        <TableHead className="text-right">View</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredLogs.length > 0 ? (
-                                        filteredLogs.map((log) => {
-                                            const config = actionTypeConfig[log.actionType];
-                                            const Icon = config.icon;
-                                            return (
-                                                <DialogTrigger key={log.id} asChild>
-                                                    <TableRow 
-                                                    onClick={() => setSelectedLog(log)} 
-                                                    className={cn(
-                                                        "cursor-pointer",
-                                                        log.actionType === 'Security' && 'border-l-4 border-destructive'
-                                                    )}
-                                                    >
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-3">
-                                                                <Icon className={cn("h-5 w-5", config.color)} />
-                                                                <span className="font-medium">{log.description}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-3">
-                                                                <Avatar className="h-8 w-8">
-                                                                    <AvatarFallback>{log.user.name.charAt(0)}</AvatarFallback>
-                                                                </Avatar>
-                                                                <span>{log.user.name}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Badge variant="outline">{log.schoolId || 'Platform'}</Badge>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {log.timestamp?.toDate().toLocaleString()}
-                                                        </TableCell>
-                                                        <TableCell className="text-muted-foreground max-w-xs truncate">
-                                                            {typeof log.details === 'string' ? log.details : `Value changed`}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Button variant="ghost" size="sm">
-                                                                Details <ArrowRight className="ml-2 h-4 w-4" />
-                                                            </Button>
-                                                        </TableCell>
+                        <Accordion type="multiple" className="w-full">
+                            {Object.entries(groupedLogs).map(([schoolId, schoolLogs]) => (
+                                <AccordionItem value={schoolId} key={schoolId}>
+                                    <AccordionTrigger>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold">{schoolId === 'Platform' ? 'Platform-Level' : `School: ${schoolId}`}</span>
+                                            <Badge variant="outline">{schoolLogs.length} events</Badge>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="w-full overflow-auto rounded-lg border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="w-[250px]">Action</TableHead>
+                                                        <TableHead>Performed By</TableHead>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead>Details</TableHead>
+                                                        <TableHead className="text-right">View</TableHead>
                                                     </TableRow>
-                                                </DialogTrigger>
-                                            );
-                                        })
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center">
-                                            No log entries found for the selected filters.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {schoolLogs.map((log) => {
+                                                        const config = actionTypeConfig[log.actionType];
+                                                        const Icon = config.icon;
+                                                        return (
+                                                            <DialogTrigger key={log.id} asChild>
+                                                                <TableRow onClick={() => setSelectedLog(log)} className={cn("cursor-pointer", log.actionType === 'Security' && 'border-l-4 border-destructive')}>
+                                                                    <TableCell>
+                                                                        <div className="flex items-center gap-3">
+                                                                            <Icon className={cn("h-5 w-5", config.color)} />
+                                                                            <span className="font-medium">{log.description}</span>
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <div className="flex items-center gap-3">
+                                                                            <Avatar className="h-8 w-8">
+                                                                                <AvatarFallback>{log.user.name.charAt(0)}</AvatarFallback>
+                                                                            </Avatar>
+                                                                            <span>{log.user.name}</span>
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell>{log.timestamp?.toDate().toLocaleString()}</TableCell>
+                                                                    <TableCell className="text-muted-foreground max-w-xs truncate">{typeof log.details === 'string' ? log.details : `Value changed`}</TableCell>
+                                                                    <TableCell className="text-right"><Button variant="ghost" size="sm">Details <ArrowRight className="ml-2 h-4 w-4" /></Button></TableCell>
+                                                                </TableRow>
+                                                            </DialogTrigger>
+                                                        );
+                                                    })}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    )}
+                    {Object.keys(groupedLogs).length === 0 && !isLoading && (
+                        <div className="text-center py-16 text-muted-foreground">
+                            <p>No log entries found for the selected filters.</p>
                         </div>
                     )}
                 </CardContent>
