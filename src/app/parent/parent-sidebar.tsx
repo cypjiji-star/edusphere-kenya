@@ -40,8 +40,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { ThemeSwitcher } from '@/components/ui/theme-switcher';
+import { collection, onSnapshot, query, where, doc } from 'firebase/firestore';
+import { useAuth } from '@/context/auth-context';
 
 
 const navItems = [
@@ -61,7 +61,9 @@ export function ParentSidebar() {
   const schoolId = searchParams.get('schoolId');
   const isActive = (href: string) => pathname.startsWith(href);
   const [dynamicBadges, setDynamicBadges] = React.useState<Record<string, number>>({});
-  const [user, setUser] = React.useState(auth.currentUser);
+  const { user } = useAuth();
+  const [parentName, setParentName] = React.useState('Parent');
+  const [parentEmail, setParentEmail] = React.useState('');
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleLinkClick = () => {
@@ -71,9 +73,18 @@ export function ParentSidebar() {
   };
 
   React.useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe();
-  }, []);
+    if (user && schoolId) {
+      const userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
+      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          setParentName(userData.name || 'Parent');
+          setParentEmail(userData.email || '');
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [user, schoolId]);
 
 
   React.useEffect(() => {
@@ -90,14 +101,9 @@ export function ParentSidebar() {
         });
         setDynamicBadges(prev => ({...prev, unreadAnnouncements: unreadCount}));
     });
-
-    // Unread messages - placeholder as messaging isn't fully built for parents yet.
-    // Replace with actual query when ready.
-    const unsubscribeMessages = () => {}; 
     
     return () => {
         unsubscribeAnnouncements();
-        unsubscribeMessages();
     };
   }, [schoolId, user]);
 
@@ -127,7 +133,6 @@ export function ParentSidebar() {
                 <SidebarMenuButton
                     asChild
                     isActive={isActive(item.href)}
-                    tooltip={{ children: item.label }}
                 >
                     <Link href={`${item.href}?schoolId=${schoolId}`} onClick={handleLinkClick}>
                         <item.icon />
@@ -146,10 +151,10 @@ export function ParentSidebar() {
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.photoURL || "https://picsum.photos/seed/parent1/100"} alt="Parent" />
-                <AvatarFallback>{user?.displayName?.charAt(0) || 'P'}</AvatarFallback>
+                <AvatarFallback>{parentName.charAt(0) || 'P'}</AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <p className="text-sm font-medium">{user?.displayName || 'Parent'}</p>
+                <p className="text-sm font-medium">{parentName}</p>
                 <p className="text-xs text-muted-foreground">Parent</p>
               </div>
               <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
@@ -158,9 +163,9 @@ export function ParentSidebar() {
           <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.displayName || 'Parent'}</p>
+                <p className="text-sm font-medium leading-none">{parentName}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email || 'parent@example.com'}
+                  {parentEmail}
                 </p>
               </div>
             </DropdownMenuLabel>
@@ -168,7 +173,7 @@ export function ParentSidebar() {
             <DropdownMenuItem disabled><Settings className="mr-2" />Profile & Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
-                <Link href="/" onClick={handleLinkClick}>
+                <Link href="/" onClick={() => auth.signOut()}>
                     <LogOut className="mr-2" />
                     <span>Log out</span>
                 </Link>

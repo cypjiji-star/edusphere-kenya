@@ -58,8 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const userData = userDocSnap.data();
               setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
           } else {
-             // If user doesn't exist in the general 'users' collection, they have no role for this school.
-             setRole('unknown');
+             // If user is not in the general 'users' collection, they might be a parent.
+             // This is a fallback check. Ideally, all users have an entry in the 'users' collection.
+             const parentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', authUser.uid));
+             const parentSnap = await getDocs(parentQuery);
+             if (!parentSnap.empty) {
+                setRole('parent');
+             } else {
+                setRole('unknown');
+             }
           }
         } else if (pathname !== '/login' && pathname !== '/') {
             setRole('unknown');
