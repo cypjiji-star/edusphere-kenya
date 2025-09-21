@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { getAuth } from 'firebase-admin/auth';
@@ -94,8 +95,9 @@ export async function createUserAction(params: {
     const uid = userRecord.uid;
     const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
 
-    // 2. Create user document in the school's 'users' collection in Firestore
-    const userDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
+    // 2. Create user document in the appropriate collection based on role
+    const roleCollection = role.toLowerCase() + 's'; // e.g., 'teachers', 'admins'
+    const userDocRef = doc(firestore, 'schools', schoolId, roleCollection, uid);
     
     const userData: any = {
       id: uid,
@@ -115,16 +117,9 @@ export async function createUserAction(params: {
     
     await setDoc(userDocRef, userData);
 
-    // 3. Add to role-specific collections if necessary
-    if (role === 'Admin') {
-        const adminDocRef = doc(firestore, 'schools', schoolId, 'admins', uid);
-        await setDoc(adminDocRef, {
-            id: uid,
-            name: name,
-            role: 'Admin',
-            avatarUrl: avatarUrl,
-        });
-    }
+    // Also add to the general 'users' collection for easy role lookup if needed, but primary data is in role-specific collection
+    const genericUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
+    await setDoc(genericUserDocRef, { role, name, email });
     
     // 4. Log the audit event
     await logAuditEvent({

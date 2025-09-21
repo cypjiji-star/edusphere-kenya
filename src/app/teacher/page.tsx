@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -308,6 +309,7 @@ export default function TeacherDashboard() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
     const { user } = useAuth();
+    
     const [schoolName, setSchoolName] = React.useState('');
     const [teacherName, setTeacherName] = React.useState('Teacher');
     const [totalStudents, setTotalStudents] = React.useState(0);
@@ -336,15 +338,6 @@ export default function TeacherDashboard() {
             unsubscribers.push(onSnapshot(teacherDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     setTeacherName(docSnap.data().name || 'Teacher');
-                } else {
-                    // Fallback to users collection if not in teachers
-                    const userDocRef = doc(firestore, `schools/${schoolId}/users`, teacherId);
-                    const unsubUser = onSnapshot(userDocRef, (userSnap) => {
-                        if (userSnap.exists()) {
-                            setTeacherName(userSnap.data().name || 'Teacher');
-                        }
-                    });
-                    unsubscribers.push(unsubUser);
                 }
             }));
 
