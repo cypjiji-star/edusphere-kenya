@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -114,18 +113,18 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         
         if (classIds.length > 0) {
             // Fetch subjects taught in those classes
-            const assignmentsQuery = query(collection(firestore, 'schools', schoolId, 'class-assignments'), where('__name__', 'in', classIds));
-            const assignmentsSnapshot = await getDocs(assignmentsQuery);
             const subjectNames = new Set<string>();
-            assignmentsSnapshot.forEach(doc => {
-                const assignments = doc.data().assignments || [];
-                assignments.forEach((assignment: { subject: string; teacher: string | null; }) => {
-                    // Check if the current teacher is assigned to that subject in the class
-                    if (assignment.teacher === user.displayName) {
-                        subjectNames.add(assignment.subject);
-                    }
-                });
-            });
+            for (const classId of classIds) {
+                const assignmentsDoc = await getDoc(doc(firestore, `schools/${schoolId}/class-assignments`, classId));
+                if (assignmentsDoc.exists()) {
+                    const assignments = assignmentsDoc.data().assignments || [];
+                    assignments.forEach((assignment: { subject: string; teacher: string | null; }) => {
+                        if (assignment.teacher === user.displayName) {
+                            subjectNames.add(assignment.subject);
+                        }
+                    });
+                }
+            }
             setSubjects(Array.from(subjectNames));
         } else {
             setSubjects([]);
@@ -500,5 +499,3 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
     </Form>
   );
 }
-
-    

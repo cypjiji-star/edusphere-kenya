@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, doc, updateDoc, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc, orderBy, limit, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -131,11 +131,17 @@ export function TeacherSidebar() {
     const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
     const unsubscribeAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
         let ungradedCount = 0;
-        snapshot.forEach(doc => {
-            const assignment = doc.data();
-            if (assignment.submissions < assignment.totalStudents) ungradedCount++;
+        const promises = snapshot.docs.map(async (assignmentDoc) => {
+            const assignmentData = assignmentDoc.data();
+            const submissionsQuery = query(collection(firestore, `schools/${schoolId}/assignments/${assignmentDoc.id}/submissions`), where('status', '==', 'Handed In'));
+            const submissionsSnapshot = await getDocs(submissionsQuery);
+            return submissionsSnapshot.size;
         });
-        setDynamicBadges(prev => ({ ...prev, ungradedAssignments: ungradedCount }));
+
+        Promise.all(promises).then(counts => {
+            ungradedCount = counts.reduce((a, b) => a + b, 0);
+            setDynamicBadges(prev => ({ ...prev, ungradedAssignments: ungradedCount }));
+        });
     });
 
     // Cleanup listeners on component unmount

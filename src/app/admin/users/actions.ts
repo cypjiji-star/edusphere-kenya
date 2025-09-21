@@ -46,6 +46,7 @@ export async function deleteUserAction(uid: string, schoolId: string, role: stri
         try {
             await auth.deleteUser(uid);
         } catch (error: any) {
+            // If user is not in Auth (e.g. created before auth was enforced), don't fail the whole operation
             if (error.code !== 'auth/user-not-found') {
                 throw error;
             }
@@ -57,14 +58,9 @@ export async function deleteUserAction(uid: string, schoolId: string, role: stri
     const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
     await deleteDoc(userDocRef);
     
-    await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
-      title: 'Security Alert: User Record Deleted',
-      description: `A user record was permanently deleted.`,
-      createdAt: serverTimestamp(),
-      category: 'Security',
-      href: `/admin/logs?schoolId=${schoolId}`,
-      audience: 'admin'
-    });
+    // Also delete from the general 'users' collection if it exists there
+    const generalUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
+    await deleteDoc(generalUserDocRef).catch(() => {}); // Ignore error if it doesn't exist
     
     return { success: true, message: 'User record completely deleted.' };
   } catch (error: any) {
@@ -104,6 +100,8 @@ export async function createUserAction(params: {
     let uid: string;
     let finalUserData: any;
 
+    const batch = writeBatch(firestore);
+
     if (isNonTeachingStaff) {
       // This is a record, not a login-enabled user.
       const newDocRef = doc(collection(firestore, 'schools', schoolId, 'non_teaching_staff'));
@@ -121,7 +119,7 @@ export async function createUserAction(params: {
         status: 'Active',
         createdAt: serverTimestamp(),
       };
-      await setDoc(newDocRef, finalUserData);
+      batch.set(newDocRef, finalUserData);
 
     } else {
       // This is a user with login credentials.
@@ -140,7 +138,8 @@ export async function createUserAction(params: {
       const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
 
       const roleCollectionName = role.toLowerCase() + 's';
-      const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
+      const roleDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
+      const generalUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
 
       finalUserData = {
         id: uid,
@@ -162,9 +161,12 @@ export async function createUserAction(params: {
         finalUserData.classIds = classes;
       }
       
-      await setDoc(userDocRef, finalUserData);
+      batch.set(roleDocRef, finalUserData);
+      batch.set(generalUserDocRef, { name, role });
     }
     
+    await batch.commit();
+
     // Log the audit event
     await logAuditEvent({
         schoolId,
