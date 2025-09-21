@@ -57,7 +57,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, limit, updateDoc, doc, where } from 'firebase/firestore';
-import { NotificationCenter } from '@/components/notifications/notification-center';
 import { useAuth } from '@/context/auth-context';
 
 
@@ -86,7 +85,6 @@ const navGroups = [
     title: 'Communication',
     items: [
       { href: '/admin/announcements', label: 'Announcements', icon: Megaphone, badge: null, collection: '' },
-      { href: '/admin/messaging', label: 'Messaging', icon: MessageCircle },
       { href: '/admin/calendar', label: 'Events Calendar', icon: Calendar },
     ],
   },

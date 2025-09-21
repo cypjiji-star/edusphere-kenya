@@ -3,6 +3,7 @@ import { SidebarProvider, Sidebar, SidebarInset, SidebarTrigger } from '@/compon
 import { TeacherSidebar } from './teacher-sidebar';
 import { Suspense } from 'react';
 import { AuthCheck } from '@/lib/auth-check';
+import { FloatingSupportWidget } from '@/components/layout/floating-support-widget';
 
 export default function TeacherLayout({
   children,
@@ -23,6 +24,7 @@ export default function TeacherLayout({
               <SidebarTrigger />
             </header>
             {children}
+            <FloatingSupportWidget />
           </main>
         </SidebarInset>
       </SidebarProvider>

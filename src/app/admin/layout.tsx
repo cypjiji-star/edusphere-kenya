@@ -3,6 +3,7 @@ import { SidebarProvider, Sidebar, SidebarInset, SidebarTrigger } from '@/compon
 import { AdminSidebar } from './admin-sidebar';
 import { Suspense } from 'react';
 import { AuthCheck } from '@/lib/auth-check';
+import { FloatingChatWidget } from './floating-chat-widget';
 
 export default function AdminLayout({
   children,
@@ -23,6 +24,9 @@ export default function AdminLayout({
               <SidebarTrigger />
             </header>
             <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+            <Suspense>
+              <FloatingChatWidget />
+            </Suspense>
           </main>
         </SidebarInset>
       </SidebarProvider>

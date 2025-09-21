@@ -3,6 +3,7 @@ import { SidebarProvider, Sidebar, SidebarInset, SidebarTrigger } from '@/compon
 import { ParentSidebar } from './parent-sidebar';
 import { Suspense } from 'react';
 import { AuthCheck } from '@/lib/auth-check';
+import { FloatingSupportWidget } from '@/components/layout/floating-support-widget';
 
 export default function ParentLayout({
   children,
@@ -23,6 +24,7 @@ export default function ParentLayout({
               <SidebarTrigger />
             </header>
             {children}
+            <FloatingSupportWidget />
           </main>
         </SidebarInset>
       </SidebarProvider>

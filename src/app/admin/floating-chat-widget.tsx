@@ -22,7 +22,7 @@ type AdminMessage = {
   role: 'user' | 'model' | 'admin';
   content: string;
   senderName?: string;
-  timestamp: Timestamp;
+  timestamp?: Timestamp;
 };
 
 type Conversation = {
@@ -125,7 +125,7 @@ export function FloatingChatWidget() {
       </motion.div>
     );
     
-    const UserMessageBubble = ({ message, userName }: { message: AdminMessage, userName: string }) => (
+    const UserMessageBubble = ({ message }: { message: AdminMessage }) => (
         <div className="flex items-end gap-2 max-w-xs">
             <Avatar className="h-8 w-8">
                 <AvatarFallback><User/></AvatarFallback>
@@ -182,7 +182,7 @@ export function FloatingChatWidget() {
                                     message.role === 'admin' ? (
                                         <AdminMessageBubble key={index} message={message} />
                                     ) : (
-                                        <UserMessageBubble key={index} message={message} userName={selectedConversation.userName} />
+                                        <UserMessageBubble key={index} message={message} />
                                     )
                                 )}
                                  <div ref={messagesEndRef} />
@@ -232,15 +232,6 @@ export function FloatingChatWidget() {
                                 ) : (
                                     <p className="text-sm text-muted-foreground text-center py-4">No recent messages.</p>
                                 )}
-                            </div>
-                            <Separator />
-                            <div className="p-2">
-                                <Button asChild className="w-full" variant="secondary">
-                                    <Link href={`/admin/messaging?schoolId=${schoolId}`}>
-                                        Go to Full Messaging
-                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Link>
-                                </Button>
                             </div>
                         </motion.div>
                     )}
