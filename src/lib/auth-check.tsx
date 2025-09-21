@@ -64,10 +64,8 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
 
 export function AuthCheck({ children, requiredRole }: { children: ReactNode; requiredRole: AllowedRole }) {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>}>
       <AuthChecker requiredRole={requiredRole}>
         {children}
       </AuthChecker>
-    </Suspense>
   )
 }
