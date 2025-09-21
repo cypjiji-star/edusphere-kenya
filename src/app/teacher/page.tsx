@@ -11,18 +11,298 @@ import {
   CardTitle,
   CardFooter,
 } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Users, BookMarked, ClipboardCheck, Percent, Loader2, ArrowRight } from 'lucide-react';
-import { TimetableWidget } from './timetable-widget';
-import { AbsentStudentsWidget } from './absent-students-widget';
-import { MessagesWidget } from './messages-widget';
-import { LibraryNoticesWidget } from './library-notices-widget';
+import { ArrowRight, BookMarked, Calendar, Check, CircleDollarSign, ClipboardCheck, FileText, Megaphone, Percent, User, Users, Loader2, AlertCircle } from 'lucide-react';
+import { isPast } from 'date-fns';
 import { firestore } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { MyAttendanceWidget } from './my-attendance-widget';
 import { DashboardCharts } from './dashboard-charts';
+import { TimetableWidget } from './timetable-widget';
+import { AbsentStudentsWidget } from './absent-students-widget';
+import { MessagesWidget } from './messages-widget';
+import { LibraryNoticesWidget } from './library-notices-widget';
+import { PendingTasksWidget } from './pending-tasks-widget';
+
+// Types
+type Child = {
+    id: string;
+    name: string;
+    class: string;
+    avatarUrl: string;
+    overallGrade?: number;
+    attendance?: number;
+    feeStatus: {
+        total: number;
+        paid: number;
+        balance: number;
+        status: 'Paid' | 'Partial' | 'Overdue';
+        dueDate: string;
+    };
+    recentGrades?: { subject: string; grade: string; date: string }[];
+};
+
+type Announcement = {
+    id: string;
+    title: string;
+    content: string;
+    sentAt: Timestamp;
+    readBy?: string[];
+};
+
+type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event' | 'Sports' | 'Trip';
+
+type UpcomingEvent = {
+  id: string;
+  date: Date;
+  title: string;
+  type: EventType;
+};
+
+const eventTypeColors: Record<EventType, string> = {
+    Meeting: 'bg-purple-500',
+    Exam: 'bg-red-600',
+    Holiday: 'bg-green-600',
+    Event: 'bg-blue-500',
+    Sports: 'bg-orange-500',
+    Trip: 'bg-pink-500',
+};
+
+// Utility functions
+const getFeeStatusBadge = (status: 'Paid' | 'Partial' | 'Overdue') => {
+    switch(status) {
+        case 'Paid': return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
+        case 'Partial': return <Badge className="bg-blue-500 hover:bg-blue-500">Partial Payment</Badge>;
+        case 'Overdue': return <Badge variant="destructive">Overdue</Badge>;
+    }
+}
+
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
+};
+
+const getAttendanceColor = (attendance: number) => {
+    if (attendance >= 90) return 'text-green-600';
+    if (attendance >= 70) return 'text-orange-500';
+    return 'text-red-600';
+}
+
+// Error Boundary Component
+const ErrorMessage = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
+  <div className="flex flex-col items-center justify-center p-6 text-center text-destructive">
+    <AlertCircle className="h-8 w-8 mb-2" />
+    <p className="mb-4">{message}</p>
+    {onRetry && (
+      <Button variant="outline" onClick={onRetry}>
+        Try Again
+      </Button>
+    )}
+  </div>
+);
+
+// Loading Component
+const LoadingSpinner = ({ message }: { message?: string }) => (
+  <div className="flex flex-col items-center justify-center p-6">
+    <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+    {message && <p className="text-muted-foreground">{message}</p>}
+  </div>
+);
+
+function AnnouncementsWidget({ schoolId, currentUserId }: { schoolId: string, currentUserId: string }) {
+    const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!schoolId) {
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const q = query(
+                collection(firestore, `schools/${schoolId}/announcements`), 
+                orderBy('sentAt', 'desc'), 
+                limit(2)
+            );
+            
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    const fetchedAnnouncements = snapshot.docs.map(doc => ({ 
+                        id: doc.id, 
+                        ...doc.data() 
+                    } as Announcement));
+                    setAnnouncements(fetchedAnnouncements);
+                    setLoading(false);
+                },
+                (error) => {
+                    console.error('Error fetching announcements:', error);
+                    setError('Failed to load announcements');
+                    setLoading(false);
+                }
+            );
+            
+            return () => unsubscribe();
+        } catch (error) {
+            setError('Error setting up announcements listener');
+            setLoading(false);
+        }
+    }, [schoolId]);
+
+    if (loading) return <LoadingSpinner message="Loading announcements..." />;
+    if (error) return <ErrorMessage message={error} />;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Megaphone className="h-5 w-5 text-primary"/>
+                    Recent Announcements
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {announcements.map((ann, index) => {
+                    const isRead = ann.readBy?.includes(currentUserId);
+                    return (
+                     <div key={ann.id}>
+                        <Link href={`/parent/announcements?schoolId=${schoolId}`} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
+                            <div className="flex items-start gap-3">
+                                {!isRead && <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}
+                                <div className="flex-1 space-y-1">
+                                    <p className="font-semibold text-sm">{ann.title}</p>
+                                    <p className="text-sm text-muted-foreground truncate">{ann.content}</p>
+                                </div>
+                                <p className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {ann.sentAt.toDate().toLocaleDateString()}
+                                </p>
+                            </div>
+                        </Link>
+                        {index < announcements.length - 1 && <Separator className="mt-4" />}
+                    </div>
+                )})}
+                 {announcements.length === 0 && (
+                    <div className="text-center text-muted-foreground py-4">
+                        <p>No recent announcements.</p>
+                    </div>
+                )}
+            </CardContent>
+            <CardFooter>
+                 <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link href={`/parent/announcements?schoolId=${schoolId}`}>
+                        View All Announcements
+                        <ArrowRight className="ml-2 h-4 w-4"/>
+                    </Link>
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
+
+function CalendarWidget({ schoolId }: { schoolId: string }) {
+    const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!schoolId) {
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const q = query(
+                collection(firestore, `schools/${schoolId}/calendar-events`),
+                where('date', '>=', Timestamp.now()),
+                orderBy('date', 'asc'),
+                limit(4)
+            );
+            
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    const fetchedEvents = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            ...data,
+                            date: (data.date as Timestamp).toDate(),
+                        } as UpcomingEvent;
+                    });
+                    setUpcomingEvents(fetchedEvents);
+                    setLoading(false);
+                },
+                (error) => {
+                    console.error('Error fetching events:', error);
+                    setError('Failed to load calendar events');
+                    setLoading(false);
+                }
+            );
+            
+            return () => unsubscribe();
+        } catch (error) {
+            setError('Error setting up calendar listener');
+            setLoading(false);
+        }
+    }, [schoolId]);
+
+    if (loading) return <LoadingSpinner message="Loading events..." />;
+    if (error) return <ErrorMessage message={error} />;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline text-lg flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Upcoming Events
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {upcomingEvents.map((event, index) => (
+                        <div key={event.id}>
+                            <div className="flex items-center gap-4">
+                                <div className="flex flex-col items-center justify-center w-14 text-center bg-muted/50 rounded-md p-2">
+                                    <span className="text-sm font-bold uppercase text-primary">
+                                        {event.date.toLocaleDateString('en-US', { month: 'short' })}
+                                    </span>
+                                    <span className="text-xl font-bold">{event.date.getDate()}</span>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-semibold text-sm">{event.title}</p>
+                                    <Badge className={`mt-1 text-white ${eventTypeColors[event.type]}`}>
+                                        {event.type}
+                                    </Badge>
+                                </div>
+                            </div>
+                            {index < upcomingEvents.length - 1 && <Separator className="mt-4" />}
+                        </div>
+                    ))}
+                    {upcomingEvents.length === 0 && (
+                        <div className="text-center text-muted-foreground py-8">
+                            <p>No upcoming events scheduled.</p>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link href={`/teacher/calendar?schoolId=${schoolId}`}>
+                        View Full Calendar
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
 
 export default function TeacherDashboard() {
     const searchParams = useSearchParams();
@@ -52,9 +332,20 @@ export default function TeacherDashboard() {
                 if(docSnap.exists()) setSchoolName(docSnap.data().name);
             }));
             
-            const userDocRef = doc(firestore, `schools/${schoolId}/users`, teacherId);
-            unsubscribers.push(onSnapshot(userDocRef, (docSnap) => {
-                if (docSnap.exists()) setTeacherName(docSnap.data().name || 'Teacher');
+            const teacherDocRef = doc(firestore, `schools/${schoolId}/teachers`, teacherId);
+            unsubscribers.push(onSnapshot(teacherDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    setTeacherName(docSnap.data().name || 'Teacher');
+                } else {
+                    // Fallback to users collection if not in teachers
+                    const userDocRef = doc(firestore, `schools/${schoolId}/users`, teacherId);
+                    const unsubUser = onSnapshot(userDocRef, (userSnap) => {
+                        if (userSnap.exists()) {
+                            setTeacherName(userSnap.data().name || 'Teacher');
+                        }
+                    });
+                    unsubscribers.push(unsubUser);
+                }
             }));
 
             const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
