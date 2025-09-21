@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -22,7 +21,6 @@ import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDoc
 import { useSearchParams } from 'next/navigation';
 import { SecurityAlertsWidget } from './security-alerts-widget';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 const overviewLinks: Record<string, string> = {
     "Total Students": "/admin/students",
@@ -191,7 +189,6 @@ export default function AdminDashboard() {
             </h1>
             <p className="text-muted-foreground">School-wide overview and management.</p>
         </div>
-        <ThemeSwitcher />
       </div>
       
        <div className="space-y-8 overflow-auto">
