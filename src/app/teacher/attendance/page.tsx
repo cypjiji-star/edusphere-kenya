@@ -282,7 +282,7 @@ export default function AttendancePage() {
   // Fetch teacher's details (name)
   useEffect(() => {
     if (!user || !schoolId) return;
-    const teacherDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+    const teacherDocRef = doc(firestore, `schools/${schoolId}/teachers`, user.uid);
     const unsubscribe = onSnapshot(teacherDocRef, (docSnap) => {
       if (docSnap.exists()) {
         setTeacherName(docSnap.data().name || 'Teacher');
@@ -377,7 +377,7 @@ export default function AttendancePage() {
 
   useEffect(() => {
     fetchAttendanceData();
-  }, [fetchAttendanceData]);
+  }, [fetchAttendanceData, selectedDate]);
 
 
   const handleAttendanceChange = (studentId: string, status: AttendanceStatus) => {

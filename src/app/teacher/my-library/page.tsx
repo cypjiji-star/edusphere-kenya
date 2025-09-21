@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer, Users } from 'lucide-react';
+import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer, Users, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';

@@ -2,7 +2,8 @@
 'use server';
 
 import { firestore } from '@/lib/firebase';
-import { collection, doc, writeBatch, serverTimestamp, getDoc } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, query, where, getDocs, writeBatch, doc, getDoc } from 'firebase/firestore';
+import { z } from 'zod';
 import { logAuditEvent } from '@/lib/audit-log.service';
 
 interface GradeData {
@@ -65,6 +66,16 @@ export async function saveGradesAction(
         user: actor,
         details: `Entered ${successfulSaves} grades for ${subject} in ${className}. Grades are pending approval.`,
       });
+
+       // Notify admin that grades need moderation
+      await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+        title: 'Grades Awaiting Approval',
+        description: `${actor.name} submitted ${successfulSaves} grades for ${subject} in ${className}.`,
+        createdAt: serverTimestamp(),
+        category: 'Academics',
+        href: `/admin/grades?schoolId=${schoolId}`,
+        audience: 'admin',
+      });
     }
 
     return { success: true, message: `${successfulSaves} grades saved successfully and are pending approval.` };
@@ -73,5 +84,3 @@ export async function saveGradesAction(
     return { success: false, message: 'An error occurred while saving grades.' };
   }
 }
-
-    
