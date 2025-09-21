@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Sparkles, User, Loader2 } from 'lucide-react';
+import { Send, Sparkles, User, Loader2, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
 import { useSearchParams } from 'next/navigation';
@@ -69,13 +69,12 @@ export function AiChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!input.trim() || isLoading || !user || !schoolId) return;
+  const sendMessage = async (messageContent: string) => {
+    if (!messageContent.trim() || isLoading || !user || !schoolId) return;
 
-    const userMessage: Message = { role: 'user', content: input };
+    const userMessage: Message = { role: 'user', content: messageContent };
     const newMessages: Message[] = [...messages, userMessage];
 
-    setInput('');
     setMessages(newMessages);
     setIsLoading(true);
 
@@ -88,7 +87,7 @@ export function AiChat() {
           userId: user.uid,
           userName: user.displayName || 'User',
           userAvatar: user.photoURL || '',
-          lastMessage: input,
+          lastMessage: messageContent,
           lastUpdate: serverTimestamp(),
           isEscalated: false,
           messages: newMessages,
@@ -123,6 +122,15 @@ export function AiChat() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  const handleSendMessage = () => {
+    sendMessage(input);
+    setInput('');
+  };
+
+  const handleTalkToAdmin = () => {
+    sendMessage("I need to talk to an admin.");
   };
 
   return (
@@ -178,7 +186,7 @@ export function AiChat() {
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
-      <div className="border-t p-4">
+      <div className="border-t p-4 space-y-4">
         <div className="relative">
           <Input
             placeholder="Type your message..."
@@ -197,9 +205,15 @@ export function AiChat() {
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          Can't find an answer? Type "talk to an admin" to connect with a human.
-        </p>
+        <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleTalkToAdmin}
+            disabled={isLoading}
+        >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Talk to an Admin
+        </Button>
       </div>
     </div>
   );
