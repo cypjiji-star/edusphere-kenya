@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { format } from 'date-fns';
 
 // Moved schema to assignment-form.tsx to avoid exporting non-functions from a 'use server' file.
 import type { AssignmentFormValues } from './assignment-form';

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -20,13 +21,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp, getDocs, runTransaction, deleteDoc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useAuth } from '@/context/auth-context';
 
 
 type BorrowedItem = {
@@ -85,7 +87,7 @@ export default function MyLibraryPage() {
     const [studentAssignments, setStudentAssignments] = React.useState<StudentAssignment[]>([]);
     const [newRequestTitle, setNewRequestTitle] = React.useState('');
     const { toast } = useToast();
-    const user = auth.currentUser;
+    const { user } = useAuth();
 
     const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
     const [allTeacherStudents, setAllTeacherStudents] = React.useState<TeacherStudent[]>([]);

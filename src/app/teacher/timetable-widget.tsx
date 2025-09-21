@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import * as React from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 
 type TimetableEntry = {
@@ -34,7 +35,7 @@ export function TimetableWidget() {
   const [clientReady, setClientReady] = React.useState(false);
   const [todaySchedule, setTodaySchedule] = React.useState<TimetableEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const user = auth.currentUser;
+  const { user } = useAuth();
   
   useEffect(() => {
     setClientReady(true);

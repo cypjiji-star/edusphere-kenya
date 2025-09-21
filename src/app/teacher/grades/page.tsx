@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -103,7 +104,7 @@ export default function TeacherGradesPage() {
     const [isSaving, setIsSaving] = React.useState(false);
 
     React.useEffect(() => {
-        if (!schoolId) return;
+        if (!schoolId || !user) return;
 
         const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('status', '==', 'Open'));
         const unsubExams = onSnapshot(examsQuery, (snapshot) => {
@@ -111,7 +112,7 @@ export default function TeacherGradesPage() {
             setIsLoading(prev => ({ ...prev, exams: false }));
         });
 
-        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', user.uid));
         const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
             const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
             setAllClasses(classesData);
@@ -130,7 +131,7 @@ export default function TeacherGradesPage() {
             unsubClasses();
             unsubSubjects();
         };
-    }, [schoolId]);
+    }, [schoolId, user]);
 
     // Fetch students for grade entry
     React.useEffect(() => {
