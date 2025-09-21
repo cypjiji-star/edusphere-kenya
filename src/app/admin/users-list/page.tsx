@@ -298,19 +298,11 @@ export default function UserManagementListPage() {
       if (!userToDelete || !schoolId || !adminUser) return;
       
       try {
-        const authResult = await deleteUserAction(userToDelete.id, schoolId);
-        if (!authResult.success && !authResult.message?.includes('user-not-found')) {
-          throw new Error(authResult.message);
+        const result = await deleteUserAction(userToDelete.id, schoolId, userToDelete.role);
+        
+        if (!result.success) {
+          throw new Error(result.message);
         }
-    
-        const collectionName = userToDelete.role.toLowerCase() + 's';
-        const userDocRef = doc(firestore, 'schools', schoolId, collectionName, userToDelete.id);
-        const genericUserDocRef = doc(firestore, 'schools', schoolId, 'users', userToDelete.id);
-
-        const batch = writeBatch(firestore);
-        batch.delete(userDocRef);
-        batch.delete(genericUserDocRef);
-        await batch.commit();
 
         await logAuditEvent({
           schoolId,
@@ -721,5 +713,3 @@ export default function UserManagementListPage() {
         </div>
     );
 }
-
-    

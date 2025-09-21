@@ -27,15 +27,39 @@ export async function updateUserAuthAction(uid: string, updates: { email?: strin
 
 
 /**
- * Deletes a user from Firebase Authentication.
+ * Deletes a user from Firebase Authentication and Firestore.
  * This is a privileged operation and must only be executed on the server.
  * @param uid The user's unique ID.
+ * @param schoolId The school ID.
+ * @param role The user's role, to find the correct Firestore collection.
  */
-export async function deleteUserAction(uid: string, schoolId: string) {
+export async function deleteUserAction(uid: string, schoolId: string, role: string) {
   try {
     const adminApp = getFirebaseAdminApp();
     const auth = getAuth(adminApp);
-    await auth.deleteUser(uid);
+
+    // Attempt to delete from Firebase Auth first
+    try {
+        await auth.deleteUser(uid);
+    } catch (error: any) {
+        // If user doesn't exist in Auth, we can still proceed with DB cleanup.
+        if (error.code !== 'auth/user-not-found') {
+            throw error; // Re-throw other auth errors
+        }
+    }
+    
+    const batch = writeBatch(firestore);
+
+    // Delete from role-specific collection (e.g., 'teachers', 'admins')
+    const roleCollectionName = role.toLowerCase() + 's';
+    const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
+    batch.delete(userDocRef);
+
+    // Also delete from the central 'users' collection
+    const genericUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
+    batch.delete(genericUserDocRef);
+
+    await batch.commit();
     
     // Create a notification for this security event
     await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
@@ -47,15 +71,10 @@ export async function deleteUserAction(uid: string, schoolId: string) {
       audience: 'admin'
     });
     
-    return { success: true, message: 'Authentication record deleted.' };
+    return { success: true, message: 'User record completely deleted.' };
   } catch (error: any) {
-    console.error("Error deleting user from Firebase Auth:", error);
-    if (error.code === 'auth/user-not-found') {
-        // If user doesn't exist in Auth, it might be an orphan record.
-        // We can consider this a "success" in terms of cleaning up.
-        return { success: true, message: 'User not found in Auth, proceeding with DB cleanup.' };
-    }
-    return { success: false, message: error.message || 'Failed to delete user authentication.' };
+    console.error("Error deleting user:", error);
+    return { success: false, message: error.message || 'Failed to delete user.' };
   }
 }
 
@@ -141,5 +160,3 @@ export async function createUserAction(params: {
     return { success: false, message: error.message || 'Failed to create user.' };
   }
 }
-
-    
