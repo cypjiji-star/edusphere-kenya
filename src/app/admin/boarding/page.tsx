@@ -36,6 +36,7 @@ import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 type BoardingStatus = 'Boarder' | 'Day Scholar';
@@ -153,86 +154,92 @@ export default function BoardingPage() {
                 <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Boarders</CardTitle><div className="text-2xl font-bold text-primary">{stats.boarders}</div></CardHeader></Card>
                 <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Day Scholars</CardTitle><div className="text-2xl font-bold">{stats.dayScholars}</div></CardHeader></Card>
             </div>
-
-            <Card>
-                <CardHeader>
-                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="relative w-full md:max-w-sm">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Search by name or admission no..."
-                                className="w-full bg-background pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+            
+            <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as BoardingStatus | 'All')}>
+                <Card>
+                    <CardHeader>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="relative w-full md:max-w-sm">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search by name or admission no..."
+                                    className="w-full bg-background pl-8"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <TabsList>
+                                    <TabsTrigger value="All">All Students</TabsTrigger>
+                                    <TabsTrigger value="Boarder">Boarders</TabsTrigger>
+                                    <TabsTrigger value="Day Scholar">Day Scholars</TabsTrigger>
+                                </TabsList>
+                                <Select value={classFilter} onValueChange={setClassFilter}>
+                                    <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Classes"/></SelectTrigger>
+                                    <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-                             <Select value={classFilter} onValueChange={setClassFilter}>
-                                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Classes"/></SelectTrigger>
-                                <SelectContent>{classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                            </Select>
-                             <Select value={statusFilter} onValueChange={(v: 'All' | BoardingStatus) => setStatusFilter(v)}>
-                                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Statuses"/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Statuses</SelectItem>
-                                    <SelectItem value="Boarder">Boarders</SelectItem>
-                                    <SelectItem value="Day Scholar">Day Scholars</SelectItem>
-                                </SelectContent>
-                            </Select>
-                         </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    {isLoading ? (
-                         <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
-                    ) : (
-                        <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Student</TableHead>
-                                        <TableHead>Class</TableHead>
-                                        <TableHead className="w-[200px]">Boarding Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredStudents.map((student) => (
-                                        <TableRow key={student.id}>
-                                            <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                <Avatar className="h-9 w-9">
-                                                    <AvatarImage src={student.avatarUrl} alt={student.name} />
-                                                    <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                                <span className="font-medium">{student.name}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{student.class}</TableCell>
-                                            <TableCell>
-                                                <Select value={student.boardingStatus} onValueChange={(value) => handleStatusChange(student.id, student.name, value as BoardingStatus)}>
-                                                    <SelectTrigger>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Boarder"><Moon className="mr-2 h-4 w-4 inline-block"/>Boarder</SelectItem>
-                                                        <SelectItem value="Day Scholar"><Sun className="mr-2 h-4 w-4 inline-block"/>Day Scholar</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+                        ) : (
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Student</TableHead>
+                                            <TableHead>Class</TableHead>
+                                            <TableHead className="w-[200px]">Boarding Status</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredStudents.map((student) => (
+                                            <TableRow key={student.id}>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                    <Avatar className="h-9 w-9">
+                                                        <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                                        <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <span className="font-medium">{student.name}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>{student.class}</TableCell>
+                                                <TableCell>
+                                                    <Select value={student.boardingStatus} onValueChange={(value) => handleStatusChange(student.id, student.name, value as BoardingStatus)}>
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Boarder"><Moon className="mr-2 h-4 w-4 inline-block"/>Boarder</SelectItem>
+                                                            <SelectItem value="Day Scholar"><Sun className="mr-2 h-4 w-4 inline-block"/>Day Scholar</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {filteredStudents.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="h-24 text-center">
+                                                    No students found for this filter.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
+                    </CardContent>
+                    <CardFooter>
+                        <div className="text-xs text-muted-foreground">
+                            Showing <strong>{filteredStudents.length}</strong> of <strong>{students.length}</strong> students.
                         </div>
-                    )}
-                </CardContent>
-                <CardFooter>
-                    <div className="text-xs text-muted-foreground">
-                        Showing <strong>{filteredStudents.length}</strong> of <strong>{students.length}</strong> students.
-                    </div>
-                </CardFooter>
-            </Card>
+                    </CardFooter>
+                </Card>
+            </Tabs>
         </div>
     );
 }
