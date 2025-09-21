@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-* as React from 'react';
+import * as React from 'react';
 import Link from 'next/link';
 import { auth, firestore } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -46,7 +46,17 @@ export function LoginForm() {
       let userRole: string | null = null;
       let userName: string = user.displayName || user.email || 'Unknown';
       
-      if (role === 'parent') {
+      // For any non-parent role, check the 'users' collection
+      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          userIsAssociatedWithSchool = true;
+          userRole = userData.role?.toLowerCase();
+          userName = userData.name || userName;
+      } else if (role === 'parent') {
+        // Only if role is parent, check the students collection
         const studentsQuery = query(collection(firestore, `schools/${schoolCode}/students`), where('parentId', '==', user.uid));
         const studentsSnapshot = await getDocs(studentsQuery);
         if (!studentsSnapshot.empty) {
@@ -54,22 +64,10 @@ export function LoginForm() {
             userRole = 'parent';
             userName = studentsSnapshot.docs[0].data().parentName || userName;
         }
-      } else {
-        // For Admin or Teacher, check the 'users' collection
-        const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-
-        if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            userIsAssociatedWithSchool = true;
-            userRole = userData.role?.toLowerCase();
-            userName = userData.name || userName;
-        }
       }
 
       if (userIsAssociatedWithSchool && userRole === role) {
-        const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-        if((await getDoc(userDocRef)).exists()) {
+        if(userDocSnap.exists()) {
           await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
         }
 
