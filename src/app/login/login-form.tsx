@@ -42,34 +42,39 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      let userIsAssociatedWithSchool = false;
+      let userDocRef;
       let userRoleInDb: string | null = null;
-      let userName: string = user.displayName || user.email || 'Unknown';
-      
-      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      let userIsAssociatedWithSchool = false;
+      let userName = user.displayName || user.email || 'Unknown';
 
-      if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          // *** CRITICAL CHECK: Ensure the user record belongs to this school ***
-          if (userData.schoolId === schoolCode) {
-              userIsAssociatedWithSchool = true;
-              userRoleInDb = userData.role?.toLowerCase();
-              userName = userData.name || userName;
-          }
-      } else if (role === 'parent') {
+      if (role === 'parent') {
         const studentsQuery = query(collection(firestore, `schools/${schoolCode}/students`), where('parentId', '==', user.uid));
         const studentsSnapshot = await getDocs(studentsQuery);
         if (!studentsSnapshot.empty) {
-            // A parent is associated if they have a child in the school
             userIsAssociatedWithSchool = true;
             userRoleInDb = 'parent';
             userName = studentsSnapshot.docs[0].data().parentName || userName;
         }
+      } else if (role === 'admin') {
+          userDocRef = doc(firestore, 'schools', schoolCode, 'admins', user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+           if (userDocSnap.exists()) {
+              userIsAssociatedWithSchool = true;
+              userRoleInDb = 'admin';
+              userName = userDocSnap.data().name || userName;
+          }
+      } else if (role === 'teacher') {
+          userDocRef = doc(firestore, 'schools', schoolCode, 'teachers', user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+           if (userDocSnap.exists()) {
+              userIsAssociatedWithSchool = true;
+              userRoleInDb = 'teacher';
+              userName = userDocSnap.data().name || userName;
+          }
       }
-
-      if (userIsAssociatedWithSchool && userRoleInDb === role) {
-        if(userDocSnap.exists()) {
+      
+       if (userIsAssociatedWithSchool && userRoleInDb === role) {
+        if (userDocRef) {
           await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
         }
 
@@ -108,15 +113,6 @@ export function LoginForm() {
           break;
       }
       
-      await addDoc(collection(firestore, `schools/${schoolCode || 'unknown'}/notifications`), {
-        title: 'Failed Login Attempt',
-        description: `An unsuccessful login attempt was made for the email: ${email}.`,
-        createdAt: serverTimestamp(),
-        category: 'Security',
-        href: `/admin/logs?schoolId=${schoolCode || 'unknown'}`,
-        audience: 'admin'
-      });
-
       await logAuditEvent({
           schoolId: schoolCode || 'unknown',
           action: 'USER_LOGIN_FAILURE',
