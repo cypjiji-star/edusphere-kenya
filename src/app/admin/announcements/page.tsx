@@ -167,6 +167,8 @@ export default function AdminAnnouncementsPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [totalUserCount, setTotalUserCount] = React.useState(0);
   const [announcementToDelete, setAnnouncementToDelete] = React.useState<string | null>(null);
+  const [page, setPage] = React.useState(1);
+  const announcementsPerPage = 5;
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -203,6 +205,13 @@ export default function AdminAnnouncementsPage() {
         unsubscribe();
     };
   }, [schoolId]);
+
+  const paginatedAnnouncements = React.useMemo(() => {
+    const startIndex = (page - 1) * announcementsPerPage;
+    return pastAnnouncements.slice(startIndex, startIndex + announcementsPerPage);
+  }, [pastAnnouncements, page]);
+
+  const totalPages = Math.ceil(pastAnnouncements.length / announcementsPerPage);
 
   const handleTranslate = async () => {
     const message = form.getValues('message');
@@ -434,7 +443,7 @@ export default function AdminAnnouncementsPage() {
                          <CardDescription>A live feed of all announcements sent by admins and teachers.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {pastAnnouncements.map((ann) => (
+                        {paginatedAnnouncements.map((ann) => (
                             <div key={ann.id}>
                                 <div className="space-y-3">
                                      <div className="flex items-start justify-between">
@@ -491,6 +500,32 @@ export default function AdminAnnouncementsPage() {
                             </div>
                         ))}
                     </CardContent>
+                    <CardFooter>
+                        <div className="text-xs text-muted-foreground">
+                            Showing <strong>{paginatedAnnouncements.length}</strong> of <strong>{pastAnnouncements.length}</strong> announcements.
+                        </div>
+                        <div className="ml-auto flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                            >
+                                Previous
+                            </Button>
+                            <span className="text-sm">
+                                Page {page} of {totalPages}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </CardFooter>
                 </Card>
             </TabsContent>
             <TabsContent value="compose">

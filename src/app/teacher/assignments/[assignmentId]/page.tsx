@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -73,7 +74,8 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
   const [statusFilter, setStatusFilter] = React.useState<SubmissionStatus | 'All'>('All');
   const [gradingStudent, setGradingStudent] = React.useState<Submission | null>(null);
   const [clientReady, setClientReady] = React.useState(false);
-
+  const [page, setPage] = React.useState(1);
+  const submissionsPerPage = 10;
 
   React.useEffect(() => {
     if (!assignmentId || !schoolId) return;
@@ -149,6 +151,13 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
     s.studentName.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (statusFilter === 'All' || s.status === statusFilter)
   );
+
+  const paginatedSubmissions = React.useMemo(() => {
+    const startIndex = (page - 1) * submissionsPerPage;
+    return filteredSubmissions.slice(startIndex, startIndex + submissionsPerPage);
+  }, [filteredSubmissions, page, submissionsPerPage]);
+
+  const totalPages = Math.ceil(filteredSubmissions.length / submissionsPerPage);
   
   if (isLoading || !assignmentDetails) {
     return (
@@ -254,8 +263,8 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSubmissions.length > 0 ? (
-                    filteredSubmissions.map(submission => (
+                  {paginatedSubmissions.length > 0 ? (
+                    paginatedSubmissions.map(submission => (
                       <TableRow key={submission.studentId}>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -297,8 +306,8 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
             </div>
              {/* Mobile Cards */}
             <div className="grid gap-4 md:hidden">
-              {filteredSubmissions.length > 0 ? (
-                filteredSubmissions.map(submission => (
+              {paginatedSubmissions.length > 0 ? (
+                paginatedSubmissions.map(submission => (
                   <Card key={submission.studentId} className="w-full">
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -343,6 +352,34 @@ export default function AssignmentSubmissionsPage({ params }: { params: { assign
               )}
             </div>
         </CardContent>
+         <CardFooter>
+            <div className="text-xs text-muted-foreground">
+                Showing <strong>{paginatedSubmissions.length}</strong> of <strong>{filteredSubmissions.length}</strong> submissions.
+            </div>
+            {totalPages > 1 && (
+                <div className="ml-auto flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                    >
+                        Previous
+                    </Button>
+                    <span className="text-sm">
+                        Page {page} of {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                    >
+                        Next
+                    </Button>
+                </div>
+            )}
+        </CardFooter>
       </Card>
     </div>
   );
