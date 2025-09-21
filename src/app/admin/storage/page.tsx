@@ -47,6 +47,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ResourceItem = {
     id: string;
@@ -121,7 +122,7 @@ export default function SchoolStoragePage() {
             setUsageLogs(logs);
         });
 
-        const userCollections = ['teachers', 'admins', 'parents', 'non_teaching_staff'];
+        const userCollections = ['teachers', 'admins', 'non_teaching_staff'];
         const unsubscribers = userCollections.map(col => {
             const userQuery = query(collection(firestore, `schools/${schoolId}/${col}`));
             return onSnapshot(userQuery, (snapshot) => {
@@ -225,6 +226,19 @@ export default function SchoolStoragePage() {
         }
     };
     
+    const groupedUsageLogs = React.useMemo(() => {
+        const resourceCategoryMap = new Map(resources.map(r => [r.id, r.category]));
+        const grouped: Record<string, UsageLog[]> = {};
+        usageLogs.forEach(log => {
+            const category = resourceCategoryMap.get(log.resourceId) || 'Uncategorized';
+            if (!grouped[category]) {
+                grouped[category] = [];
+            }
+            grouped[category].push(log);
+        });
+        return grouped;
+    }, [usageLogs, resources]);
+
     if (isLoading) {
         return <div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary"/></div>;
     }
@@ -286,9 +300,7 @@ export default function SchoolStoragePage() {
                                 <Label>Person Responsible</Label>
                                 <Select value={newItemResponsible} onValueChange={setNewItemResponsible}>
                                     <SelectTrigger><SelectValue placeholder="Select a staff member..."/></SelectTrigger>
-                                    <SelectContent>
-                                        {allUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                                    </SelectContent>
+                                    <SelectContent>{allUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                         </div>
@@ -351,33 +363,52 @@ export default function SchoolStoragePage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Resource Usage Log</CardTitle>
-                            <CardDescription>A chronological record of all resource consumption.</CardDescription>
+                            <CardDescription>A chronological record of all resource consumption, grouped by category.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="w-full overflow-auto rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Item</TableHead>
-                                            <TableHead>Quantity Used</TableHead>
-                                            <TableHead>Recorded By</TableHead>
-                                            <TableHead>Notes</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {usageLogs.map(log => (
-                                            <TableRow key={log.id}>
-                                                <TableCell>{log.date?.toDate().toLocaleString()}</TableCell>
-                                                <TableCell>{log.resourceName}</TableCell>
-                                                <TableCell>{log.quantityUsed}</TableCell>
-                                                <TableCell>{log.recordedBy}</TableCell>
-                                                <TableCell>{log.notes}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                             <Accordion type="single" collapsible className="w-full">
+                                {Object.entries(groupedUsageLogs).map(([category, logs]) => (
+                                    <AccordionItem value={category} key={category}>
+                                        <AccordionTrigger>
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-semibold">{category}</span>
+                                                <Badge variant="outline">{logs.length} entries</Badge>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                            <div className="w-full overflow-auto rounded-lg border">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Date</TableHead>
+                                                            <TableHead>Item</TableHead>
+                                                            <TableHead>Quantity Used</TableHead>
+                                                            <TableHead>Recorded By</TableHead>
+                                                            <TableHead>Notes</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {logs.map(log => (
+                                                            <TableRow key={log.id}>
+                                                                <TableCell>{log.date?.toDate().toLocaleString()}</TableCell>
+                                                                <TableCell>{log.resourceName}</TableCell>
+                                                                <TableCell>{log.quantityUsed}</TableCell>
+                                                                <TableCell>{log.recordedBy}</TableCell>
+                                                                <TableCell>{log.notes}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                             {usageLogs.length === 0 && (
+                                <div className="text-center text-muted-foreground py-16">
+                                    No usage has been recorded yet.
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
