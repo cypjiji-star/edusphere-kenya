@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { MessageSquare, BadgeHelp } from 'lucide-react';
@@ -13,7 +14,7 @@ import { Badge } from '../ui/badge';
 
 export function FloatingSupportWidget() {
   const { user } = useAuth();
-  const searchParams = React.useContext(require('next/navigation').useSearchParams)();
+  const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [unreadCount, setUnreadCount] = React.useState(0);
 
