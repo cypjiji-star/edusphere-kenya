@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -84,17 +85,6 @@ const getCurrentTerm = (): string => {
   }
 };
 
-const generateAcademicTerms = () => {
-    const currentYear = new Date().getFullYear();
-    const terms = [];
-    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
-        terms.push({ value: `Term 1, ${year}`, label: `Term 1, ${year}` });
-        terms.push({ value: `Term 2, ${year}`, label: `Term 2, ${year}` });
-        terms.push({ value: `Term 3, ${year}`, label: `Term 3, ${year}` });
-    }
-    return terms;
-};
-
 
 export default function AdminGradesPage() {
     const searchParams = useSearchParams();
@@ -107,6 +97,7 @@ export default function AdminGradesPage() {
     const [rankingSubjects, setRankingSubjects] = React.useState<string[]>([]);
     const [openExams, setOpenExams] = React.useState<Exam[]>([]);
     const [archivedExams, setArchivedExams] = React.useState<Exam[]>([]);
+    const [academicTerms, setAcademicTerms] = React.useState<{value: string, label: string}[]>([]);
     
     const [rankingExamId, setRankingExamId] = React.useState<string>('');
     const [rankingClassId, setRankingClassId] = React.useState<string>('');
@@ -128,6 +119,19 @@ export default function AdminGradesPage() {
     // Fetch all classes and subjects
     React.useEffect(() => {
         if (!schoolId) return;
+
+        const unsubAcademic = onSnapshot(doc(firestore, 'schools', schoolId, 'settings', 'academic'), (docSnap) => {
+            if (docSnap.exists()) {
+                const yearsData = docSnap.data().years || [];
+                const terms: {value: string, label: string}[] = [];
+                yearsData.forEach((yearData: any) => {
+                    terms.push({ value: `Term 1, ${yearData.year}`, label: `Term 1, ${yearData.year}`});
+                    terms.push({ value: `Term 2, ${yearData.year}`, label: `Term 2, ${yearData.year}`});
+                    terms.push({ value: `Term 3, ${yearData.year}`, label: `Term 3, ${yearData.year}`});
+                });
+                setAcademicTerms(terms);
+            }
+        });
 
         const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
         const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
@@ -155,6 +159,7 @@ export default function AdminGradesPage() {
         });
 
         return () => {
+            unsubAcademic();
             unsubClasses();
             unsubSubjects();
             unsubOpenExams();
@@ -397,7 +402,7 @@ export default function AdminGradesPage() {
                                         <Select name="term" value={examTerm} onValueChange={setExamTerm}>
                                             <SelectTrigger id="exam-term"><SelectValue/></SelectTrigger>
                                             <SelectContent>
-                                                {generateAcademicTerms().map(term => <SelectItem key={term.value} value={term.label}>{term.label}</SelectItem>)}
+                                                {academicTerms.map(term => <SelectItem key={term.value} value={term.label}>{term.label}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -490,3 +495,4 @@ export default function AdminGradesPage() {
         </div>
     );
 }
+

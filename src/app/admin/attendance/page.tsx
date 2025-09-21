@@ -338,17 +338,6 @@ const getCurrentTerm = (): string => {
   }
 };
 
-const generateAcademicTerms = () => {
-    const currentYear = new Date().getFullYear();
-    const terms = [];
-    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
-        terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
-        terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
-        terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
-    }
-    return terms;
-};
-
 
 export default function AdminAttendancePage() {
   const searchParams = useSearchParams();
@@ -371,7 +360,7 @@ export default function AdminAttendancePage() {
   const [teachers, setTeachers] = React.useState<User[]>([]);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [academicTerms, setAcademicTerms] = React.useState(generateAcademicTerms());
+  const [academicTerms, setAcademicTerms] = React.useState<{value: string, label: string}[]>([]);
 
   // New state for student analytics
   const [allStudents, setAllStudents] = React.useState<Student[]>([]);
@@ -381,6 +370,19 @@ export default function AdminAttendancePage() {
   // Fetch static data once on component mount
   React.useEffect(() => {
     if (!schoolId) return;
+
+    const unsubAcademic = onSnapshot(doc(firestore, 'schools', schoolId, 'settings', 'academic'), (docSnap) => {
+        if (docSnap.exists()) {
+            const yearsData = docSnap.data().years || [];
+            const terms: {value: string, label: string}[] = [];
+            yearsData.forEach((yearData: any) => {
+                terms.push({ value: `term1-${yearData.year}`, label: `Term 1, ${yearData.year}`});
+                terms.push({ value: `term2-${yearData.year}`, label: `Term 2, ${yearData.year}`});
+                terms.push({ value: `term3-${yearData.year}`, label: `Term 3, ${yearData.year}`});
+            });
+            setAcademicTerms(terms);
+        }
+    });
 
     const qTeachers = query(collection(firestore, 'schools', schoolId, 'teachers'));
     const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
@@ -407,6 +409,7 @@ export default function AdminAttendancePage() {
     });
 
     return () => {
+        unsubAcademic();
         unsubTeachers();
         unsubClasses();
         unsubStudents();
@@ -1300,5 +1303,6 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
 
 

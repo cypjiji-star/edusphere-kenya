@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -101,17 +102,6 @@ const chartConfig = {
   average: { label: 'Average Score', color: 'hsl(var(--primary))' },
 };
 
-const generateAcademicTerms = () => {
-    const currentYear = new Date().getFullYear();
-    const terms = [];
-    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
-        terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
-        terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
-        terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
-    }
-    return terms;
-};
-
 const getCurrentTerm = (): string => {
   const today = new Date();
   const month = today.getMonth(); // 0-11
@@ -184,11 +174,24 @@ export default function ParentGradesPage() {
   const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
   const { user } = useAuth();
   const parentId = user?.uid;
-  const [academicTerms] = React.useState(generateAcademicTerms());
+  const [academicTerms, setAcademicTerms] = React.useState<{value: string, label: string}[]>([]);
   const [selectedTerm, setSelectedTerm] = React.useState(getCurrentTerm());
 
   React.useEffect(() => {
     if (!schoolId || !parentId) return;
+    const unsubAcademic = onSnapshot(doc(firestore, 'schools', schoolId, 'settings', 'academic'), (docSnap) => {
+        if (docSnap.exists()) {
+            const yearsData = docSnap.data().years || [];
+            const terms: {value: string, label: string}[] = [];
+            yearsData.forEach((yearData: any) => {
+                terms.push({ value: `term1-${yearData.year}`, label: `Term 1, ${yearData.year}`});
+                terms.push({ value: `term2-${yearData.year}`, label: `Term 2, ${yearData.year}`});
+                terms.push({ value: `term3-${yearData.year}`, label: `Term 3, ${yearData.year}`});
+            });
+            setAcademicTerms(terms);
+        }
+    });
+
     const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
@@ -197,7 +200,10 @@ export default function ParentGradesPage() {
             setSelectedChild(fetchedChildren[0].id);
         }
     });
-    return () => unsubscribe();
+    return () => {
+        unsubAcademic();
+        unsubscribe();
+    }
   }, [schoolId, parentId, selectedChild]);
 
   const getTermDates = (term: string) => {
