@@ -79,7 +79,7 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       boxShadow: {
-        'glow-accent': '0 0 15px 5px hsl(var(--accent) / 0.1)',
+        'glow-accent': '0 10px 20px -5px hsl(var(--accent) / 0.1), 0 4px 6px -2px hsl(var(--accent) / 0.05)',
       },
       keyframes: {
         'accordion-down': {
