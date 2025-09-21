@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -63,6 +64,7 @@ import { useAuth } from '@/context/auth-context';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late';
@@ -245,109 +247,6 @@ export default function ParentAttendancePage() {
         </h1>
         <p className="text-muted-foreground">View attendance data for your child.</p>
       </div>
-
-       <Card>
-            <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                        <User className="h-5 w-5 text-primary"/>
-                        <Select value={selectedChild} onValueChange={setSelectedChild}>
-                            <SelectTrigger className="w-full md:w-[240px]">
-                                <SelectValue placeholder="Select a child" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {childrenData.map((child) => (
-                                    <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                     <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <Button
-                                id="date"
-                                variant="outline"
-                                className={cn('w-full justify-start text-left font-normal md:w-auto lg:min-w-[250px]', !date && 'text-muted-foreground')}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {clientReady && date?.from ? (
-                                date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
-                                ) : <span>Pick a date range</span>}
-                            </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                            <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
-                            </PopoverContent>
-                        </Popover>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full sm:w-auto">
-                                    <FileDown className="mr-2 h-4 w-4" />
-                                    Export
-                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuItem onClick={handleExport}>Export as PDF</DropdownMenuItem>
-                            </DropdownMenuContent>
-                         </DropdownMenu>
-                         <Dialog>
-                            <DialogTrigger asChild>
-                                <Button className="w-full md:w-auto">Report an Absence</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Report Child's Absence</DialogTitle>
-                                    <DialogDescription>
-                                        Notify the school about your child's absence. This will be sent to the school office and class teacher.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="space-y-2">
-                                        <Label>Date of Absence</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                            <Button
-                                                variant={"outline"}
-                                                className={cn("w-full justify-start text-left font-normal", !absenceDate && "text-muted-foreground")}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {absenceDate ? format(absenceDate, "PPP") : <span>Pick a date</span>}
-                                            </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0">
-                                                <Calendar mode="single" selected={absenceDate} onSelect={setAbsenceDate} initialFocus />
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
-                                        <div className="space-y-2">
-                                        <Label htmlFor="absence-reason">Reason for Absence</Label>
-                                        <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." value={absenceReason} onChange={(e) => setAbsenceReason(e.target.value)} />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                    <DialogClose asChild>
-                                        <Button onClick={handleReportAbsence}>Send Notification</Button>
-                                    </DialogClose>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
-                </div>
-            </CardHeader>
-        </Card>
-        
-        {wasAbsentRecently && (
-            <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Absence Alert</AlertTitle>
-                <AlertDescription>
-                   {childrenData.find(c => c.id === selectedChild)?.name} was marked absent recently. Please contact the school office if this was unexpected.
-                </AlertDescription>
-            </Alert>
-        )}
       
       {isLoading ? (
         <div className="flex items-center justify-center h-48">
@@ -356,79 +255,145 @@ export default function ParentAttendancePage() {
       ) : childrenData.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No students linked to your parent account.</CardContent></Card>
       ) : (
-        <>
-            <div className="grid gap-6 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Overall Attendance</CardTitle>
-                        <Percent className="h-4 w-4 text-muted-foreground" />
+        <Tabs defaultValue="overview">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="history">Detailed History</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="flex items-center gap-2">
+                                <User className="h-5 w-5 text-primary"/>
+                                <Select value={selectedChild} onValueChange={setSelectedChild}>
+                                    <SelectTrigger className="w-full md:w-[240px]">
+                                        <SelectValue placeholder="Select a child" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {childrenData.map((child) => (
+                                            <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button
+                                        id="date"
+                                        variant="outline"
+                                        className={cn('w-full justify-start text-left font-normal md:w-auto lg:min-w-[250px]', !date && 'text-muted-foreground')}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {clientReady && date?.from ? (
+                                        date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
+                                        ) : <span>Pick a date range</span>}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar initialFocus mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={2} />
+                                    </PopoverContent>
+                                </Popover>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button className="w-full md:w-auto">Report an Absence</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Report Child's Absence</DialogTitle>
+                                            <DialogDescription>
+                                                Notify the school about your child's absence. This will be sent to the school office and class teacher.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="grid gap-4 py-4">
+                                            <div className="space-y-2">
+                                                <Label>Date of Absence</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn("w-full justify-start text-left font-normal", !absenceDate && "text-muted-foreground")}
+                                                    >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {absenceDate ? format(absenceDate, "PPP") : <span>Pick a date</span>}
+                                                    </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar mode="single" selected={absenceDate} onSelect={setAbsenceDate} initialFocus />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                                <div className="space-y-2">
+                                                <Label htmlFor="absence-reason">Reason for Absence</Label>
+                                                <Textarea id="absence-reason" placeholder="e.g., Doctor's appointment, feeling unwell..." value={absenceReason} onChange={(e) => setAbsenceReason(e.target.value)} />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                            <DialogClose asChild>
+                                                <Button onClick={handleReportAbsence}>Send Notification</Button>
+                                            </DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{attendanceRate}%</div>
-                        <p className="text-xs text-muted-foreground">{totalRecords} days recorded in period</p>
-                    </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Absences</CardTitle>
-                        <UserX className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{summaryStats.absent}</div>
-                        <p className="text-xs text-muted-foreground">Days marked absent in period</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle>
-                        <UserCheck className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{summaryStats.late}</div>
-                        <p className="text-xs text-muted-foreground">Days marked late in period</p>
-                    </CardContent>
-                </Card>
-            </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Attendance Log</CardTitle>
-                    <CardDescription>
-                        Daily attendance records for the selected period.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                <div className="w-full overflow-auto rounded-lg border">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Notes from Teacher</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredRecords.length > 0 ? (
-                        filteredRecords.map((record) => (
-                            <TableRow key={record.id}>
-                            <TableCell className="font-medium">{clientReady ? format(record.date.toDate(), 'PPP') : ''}</TableCell>
-                            <TableCell>{getStatusBadge(record.status)}</TableCell>
-                            <TableCell className="text-muted-foreground">{record.notes || '—'}</TableCell>
-                            </TableRow>
-                        ))
-                        ) : (
-                        <TableRow>
-                            <TableCell colSpan={3} className="h-24 text-center">
-                            No attendance records found for the selected period.
-                            </TableCell>
-                        </TableRow>
-                        )}
-                    </TableBody>
-                    </Table>
+                {wasAbsentRecently && (
+                    <Alert variant="destructive" className="mt-6">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Absence Alert</AlertTitle>
+                        <AlertDescription>
+                        {childrenData.find(c => c.id === selectedChild)?.name} was marked absent recently. Please contact the school office if this was unexpected.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                <div className="grid gap-6 md:grid-cols-3 mt-6">
+                    <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Overall Attendance</CardTitle><CardContent className="p-0"><div className="text-2xl font-bold">{attendanceRate}%</div><p className="text-xs text-muted-foreground">{totalRecords} days recorded</p></CardContent></CardHeader></Card>
+                    <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Absences</CardTitle><CardContent className="p-0"><div className="text-2xl font-bold">{summaryStats.absent}</div><p className="text-xs text-muted-foreground">Days marked absent</p></CardContent></CardHeader></Card>
+                    <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle><CardContent className="p-0"><div className="text-2xl font-bold">{summaryStats.late}</div><p className="text-xs text-muted-foreground">Days marked late</p></CardContent></CardHeader></Card>
                 </div>
-                </CardContent>
-            </Card>
-        </>
+                
+                <Card className="mt-6">
+                    <CardHeader><CardTitle>Attendance Log</CardTitle><CardDescription>Daily attendance records for the selected period.</CardDescription></CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Notes from Teacher</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {filteredRecords.length > 0 ? (
+                                        filteredRecords.map((record) => (
+                                            <TableRow key={record.id}><TableCell className="font-medium">{clientReady ? format(record.date.toDate(), 'PPP') : ''}</TableCell><TableCell>{getStatusBadge(record.status)}</TableCell><TableCell className="text-muted-foreground">{record.notes || '—'}</TableCell></TableRow>
+                                        ))
+                                    ) : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No records for this period.</TableCell></TableRow>)}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="history" className="mt-4">
+                 <Card>
+                    <CardHeader><CardTitle>Full Term History for {childrenData.find(c => c.id === selectedChild)?.name}</CardTitle><CardDescription>A complete log of attendance for the current term.</CardDescription></CardHeader>
+                    <CardContent>
+                        <div className="w-full overflow-auto rounded-lg border">
+                            <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Notes from Teacher</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {attendanceRecords.length > 0 ? (
+                                        attendanceRecords.map((record) => (
+                                            <TableRow key={record.id}><TableCell className="font-medium">{clientReady ? format(record.date.toDate(), 'PPP') : ''}</TableCell><TableCell>{getStatusBadge(record.status)}</TableCell><TableCell className="text-muted-foreground">{record.notes || '—'}</TableCell></TableRow>
+                                        ))
+                                    ) : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No attendance records found for this term.</TableCell></TableRow>)}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                 </Card>
+            </TabsContent>
+        </Tabs>
       )}
     </div>
   );
