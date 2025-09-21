@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const userData = userDocSnap.data();
               setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
           } else {
-             // Fallback for parents or if user doc is missing
+             // If user doesn't exist in the general 'users' collection, they have no role for this school.
              setRole('unknown');
           }
         } else if (pathname !== '/login' && pathname !== '/') {
