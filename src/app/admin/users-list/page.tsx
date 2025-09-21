@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -132,19 +131,17 @@ export default function UserManagementListPage() {
         if (!schoolId) return;
         setClientReady(true);
         
-        const collectionsToWatch = ['admins', 'teachers', 'parents'];
-        const unsubscribers = collectionsToWatch.map(collectionName => {
-            const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
-            return onSnapshot(q, (snapshot) => {
-                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-                setAllUsers(currentUsers => {
-                    const otherUsers = currentUsers.filter(u => u.role.toLowerCase() !== collectionName.slice(0, -1));
-                    return [...otherUsers, ...usersData];
-                });
-                setIsLoading(false);
-            });
+        // Use the central 'users' collection as the source of truth for the list
+        const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
+        const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setAllUsers(usersData);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching users:", error);
+            setIsLoading(false);
         });
-        
+
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
             setRoles(snapshot.docs.map(doc => doc.id));
         });
@@ -155,7 +152,7 @@ export default function UserManagementListPage() {
         });
 
         return () => {
-            unsubscribers.forEach(unsub => unsub());
+            unsubscribeUsers();
             unsubRoles();
             unsubClasses();
         };
@@ -277,6 +274,11 @@ export default function UserManagementListPage() {
             const collectionName = editingUser.role.toLowerCase() + 's';
             const userRef = doc(firestore, 'schools', schoolId, collectionName, editingUser.id);
             await updateDoc(userRef, updatedData);
+            
+             // Also update the central 'users' collection
+            const genericUserRef = doc(firestore, 'schools', schoolId, 'users', editingUser.id);
+            await updateDoc(genericUserRef, updatedData);
+
 
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
             setEditingUser(null);
@@ -302,8 +304,14 @@ export default function UserManagementListPage() {
         }
     
         const collectionName = userToDelete.role.toLowerCase() + 's';
-        await deleteDoc(doc(firestore, 'schools', schoolId, collectionName, userToDelete.id));
-    
+        const userDocRef = doc(firestore, 'schools', schoolId, collectionName, userToDelete.id);
+        const genericUserDocRef = doc(firestore, 'schools', schoolId, 'users', userToDelete.id);
+
+        const batch = writeBatch(firestore);
+        batch.delete(userDocRef);
+        batch.delete(genericUserDocRef);
+        await batch.commit();
+
         await logAuditEvent({
           schoolId,
           action: 'USER_DELETED',
@@ -713,3 +721,5 @@ export default function UserManagementListPage() {
         </div>
     );
 }
+
+    

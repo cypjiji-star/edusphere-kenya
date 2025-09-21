@@ -1,10 +1,9 @@
 
-
 'use server';
 
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import { addDoc, collection, serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, setDoc, doc, writeBatch } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { logAuditEvent } from '@/lib/audit-log.service';
 
@@ -95,6 +94,8 @@ export async function createUserAction(params: {
     const uid = userRecord.uid;
     const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
 
+    const batch = writeBatch(firestore);
+
     // 2. Create user document in the appropriate collection based on role
     const roleCollection = role.toLowerCase() + 's'; // e.g., 'teachers', 'admins'
     const userDocRef = doc(firestore, 'schools', schoolId, roleCollection, uid);
@@ -115,12 +116,14 @@ export async function createUserAction(params: {
       userData.classIds = classes;
     }
     
-    await setDoc(userDocRef, userData);
+    batch.set(userDocRef, userData);
 
-    // Also add to the general 'users' collection for easy role lookup if needed, but primary data is in role-specific collection
+    // Also add to the general 'users' collection for easy role lookup
     const genericUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
-    await setDoc(genericUserDocRef, { role, name, email });
+    batch.set(genericUserDocRef, { role, name, email, status: 'Active', id: uid, avatarUrl });
     
+    await batch.commit();
+
     // 4. Log the audit event
     await logAuditEvent({
         schoolId,
@@ -138,3 +141,5 @@ export async function createUserAction(params: {
     return { success: false, message: error.message || 'Failed to create user.' };
   }
 }
+
+    

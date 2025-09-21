@@ -42,40 +42,13 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      let userDocRef;
-      let userRoleInDb: string | null = null;
-      let userIsAssociatedWithSchool = false;
-      let userName = user.displayName || user.email || 'Unknown';
+      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
 
-      if (role === 'parent') {
-        const studentsQuery = query(collection(firestore, `schools/${schoolCode}/students`), where('parentId', '==', user.uid));
-        const studentsSnapshot = await getDocs(studentsQuery);
-        if (!studentsSnapshot.empty) {
-            userIsAssociatedWithSchool = true;
-            userRoleInDb = 'parent';
-            userName = studentsSnapshot.docs[0].data().parentName || userName;
-        }
-      } else if (role === 'admin') {
-          userDocRef = doc(firestore, 'schools', schoolCode, 'admins', user.uid);
-          const userDocSnap = await getDoc(userDocRef);
-           if (userDocSnap.exists()) {
-              userIsAssociatedWithSchool = true;
-              userRoleInDb = 'admin';
-              userName = userDocSnap.data().name || userName;
-          }
-      } else if (role === 'teacher') {
-          userDocRef = doc(firestore, 'schools', schoolCode, 'teachers', user.uid);
-          const userDocSnap = await getDoc(userDocRef);
-           if (userDocSnap.exists()) {
-              userIsAssociatedWithSchool = true;
-              userRoleInDb = 'teacher';
-              userName = userDocSnap.data().name || userName;
-          }
-      }
-      
-       if (userIsAssociatedWithSchool && userRoleInDb === role) {
-        if (userDocRef) {
-          await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
+      if (userDocSnap.exists() && userDocSnap.data().role.toLowerCase() === role) {
+        const userDocForUpdate = doc(firestore, `schools/${schoolCode}/${role}s`, user.uid);
+        if ((await getDoc(userDocForUpdate)).exists()) {
+            await updateDoc(userDocForUpdate, { lastLogin: serverTimestamp() });
         }
 
         await logAuditEvent({
@@ -83,14 +56,14 @@ export function LoginForm() {
             action: 'USER_LOGIN_SUCCESS',
             actionType: 'Security',
             description: `User ${user.email} successfully logged in as ${role}.`,
-            user: { id: user.uid, name: userName, role: role },
+            user: { id: user.uid, name: userDocSnap.data().name, role: role },
         });
         router.push(`/${role}?schoolId=${schoolCode}`);
       } else {
         await auth.signOut();
         toast({
           title: 'Access Denied',
-          description: userIsAssociatedWithSchool 
+          description: userDocSnap.exists()
             ? `Your credentials are correct, but you do not have the "${role}" role for this school.`
             : "This user account is not associated with the provided school code.",
           variant: 'destructive',
@@ -189,3 +162,5 @@ export function LoginForm() {
     </form>
   );
 }
+
+    
