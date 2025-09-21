@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -308,7 +307,7 @@ function CalendarWidget({ schoolId }: { schoolId: string }) {
 export default function TeacherDashboard() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const { user } = useAuth();
+    const { user, clientReady } = useAuth();
     
     const [schoolName, setSchoolName] = React.useState('');
     const [teacherName, setTeacherName] = React.useState('Teacher');
@@ -423,7 +422,7 @@ export default function TeacherDashboard() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="font-headline text-3xl font-bold">Welcome, {teacherName}!</h1>
-        <p className="text-muted-foreground">Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
+        {clientReady && <p className="text-muted-foreground">Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>}
       </div>
 
        <div className="mb-8">
@@ -476,4 +475,3 @@ export default function TeacherDashboard() {
     </div>
   );
 }
-

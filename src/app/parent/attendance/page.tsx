@@ -111,6 +111,7 @@ export default function ParentAttendancePage() {
     to: new Date(),
   });
   const [isLoading, setIsLoading] = React.useState(true);
+  const [clientReady, setClientReady] = React.useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -147,6 +148,7 @@ export default function ParentAttendancePage() {
         setAttendanceRecords([]);
         return;
     }
+    setClientReady(true);
     
     setIsLoading(true);
     const q = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', selectedChild), orderBy('date', 'desc'));
@@ -267,7 +269,7 @@ export default function ParentAttendancePage() {
                                 className={cn('w-full justify-start text-left font-normal md:w-auto lg:min-w-[250px]', !date && 'text-muted-foreground')}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {date?.from ? (
+                                {clientReady && date?.from ? (
                                 date.to ? `${format(date.from, 'LLL dd, y')} - ${format(date.to, 'LLL dd, y')}` : format(date.from, 'LLL dd, y')
                                 ) : <span>Pick a date range</span>}
                             </Button>
@@ -407,7 +409,7 @@ export default function ParentAttendancePage() {
                         {filteredRecords.length > 0 ? (
                         filteredRecords.map((record) => (
                             <TableRow key={record.id}>
-                            <TableCell className="font-medium">{format(record.date.toDate(), 'PPP')}</TableCell>
+                            <TableCell className="font-medium">{clientReady ? format(record.date.toDate(), 'PPP') : ''}</TableCell>
                             <TableCell>{getStatusBadge(record.status)}</TableCell>
                             <TableCell className="text-muted-foreground">{record.notes || '—'}</TableCell>
                             </TableRow>

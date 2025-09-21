@@ -515,7 +515,7 @@ export default function MyLibraryPage() {
                                                                     {assignments.map(assignment => (
                                                                         <TableRow key={assignment.id}>
                                                                             <TableCell>{assignment.studentName}</TableCell>
-                                                                            <TableCell>{assignment.assignedDate?.toDate().toLocaleDateString()}</TableCell>
+                                                                            <TableCell>{clientReady ? assignment.assignedDate?.toDate().toLocaleDateString() : ''}</TableCell>
                                                                             <TableCell className="text-right">
                                                                                 {assignment.status === 'Assigned' ? (
                                                                                     <Button variant="outline" size="sm" onClick={() => handleConfirmReturn(assignment)}>Confirm Return</Button>
@@ -642,6 +642,3 @@ export default function MyLibraryPage() {
     </div>
   );
 }
-
-    
-

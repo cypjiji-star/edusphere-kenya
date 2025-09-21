@@ -300,7 +300,7 @@ function CalendarWidget({ schoolId }: { schoolId: string }) {
 export default function ParentDashboard() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const { user } = useAuth();
+    const { user, clientReady } = useAuth();
     const parentId = user?.uid;
     
     const [schoolName, setSchoolName] = React.useState('');
@@ -321,7 +321,7 @@ export default function ParentDashboard() {
 
         try {
             unsubscribers.push(onSnapshot(doc(firestore, 'schools', schoolId), (docSnap) => {
-                if (docSnap.exists()) setSchoolName(docSnap.data().name);
+                if(docSnap.exists()) setSchoolName(docSnap.data().name);
             }));
 
             unsubscribers.push(onSnapshot(doc(firestore, 'schools', schoolId, 'users', parentId), (docSnap) => {
@@ -459,7 +459,7 @@ export default function ParentDashboard() {
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="mb-8">
                 <h1 className="font-headline text-3xl font-bold">Welcome, {parentName}!</h1>
-                <p className="text-muted-foreground">Your dashboard for the {schoolName} parent portal.</p>
+                {clientReady && <p className="text-muted-foreground">Your dashboard for the {schoolName} parent portal.</p>}
             </div>
 
             {/* Dashboard stats cards */}
@@ -503,9 +503,9 @@ export default function ParentDashboard() {
                         <div className="text-2xl font-bold text-destructive">
                             {formatCurrency(selectedChild?.feeStatus.balance || 0)}
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        {clientReady && <p className="text-xs text-muted-foreground">
                             Due: {selectedChild ? new Date(selectedChild.feeStatus.dueDate).toLocaleDateString('en-GB') : 'N/A'}
-                        </p>
+                        </p>}
                     </CardContent>
                     <CardFooter>
                         <Button asChild size="sm" className="w-full">

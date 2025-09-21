@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -28,11 +27,16 @@ export function MyAttendanceWidget() {
   const [checkInTime, setCheckInTime] = React.useState<Timestamp | null>(null);
   const [checkOutTime, setCheckOutTime] = React.useState<Timestamp | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [clientReady, setClientReady] = React.useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  React.useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   React.useEffect(() => {
     if (!user || !schoolId) {
@@ -153,7 +157,7 @@ export function MyAttendanceWidget() {
     <Card>
       <CardHeader>
         <CardTitle className="font-headline text-lg">Today's Status</CardTitle>
-        <CardDescription>{format(new Date(), 'eeee, d MMMM yyyy')}</CardDescription>
+        {clientReady && <CardDescription>{format(new Date(), 'eeee, d MMMM yyyy')}</CardDescription>}
       </CardHeader>
       <CardContent className="text-center space-y-4">
         {isLoading ? (

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -169,12 +168,14 @@ export default function StudentManagementPage() {
   const [isDialogLoading, setIsDialogLoading] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
     if (!schoolId) {
       setIsLoading(false);
       return;
     }
+    setClientReady(true);
 
     const q = query(collection(firestore, `schools/${schoolId}/students`));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -497,7 +498,7 @@ export default function StudentManagementPage() {
                                             {isEditing ? <Input name="lastName" id="lastName" defaultValue={selectedStudent.lastName} /> : <p>{selectedStudent.lastName}</p>}
                                         </div>
                                         <div><Label>Gender</Label><p>{selectedStudent.gender}</p></div>
-                                        <div><Label>Date of Birth</Label><p>{selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : 'N/A'}</p></div>
+                                        <div><Label>Date of Birth</Label><p>{clientReady && selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : 'N/A'}</p></div>
                                         <div><Label>Birth Certificate No.</Label><p className="font-mono">{selectedStudent.birthCertificateNumber || 'N/A'}</p></div>
                                         <div><Label>NHIF Number</Label><p className="font-mono">{selectedStudent.nhifNumber || 'N/A'}</p></div>
                                          <div className="space-y-1">
@@ -544,7 +545,7 @@ export default function StudentManagementPage() {
                                         <div className="w-full overflow-auto rounded-lg border">
                                             <Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
                                                 <TableBody>
-                                                    {selectedStudent.attendance.map(att => <TableRow key={att.id}><TableCell>{att.date.toDate().toLocaleDateString()}</TableCell><TableCell>{getAttendanceStatusBadge(att.status)}</TableCell><TableCell>{att.notes || '—'}</TableCell></TableRow>)}
+                                                    {selectedStudent.attendance.map(att => <TableRow key={att.id}><TableCell>{clientReady ? att.date.toDate().toLocaleDateString() : ''}</TableCell><TableCell>{getAttendanceStatusBadge(att.status)}</TableCell><TableCell>{att.notes || '—'}</TableCell></TableRow>)}
                                                 </TableBody>
                                             </Table>
                                         </div>
@@ -559,7 +560,7 @@ export default function StudentManagementPage() {
                                                 <TableBody>
                                                     {selectedStudent.grades.map(grade => (
                                                         <TableRow key={grade.id}>
-                                                            <TableCell>{grade.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell>{clientReady ? grade.date.toDate().toLocaleDateString() : ''}</TableCell>
                                                             <TableCell>{grade.assessmentTitle}</TableCell>
                                                             <TableCell>{grade.subject}</TableCell>
                                                             <TableCell className="text-right font-semibold">{grade.grade}</TableCell>
@@ -581,7 +582,7 @@ export default function StudentManagementPage() {
                                                 <TableBody>
                                                     {selectedStudent.transactions.map(tx => (
                                                         <TableRow key={tx.id}>
-                                                            <TableCell>{tx.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell>{clientReady ? tx.date.toDate().toLocaleDateString() : ''}</TableCell>
                                                             <TableCell>{tx.description}</TableCell>
                                                             <TableCell className={`text-right ${tx.type === 'Charge' ? 'text-destructive' : ''}`}>{tx.type === 'Charge' ? formatCurrency(tx.amount) : '—'}</TableCell>
                                                             <TableCell className={`text-right text-green-600`}>{tx.type === 'Payment' ? formatCurrency(Math.abs(tx.amount)) : '—'}</TableCell>
@@ -607,7 +608,7 @@ export default function StudentManagementPage() {
                                                 <TableBody>
                                                     {selectedStudent.incidents.map(inc => (
                                                         <TableRow key={inc.id}>
-                                                            <TableCell>{inc.date.toDate().toLocaleDateString()}</TableCell>
+                                                            <TableCell>{clientReady ? inc.date.toDate().toLocaleDateString() : ''}</TableCell>
                                                             <TableCell><Badge variant={inc.type === 'Health' ? 'destructive' : 'secondary'}>{inc.type}</Badge></TableCell>
                                                             <TableCell>{inc.reportedBy}</TableCell>
                                                             <TableCell><Badge variant="outline">{inc.status}</Badge></TableCell>
