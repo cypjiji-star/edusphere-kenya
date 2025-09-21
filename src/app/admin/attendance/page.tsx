@@ -141,6 +141,16 @@ type LeaveApplication = {
   attachmentUrl?: string;
 };
 
+type StudentLeaveApplication = {
+    id: string;
+    studentId: string;
+    studentName: string;
+    reason: string;
+    date: Timestamp;
+    reportedBy: string;
+    status: 'Pending' | 'Approved' | 'Rejected';
+};
+
 
 const statuses: (AttendanceStatus | 'All Statuses')[] = ['All Statuses', 'Present', 'Absent', 'Late'];
 
@@ -353,6 +363,7 @@ export default function AdminAttendancePage() {
   const [allRecords, setAllRecords] = React.useState<AttendanceRecord[]>([]);
   const [teacherAttendanceRecords, setTeacherAttendanceRecords] = React.useState<TeacherAttendanceRecord[]>([]);
   const [leaveApplications, setLeaveApplications] = React.useState<LeaveApplication[]>([]);
+  const [studentLeaveApps, setStudentLeaveApps] = React.useState<StudentLeaveApplication[]>([]);
   const [communicationLogs, setCommunicationLogs] = React.useState<CommunicationLog[]>([]);
   const [teachers, setTeachers] = React.useState<User[]>([]);
   const [classes, setClasses] = React.useState<string[]>(['All Classes']);
@@ -476,6 +487,12 @@ export default function AdminAttendancePage() {
       const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveApplication));
       setLeaveApplications(apps);
     });
+
+     const studentLeaveQuery = query(collection(firestore, `schools/${schoolId}/absences`));
+    const unsubStudentLeave = onSnapshot(studentLeaveQuery, (snapshot) => {
+      const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), status: 'Pending' } as StudentLeaveApplication)); // Assume status, needs schema update
+      setStudentLeaveApps(apps);
+    });
     
     const qCommLogs = query(collection(firestore, 'schools', schoolId, 'communication_logs'), where('type', '==', 'attendance'));
     const unsubCommLogs = onSnapshot(qCommLogs, (snapshot) => {
@@ -488,6 +505,7 @@ export default function AdminAttendancePage() {
       unsubTeacherAttendance();
       unsubLeave();
       unsubCommLogs();
+      unsubStudentLeave();
     };
   }, [schoolId, selectedTerm, toast]);
   
@@ -578,6 +596,17 @@ export default function AdminAttendancePage() {
         toast({ title: 'Leave Updated', description: `The application has been ${newStatus.toLowerCase()} and the teacher has been notified.` });
     } catch (e) {
         toast({ title: 'Error', description: 'Could not update leave status.', variant: 'destructive' });
+    }
+  };
+    
+    const handleStudentLeaveAction = async (appId: string, newStatus: 'Approved' | 'Rejected') => {
+    if (!schoolId) return;
+    const leaveRef = doc(firestore, `schools/${schoolId}/absences`, appId);
+    try {
+        await updateDoc(leaveRef, { status: newStatus });
+        toast({ title: 'Student Leave Updated', description: `The absence request has been ${newStatus.toLowerCase()}.` });
+    } catch(e) {
+        toast({ title: 'Error', description: 'Could not update the absence status.', variant: 'destructive' });
     }
   };
 
@@ -836,7 +865,7 @@ export default function AdminAttendancePage() {
                                             <Select value={teacherFilter} onValueChange={setTeacherFilter}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
-                                                    {teachers.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                                    {teachers.map(t => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -982,54 +1011,112 @@ export default function AdminAttendancePage() {
             </Card>
         </TabsContent>
          <TabsContent value="leave">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Leave Requests</CardTitle>
-                    <CardDescription>Review and approve leave applications submitted by staff.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="w-full overflow-auto rounded-lg border">
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Teacher</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Dates</TableHead>
-                                    <TableHead>Reason</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {leaveApplications.map(app => (
-                                    <TableRow key={app.id}>
-                                        <TableCell>{app.teacherName}</TableCell>
-                                        <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
-                                        <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
-                                        <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
-                                        <TableCell>{getStatusBadge(app.status)}</TableCell>
-                                        <TableCell className="text-right">
-                                            {app.status === 'Pending' ? (
-                                                <div className="flex gap-2 justify-end">
-                                                    <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
-                                                    <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
-                                                </div>
-                                            ) : '—'}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {leaveApplications.length === 0 && (
-                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
-                                            No pending leave applications.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+             <Tabs defaultValue="staff-leave">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="staff-leave">Staff Leave</TabsTrigger>
+                    <TabsTrigger value="student-leave">Student Leave</TabsTrigger>
+                </TabsList>
+                <TabsContent value="staff-leave" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Staff Leave Requests</CardTitle>
+                            <CardDescription>Review and approve leave applications submitted by staff.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Teacher</TableHead>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>Dates</TableHead>
+                                            <TableHead>Reason</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {leaveApplications.map(app => (
+                                            <TableRow key={app.id}>
+                                                <TableCell>{app.teacherName}</TableCell>
+                                                <TableCell><Badge variant="secondary">{app.leaveType}</Badge></TableCell>
+                                                <TableCell>{format(app.startDate.toDate(), 'dd/MM/yy')} - {format(app.endDate.toDate(), 'dd/MM/yy')}</TableCell>
+                                                <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
+                                                <TableCell>{getStatusBadge(app.status)}</TableCell>
+                                                <TableCell className="text-right">
+                                                    {app.status === 'Pending' ? (
+                                                        <div className="flex gap-2 justify-end">
+                                                            <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleLeaveAction(app, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
+                                                            <Button size="sm" variant="destructive" onClick={() => handleLeaveAction(app, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
+                                                        </div>
+                                                    ) : '—'}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {leaveApplications.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="h-24 text-center">
+                                                    No pending leave applications.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="student-leave" className="mt-4">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Student Leave/Absence Reports</CardTitle>
+                            <CardDescription>Review absence notifications submitted by parents.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="w-full overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Student</TableHead>
+                                            <TableHead>Date of Absence</TableHead>
+                                            <TableHead>Reason</TableHead>
+                                            <TableHead>Reported By</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {studentLeaveApps.map(app => (
+                                            <TableRow key={app.id}>
+                                                <TableCell>{app.studentName}</TableCell>
+                                                <TableCell>{format(app.date.toDate(), 'PPP')}</TableCell>
+                                                <TableCell className="max-w-xs truncate">{app.reason}</TableCell>
+                                                <TableCell>{app.reportedBy}</TableCell>
+                                                <TableCell>{getStatusBadge(app.status)}</TableCell>
+                                                <TableCell className="text-right">
+                                                    {app.status === 'Pending' ? (
+                                                        <div className="flex gap-2 justify-end">
+                                                            <Button size="sm" variant="outline" className="text-primary hover:text-primary" onClick={() => handleStudentLeaveAction(app.id, 'Approved')}><CheckCircle className="mr-1 h-4 w-4"/>Approve</Button>
+                                                            <Button size="sm" variant="destructive" onClick={() => handleStudentLeaveAction(app.id, 'Rejected')}><XCircle className="mr-1 h-4 w-4"/>Reject</Button>
+                                                        </div>
+                                                    ) : '—'}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {studentLeaveApps.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="h-24 text-center">
+                                                    No student absence reports found.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+             </Tabs>
         </TabsContent>
          <TabsContent value="student_analytics">
            <Card>
@@ -1062,6 +1149,7 @@ export default function AdminAttendancePage() {
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-4">
                                             <Avatar className="h-16 w-16">
+                                                <AvatarImage src={selectedStudent.avatarUrl} />
                                                 <AvatarFallback>{selectedStudent.name.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div>
