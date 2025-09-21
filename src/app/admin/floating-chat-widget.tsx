@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { collection, onSnapshot, query, orderBy, limit, Timestamp, doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit, Timestamp, doc, updateDoc, arrayUnion, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
@@ -113,6 +113,16 @@ export function FloatingChatWidget() {
         }
     };
     
+    const handleResolveConversation = async () => {
+        if (!selectedConversation || !schoolId) return;
+        try {
+            await deleteDoc(doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id));
+            setSelectedConversation(null);
+        } catch (error) {
+            console.error("Error resolving conversation:", error);
+        }
+    };
+    
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -181,20 +191,23 @@ export function FloatingChatWidget() {
                             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                             className="h-[500px] flex flex-col"
                         >
-                            <div className="p-4 border-b flex items-center gap-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedConversation(null)}><ArrowLeft/></Button>
-                                <Avatar className="h-9 w-9">
-                                    <AvatarFallback><User /></AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <p className="font-semibold">{selectedConversation.userName}</p>
-                                    <p className="text-xs text-muted-foreground">Support Chat</p>
+                            <div className="p-4 border-b flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedConversation(null)}><ArrowLeft/></Button>
+                                    <Avatar className="h-9 w-9">
+                                        <AvatarFallback><User /></AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="font-semibold">{selectedConversation.userName}</p>
+                                        <p className="text-xs text-muted-foreground">Support Chat</p>
+                                    </div>
                                 </div>
+                                <Button variant="outline" size="sm" onClick={handleResolveConversation}>Close</Button>
                             </div>
                             <ScrollArea className="flex-1">
                                 <div className="p-4 space-y-4">
                                 {selectedConversation.messages.map((message, index) => {
-                                   const key = `${index}-${message.content}-${message.timestamp?.seconds}`;
+                                   const key = `${index}-${message.timestamp?.seconds}-${message.content}`;
                                     return message.role === 'admin' ? (
                                         <AdminMessageBubble key={key} message={message} />
                                     ) : (
