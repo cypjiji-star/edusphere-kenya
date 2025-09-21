@@ -46,7 +46,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const devDoc = await getDoc(doc(firestore, 'developers', authUser.uid));
         if (devDoc.exists()) {
           setRole('developer');
-          setLoading(false);
           return;
         }
 
@@ -59,6 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const userData = userDocSnap.data();
               setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
           } else {
+             // It's possible the user is a parent, whose record is in the students collection
+             // For simplicity, we'll just default to unknown if not in the users collection.
+             // The login form logic already handles role validation.
              setRole('unknown');
           }
         } else if (pathname !== '/login' && pathname !== '/') {
