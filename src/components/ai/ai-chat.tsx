@@ -25,7 +25,7 @@ import { firestore } from '@/lib/firebase';
 import { supportChatbot, SupportChatbotInput } from '@/ai/flows/support-chatbot-flow';
 
 type Message = {
-  role: 'user' | 'model';
+  role: 'user' | 'model' | 'admin';
   content: string;
 };
 
@@ -139,12 +139,15 @@ export function AiChat() {
         <div className="p-4 space-y-4">
           {messages.map((message, index) => {
             const isUser = message.role === 'user';
+            const isAdmin = message.role === 'admin';
+            const isModel = message.role === 'model';
+            
             return (
               <div
                 key={index}
-                className={cn('flex items-end gap-2', isUser ? 'justify-end' : 'justify-start')}
+                className={cn('flex items-end gap-2', isUser || isAdmin ? 'justify-end' : 'justify-start')}
               >
-                {!isUser && (
+                {!isUser && !isAdmin && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
                       <Sparkles />
@@ -154,17 +157,19 @@ export function AiChat() {
                 <div
                   className={cn(
                     'max-w-[80%] rounded-lg p-3 text-sm shadow-md',
-                    isUser
+                     isUser
                       ? 'bg-primary text-primary-foreground rounded-br-none'
+                      : isAdmin
+                      ? 'bg-blue-600 text-white rounded-br-none'
                       : 'bg-muted rounded-bl-none'
                   )}
                 >
                   <p>{message.content}</p>
                 </div>
-                {isUser && (
+                {(isUser || isAdmin) && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
-                      <User />
+                      {isUser ? <User /> : <Sparkles />}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -205,7 +210,7 @@ export function AiChat() {
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
-        <Button
+         <Button
             variant="outline"
             className="w-full"
             onClick={handleTalkToAdmin}

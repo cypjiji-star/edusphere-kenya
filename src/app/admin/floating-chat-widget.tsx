@@ -89,6 +89,7 @@ export function FloatingChatWidget() {
                 messages: arrayUnion(newAdminMessage),
                 lastMessage: reply,
                 lastUpdate: serverTimestamp(),
+                isEscalated: false, // De-escalate on reply
             });
             setReply('');
         } catch (error) {
