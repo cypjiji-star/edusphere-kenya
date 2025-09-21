@@ -35,9 +35,24 @@ export async function createAssignmentAction(
       submissions: 0,
       totalStudents,
     });
+    
+    // 3. Create submission placeholders for each student (This is what was missing)
+    const batch = writeBatch(firestore);
+    studentsSnapshot.forEach((studentDoc) => {
+        const submissionRef = doc(collection(firestore, `schools/${schoolId}/assignments/${assignmentRef.id}/submissions`));
+        batch.set(submissionRef, {
+            studentRef: doc(firestore, 'schools', schoolId, 'students', studentDoc.id),
+            status: 'Not Handed In',
+            grade: null,
+            feedback: null,
+            submittedDate: null,
+        });
+    });
+    await batch.commit();
 
-    // 3. Create notifications for students/parents in the class
-    await addDoc(collection(firestore, 'schools', schoolId, 'notifications'), {
+
+    // 4. Create notifications for students/parents in the class
+    await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
         title: 'New Assignment Posted',
         description: `A new assignment "${data.title}" has been posted for ${className}. Due on ${format(data.dueDate, 'PPP')}.`,
         createdAt: serverTimestamp(),
