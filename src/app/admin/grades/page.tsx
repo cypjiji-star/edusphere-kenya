@@ -37,6 +37,8 @@ type Student = {
     name: string;
     avatarUrl: string;
     grades: Record<string, string>; // { [subjectName]: grade }
+    average: number;
+    rank: number;
 };
 
 type TeacherClass = {
@@ -104,12 +106,11 @@ export default function AdminGradesPage() {
 
         const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', selectedClassId));
         const unsubStudents = onSnapshot(studentsQuery, async (studentsSnapshot) => {
-            const studentList = studentsSnapshot.docs.map(doc => ({
+            const studentList: Partial<Student>[] = studentsSnapshot.docs.map(doc => ({
                 id: doc.id,
                 name: doc.data().name,
-                avatarUrl: doc.data().avatarUrl || `https://picsum.photos/seed/${doc.id}/100`,
                 grades: {}
-            } as Student));
+            }));
             
             if (studentList.length > 0) {
                  const studentIds = studentList.map(s => s.id);
@@ -120,13 +121,30 @@ export default function AdminGradesPage() {
                  studentList.forEach(student => {
                      gradesData.forEach(grade => {
                          if (grade.studentId === student.id) {
+                             if (!student.grades) student.grades = {};
                              student.grades[grade.subject] = grade.grade;
                          }
                      });
                  });
+
+                 // Calculate average and rank
+                studentList.forEach(student => {
+                    const grades = student.grades ? Object.values(student.grades) : [];
+                    const numericGrades = grades.map(g => parseInt(g, 10)).filter(g => !isNaN(g));
+                    if (numericGrades.length > 0) {
+                        student.average = numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length;
+                    } else {
+                        student.average = 0;
+                    }
+                });
+
+                studentList.sort((a, b) => (b.average || 0) - (a.average || 0));
+                studentList.forEach((student, index) => {
+                    student.rank = index + 1;
+                });
             }
             
-            setStudentsWithGrades(studentList);
+            setStudentsWithGrades(studentList as Student[]);
             setIsLoading(prev => ({ ...prev, students: false }));
         });
 
@@ -174,6 +192,7 @@ export default function AdminGradesPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead>Rank</TableHead>
                                         <TableHead>Student</TableHead>
                                         {subjectsInView.map(subject => (
                                             <TableHead key={subject} className="text-center">{subject}</TableHead>
@@ -184,6 +203,7 @@ export default function AdminGradesPage() {
                                     {studentsWithGrades.length > 0 ? (
                                         studentsWithGrades.map((student) => (
                                             <TableRow key={student.id}>
+                                                <TableCell className="font-bold text-lg text-center">{student.rank}</TableCell>
                                                 <TableCell className="font-medium">
                                                     <div className="flex items-center gap-2">
                                                          <Avatar className="h-9 w-9">
@@ -202,7 +222,7 @@ export default function AdminGradesPage() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={subjectsInView.length + 1} className="h-24 text-center text-muted-foreground">
+                                            <TableCell colSpan={subjectsInView.length + 2} className="h-24 text-center text-muted-foreground">
                                                 {selectedClassId ? 'No students or grades recorded for this class.' : 'Please select a class to view results.'}
                                             </TableCell>
                                         </TableRow>
