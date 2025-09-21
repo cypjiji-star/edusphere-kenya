@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -27,7 +28,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileText, Loader2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 
