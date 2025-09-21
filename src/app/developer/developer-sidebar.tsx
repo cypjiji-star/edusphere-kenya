@@ -67,14 +67,6 @@ export function DeveloperSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/developer/roles')} tooltip={{ children: 'Roles & Permissions' }}>
-              <Link href="/developer/roles" onClick={handleLinkClick}>
-                <ShieldCheck />
-                <span>Roles & Permissions</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive('/developer/logs')} tooltip={{ children: 'Audit Logs' }}>
               <Link href="/developer/logs" onClick={handleLinkClick}>
                 <FileClock />
@@ -136,4 +128,3 @@ export function DeveloperSidebar() {
     </>
   );
 }
-
