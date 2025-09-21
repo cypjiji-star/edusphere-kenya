@@ -19,7 +19,7 @@ import {
   updateDoc,
   doc,
   serverTimestamp,
-  getDocs,
+  getDoc,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { supportChatbot, SupportChatbotInput } from '@/ai/flows/support-chatbot-flow';
@@ -31,8 +31,33 @@ type Message = {
 
 const escalationTriggerMessage = "Understood. I'm escalating your request to a human administrator who will get back to you shortly.";
 
+async function getUserDisplayName(schoolId: string, userId: string, role: string): Promise<string> {
+    const collectionName = role.toLowerCase() + 's';
+    try {
+        const userDocRef = doc(firestore, 'schools', schoolId, collectionName, userId);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+            return userDocSnap.data().name || 'User';
+        }
+    } catch(e) {
+        // This might fail if the user is a parent, whose record is structured differently
+        // We'll try to find them via the students collection
+        try {
+            const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', userId));
+            const studentsSnap = await getDocs(studentsQuery);
+            if (!studentsSnap.empty) {
+                return studentsSnap.docs[0].data().parentName || 'Parent';
+            }
+        } catch(e2) {
+            console.error("Could not find user in any collection", e2);
+        }
+    }
+    return 'User';
+}
+
+
 export function AiChat() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [chatId, setChatId] = React.useState<string | null>(null);
@@ -75,7 +100,7 @@ export function AiChat() {
   }, [messages]);
 
   const sendMessage = async (messageContent: string) => {
-    if (!messageContent.trim() || isLoading || !user || !schoolId) return;
+    if (!messageContent.trim() || isLoading || !user || !schoolId || !role) return;
 
     const userMessage: Message = { role: 'user', content: messageContent };
     const newMessages: Message[] = [...messages, userMessage];
@@ -89,9 +114,10 @@ export function AiChat() {
     try {
       // Create chat document if it doesn't exist
       if (!currentChatId) {
+        const displayName = await getUserDisplayName(schoolId, user.uid, role);
         const docRef = await addDoc(collection(firestore, `schools/${schoolId}/support-chats`), {
           userId: user.uid,
-          userName: user.displayName || 'User',
+          userName: displayName,
           userAvatar: user.photoURL || '',
           lastMessage: messageContent,
           lastUpdate: serverTimestamp(),

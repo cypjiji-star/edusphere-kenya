@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -11,14 +10,19 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import * as React from 'react';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, Timestamp, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, Timestamp, where, doc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
+type ConversationParticipant = {
+    id: string;
+    name: string;
+    avatar: string;
+};
+
 type Conversation = {
   id: string;
-  name: string;
-  avatar: string;
+  participantsData: ConversationParticipant[];
   lastMessage: string;
   timestamp: Timestamp;
   unread: boolean;
@@ -26,11 +30,26 @@ type Conversation = {
   lastMessageSender?: string;
 };
 
-
-const getIconComponent = (participants: string[], currentUserId: string) => {
+const getIconComponent = (participants: string[]) => {
     if (participants.length > 2) return Users;
-    // You might add logic here to differentiate between teacher/parent/admin if needed
     return User;
+};
+
+async function getParticipantDetails(schoolId: string, userId: string): Promise<ConversationParticipant | null> {
+    const collectionsToSearch = ['admins', 'teachers', 'parents', 'students'];
+    for (const collectionName of collectionsToSearch) {
+        const docRef = doc(firestore, 'schools', schoolId, collectionName, userId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            return {
+                id: userId,
+                name: data.name || 'Unknown User',
+                avatar: data.avatarUrl || '',
+            };
+        }
+    }
+    return null;
 }
 
 export function MessagesWidget() {
@@ -48,9 +67,28 @@ export function MessagesWidget() {
       where('participants', 'array-contains', user.uid),
       orderBy('timestamp', 'desc')
     );
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const convos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
-        setConversations(convos);
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        const convosPromises = querySnapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            const otherParticipantId = data.participants.find((p: string) => p !== user.uid);
+            
+            let participantDetails: ConversationParticipant[] = [];
+            if (otherParticipantId) {
+                const details = await getParticipantDetails(schoolId, otherParticipantId);
+                if (details) {
+                    participantDetails.push(details);
+                }
+            }
+            
+            return {
+                id: doc.id,
+                ...data,
+                participantsData: participantDetails
+            } as Conversation;
+        });
+
+        const resolvedConvos = await Promise.all(convosPromises);
+        setConversations(resolvedConvos);
     });
 
     return () => unsubscribe();
@@ -70,18 +108,19 @@ export function MessagesWidget() {
       <CardContent>
         <div className="space-y-4">
           {conversations.slice(0, 3).map((message, index) => {
-            const IconComponent = getIconComponent(message.participants, user?.uid || '');
+            const otherParticipant = message.participantsData[0] || { name: 'Chat', avatar: ''};
+            const IconComponent = getIconComponent(message.participants);
             return (
               <div key={index} className="space-y-3">
                 <Link href={`/teacher/messaging?schoolId=${schoolId}`} className="block hover:bg-muted/50 p-2 -m-2 rounded-lg">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={message.avatar} alt={message.name} />
+                      <AvatarImage src={otherParticipant.avatar} alt={otherParticipant.name} />
                       <AvatarFallback><IconComponent /></AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex justify-between items-center">
-                          <p className="font-semibold text-sm">{message.name}</p>
+                          <p className="font-semibold text-sm">{otherParticipant.name}</p>
                           <p className="text-xs text-muted-foreground">{message.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                       <p className="text-sm text-muted-foreground truncate">{message.lastMessage}</p>
