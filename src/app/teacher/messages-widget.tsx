@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -36,7 +37,7 @@ const getIconComponent = (participants: string[]) => {
 };
 
 async function getParticipantDetails(schoolId: string, userId: string): Promise<ConversationParticipant | null> {
-    const collectionsToSearch = ['admins', 'teachers', 'parents', 'students'];
+    const collectionsToSearch = ['admins', 'teachers', 'parents'];
     for (const collectionName of collectionsToSearch) {
         const docRef = doc(firestore, 'schools', schoolId, collectionName, userId);
         const docSnap = await getDoc(docRef);
@@ -49,8 +50,23 @@ async function getParticipantDetails(schoolId: string, userId: string): Promise<
             };
         }
     }
+    // Fallback for parents who might not have a separate doc
+    try {
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', userId));
+        const studentsSnap = await getDocs(studentsQuery);
+        if (!studentsSnap.empty) {
+            return {
+                id: userId,
+                name: studentsSnap.docs[0].data().parentName || 'Parent',
+                avatar: '',
+            };
+        }
+    } catch (e) {
+        console.error("Could not find parent user details", e);
+    }
     return null;
 }
+
 
 export function MessagesWidget() {
   const searchParams = useSearchParams();

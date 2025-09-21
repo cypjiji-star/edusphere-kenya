@@ -58,9 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const userData = userDocSnap.data();
               setRole(userData.role?.toLowerCase() as AllowedRole || 'unknown');
           } else {
-             // It's possible the user is a parent, whose record is in the students collection
-             // For simplicity, we'll just default to unknown if not in the users collection.
-             // The login form logic already handles role validation.
+             // Fallback for parents or if user doc is missing
              setRole('unknown');
           }
         } else if (pathname !== '/login' && pathname !== '/') {

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -110,7 +111,7 @@ export function TeacherSidebar() {
 
   React.useEffect(() => {
     if (user && schoolId) {
-      const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
+      const userDocRef = doc(firestore, `schools/${schoolId}/teachers`, user.uid);
       const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const userData = docSnap.data();

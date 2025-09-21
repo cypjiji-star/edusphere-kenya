@@ -189,14 +189,18 @@ export default function AdminAnnouncementsPage() {
         setPastAnnouncements(fetchedAnnouncements);
     });
     
-    const usersQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', 'in', ['Student', 'Parent', 'Teacher']));
-    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-        setTotalUserCount(snapshot.size);
-    });
+    const countUsers = async () => {
+        const studentSnap = await getDocs(collection(firestore, `schools/${schoolId}/students`));
+        const teacherSnap = await getDocs(collection(firestore, `schools/${schoolId}/teachers`));
+        const adminSnap = await getDocs(collection(firestore, `schools/${schoolId}/admins`));
+        const parentSnap = await getDocs(collection(firestore, `schools/${schoolId}/parents`));
+        setTotalUserCount(studentSnap.size + teacherSnap.size + adminSnap.size + parentSnap.size);
+    };
+
+    countUsers();
 
     return () => {
         unsubscribe();
-        unsubscribeUsers();
     };
   }, [schoolId]);
 
