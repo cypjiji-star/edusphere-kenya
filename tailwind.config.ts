@@ -80,7 +80,6 @@ export default {
       },
       boxShadow: {
         'glow-accent': '0 0 15px 5px hsl(var(--accent) / 0.1)',
-        'glow-sidebar': 'inset 4px 0 0 hsl(var(--primary))',
       },
       keyframes: {
         'accordion-down': {
