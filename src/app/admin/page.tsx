@@ -81,7 +81,7 @@ export default function AdminDashboard() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [schoolName, setSchoolName] = React.useState('');
-  const [stats, setStats] = React.useState({ totalStudents: 0, totalTeachers: 0, overallFeeBalance: 0, attendanceRate: 0 });
+  const [stats, setStats] = React.useState({ totalStudents: 0, totalStaff: 0, overallFeeBalance: 0, attendanceRate: 0 });
   const [activities, setActivities] = React.useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -99,11 +99,21 @@ export default function AdminDashboard() {
         setSchoolName(docSnap.data().name);
       }
     }));
+    
+    const updateStaffCount = () => {
+      const teachersQuery = query(collection(firestore, `schools/${schoolId}/teachers`));
+      const adminsQuery = query(collection(firestore, `schools/${schoolId}/admins`));
 
-    const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher'));
-    unsubscribers.push(onSnapshot(teachersQuery, (snapshot) => {
-      setStats(prev => ({...prev, totalTeachers: snapshot.size }));
-    }));
+      Promise.all([getDocs(teachersQuery), getDocs(adminsQuery)]).then(([teachersSnapshot, adminsSnapshot]) => {
+        const totalStaff = teachersSnapshot.size + adminsSnapshot.size;
+        setStats(prev => ({...prev, totalStaff }));
+      });
+    };
+
+    const unsubTeachers = onSnapshot(query(collection(firestore, `schools/${schoolId}/teachers`)), updateStaffCount);
+    const unsubAdmins = onSnapshot(query(collection(firestore, `schools/${schoolId}/admins`)), updateStaffCount);
+    unsubscribers.push(unsubTeachers, unsubAdmins);
+
 
     const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
     unsubscribers.push(onSnapshot(studentsQuery, async (studentsSnapshot) => {
@@ -160,7 +170,7 @@ export default function AdminDashboard() {
 
   const overviewStats = [
     { title: "Total Students", stat: stats.totalStudents, icon: <Users className="h-6 w-6 text-muted-foreground" /> },
-    { title: "Total Staff", stat: stats.totalTeachers, icon: <UserCheck className="h-6 w-6 text-muted-foreground" /> },
+    { title: "Total Staff", stat: stats.totalStaff, icon: <UserCheck className="h-6 w-6 text-muted-foreground" /> },
     { title: "Overall Fee Balance", stat: formatCurrency(stats.overallFeeBalance), icon: <CircleDollarSign className="h-6 w-6 text-muted-foreground" /> },
     { title: "Today's Attendance", stat: `${stats.attendanceRate}%`, icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" /> }
   ];
