@@ -32,6 +32,7 @@ import {
   Trophy,
   Library,
   Bed,
+  Package,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -102,6 +103,7 @@ const navGroups = [
     items: [
         { href: '/admin/sports', label: 'Teams & Clubs', icon: Trophy },
         { href: '/admin/library', label: 'Library', icon: Library },
+        { href: '/admin/resources', label: 'School Resources', icon: Package },
     ]
   },
   {
