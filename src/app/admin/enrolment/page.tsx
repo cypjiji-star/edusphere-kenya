@@ -103,6 +103,7 @@ const enrolmentSchema = z.object({
   studentLastName: z.string().min(2, 'Last name is required.'),
   dateOfBirth: z.date({ required_error: 'Date of birth is required.' }),
   gender: z.string({ required_error: 'Please select a gender.' }),
+  boardingStatus: z.string({ required_error: 'Please select a boarding status.' }),
   admissionNumber: z.string().optional(),
   birthCertificateNumber: z.string().optional(),
   classId: z.string({ required_error: 'Please assign a class.' }),
@@ -179,6 +180,7 @@ export default function StudentEnrolmentPage() {
             studentFirstName: '',
             studentLastName: '',
             gender: '',
+            boardingStatus: '',
             admissionNumber: '',
             birthCertificateNumber: '',
             classId: '',
@@ -395,7 +397,9 @@ export default function StudentEnrolmentPage() {
                     name: `${values.studentFirstName} ${values.studentLastName}`,
                     firstName: values.studentFirstName, lastName: values.studentLastName,
                     dateOfBirth: Timestamp.fromDate(values.dateOfBirth),
-                    gender: values.gender, admissionNumber,
+                    gender: values.gender, 
+                    boardingStatus: values.boardingStatus,
+                    admissionNumber,
                     birthCertificateNumber: values.birthCertificateNumber || null,
                     nhifNumber: values.nhifNumber || null,
                     classId: values.classId,
@@ -586,6 +590,7 @@ export default function StudentEnrolmentPage() {
                                 <FormField control={form.control} name="gender" render={({ field }) => ( <FormItem><FormLabel>Gender</FormLabel><FormControl><Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue placeholder="Select a gender" /></SelectTrigger><SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent></Select></FormControl><FormMessage /></FormItem> )}/>
                                  <FormField control={form.control} name="admissionNumber" render={({ field }) => ( <FormItem><FormLabel>Admission Number</FormLabel><FormControl><Input placeholder="e.g., SCH-1234" {...field} /></FormControl><FormDescription>Leave blank to auto-generate.</FormDescription><FormMessage /></FormItem> )}/>
                                  <FormField control={form.control} name="birthCertificateNumber" render={({ field }) => ( <FormItem><FormLabel>Birth Certificate No.</FormLabel><FormControl><Input placeholder="e.g., 1234567" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                  <FormField control={form.control} name="boardingStatus" render={({ field }) => ( <FormItem><FormLabel>Boarding Status</FormLabel><FormControl><Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger><SelectContent><SelectItem value="boarder">Boarder</SelectItem><SelectItem value="day-scholar">Day Scholar</SelectItem></SelectContent></Select></FormControl><FormMessage /></FormItem> )}/>
                             </div>
                         </CardContent>
                     </Card>

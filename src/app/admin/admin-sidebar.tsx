@@ -31,6 +31,7 @@ import {
   Check,
   Trophy,
   Library,
+  Bed,
 } from 'lucide-react';
 import {
   SidebarHeader,
@@ -58,7 +59,6 @@ import { cn } from '@/lib/utils';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, limit, updateDoc, doc, where } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
-import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 
 const navGroups = [
@@ -78,6 +78,7 @@ const navGroups = [
     items: [
       { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus, badge: '0', collection: 'students', field: 'status', value: 'Pending' },
       { href: '/admin/students', label: 'Student Management', icon: GraduationCap },
+      { href: '/admin/boarding', label: 'Boarding', icon: Bed },
       { href: '/admin/users-list', label: 'User Management', icon: Users },
       { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
