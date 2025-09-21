@@ -61,6 +61,7 @@ type AuditLog = {
   description: string;
   user: {
     name: string;
+    role: string;
   };
   timestamp: Timestamp;
   details: string | { oldValue: string | null; newValue: string };
@@ -117,7 +118,7 @@ export default function AuditLogsPage() {
       const isDateInRange = date?.from && date?.to ? recordDate >= date.from && recordDate <= date.to : true;
       
       const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = (log.description && log.description.toLowerCase().includes(searchLower)) || 
+      const matchesSearch = (log.description && log.description.toLowerCase().includes(searchLower)) ||
                             (typeof log.details === 'string' && log.details.toLowerCase().includes(searchLower)) ||
                             (log.schoolId && log.schoolId.toLowerCase().includes(searchLower));
                             
@@ -129,13 +130,18 @@ export default function AuditLogsPage() {
 
   const groupedLogs = React.useMemo(() => {
     return filteredLogs.reduce((acc, log) => {
-        const key = log.schoolId || 'Platform';
-        if (!acc[key]) {
-            acc[key] = [];
+        const schoolKey = log.schoolId || 'Platform';
+        const roleKey = log.user.role || 'System';
+
+        if (!acc[schoolKey]) {
+            acc[schoolKey] = {};
         }
-        acc[key].push(log);
+        if (!acc[schoolKey][roleKey]) {
+            acc[schoolKey][roleKey] = [];
+        }
+        acc[schoolKey][roleKey].push(log);
         return acc;
-    }, {} as Record<string, AuditLog[]>);
+    }, {} as Record<string, Record<string, AuditLog[]>>);
   }, [filteredLogs]);
 
   return (
@@ -240,57 +246,71 @@ export default function AuditLogsPage() {
                         </div>
                     ) : (
                         <Accordion type="multiple" className="w-full">
-                            {Object.entries(groupedLogs).map(([schoolId, schoolLogs]) => (
+                            {Object.entries(groupedLogs).map(([schoolId, roles]) => (
                                 <AccordionItem value={schoolId} key={schoolId}>
                                     <AccordionTrigger>
                                         <div className="flex items-center gap-2">
                                             <span className="font-semibold">{schoolId === 'Platform' ? 'Platform-Level' : `School: ${schoolId}`}</span>
-                                            <Badge variant="outline">{schoolLogs.length} events</Badge>
+                                            <Badge variant="outline">{Object.values(roles).flat().length} events</Badge>
                                         </div>
                                     </AccordionTrigger>
                                     <AccordionContent>
-                                        <div className="w-full overflow-auto rounded-lg border">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="w-[250px]">Action</TableHead>
-                                                        <TableHead>Performed By</TableHead>
-                                                        <TableHead>Date</TableHead>
-                                                        <TableHead>Details</TableHead>
-                                                        <TableHead className="text-right">View</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {schoolLogs.map((log) => {
-                                                        const config = actionTypeConfig[log.actionType];
-                                                        const Icon = config.icon;
-                                                        return (
-                                                            <DialogTrigger key={log.id} asChild>
-                                                                <TableRow onClick={() => setSelectedLog(log)} className={cn("cursor-pointer", log.actionType === 'Security' && 'border-l-4 border-destructive')}>
-                                                                    <TableCell>
-                                                                        <div className="flex items-center gap-3">
-                                                                            <Icon className={cn("h-5 w-5", config.color)} />
-                                                                            <span className="font-medium">{log.description}</span>
-                                                                        </div>
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        <div className="flex items-center gap-3">
-                                                                            <Avatar className="h-8 w-8">
-                                                                                <AvatarFallback>{log.user.name.charAt(0)}</AvatarFallback>
-                                                                            </Avatar>
-                                                                            <span>{log.user.name}</span>
-                                                                        </div>
-                                                                    </TableCell>
-                                                                    <TableCell>{log.timestamp?.toDate().toLocaleString()}</TableCell>
-                                                                    <TableCell className="text-muted-foreground max-w-xs truncate">{typeof log.details === 'string' ? log.details : `Value changed`}</TableCell>
-                                                                    <TableCell className="text-right"><Button variant="ghost" size="sm">Details <ArrowRight className="ml-2 h-4 w-4" /></Button></TableCell>
-                                                                </TableRow>
-                                                            </DialogTrigger>
-                                                        );
-                                                    })}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
+                                        <Accordion type="multiple" className="w-full pl-4">
+                                            {Object.entries(roles).map(([role, roleLogs]) => (
+                                                <AccordionItem value={`${schoolId}-${role}`} key={`${schoolId}-${role}`}>
+                                                    <AccordionTrigger>
+                                                        <div className="flex items-center gap-2">
+                                                            <span>{role} Logs</span>
+                                                            <Badge variant="secondary">{roleLogs.length} events</Badge>
+                                                        </div>
+                                                    </AccordionTrigger>
+                                                    <AccordionContent>
+                                                        <div className="w-full overflow-auto rounded-lg border">
+                                                            <Table>
+                                                                <TableHeader>
+                                                                    <TableRow>
+                                                                        <TableHead className="w-[250px]">Action</TableHead>
+                                                                        <TableHead>Performed By</TableHead>
+                                                                        <TableHead>Date</TableHead>
+                                                                        <TableHead>Details</TableHead>
+                                                                        <TableHead className="text-right">View</TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {roleLogs.map((log) => {
+                                                                        const config = actionTypeConfig[log.actionType];
+                                                                        const Icon = config.icon;
+                                                                        return (
+                                                                            <DialogTrigger key={log.id} asChild>
+                                                                                <TableRow onClick={() => setSelectedLog(log)} className={cn("cursor-pointer", log.actionType === 'Security' && 'border-l-4 border-destructive')}>
+                                                                                    <TableCell>
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <Icon className={cn("h-5 w-5", config.color)} />
+                                                                                            <span className="font-medium">{log.description}</span>
+                                                                                        </div>
+                                                                                    </TableCell>
+                                                                                    <TableCell>
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <Avatar className="h-8 w-8">
+                                                                                                <AvatarFallback>{log.user.name.charAt(0)}</AvatarFallback>
+                                                                                            </Avatar>
+                                                                                            <span>{log.user.name}</span>
+                                                                                        </div>
+                                                                                    </TableCell>
+                                                                                    <TableCell>{log.timestamp?.toDate().toLocaleString()}</TableCell>
+                                                                                    <TableCell className="text-muted-foreground max-w-xs truncate">{typeof log.details === 'string' ? log.details : `Value changed`}</TableCell>
+                                                                                    <TableCell className="text-right"><Button variant="ghost" size="sm">Details <ArrowRight className="ml-2 h-4 w-4" /></Button></TableCell>
+                                                                                </TableRow>
+                                                                            </DialogTrigger>
+                                                                        );
+                                                                    })}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </div>
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            ))}
+                                        </Accordion>
                                     </AccordionContent>
                                 </AccordionItem>
                             ))}
