@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -279,6 +280,7 @@ export default function ExpensesPage() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [categoryFilter, setCategoryFilter] = React.useState('All Categories');
     const [statusFilter, setStatusFilter] = React.useState('All Statuses');
+    const [financials, setFinancials] = React.useState({ totalCollected: 0 });
     
     // State for the new expense dialog
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -318,7 +320,23 @@ export default function ExpensesPage() {
             console.error("Error fetching expenses: ", error);
             setIsLoading(false);
         });
-        return () => unsubscribe();
+
+        const transactionsQuery = query(collection(firestore, `schools/${schoolId}/transactions`));
+        const unsubTransactions = onSnapshot(transactionsQuery, (querySnapshot) => {
+            let totalCollected = 0;
+            querySnapshot.forEach(doc => {
+                const transaction = doc.data();
+                if (transaction.type === 'Payment') {
+                    totalCollected += Math.abs(transaction.amount);
+                }
+            });
+            setFinancials({ totalCollected });
+        });
+        
+        return () => {
+            unsubscribe();
+            unsubTransactions();
+        };
     }, [schoolId]);
     
     const filteredExpenses = expenses.filter(expense => {
@@ -418,7 +436,6 @@ export default function ExpensesPage() {
     const dashboardStats = React.useMemo(() => {
         const thisMonth = new Date().getMonth();
         const thisYear = new Date().getFullYear();
-        const monthlyBudget = 1500000;
 
         const monthlyExpenses = expenses.filter(exp => {
             if (!exp.date) return false;
@@ -438,7 +455,7 @@ export default function ExpensesPage() {
 
         const topCategory = Object.entries(categorySpending).sort(([,a],[,b]) => b-a)[0];
         
-        const budgetVariance = monthlyBudget - total;
+        const budgetVariance = financials.totalCollected - total;
 
         return {
             total,
@@ -447,7 +464,7 @@ export default function ExpensesPage() {
             topCategoryPercentage: topCategory && total > 0 ? Math.round((topCategory[1] / total) * 100) : 0,
             budgetVariance,
         };
-    }, [expenses]);
+    }, [expenses, financials]);
 
     const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -596,10 +613,10 @@ export default function ExpensesPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Budget Variance</CardTitle>
+                        <CardTitle className="text-sm font-medium">Revenue vs Expense</CardTitle>
                         {dashboardStats.budgetVariance >= 0 ? 
-                            <TrendingDown className="h-4 w-4 text-primary" /> : 
-                            <TrendingUp className="h-4 w-4 text-destructive" />
+                            <TrendingUp className="h-4 w-4 text-primary" /> : 
+                            <TrendingDown className="h-4 w-4 text-destructive" />
                         }
                     </CardHeader>
                     <CardContent>
@@ -607,7 +624,7 @@ export default function ExpensesPage() {
                             {formatCurrency(Math.abs(dashboardStats.budgetVariance))}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            {dashboardStats.budgetVariance >= 0 ? 'Under budget this month' : 'Over budget this month'}
+                            {dashboardStats.budgetVariance >= 0 ? 'Surplus this month' : 'Deficit this month'}
                         </p>
                     </CardContent>
                 </Card>
