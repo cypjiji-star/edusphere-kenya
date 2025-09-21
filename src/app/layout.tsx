@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         {/* Favicon */}
         <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
@@ -41,21 +41,15 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className="font-body antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
           <AuthProvider>
             <SplashScreen />
             <ClientPageLoader />
             <Suspense>{children}</Suspense>
             <Toaster />
           </AuthProvider>
-        </ThemeProvider>
         <Script src="/sw-register.js" />
       </body>
     </html>
   );
 }
+

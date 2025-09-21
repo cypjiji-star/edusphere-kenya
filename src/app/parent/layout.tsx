@@ -4,7 +4,6 @@ import { ParentSidebar } from './parent-sidebar';
 import { Suspense } from 'react';
 import { AuthCheck } from '@/lib/auth-check';
 import { FloatingSupportWidget } from '@/components/layout/floating-support-widget';
-import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 export default function ParentLayout({
   children,
@@ -25,7 +24,6 @@ export default function ParentLayout({
                 <div className="flex-1 md:hidden">
                     <SidebarTrigger />
                 </div>
-                <ThemeSwitcher />
             </header>
             {children}
             <FloatingSupportWidget />
@@ -35,3 +33,4 @@ export default function ParentLayout({
     </AuthCheck>
   );
 }
+
