@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -34,6 +35,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { saveGradesAction } from './actions';
+import { Label } from '@/components/ui/label';
 
 type Student = {
     id: string;
