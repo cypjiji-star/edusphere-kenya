@@ -87,6 +87,7 @@ const navGroups = [
     items: [
         { href: '/teacher/library', label: 'Library Access', icon: Library, disabled: false, badgeKey: null },
         { href: '/teacher/my-library', label: 'My Library', icon: User, disabled: false, badgeKey: null },
+        { href: '/teacher/support', label: 'Support Chat', icon: HelpCircle, disabled: false, badgeKey: null },
     ],
   },
 ];

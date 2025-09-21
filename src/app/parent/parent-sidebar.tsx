@@ -50,7 +50,7 @@ const navItems = [
     { href: '/parent/timetable', label: 'Timetable', icon: Calendar, badgeKey: null },
     { href: '/parent/fees', label: 'Fees & Payments', icon: CircleDollarSign, badgeKey: null },
     { href: '/parent/health', label: 'Health & Incidents', icon: HeartPulse, badgeKey: null },
-    { href: '/parent/support', label: 'Support & Feedback', icon: HelpCircle, badgeKey: null },
+    { href: '/parent/support', label: 'Support Chat', icon: MessageCircle, badgeKey: null },
     { href: '/parent/calendar', label: 'Events Calendar', icon: Calendar, badgeKey: null },
 ];
 
