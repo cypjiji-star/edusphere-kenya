@@ -1,4 +1,3 @@
-
 import { AppHeader } from '@/components/layout/header';
 import { AppFooter } from '@/components/layout/footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,10 +52,10 @@ export default function DeveloperContactPage() {
                                     <CardContent className="space-y-4">
                                         <div className="flex items-center gap-4">
                                             <Avatar className="h-16 w-16">
-                                                <AvatarFallback>RK</AvatarFallback>
+                                                <AvatarFallback>DK</AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <h3 className="text-xl font-semibold">Rodgers Kiserian</h3>
+                                                <h3 className="text-xl font-semibold">Derick Kisero</h3>
                                                 <p className="text-muted-foreground">Lead Full-Stack Developer</p>
                                             </div>
                                         </div>

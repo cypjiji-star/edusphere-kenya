@@ -54,7 +54,7 @@ function LoginPageContent() {
                     <div className="mt-8 text-sm text-white/70">
                       <p>Built & Maintained By</p>
                       <Link href="/developer-contact" className="font-semibold text-white hover:underline">
-                        Rodgers Kiserian
+                        Derick Kisero
                       </Link>
                     </div>
                     <p className="text-xs mt-2 text-white/50">© {new Date().getFullYear()} EduSphere. All rights reserved.</p>
