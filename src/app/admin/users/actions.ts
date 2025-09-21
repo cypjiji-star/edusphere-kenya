@@ -37,31 +37,29 @@ export async function deleteUserAction(uid: string, schoolId: string, role: stri
   try {
     const adminApp = getFirebaseAdminApp();
     const auth = getAuth(adminApp);
+    
+    const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
+    const isNonTeaching = nonTeachingRoles.includes(role);
 
-    // Attempt to delete from Firebase Auth first
-    try {
-        await auth.deleteUser(uid);
-    } catch (error: any) {
-        // If user doesn't exist in Auth, we can still proceed with DB cleanup.
-        if (error.code !== 'auth/user-not-found') {
-            throw error; // Re-throw other auth errors
+    // Only try to delete from Auth if it's NOT a non-teaching staff member
+    if (!isNonTeaching) {
+        try {
+            await auth.deleteUser(uid);
+        } catch (error: any) {
+            if (error.code !== 'auth/user-not-found') {
+                throw error;
+            }
         }
     }
     
-    // Determine the correct collection based on the role
-    const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
-    let roleCollectionName = role.toLowerCase() + 's';
-    if (nonTeachingRoles.includes(role)) {
-      roleCollectionName = 'non_teaching_staff';
-    }
+    let roleCollectionName = isNonTeaching ? 'non_teaching_staff' : role.toLowerCase() + 's';
 
     const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
     await deleteDoc(userDocRef);
     
-    // Create a notification for this security event
     await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
-      title: 'Security Alert: User Deleted',
-      description: `A user account (UID: ${uid.substring(0,10)}...) was permanently deleted.`,
+      title: 'Security Alert: User Record Deleted',
+      description: `A user record was permanently deleted.`,
       createdAt: serverTimestamp(),
       category: 'Security',
       href: `/admin/logs?schoolId=${schoolId}`,
@@ -82,75 +80,100 @@ export async function deleteUserAction(uid: string, schoolId: string, role: stri
  */
 export async function createUserAction(params: {
   schoolId: string;
-  email: string;
+  email?: string;
   password?: string;
   name: string;
   role: string;
   actor: { id: string; name: string };
   classes?: string[];
+  phone?: string;
+  startYear?: string;
+  salary?: string;
+  nationalId?: string;
 }) {
-  const { schoolId, email, password, name, role, actor, classes } = params;
+  const { schoolId, email, password, name, role, actor, classes, phone, startYear, salary, nationalId } = params;
 
-  if (!email || !name || !role) {
+  if (!name || !role) {
     return { success: false, message: 'Missing required user information.' };
   }
-
-  const adminApp = getFirebaseAdminApp();
-  const auth = getAuth(adminApp);
-
+  
+  const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
+  const isNonTeachingStaff = nonTeachingRoles.includes(role);
+  
   try {
-    // 1. Create user in Firebase Authentication
-    const userRecord = await auth.createUser({
-      email,
-      password: password, // Password can be optional if you send a verification link
-      displayName: name,
-      disabled: false,
-    });
+    let uid: string;
+    let finalUserData: any;
 
-    const uid = userRecord.uid;
-    const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
+    if (isNonTeachingStaff) {
+      // This is a record, not a login-enabled user.
+      const newDocRef = doc(collection(firestore, 'schools', schoolId, 'non_teaching_staff'));
+      uid = newDocRef.id;
 
-    // 2. Determine the correct collection and create the user document
-    const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
-    let roleCollectionName = role.toLowerCase() + 's'; 
-    if (nonTeachingRoles.includes(role)) {
-      roleCollectionName = 'non_teaching_staff';
+      finalUserData = {
+        id: uid,
+        schoolId,
+        name,
+        role,
+        phone,
+        startYear,
+        salary,
+        nationalId,
+        status: 'Active',
+        createdAt: serverTimestamp(),
+      };
+      await setDoc(newDocRef, finalUserData);
+
+    } else {
+      // This is a user with login credentials.
+      if (!email || !password) {
+        return { success: false, message: 'Email and password are required for this role.' };
+      }
+      const adminApp = getFirebaseAdminApp();
+      const auth = getAuth(adminApp);
+      const userRecord = await auth.createUser({
+        email,
+        password,
+        displayName: name,
+        disabled: false,
+      });
+      uid = userRecord.uid;
+      const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
+
+      const roleCollectionName = role.toLowerCase() + 's';
+      const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
+
+      finalUserData = {
+        id: uid,
+        schoolId,
+        name,
+        email,
+        role,
+        status: 'Active',
+        createdAt: serverTimestamp(),
+        lastLogin: null,
+        avatarUrl,
+      };
+
+      if (role === 'Teacher' && classes) {
+        finalUserData.classIds = classes;
+      }
+      
+      await setDoc(userDocRef, finalUserData);
     }
     
-    const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
-    
-    const userData: any = {
-      id: uid,
-      schoolId,
-      name,
-      email,
-      role,
-      status: 'Active',
-      createdAt: serverTimestamp(),
-      lastLogin: null,
-      avatarUrl,
-    };
-
-    if (role === 'Teacher' && classes) {
-      userData.classIds = classes;
-    }
-    
-    await setDoc(userDocRef, userData);
-    
-    // 3. Log the audit event
+    // Log the audit event
     await logAuditEvent({
         schoolId,
         action: 'USER_CREATED',
         actionType: 'User Management',
-        description: `New user account created for ${name} (${email}) with role ${role}.`,
+        description: `New user record created for ${name} with role ${role}.`,
         user: { id: actor.id, name: actor.name, role: 'Admin' },
         details: `User ID: ${uid}`,
     });
 
-    return { success: true, uid, message: 'User created successfully.' };
+    return { success: true, uid, message: 'User record created successfully.' };
   } catch (error: any) {
     console.error("Error creating new user:", error);
-     // If user creation fails in Auth, we don't need to worry about cleanup.
     return { success: false, message: error.message || 'Failed to create user.' };
   }
 }
