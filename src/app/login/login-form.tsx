@@ -42,38 +42,54 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      let userIsAssociatedWithSchool = false;
+      let userRole: string | null = null;
+      let userName: string = user.displayName || user.email || 'Unknown';
 
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data() as DocumentData;
-        
-        if (userData.role?.toLowerCase() === role) {
-          // Update lastLogin timestamp
+      if (role === 'parent') {
+        const studentsQuery = query(collection(firestore, `schools/${schoolCode}/students`), where('parentId', '==', user.uid));
+        const studentsSnapshot = await getDocs(studentsQuery);
+        if (!studentsSnapshot.empty) {
+            userIsAssociatedWithSchool = true;
+            userRole = 'parent';
+            // Use the parentName from the first child record
+            userName = studentsSnapshot.docs[0].data().parentName || userName;
+        }
+      } else {
+        // Logic for Admin and Teacher
+        const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            userIsAssociatedWithSchool = true;
+            userRole = userData.role?.toLowerCase();
+            userName = userData.name || userName;
+        }
+      }
+
+      if (userIsAssociatedWithSchool && userRole === role) {
+        // Update lastLogin timestamp
+        const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+        if((await getDoc(userDocRef)).exists()) {
           await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
+        }
 
-          await logAuditEvent({
+        await logAuditEvent({
             schoolId: schoolCode,
             action: 'USER_LOGIN_SUCCESS',
             actionType: 'Security',
             description: `User ${user.email} successfully logged in as ${role}.`,
-            user: { id: user.uid, name: userData.name || user.email || 'Unknown', role: userData.role },
-          });
-          router.push(`/${role}?schoolId=${schoolCode}`);
-        } else {
-          await auth.signOut();
-          toast({
-            title: 'Access Denied',
-            description: "Your credentials are correct, but you do not have access to this portal with the selected role.",
-            variant: 'destructive',
-          });
-        }
+            user: { id: user.uid, name: userName, role: role },
+        });
+        router.push(`/${role}?schoolId=${schoolCode}`);
       } else {
-        // This case handles when a user exists in Firebase Auth but not in the school's user list
-         await auth.signOut();
+        await auth.signOut();
         toast({
           title: 'Access Denied',
-          description: "This user account is not associated with the provided school code.",
+          description: userIsAssociatedWithSchool 
+            ? "Your credentials are correct, but you do not have access with the selected role."
+            : "This user account is not associated with the provided school code.",
           variant: 'destructive',
         });
       }
