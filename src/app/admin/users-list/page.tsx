@@ -83,6 +83,10 @@ type User = {
     lastLogin: Timestamp | 'Never' | null;
     createdAt: Timestamp;
     class?: string;
+    phone?: string;
+    startYear?: string;
+    salary?: string;
+    nationalId?: string;
 };
 
 
@@ -124,6 +128,9 @@ export default function UserManagementListPage() {
     const [newUserEmail, setNewUserEmail] = React.useState('');
     const [newUserPassword, setNewUserPassword] = React.useState('');
     const [newUserClasses, setNewUserClasses] = React.useState<string[]>([]);
+    const [newUserPhone, setNewUserPhone] = React.useState('');
+    const [newUserStartYear, setNewUserStartYear] = React.useState('');
+    const [newUserSalary, setNewUserSalary] = React.useState('');
 
 
     React.useEffect(() => {
@@ -203,7 +210,7 @@ export default function UserManagementListPage() {
     };
 
     const handleCreateUser = async () => {
-        if (!schoolId || !newUserRole || !newUserEmail || !newUserPassword || !newUserName || !adminUser) {
+        if (!schoolId || !newUserRole || !newUserName || !adminUser) {
             toast({ title: 'Missing Information or Not Authenticated', variant: 'destructive' });
             return;
         }
@@ -221,6 +228,9 @@ export default function UserManagementListPage() {
                     name: adminUser.displayName || 'Admin'
                 },
                 ...(newUserRole === 'Teacher' && { classes: newUserClasses }),
+                phone: newUserPhone,
+                startYear: newUserStartYear,
+                salary: newUserSalary,
             });
 
             if (result.success) {
@@ -233,6 +243,9 @@ export default function UserManagementListPage() {
                 setNewUserPassword('');
                 setNewUserRole('');
                 setNewUserClasses([]);
+                setNewUserPhone('');
+                setNewUserStartYear('');
+                setNewUserSalary('');
             } else {
                 throw new Error(result.message);
             }
@@ -554,6 +567,26 @@ export default function UserManagementListPage() {
                                             <Label htmlFor="password-create">Set Initial Password</Label>
                                             <Input name="password" id="password-create" type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} />
                                         </div>
+
+                                        {(newUserRole === 'Teacher' || newUserRole === 'Admin') && (
+                                            <>
+                                                <Separator />
+                                                <div className="grid grid-cols-2 gap-4">
+                                                     <div className="space-y-2">
+                                                        <Label htmlFor="phone-create">Phone Number</Label>
+                                                        <Input id="phone-create" type="tel" placeholder="Optional" value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)} />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="start-year-create">Year Started</Label>
+                                                        <Input id="start-year-create" type="number" placeholder="Optional" value={newUserStartYear} onChange={e => setNewUserStartYear(e.target.value)} />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="salary-create">Salary (KES)</Label>
+                                                    <Input id="salary-create" type="number" placeholder="Optional" value={newUserSalary} onChange={e => setNewUserSalary(e.target.value)} />
+                                                </div>
+                                            </>
+                                        )}
 
                                         {newUserRole === 'Teacher' && (
                                             <div className="space-y-2">
