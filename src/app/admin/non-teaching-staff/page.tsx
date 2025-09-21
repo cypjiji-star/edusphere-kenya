@@ -173,7 +173,7 @@ export default function NonTeachingStaffPage() {
     
     const handleSaveChanges = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editingUser || !schoolId) return;
+        if (!editingUser || !schoolId || !adminUser) return;
 
         const formData = new FormData(e.target as HTMLFormElement);
         const updatedData: Partial<User> = {
@@ -197,6 +197,14 @@ export default function NonTeachingStaffPage() {
 
             const userRef = doc(firestore, 'schools', schoolId, 'non_teaching_staff', editingUser.id);
             await updateDoc(userRef, updatedData);
+
+            await logAuditEvent({
+                schoolId,
+                action: 'USER_PROFILE_UPDATED',
+                actionType: 'User Management',
+                user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+                details: `Updated details for non-teaching staff member ${editingUser.name}.`,
+            });
 
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
             setEditingUser(null);
@@ -274,7 +282,19 @@ export default function NonTeachingStaffPage() {
                                 <div className="space-y-2"><Label htmlFor="status">Account Status</Label><Select name="status" defaultValue={editingUser?.status}><SelectTrigger id="status"><SelectValue /></SelectTrigger><SelectContent>{statuses.filter(s => s !== 'All Statuses').map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select></div>
                             </div>
                         </div>
-                        <DialogFooter><DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose><Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Save Changes</Button></DialogFooter>
+                        <DialogFooter className="justify-between">
+                             <Button type="button" variant="destructive" onClick={() => setUserToDelete(editingUser)}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete User
+                            </Button>
+                            <div>
+                                <DialogClose asChild><Button type="button" variant="outline" className="mr-2">Cancel</Button></DialogClose>
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                    Save Changes
+                                </Button>
+                            </div>
+                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -304,7 +324,13 @@ export default function NonTeachingStaffPage() {
                                         </div>
                                         <div className="space-y-2"><Label htmlFor="password-create">Set Initial Password</Label><Input name="password" id="password-create" type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} /></div>
                                     </div>
-                                    <DialogFooter><DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose><DialogClose asChild><Button onClick={handleCreateUser} disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Create User</Button></DialogClose></DialogFooter>
+                                    <DialogFooter>
+                                      <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                                      <Button onClick={handleCreateUser} disabled={isSaving}>
+                                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                        Create User
+                                      </Button>
+                                    </DialogFooter>
                                 </DialogContent>
                             </Dialog>
                         </div>
