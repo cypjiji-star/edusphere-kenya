@@ -69,6 +69,8 @@ const navGroups = [
   {
     title: 'Instructional Tools',
     items: [
+      { href: '/teacher/assignments', label: 'Assignments', icon: BookMarked, badgeKey: 'ungradedAssignments' },
+      { href: '/teacher/grades', label: 'Grades & Exams', icon: FileText, badgeKey: null },
       { href: '/teacher/lesson-plans', label: 'Lesson Plans', icon: BookOpen, disabled: false, badgeKey: null },
     ],
   },
