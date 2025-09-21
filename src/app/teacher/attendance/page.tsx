@@ -98,7 +98,7 @@ const getLeaveStatusBadge = (status: LeaveApplication['status']) => {
     }
 };
 
-function LeaveManagementTab({ schoolId, user }: { schoolId: string, user: any }) {
+function LeaveManagementTab({ schoolId, user, teacherName }: { schoolId: string, user: any, teacherName: string }) {
     const { toast } = useToast();
     const [leaveApplications, setLeaveApplications] = React.useState<LeaveApplication[]>([]);
     const [leaveType, setLeaveType] = React.useState('');
@@ -140,7 +140,7 @@ function LeaveManagementTab({ schoolId, user }: { schoolId: string, user: any })
 
             await addDoc(collection(firestore, `schools/${schoolId}/leave-applications`), {
                 teacherId: user.uid,
-                teacherName: user.displayName || 'Teacher',
+                teacherName: teacherName,
                 leaveType,
                 startDate: Timestamp.fromDate(dateRange.from),
                 endDate: Timestamp.fromDate(dateRange.to),
@@ -611,7 +611,7 @@ export default function AttendancePage() {
             </TabsContent>
             
              <TabsContent value="leave-management" className="mt-4">
-                <LeaveManagementTab schoolId={schoolId} user={user} />
+                <LeaveManagementTab schoolId={schoolId} user={user} teacherName={teacherName} />
             </TabsContent>
         </Tabs>
     </div>
