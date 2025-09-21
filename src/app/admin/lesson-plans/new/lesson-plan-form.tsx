@@ -35,7 +35,8 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { firestore, auth } from '@/lib/firebase';
-import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, getDocs, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where, writeBatch } from 'firebase/firestore';
+import { useAuth } from '@/context/auth-context';
 
 
 export const lessonPlanSchema = z.object({
@@ -64,7 +65,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(!!lessonPlanId);
-  const user = auth.currentUser;
+  const { user } = useAuth();
   
   const [subjects, setSubjects] = React.useState<string[]>([]);
   const [grades, setGrades] = React.useState<string[]>([]);

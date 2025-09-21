@@ -191,7 +191,7 @@ export default function AdminDashboard() {
       
        <div className="space-y-8 overflow-auto">
             <div>
-                <h2 className="text-xl font-semibold mb-4">Key Metrics</h2>
+                <h2 className="text-xl font-headline font-semibold mb-4">Key Metrics</h2>
                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {isLoading ? Array(4).fill(0).map((_, index) => (
                         <Card key={index}>
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
             
              <Card>
                 <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
+                    <CardTitle className="font-headline">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <Button asChild size="lg"><Link href={`/admin/enrolment?schoolId=${schoolId}`}><UserPlus className="mr-2" /> Register New Student</Link></Button>
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
           <div className="lg:col-span-3">
             <Card>
                 <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
+                    <CardTitle className="font-headline">Recent Activity</CardTitle>
                     <CardDescription>A live feed of important events across the school.</CardDescription>
                 </CardHeader>
                 <CardContent>
