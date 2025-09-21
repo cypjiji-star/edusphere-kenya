@@ -42,7 +42,7 @@ import {
   SidebarMenuBadge,
   useSidebar
 } from '@/components/ui/sidebar';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -66,6 +66,7 @@ const navGroups = [
     title: 'Academics',
     items: [
       { href: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
+      { href: '/admin/grades', label: 'Grades & Exams', icon: FileText },
       { href: '/admin/timetable', label: 'Timetable', icon: Calendar },
       { href: '/admin/subjects', label: 'Classes & Subjects', icon: Shapes },
       { href: '/admin/lesson-plans', label: 'Lesson Plans', icon: BookOpen },
