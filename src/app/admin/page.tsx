@@ -21,6 +21,7 @@ import { collection, query, where, onSnapshot, limit, orderBy, Timestamp, getDoc
 import { useSearchParams } from 'next/navigation';
 import { SecurityAlertsWidget } from './security-alerts-widget';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ThemeSwitcher } from '@/components/ui/theme-switcher';
 
 const overviewLinks: Record<string, string> = {
     "Total Students": "/admin/students",
@@ -181,12 +182,15 @@ export default function AdminDashboard() {
 
   return (
     <div className="py-6 sm:py-8">
-      <div className="mb-8">
-        <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-            <LayoutDashboard className="h-8 w-8 text-primary"/>
-            {schoolName || 'Admin Dashboard'}
-        </h1>
-        <p className="text-muted-foreground">School-wide overview and management.</p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+            <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+                <LayoutDashboard className="h-8 w-8 text-primary"/>
+                {schoolName || 'Admin Dashboard'}
+            </h1>
+            <p className="text-muted-foreground">School-wide overview and management.</p>
+        </div>
+        <ThemeSwitcher />
       </div>
       
        <div className="space-y-8 overflow-auto">
