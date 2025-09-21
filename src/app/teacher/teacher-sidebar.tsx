@@ -24,6 +24,7 @@ import {
   BookOpen,
   Bell,
   Check,
+  BookMarked,
 } from 'lucide-react';
 import {
   SidebarHeader,
