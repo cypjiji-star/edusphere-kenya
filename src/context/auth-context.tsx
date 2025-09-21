@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { auth, firestore } from '@/lib/firebase';
 import { usePathname, useSearchParams } from 'next/navigation';
 
@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const devDoc = await getDoc(doc(firestore, 'developers', authUser.uid));
         if (devDoc.exists()) {
           setRole('developer');
+          setLoading(false);
           return;
         }
 
