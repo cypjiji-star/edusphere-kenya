@@ -3,6 +3,7 @@ import { AppFooter } from '@/components/layout/footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, Mail, Building, ShieldCheck, Palette, Users, Sparkles } from 'lucide-react';
+import Image from 'next/image';
 
 const features = [
     {
@@ -51,10 +52,7 @@ export default function DeveloperContactPage() {
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div className="flex items-center gap-4">
-                                            <Avatar className="h-24 w-24">
-                                                <AvatarImage src="https://i.postimg.cc/mg8cDv6H/Whats-App-Image-2025-09-21-at-5-28-36-PM.jpg" alt="Derick Kisero" />
-                                                <AvatarFallback>DK</AvatarFallback>
-                                            </Avatar>
+                                            <Image src="https://i.postimg.cc/mg8cDv6H/Whats-App-Image-2025-09-21-at-5-28-36-PM.jpg" alt="Derick Kisero" width={128} height={128} className="rounded-lg shadow-lg" />
                                             <div>
                                                 <h3 className="text-xl font-semibold">Derick Kisero</h3>
                                                 <p className="text-muted-foreground">Lead Full-Stack Developer</p>
