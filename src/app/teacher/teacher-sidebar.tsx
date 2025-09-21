@@ -53,7 +53,6 @@ import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { NotificationCenter } from '@/components/notifications/notification-center';
 
 
 const navGroups = [
@@ -79,6 +78,7 @@ const navGroups = [
     title: 'Communication',
     items: [
       { href: '/teacher/announcements', label: 'Announcements', icon: Megaphone, disabled: false, badgeKey: null },
+      { href: '/teacher/messaging', label: 'Messaging', icon: MessageCircle, disabled: false, badgeKey: null },
       { href: '/teacher/calendar', label: 'Events Calendar', icon: Calendar, disabled: false, badgeKey: null },
     ],
   },

@@ -69,7 +69,6 @@ export default function MessagingPage() {
 
         const q = query(
             collection(firestore, `schools/${schoolId}/support-chats`), 
-            where('isEscalated', '==', true), 
             orderBy('lastUpdate', 'desc')
         );
 
@@ -80,16 +79,13 @@ export default function MessagingPage() {
             if (selectedConversation) {
               const updatedConvo = convos.find(c => c.id === selectedConversation.id);
               setSelectedConversation(updatedConvo || null);
-            } else if (!selectedConversation && convos.length > 0 && !isLoading) {
-              // This condition prevents auto-selecting if an admin is already in a view.
-              // But if they just landed on the page, select the first one.
             }
             
             setIsLoading(false);
         });
 
         return () => unsubscribe();
-    }, [schoolId, selectedConversation, isLoading]);
+    }, [schoolId, selectedConversation]);
 
     const handleSendMessage = async () => {
         if (!reply.trim() || !selectedConversation || !user || !schoolId) return;
@@ -148,15 +144,15 @@ export default function MessagingPage() {
 
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 h-full flex flex-col">
+        <div className="h-full flex flex-col">
             <div className="mb-6">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><MessageCircle className="h-8 w-8 text-primary"/>Support Messaging</h1>
-                <p className="text-muted-foreground">Respond to support requests escalated from the AI chatbot.</p>
+                <p className="text-muted-foreground">Respond to support requests from parents and teachers.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 flex-1 min-h-0">
                 <Card className="md:col-span-1 lg:col-span-1">
                     <CardHeader>
-                        <CardTitle>Escalated Chats</CardTitle>
+                        <CardTitle>Conversations</CardTitle>
                     </CardHeader>
                     <CardContent className="p-2">
                         <ScrollArea className="h-[calc(100vh-250px)]">
@@ -174,10 +170,15 @@ export default function MessagingPage() {
                                             <p className="font-semibold truncate">{convo.userName}</p>
                                             <p className="text-xs text-muted-foreground">{convo.lastUpdate?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                         </div>
-                                        <p className="text-sm text-muted-foreground truncate">{convo.lastMessage}</p>
+                                        <p className="text-sm text-muted-foreground truncate">{convo.isEscalated && <span className="text-red-500 font-bold">! </span>}{convo.lastMessage}</p>
                                     </div>
                                 </button>
                             ))}
+                             {conversations.length === 0 && (
+                                <div className="text-center text-muted-foreground py-16">
+                                    <p>No active conversations.</p>
+                                </div>
+                            )}
                         </ScrollArea>
                     </CardContent>
                 </Card>
