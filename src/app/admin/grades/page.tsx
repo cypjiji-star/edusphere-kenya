@@ -87,9 +87,9 @@ const generateAcademicTerms = () => {
     const currentYear = new Date().getFullYear();
     const terms = [];
     for (let year = currentYear - 1; year <= currentYear + 1; year++) {
-        terms.push(`Term 1, ${year}`);
-        terms.push(`Term 2, ${year}`);
-        terms.push(`Term 3, ${year}`);
+        terms.push({ value: `term1-${year}`, label: `Term 1, ${year}` });
+        terms.push({ value: `term2-${year}`, label: `Term 2, ${year}` });
+        terms.push({ value: `term3-${year}`, label: `Term 3, ${year}` });
     }
     return terms;
 };
