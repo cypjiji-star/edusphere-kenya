@@ -43,12 +43,16 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Use the schoolCode from the form to find the user document
-      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+      const collectionName = role === 'admin' ? 'admins' : 'users';
+      const userDocRef = doc(firestore, 'schools', schoolCode, collectionName, user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists() && userDocSnap.data().role.toLowerCase() === role) {
-        await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
+        // For admins, the user record is in a different collection, so we update the main user doc if it exists for lastLogin
+        const mainUserDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+        await updateDoc(mainUserDocRef, { lastLogin: serverTimestamp() }).catch(() => {
+          // If the user doesn't exist in the 'users' collection (e.g., pure admin), this will fail silently, which is fine.
+        });
 
         await logAuditEvent({
             schoolId: schoolCode,
