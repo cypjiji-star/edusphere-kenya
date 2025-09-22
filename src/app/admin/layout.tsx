@@ -20,9 +20,7 @@ export default function AdminLayout({
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
            <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
-            <div className="md:hidden absolute top-4 left-4 z-20">
-              <SidebarTrigger />
-            </div>
+            <SidebarTrigger />
             <div>{children}</div>
             <FloatingChatWidget />
           </main>

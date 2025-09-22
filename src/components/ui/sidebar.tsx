@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { light } from "@/lib/haptic"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -92,6 +93,7 @@ const SidebarProvider = React.forwardRef<
 
     // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
+      light(); // Add haptic feedback on toggle
       return isMobile
         ? setOpenMobile((open) => !open)
         : setOpen((open) => !open)
@@ -272,30 +274,54 @@ const Sidebar = React.forwardRef<
 Sidebar.displayName = "Sidebar"
 
 const SidebarTrigger = React.forwardRef<
-  React.ElementRef<typeof Button>,
-  React.ComponentProps<typeof Button>
->(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  HTMLButtonElement,
+  React.ComponentProps<"button"> & { asChild?: boolean }
+>(({ className, asChild = false, onClick, ...props }, ref) => {
+  const { isMobile, toggleSidebar } = useSidebar();
 
+  if (isMobile) {
+    return (
+      <button
+        ref={ref}
+        onClick={(e) => {
+          onClick?.(e);
+          toggleSidebar();
+        }}
+        className={cn(
+          "group fixed top-1/2 right-0 z-20 -translate-y-1/2 flex h-24 w-6 items-center justify-center rounded-l-lg bg-background/70 backdrop-blur-sm border-y border-l border-border transition-all duration-300 hover:bg-muted active:scale-95",
+          className
+        )}
+        {...props}
+      >
+        <div className="w-1 h-8 bg-cyan-500 rounded-full transition-all group-hover:h-12 group-active:h-10 group-active:bg-cyan-400"
+             style={{ boxShadow: '0 0 8px hsl(180, 100%, 50%, 0.7)' }}
+        />
+        <span className="sr-only">Toggle Sidebar</span>
+      </button>
+    );
+  }
+
+  // Original desktop trigger
+  const Comp = asChild ? Slot : 'button';
   return (
-    <Button
+    <Comp
       ref={ref}
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
       className={cn("h-7 w-7", className)}
-      onClick={(event) => {
-        onClick?.(event)
-        toggleSidebar()
+      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+        onClick?.(event);
+        toggleSidebar();
       }}
       {...props}
     >
       <PanelLeft />
       <span className="sr-only">Toggle Sidebar</span>
-    </Button>
-  )
-})
-SidebarTrigger.displayName = "SidebarTrigger"
+    </Comp>
+  );
+});
+SidebarTrigger.displayName = "SidebarTrigger";
 
 const SidebarRail = React.forwardRef<
   HTMLButtonElement,
