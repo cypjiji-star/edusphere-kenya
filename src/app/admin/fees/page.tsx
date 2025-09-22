@@ -114,6 +114,7 @@ import 'jspdf-autotable';
 import { Calendar } from '@/components/ui/calendar';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 
 const formatCurrency = (amount: number): string => {
@@ -1344,7 +1345,7 @@ export default function FeesPage() {
     <>
       <Dialog onOpenChange={(open) => !open && setSelectedStudent(null)}>
         <div className="p-4 sm:p-6 lg:p-8">
-          <div className="mb-6">
+          <div className="mb-6 p-4 md:p-6 bg-card border rounded-lg">
             <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
               <CircleDollarSign className="h-8 w-8 text-primary" />
               Fees & Payments
@@ -1690,15 +1691,18 @@ export default function FeesPage() {
                     <CardDescription>A look at the fee collection performance over the past few months.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ChartContainer config={collectionTrendConfig} className="h-[250px] w-full">
-                      <BarChart data={collectionTrend}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-                        <YAxis tickFormatter={(value) => `${Number(value) / 1000000}M`} />
-                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                        <Bar dataKey="collected" fill="var(--color-collected)" radius={8} />
-                      </BarChart>
-                    </ChartContainer>
+                   <ScrollArea className="w-full whitespace-nowrap rounded-lg">
+                      <ChartContainer config={collectionTrendConfig} className="h-[250px] min-w-[400px] w-full">
+                          <BarChart data={collectionTrend}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
+                            <YAxis tickFormatter={(value) => `${Number(value) / 1000000}M`} />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                            <Bar dataKey="collected" fill="var(--color-collected)" radius={8} />
+                          </BarChart>
+                      </ChartContainer>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
                   </CardContent>
                 </Card>
               </div>
@@ -1994,3 +1998,5 @@ export default function FeesPage() {
     </>
   );
 }
+
+    
