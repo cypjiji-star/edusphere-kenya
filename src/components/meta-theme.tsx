@@ -1,16 +1,27 @@
 
 'use client';
 
-export const MetaTheme = ({ color }: { color: string }) => (
-  <>
-    <meta name="theme-color" content={color} />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    {/* By using dangerouslySetInnerHTML, we tell React not to compare the contents of this tag during hydration,
-        which prevents mismatches caused by browser extensions modifying style tags. */}
-    <style
-      dangerouslySetInnerHTML={{
-        __html: `html,body{background:${color}}`,
-      }}
-    />
-  </>
-);
+import * as React from 'react';
+
+/**
+ * A server-safe component to set the browser's theme color and the mobile app's status bar style.
+ * It uses a client-side effect to inject a style tag, preventing hydration mismatches
+ * that can be caused by browser extensions modifying the initial server-rendered HTML.
+ */
+export const MetaTheme = ({ color }: { color: string }) => {
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `html,body{background:${color}}`;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, [color]);
+
+  return (
+    <>
+      <meta name="theme-color" content={color} />
+      <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    </>
+  );
+};
