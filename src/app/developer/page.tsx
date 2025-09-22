@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building, PlusCircle, ArrowRight, Users, CheckCircle, Loader2 } from 'lucide-react';
+import { Building, PlusCircle, ArrowRight, Users, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,6 +33,7 @@ import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatc
 import { initialRolePermissions } from '@/app/admin/permissions/roles-data';
 import { defaultPeriods } from '@/app/admin/timetable/timetable-data';
 import { createUserAction } from '../admin/users/actions';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 
 type School = {
@@ -68,6 +69,7 @@ export default function DeveloperDashboard() {
   const [adminEmail, setAdminEmail] = React.useState('');
   const [adminPassword, setAdminPassword] = React.useState('');
   const { toast } = useToast();
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setIsLoading(true);
@@ -86,6 +88,7 @@ export default function DeveloperDashboard() {
         return;
     }
     setIsCreating(true);
+    setErrorMessage(null);
 
     try {
         const schoolCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -164,15 +167,19 @@ export default function DeveloperDashboard() {
         setAdminPassword('');
 
     } catch(e: any) {
-        let errorMessage = 'Could not create school instance. Please try again.';
-        if (e.code === 'auth/email-already-in-use') {
-            errorMessage = 'This email is already in use by another account.';
-        } else if (e.code === 'auth/weak-password') {
-            errorMessage = 'The password is too weak. Please use at least 6 characters.';
+        let errorMsg = 'An unexpected error occurred. Please check the console for details.';
+        if (e.message.includes('FIREBASE_PRIVATE_KEY')) {
+            errorMsg = "Firebase Admin credentials are not set. Please add FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY to your .env file.";
+            setErrorMessage(errorMsg);
+        } else if (e.code === 'auth/email-already-in-use' || e.message.includes('auth/email-already-in-use')) {
+            errorMsg = 'This email is already in use by another account.';
+        } else if (e.code === 'auth/weak-password' || e.message.includes('auth/weak-password')) {
+            errorMsg = 'The password is too weak. Please use at least 6 characters.';
         } else if (e.message) {
-            errorMessage = e.message;
+            errorMsg = e.message;
         }
-        toast({ title: 'Error', description: errorMessage, variant: 'destructive'});
+        
+        toast({ title: 'Error', description: errorMsg, variant: 'destructive'});
         console.error(e);
     } finally {
         setIsCreating(false);
@@ -232,6 +239,16 @@ export default function DeveloperDashboard() {
           </DialogContent>
         </Dialog>
       </div>
+
+       {errorMessage && (
+        <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Configuration Error</AlertTitle>
+            <AlertDescription>
+                {errorMessage} Go to your project's .env file and add the required credentials. You can generate a new private key from your Firebase project settings under "Service accounts".
+            </AlertDescription>
+        </Alert>
+       )}
 
        {isLoading ? (
             <div className="flex items-center justify-center h-64">
