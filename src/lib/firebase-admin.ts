@@ -5,9 +5,6 @@ import "server-only";
 import { initializeApp, getApp, getApps, type App } from 'firebase-admin/app';
 import { credential } from 'firebase-admin';
 
-// Re-declare app variable inside the function to avoid module-level state.
-// let app: App;
-
 export async function getFirebaseAdminApp(): Promise<App> {
   if (getApps().length > 0) {
     return getApp();
@@ -33,7 +30,7 @@ export async function getFirebaseAdminApp(): Promise<App> {
   const projectId = process.env.FIREBASE_PROJECT_ID;
 
   if (!privateKey || !clientEmail || !projectId) {
-    throw new Error('Firebase Admin credentials are not set. Please add FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, and FIREBASE_PROJECT_ID to your .env file.');
+    throw new Error('Firebase Admin credentials are not set. Please add FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, and FIREBASE_PROJECT_ID to your .env file, or provide the full FIREBASE_SERVICE_ACCOUNT_JSON.');
   }
 
   return initializeApp({
