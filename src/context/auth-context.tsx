@@ -6,6 +6,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { auth, firestore } from '@/lib/firebase';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { SplashScreen } from '@/components/layout/splash-screen';
 
 export type AllowedRole = 'developer' | 'admin' | 'teacher' | 'parent' | 'unknown';
 
@@ -92,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, role, loading, clientReady }}>
+      <SplashScreen />
       {children}
     </AuthContext.Provider>
   );

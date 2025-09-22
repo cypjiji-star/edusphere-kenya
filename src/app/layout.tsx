@@ -4,14 +4,9 @@ import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
 import { Suspense } from 'react';
 import { AuthProvider } from '@/context/auth-context';
-import { SplashScreen } from '@/components/layout/splash-screen';
 import Script from 'next/script';
+import { ClientPageLoader } from '@/components/ui/client-page-loader';
 import { ThemeProvider } from '@/context/theme-provider';
-import dynamic from 'next/dynamic';
-
-const ClientPageLoader = dynamic(() => import('@/components/ui/client-page-loader').then(mod => mod.ClientPageLoader), {
-  ssr: false,
-});
 
 
 export const metadata: Metadata = {
@@ -31,14 +26,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body>
-          <AuthProvider>
-            <SplashScreen />
-            <ClientPageLoader />
-            <Suspense>{children}</Suspense>
-            <Toaster />
-          </AuthProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <AuthProvider>
+              <ClientPageLoader />
+              <Suspense>{children}</Suspense>
+              <Toaster />
+            </AuthProvider>
+          </ThemeProvider>
         <Script src="/sw-register.js" />
       </body>
     </html>
