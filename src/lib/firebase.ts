@@ -2,7 +2,8 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
+// We will import getAuth dynamically in the AuthProvider
+// import { getAuth } from 'firebase/auth';
 
 export const firebaseConfig = {
   "projectId": "studio-8322695498-589c5",
@@ -15,8 +16,8 @@ export const firebaseConfig = {
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+// const auth = getAuth(app); // Defer initialization
 const storage = getStorage(app);
 const firestore = getFirestore(app);
 
-export { app, auth, storage, firestore };
+export { app, storage, firestore };

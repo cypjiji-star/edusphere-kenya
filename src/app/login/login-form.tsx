@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import * as React from 'react';
 import Link from 'next/link';
-import { auth, firestore } from '@/lib/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { firestore } from '@/lib/firebase';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs, DocumentData, updateDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -39,6 +39,7 @@ export function LoginForm() {
     }
 
     try {
+      const auth = getAuth();
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       

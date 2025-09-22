@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import * as React from 'react';
-import { auth, firestore } from '@/lib/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { firestore } from '@/lib/firebase';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -25,6 +25,7 @@ export function DeveloperLoginForm() {
     setIsLoading(true);
 
     try {
+      const auth = getAuth();
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 

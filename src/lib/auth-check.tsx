@@ -1,12 +1,12 @@
 
 'use client';
 
-import { ReactNode, useEffect, Suspense } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ReactNode, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, AuthContextType, AllowedRole } from '@/context/auth-context';
-import { auth } from '@/lib/firebase';
+import { getAuth } from 'firebase/auth';
 
 function AuthChecker({ children, requiredRole }: { children: ReactNode; requiredRole: AllowedRole }) {
   const { user, role, loading, clientReady } = useAuth() as AuthContextType;
@@ -14,13 +14,11 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
   const pathname = usePathname();
 
   useEffect(() => {
-    // Only perform redirects on the client side after initial loading is complete
     if (!loading && clientReady && !user && pathname !== '/login' && pathname !== '/' && !pathname.startsWith('/developer/create-dev-account')) {
       router.push('/login');
     }
   }, [loading, clientReady, user, pathname, router]);
 
-  // While loading auth state or before client has mounted, show a full-page loader
   if (loading || !clientReady) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -29,21 +27,17 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
     );
   }
 
-  // If not logged in, but on a public page, show the content
   if (!user) {
      if (pathname === '/login' || pathname === '/' || pathname.startsWith('/developer/create-dev-account')) {
         return <>{children}</>;
     }
-    // For protected routes, this will typically not be reached due to the redirect effect, but serves as a fallback.
     return null;
   }
   
-  // If a developer is trying to access an admin page, allow it.
   if (role === 'developer' && requiredRole === 'admin') {
     return <>{children}</>;
   }
 
-  // If role is determined but does not match, show access denied
   if (role !== 'unknown' && role !== requiredRole) {
     return (
       <div className="flex h-screen flex-col items-center justify-center p-8 text-center">
@@ -52,7 +46,7 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
           Your role is "{role}", but this page requires the "{requiredRole}" role.
         </p>
         <Button
-          onClick={() => auth.signOut().then(() => router.push('/login'))}
+          onClick={() => getAuth().signOut().then(() => router.push('/login'))}
           variant="outline"
           className="mt-4"
         >
@@ -62,15 +56,13 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
     );
   }
 
-  // If everything is correct, render the children
   return <>{children}</>;
 }
 
-
 export function AuthCheck({ children, requiredRole }: { children: ReactNode; requiredRole: AllowedRole }) {
   return (
-      <AuthChecker requiredRole={requiredRole}>
-        {children}
-      </AuthChecker>
-  )
+    <AuthChecker requiredRole={requiredRole}>
+      {children}
+    </AuthChecker>
+  );
 }

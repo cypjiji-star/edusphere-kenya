@@ -39,7 +39,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import * as React from 'react';
-import { firestore, auth } from '@/lib/firebase';
+import { firestore } from '@/lib/firebase';
+import { getAuth } from 'firebase/auth';
 import { collection, onSnapshot, query, where, doc, getDocs, limit, orderBy } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
 
@@ -173,7 +174,7 @@ export function ParentSidebar() {
             <DropdownMenuItem disabled><Settings className="mr-2" />Profile & Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
              <DropdownMenuItem asChild>
-                <Link href="/" onClick={() => auth.signOut()}>
+                <Link href="/" onClick={() => getAuth().signOut()}>
                     <LogOut className="mr-2" />
                     <span>Log out</span>
                 </Link>

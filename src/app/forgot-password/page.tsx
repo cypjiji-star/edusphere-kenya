@@ -17,8 +17,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
-import { auth } from '@/lib/firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -33,6 +32,7 @@ export default function ForgotPasswordPage() {
     setIsSent(false);
 
     try {
+      const auth = getAuth();
       await sendPasswordResetEmail(auth, email);
       toast({
         title: 'Check Your Email',
