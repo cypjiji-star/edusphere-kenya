@@ -32,7 +32,7 @@ import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { initialRolePermissions } from '@/app/admin/permissions/roles-data';
 import { defaultPeriods } from '@/app/admin/timetable/timetable-data';
-import { createUserAction } from '../admin/users/actions';
+import { createUserAction } from './actions';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 
