@@ -582,7 +582,7 @@ export default function ExpensesPage() {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <div className="mb-6">
+            <div className="mb-6 p-4 md:p-0 bg-card-border/20 rounded-lg">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                     <Receipt className="h-8 w-8 text-primary" />
                     Expense Management
@@ -906,7 +906,7 @@ export default function ExpensesPage() {
                                         <TableCell>{expense.submittedBy}</TableCell>
                                         <TableCell>{getStatusBadge(expense.status)}</TableCell>
                                         <TableCell className="text-right font-semibold">{formatCurrency(expense.amount)}</TableCell>
-                                        <TableCell className="text-right space-x-2">
+                                        <TableCell className="text-right space-x-1">
                                             {expense.status === 'Pending Approval' ? (
                                                 <>
                                                     <Button variant="ghost" size="sm" className="text-primary hover:text-primary/90" onClick={() => handleUpdateStatus(expense.id, 'Paid')}>
