@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -41,8 +40,8 @@ import {
 import { Library, Search, Book, FileText, Newspaper, Eye, Printer, FileDown, ChevronDown, Star, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { ResourceDetailsDialog } from './resource-details-dialog';
-import type { Resource, ResourceType } from './types';
+import { ResourceDetailsDialog } from '../library/resource-details-dialog';
+import type { Resource, ResourceType } from '../library/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -349,5 +348,7 @@ export default function LibraryPage() {
     </div>
   );
 }
+
+    
 
     
