@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: 'EduSphere Kenya',
   description: "Empowering Kenya's Future, One School at a Time.",
   manifest: '/manifest.json',
-  themeColor: '#8B5CF6',
+  themeColor: '#0b0f19',
   icons: {
     icon: '/icon.svg',
     apple: '/icon.svg',
