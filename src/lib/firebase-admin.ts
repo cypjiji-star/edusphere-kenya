@@ -1,7 +1,6 @@
 
 'use server';
 
-import 'server-only';
 import { initializeApp, getApp, getApps, type App } from 'firebase-admin/app';
 import { credential } from 'firebase-admin';
 
@@ -14,7 +13,7 @@ export async function getFirebaseAdminApp(): Promise<App> {
 
   if (!serviceAccountJson) {
     throw new Error(
-      'FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please add it to your .env.local file.'
+      'FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please add it to your .env file.'
     );
   }
 
@@ -30,7 +29,7 @@ export async function getFirebaseAdminApp(): Promise<App> {
       error.message
     );
     throw new Error(
-      'The FIREBASE_SERVICE_ACCOUNT_JSON in your .env.local file is not formatted correctly.'
+      'The FIREBASE_SERVICE_ACCOUNT_JSON in your .env file is not formatted correctly.'
     );
   }
 }
