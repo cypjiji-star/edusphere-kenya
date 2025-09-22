@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Shapes, PlusCircle, Users, Megaphone, CircleDollarSign, ArrowUp, UserCheck, UserPlus, ClipboardCheck, Calendar, ShieldAlert, FileText, AlertTriangle, BookOpen, Loader2, ArrowRight, LayoutDashboard } from 'lucide-react';
@@ -187,15 +188,16 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-8 flex justify-between items-start">
-        <div>
-            <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-                <LayoutDashboard className="h-8 w-8 text-primary"/>
-                {schoolName || 'Admin Dashboard'}
-            </h1>
-            <p className="text-muted-foreground">School-wide overview and management.</p>
-        </div>
-      </div>
+       <Card className="mb-8 overflow-hidden">
+        <CardHeader className="bg-muted/30">
+          <CardTitle className="font-headline text-3xl font-bold text-primary flex items-center gap-3">
+            <LayoutDashboard className="h-8 w-8" />
+            {schoolName || 'Admin Dashboard'}
+          </CardTitle>
+          <CardDescription>School-wide overview and management.</CardDescription>
+        </CardHeader>
+        <Separator variant="highlighted" className="h-1 bg-primary/80" />
+      </Card>
       
        <div className="space-y-8 overflow-auto">
             <div>
