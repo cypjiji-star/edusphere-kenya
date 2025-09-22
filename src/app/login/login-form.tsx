@@ -47,7 +47,7 @@ export function LoginForm() {
       if (role === 'admin') {
           userDocRef = doc(firestore, 'schools', schoolCode, 'admins', user.uid);
       } else {
-          userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
+          userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
       }
       
       const userDocSnap = await getDoc(userDocRef);
