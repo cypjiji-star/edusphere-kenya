@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -25,9 +26,9 @@ export default function CalendarPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-       <div className="mb-6">
-          <CardTitle className="font-headline text-2xl">Events Calendar</CardTitle>
-          <CardDescription>View school events, class schedules, and important dates.</CardDescription>
+       <div className="mb-6 p-4 md:p-6 bg-card border rounded-lg">
+          <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Calendar className="h-8 w-8 text-primary"/>Events Calendar</h1>
+          <p className="text-muted-foreground">View school events, class schedules, and important dates.</p>
        </div>
 
         <Alert className="mb-6">

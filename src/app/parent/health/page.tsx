@@ -42,27 +42,27 @@ import {
   } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { HeartPulse, User, Phone, Stethoscope, ShieldAlert, FileText, CalendarIcon, AlertCircle, Lock, Clock, MapPin, CheckCircle, FileDown, Loader2 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { HeartPulse, Search, CalendarIcon, Siren, Send, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimestamp, orderBy, Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { User, Phone, Stethoscope, ShieldAlert, FileText, AlertCircle, Lock, Clock, MapPin, CheckCircle, FileDown } from 'lucide-react';
 
 
-type Child = {
-    id: string;
-    name: string;
-    class: string;
-};
+type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
+type IncidentStatus = 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
 
 type Incident = {
   id: string;
@@ -97,7 +97,7 @@ export default function ParentHealthPage() {
     const schoolId = searchParams.get('schoolId');
     const { user } = useAuth();
     const parentId = user?.uid;
-    const [childrenData, setChildrenData] = React.useState<Child[]>([]);
+    const [childrenData, setChildrenData] = React.useState<any[]>([]);
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [healthRecord, setHealthRecord] = React.useState<HealthRecord | null>(null);
     const [incidents, setIncidents] = React.useState<Incident[]>([]);
@@ -117,7 +117,7 @@ export default function ParentHealthPage() {
 
         const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
+            const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setChildrenData(fetchedChildren);
             if (!selectedChild && fetchedChildren.length > 0) {
                 setSelectedChild(fetchedChildren[0].id);
@@ -219,7 +219,7 @@ export default function ParentHealthPage() {
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
             <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-                <div className="mb-2">
+                <div className="mb-2 p-4 md:p-6 bg-card border rounded-lg">
                     <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                         <HeartPulse className="h-8 w-8 text-primary" />
                         Health &amp; Incidents

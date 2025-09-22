@@ -85,7 +85,7 @@ export default function ParentTimetablePage() {
     
     React.useEffect(() => {
         if (!schoolId || !parentId) return;
-        const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+        const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -142,7 +142,7 @@ export default function ParentTimetablePage() {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <div className="mb-6">
+            <div className="mb-6 p-4 md:p-6 bg-card border rounded-lg">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                     <Calendar className="h-8 w-8 text-primary" />
                     Weekly Timetable

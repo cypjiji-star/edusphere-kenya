@@ -410,7 +410,7 @@ export default function AdminAnnouncementsPage() {
         </AlertDialogContent>
     </AlertDialog>
     <main className="p-4 md:p-6 lg:p-8">
-       <div className="mb-6 p-4 md:p-0 bg-card-border/20 rounded-lg">
+       <div className="mb-6 p-4 md:p-6 bg-card border rounded-lg">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Megaphone className="h-8 w-8 text-primary"/>School-Wide Announcements</h1>
         <p className="text-muted-foreground">Broadcast messages to the entire school community.</p>
        </div>
@@ -755,6 +755,7 @@ export default function AdminAnnouncementsPage() {
     </>
   );
 }
+
 
 
 

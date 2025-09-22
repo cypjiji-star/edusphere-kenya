@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -123,7 +124,7 @@ export default function ParentFeesPage() {
         if (!schoolId || !parentId) return;
         setClientReady(true);
         
-        const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+        const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -140,7 +141,7 @@ export default function ParentFeesPage() {
         if (!selectedChild || !schoolId) return;
 
         // Listener for student summary data
-        const studentDocRef = doc(firestore, `schools/${schoolId}/students`, selectedChild);
+        const studentDocRef = doc(firestore, `schools/${schoolId}/users`, selectedChild);
         const unsubStudent = onSnapshot(studentDocRef, (studentSnap) => {
             if (studentSnap.exists()) {
                 const studentData = studentSnap.data() as DocumentData;
@@ -162,7 +163,7 @@ export default function ParentFeesPage() {
         });
         
         // Listener for transactions
-        const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students`, selectedChild, 'transactions'), orderBy('date', 'desc'));
+        const transactionsQuery = query(collection(firestore, `schools/${schoolId}/users`, selectedChild, 'transactions'), orderBy('date', 'desc'));
         const unsubTransactions = onSnapshot(transactionsQuery, (snapshot) => {
             const fetchedLedger = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
             setLedger(fetchedLedger);
@@ -207,7 +208,7 @@ export default function ParentFeesPage() {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 p-4 md:p-6 bg-card border rounded-lg">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                 <CircleDollarSign className="h-8 w-8 text-primary" />
                 Fees &amp; Payments

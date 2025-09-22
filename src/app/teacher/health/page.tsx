@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -56,6 +57,8 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { User, Phone, Stethoscope, ShieldAlert, FileText, AlertCircle, Lock, Clock, MapPin, CheckCircle, FileDown } from 'lucide-react';
 
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
@@ -95,7 +98,7 @@ const getStatusBadge = (status: IncidentStatus) => {
     switch (status) {
         case 'Reported': return <Badge variant="secondary">Reported</Badge>;
         case 'Under Review': return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
-        case 'Resolved': return <Badge className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
+        case 'Resolved': return <Badge className="bg-green-600 text-white hover:bg-green-700">Resolved</Badge>;
         case 'Archived': return <Badge variant="outline">Archived</Badge>;
         default: return <Badge variant="secondary">{status}</Badge>;
     }
@@ -328,7 +331,7 @@ export default function TeacherHealthPage() {
     return (
         <Dialog onOpenChange={(open) => !open && setSelectedIncident(null)}>
             <div className="p-4 sm:p-6 lg:p-8">
-                <div className="mb-6">
+                <div className="mb-6 p-4 md:p-6 bg-card border rounded-lg">
                     <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                         <HeartPulse className="h-8 w-8 text-primary" />
                         Health &amp; Incidents
@@ -517,7 +520,7 @@ export default function TeacherHealthPage() {
                     </TabsContent>
 
                     <TabsContent value="log">
-                         <Card className="mt-4">
+                        <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle>My Incident Log</CardTitle>
                                 <CardDescription>A log of all incidents you have reported.</CardDescription>

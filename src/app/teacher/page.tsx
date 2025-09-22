@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -350,8 +351,8 @@ export default function TeacherDashboard() {
                     return;
                 }
 
-                const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
-                const unsubStudents = onSnapshot(studentsQuery, (studentsSnapshot) => {
+                const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', 'in', classIds));
+                const unsubStudents = onSnapshot(studentsQuery, async (studentsSnapshot) => {
                     const studentCount = studentsSnapshot.size;
                     const studentIds = studentsSnapshot.docs.map(doc => doc.id);
                     setTotalStudents(studentCount);
@@ -364,11 +365,9 @@ export default function TeacherDashboard() {
                             where('studentId', 'in', studentIds),
                             where('date', '>=', Timestamp.fromDate(startOfToday))
                         );
-                        const unsubAttendance = onSnapshot(attendanceQuery, (attendanceSnapshot) => {
-                             const presentCount = attendanceSnapshot.docs.filter(r => ['present', 'late'].includes(r.data().status.toLowerCase())).length;
-                             setAttendancePercentage(Math.round((presentCount / studentCount) * 100));
-                        });
-                        unsubscribers.push(unsubAttendance);
+                        const attendanceSnapshot = await getDocs(attendanceQuery);
+                        const presentCount = attendanceSnapshot.docs.filter(r => ['present', 'late'].includes(r.data().status.toLowerCase())).length;
+                        setAttendancePercentage(Math.round((presentCount / studentCount) * 100));
                     } else {
                         setAttendancePercentage(100);
                     }
@@ -421,11 +420,10 @@ export default function TeacherDashboard() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Card className="mb-8 overflow-hidden">
-          <CardHeader className="bg-muted/30">
+          <CardHeader className="bg-card border-b p-4 md:p-6">
               <CardTitle className="font-headline text-3xl font-bold text-primary">Welcome, {teacherName}!</CardTitle>
               {clientReady && <CardDescription>Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</CardDescription>}
           </CardHeader>
-          <Separator variant="highlighted" className="h-1 bg-primary/80" />
       </Card>
 
        <div className="mb-8">
