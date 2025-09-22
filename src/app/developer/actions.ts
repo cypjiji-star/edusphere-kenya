@@ -92,7 +92,11 @@ export async function createUserAction(params: {
         uid = newUserDocRef.id;
         
         const userData = {
-            id: uid, schoolId, name, role, phone, startYear, salary, nationalId,
+            id: uid, schoolId, name, role, 
+            phone: phone || null, 
+            startYear: startYear || null, 
+            salary: salary || null, 
+            nationalId: nationalId || null,
             status: 'Active', createdAt: serverTimestamp(),
         };
         await setDoc(newUserDocRef, userData);
@@ -115,7 +119,11 @@ export async function createUserAction(params: {
 
         const userDocRef = doc(firestore, `schools/${schoolId}/users`, uid);
         const userData = {
-            id: uid, schoolId, name, email, role, phone, startYear, salary, nationalId,
+            id: uid, schoolId, name, email, role, 
+            phone: phone || null, 
+            startYear: startYear || null, 
+            salary: salary || null, 
+            nationalId: nationalId || null,
             status: 'Active', createdAt: serverTimestamp(), lastLogin: null, avatarUrl,
             ...(role === 'Teacher' && { classIds: classes }),
         };
