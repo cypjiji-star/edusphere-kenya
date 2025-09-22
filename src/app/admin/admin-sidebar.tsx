@@ -78,7 +78,7 @@ const navGroups = [
    {
     title: 'Users',
     items: [
-      { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus, badge: '0', collection: 'students', field: 'status', value: 'Pending' },
+      { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus, badge: '0', collection: 'users', role: 'Student', field: 'status', value: 'Pending' },
       { href: '/admin/students', label: 'Student Management', icon: GraduationCap },
       { href: '/admin/users-list', label: 'User Management', icon: Users },
       { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
@@ -144,7 +144,11 @@ export function AdminSidebar() {
       .flatMap(g => g.items)
       .filter(item => item.collection && item.field && item.value)
       .map(item => {
-        const q = query(collection(firestore, 'schools', schoolId, item.collection!), where(item.field!, '==', item.value!));
+        const queryConstraints = [where(item.field!, '==', item.value!)];
+        if (item.role) {
+            queryConstraints.push(where('role', '==', item.role));
+        }
+        const q = query(collection(firestore, 'schools', schoolId, item.collection!), ...queryConstraints);
         return onSnapshot(q, (snapshot) => {
           setDynamicBadges(prev => ({ ...prev, [item.href]: snapshot.size }));
         });

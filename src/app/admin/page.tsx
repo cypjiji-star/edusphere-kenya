@@ -102,32 +102,38 @@ export default function AdminDashboard() {
     
     const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
     unsubscribers.push(onSnapshot(usersQuery, (usersSnapshot) => {
-        setStats(prev => ({...prev, totalStaff: usersSnapshot.size }));
-    }));
-
-    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
-    unsubscribers.push(onSnapshot(studentsQuery, async (studentsSnapshot) => {
-        const studentCount = studentsSnapshot.size;
+        const studentCount = usersSnapshot.docs.filter(doc => doc.data().role === 'Student').length;
+        setStats(prev => ({...prev, totalStudents: studentCount, totalStaff: usersSnapshot.size - studentCount }));
+        
         let totalBilled = 0;
         let totalPaid = 0;
-        studentsSnapshot.forEach(doc => {
-            totalBilled += doc.data().totalFee || 0;
-            totalPaid += doc.data().amountPaid || 0;
+        usersSnapshot.forEach(doc => {
+            if (doc.data().role === 'Student') {
+                totalBilled += doc.data().totalFee || 0;
+                totalPaid += doc.data().amountPaid || 0;
+            }
         });
         const balance = totalBilled - totalPaid;
-
-        let attendanceRate = 100;
-        if (studentCount > 0) {
-            const today = new Date();
-            const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-            const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
-            const attSnapshot = await getDocs(attendanceQuery);
-            const presentCount = attSnapshot.docs.filter(r => ['Present', 'Late', 'present', 'late'].includes(r.data().status)).length;
-            attendanceRate = Math.round((presentCount / studentCount) * 100);
-        }
-        
-        setStats(prev => ({ ...prev, totalStudents: studentCount, overallFeeBalance: balance, attendanceRate }));
+        setStats(prev => ({...prev, overallFeeBalance: balance}));
     }));
+
+    const fetchAttendanceRate = async () => {
+        const studentDocs = await getDocs(query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student')));
+        const studentCount = studentDocs.size;
+        if (studentCount === 0) {
+            setStats(prev => ({...prev, attendanceRate: 100}));
+            return;
+        }
+
+        const today = new Date();
+        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+        const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('date', '>=', Timestamp.fromDate(startOfToday)));
+        const attSnapshot = await getDocs(attendanceQuery);
+        const presentCount = attSnapshot.docs.filter(r => ['Present', 'Late', 'present', 'late'].includes(r.data().status)).length;
+        setStats(prev => ({...prev, attendanceRate: Math.round((presentCount / studentCount) * 100)}));
+    }
+    fetchAttendanceRate();
+
 
     const notificationsQuery = query(collection(firestore, `schools/${schoolId}/notifications`), orderBy('createdAt', 'desc'), limit(15));
     unsubscribers.push(onSnapshot(notificationsQuery, (snapshot) => {
