@@ -353,9 +353,9 @@ export default function ParentAttendancePage() {
                 )}
 
                 <div className="grid gap-6 md:grid-cols-3 mt-6">
-                    <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Overall Attendance</CardTitle><CardContent className="p-0"><div className="text-2xl font-bold">{attendanceRate}%</div><p className="text-xs text-muted-foreground">{totalRecords} days recorded</p></CardContent></CardHeader></Card>
-                    <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Absences</CardTitle><CardContent className="p-0"><div className="text-2xl font-bold">{summaryStats.absent}</div><p className="text-xs text-muted-foreground">Days marked absent</p></CardContent></CardHeader></Card>
-                    <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Late Arrivals</CardTitle><CardContent className="p-0"><div className="text-2xl font-bold">{summaryStats.late}</div><p className="text-xs text-muted-foreground">Days marked late</p></CardContent></CardHeader></Card>
+                    <Card><CardHeader className="pb-2"><CardDescription>Overall Attendance</CardDescription><CardTitle className="text-2xl">{attendanceRate}%</CardTitle></CardHeader><CardContent><p className="text-xs text-muted-foreground">{totalRecords} days recorded</p></CardContent></Card>
+                    <Card><CardHeader className="pb-2"><CardDescription>Total Absences</CardDescription><CardTitle className="text-2xl">{summaryStats.absent}</CardTitle></CardHeader><CardContent><p className="text-xs text-muted-foreground">Days marked absent</p></CardContent></Card>
+                    <Card><CardHeader className="pb-2"><CardDescription>Total Late Arrivals</CardDescription><CardTitle className="text-2xl">{summaryStats.late}</CardTitle></CardHeader><CardContent><p className="text-xs text-muted-foreground">Days marked late</p></CardContent></Card>
                 </div>
                 
                 <Card className="mt-6">

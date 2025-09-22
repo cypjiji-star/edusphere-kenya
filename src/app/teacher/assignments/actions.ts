@@ -1,33 +1,26 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { firestore } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { format } from 'date-fns';
 
-// Move schema definitions outside the server action
-const assignmentSchema = z.object({
-  title: z.string().min(5, 'Title must be at least 5 characters.'),
-  classId: z.string({ required_error: 'Please select a class.' }),
-  dueDate: z.date({ required_error: 'A due date is required.' }),
-  instructions: z.string().min(20, 'Instructions must be at least 20 characters.'),
-});
-
-type AssignmentFormValues = z.infer<typeof assignmentSchema>;
+import type { AssignmentFormValues } from './new/assignment-form';
 
 export async function createAssignmentAction(
   schoolId: string,
+  teacherId: string,
   data: AssignmentFormValues,
   className: string
 ) {
   if (!schoolId) {
     return { success: false, message: 'School ID is missing.' };
   }
-
+  
   try {
-    const validatedData = assignmentSchema.parse(data);
-
     // 1. Get all students for the selected class
     const studentsQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Student'), where('classId', '==', data.classId));
     const studentsSnapshot = await getDocs(studentsQuery);
@@ -35,18 +28,18 @@ export async function createAssignmentAction(
 
     // 2. Create a new assignment record
     const assignmentRef = await addDoc(collection(firestore, 'schools', schoolId, 'assignments'), {
-      ...validatedData,
+      ...data,
       className,
-      teacherId: 'teacher-wanjiku', // Placeholder for logged-in teacher
+      teacherId: teacherId, 
       createdAt: serverTimestamp(),
       submissions: 0,
       totalStudents,
     });
-
-    // 3. Create a subcollection for submissions for this assignment
+    
+    // 3. Create submission placeholders for each student
     const batch = writeBatch(firestore);
     studentsSnapshot.forEach((studentDoc) => {
-        const submissionRef = doc(collection(firestore, 'schools', schoolId, 'assignments', assignmentRef.id, 'submissions'));
+        const submissionRef = doc(collection(firestore, `schools/${schoolId}/assignments/${assignmentRef.id}/submissions`));
         batch.set(submissionRef, {
             studentRef: doc(firestore, 'schools', schoolId, 'users', studentDoc.id),
             status: 'Not Handed In',
@@ -55,19 +48,24 @@ export async function createAssignmentAction(
             submittedDate: null,
         });
     });
-
     await batch.commit();
-  
+
+
+    // 4. Create notifications for students/parents in the class
+    await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
+        title: 'New Assignment Posted',
+        description: `A new assignment "${data.title}" has been posted for ${className}. Due on ${format(data.dueDate, 'PPP')}.`,
+        createdAt: serverTimestamp(),
+        category: 'Academics',
+        href: `/teacher/assignments/${assignmentRef.id}?schoolId=${schoolId}`,
+        audience: 'all', // Or more specific if needed
+    });
+
     revalidatePath(`/teacher/assignments?schoolId=${schoolId}`);
 
     return { success: true, message: 'Assignment created successfully!' };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-        return { success: false, message: 'Validation failed: ' + error.errors.map(e => e.message).join(', ') };
-    }
     console.error("Error creating assignment:", error);
     return { success: false, message: 'Failed to create assignment in the database.' };
   }
 }
-
-// If you need to use the schema in your form component, create a separate file

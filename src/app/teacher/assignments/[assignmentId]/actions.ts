@@ -24,7 +24,7 @@ export async function saveGradeAction(
       ? doc(firestore, `schools/${schoolId}/grades`, data.submissionId)
       : doc(collection(firestore, `schools/${schoolId}/grades`));
 
-    const studentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'students', studentId));
+    const studentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'users', studentId));
     const assignmentSnap = await getDoc(doc(firestore, 'schools', schoolId, 'assignments', assignmentId));
 
     if (!studentSnap.exists() || !assignmentSnap.exists()) {
@@ -43,7 +43,7 @@ export async function saveGradeAction(
         feedback: data.feedback,
         examId: assignmentId,
         studentId: studentId,
-        studentRef: doc(firestore, 'schools', schoolId, 'students', studentId),
+        studentRef: doc(firestore, 'schools', schoolId, 'users', studentId),
         subject: assignmentData.subject || 'N/A',
         classId: assignmentData.classId,
         date: assignmentData.dueDate,

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -162,7 +163,7 @@ export default function MyLibraryPage() {
         const classIds = teacherClasses.map(c => c.id);
         if(classIds.length === 0) return;
 
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('classId', 'in', classIds));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', 'in', classIds));
         const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
             const students = snapshot.docs.map(doc => {
                 const data = doc.data();
