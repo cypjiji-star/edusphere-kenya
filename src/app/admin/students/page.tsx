@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -177,7 +178,7 @@ export default function StudentManagementPage() {
     }
     setClientReady(true);
 
-    const q = query(collection(firestore, `schools/${schoolId}/students`));
+    const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const studentData = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -231,7 +232,7 @@ export default function StudentManagementPage() {
     setSelectedStudent({ ...student, attendance: [], grades: [], transactions: [], incidents: [] });
 
     const attendanceQuery = query(collection(firestore, `schools/${schoolId}/attendance`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
-    const transactionsQuery = query(collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`), orderBy('date', 'desc'));
+    const transactionsQuery = query(collection(firestore, `schools/${schoolId}/users/${student.id}/transactions`), orderBy('date', 'desc'));
     const incidentsQuery = query(collection(firestore, `schools/${schoolId}/incidents`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
     const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', '==', student.id), orderBy('date', 'desc'), limit(5));
 
@@ -276,7 +277,7 @@ export default function StudentManagementPage() {
         parentEmail: formData.get('parentEmail'),
     };
 
-    const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedStudent.id);
+    const studentRef = doc(firestore, `schools/${schoolId}/users`, selectedStudent.id);
 
     try {
         await updateDoc(studentRef, dataToUpdate);

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -205,7 +206,7 @@ export default function StudentEnrolmentPage() {
      React.useEffect(() => {
         if (!schoolId) return;
 
-        const q = query(collection(firestore, 'schools', schoolId, 'students'), orderBy('createdAt', 'desc'), limit(5));
+        const q = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Student'), orderBy('createdAt', 'desc'), limit(5));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             if(snapshot.empty) {
                 setRecentEnrolments([]);
@@ -390,9 +391,9 @@ export default function StudentEnrolmentPage() {
                 const amountPaid = Number(values.amountPaid) || 0;
                 const initialBalance = totalFee - amountPaid;
 
-                const studentDocRef = doc(collection(firestore, 'schools', schoolId, 'students'));
-                transaction.set(studentDocRef, {
-                    id: studentDocRef.id, schoolId, role: 'Student', status: 'Approved',
+                const studentUserDocRef = doc(collection(firestore, 'schools', schoolId, 'users'));
+                transaction.set(studentUserDocRef, {
+                    id: studentUserDocRef.id, schoolId, role: 'Student', status: 'Approved',
                     name: `${values.studentFirstName} ${values.studentLastName}`,
                     firstName: values.studentFirstName, lastName: values.studentLastName,
                     dateOfBirth: Timestamp.fromDate(values.dateOfBirth),
@@ -420,16 +421,27 @@ export default function StudentEnrolmentPage() {
                     amountPaid,
                     balance: initialBalance,
                 });
+                
+                const studentProfileDocRef = doc(firestore, 'schools', schoolId, 'students', studentUserDocRef.id);
+                transaction.set(studentProfileDocRef, { 
+                    name: `${values.studentFirstName} ${values.studentLastName}`,
+                    class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
+                    classId: values.classId,
+                    parentId: parentUserId,
+                    createdAt: serverTimestamp(),
+                    status: 'Approved',
+                });
+
 
                 if (values.generateInvoice && totalFee > 0) {
-                    const chargeTransactionRef = doc(collection(studentDocRef, 'transactions'));
+                    const chargeTransactionRef = doc(collection(studentUserDocRef, 'transactions'));
                     transaction.set(chargeTransactionRef, {
                         date: serverTimestamp(), description: 'Annual School Fees',
                         type: 'Charge', amount: totalFee, balance: initialBalance,
                     });
                 }
                 if (amountPaid > 0) {
-                    const paymentTransactionRef = doc(collection(studentDocRef, 'transactions'));
+                    const paymentTransactionRef = doc(collection(studentUserDocRef, 'transactions'));
                     transaction.set(paymentTransactionRef, {
                         date: serverTimestamp(), description: 'Initial Fee Payment on Enrolment',
                         type: 'Payment', amount: -amountPaid, balance: initialBalance,
@@ -437,7 +449,7 @@ export default function StudentEnrolmentPage() {
                     
                     const schoolTransactionRef = doc(collection(firestore, `schools/${schoolId}/transactions`));
                     transaction.set(schoolTransactionRef, {
-                        studentId: studentDocRef.id, studentName: `${values.studentFirstName} ${values.studentLastName}`,
+                        studentId: studentUserDocRef.id, studentName: `${values.studentFirstName} ${values.studentLastName}`,
                         class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
                         date: serverTimestamp(), description: 'Enrolment Payment', type: 'Payment',
                         amount: amountPaid, method: 'Manual',
