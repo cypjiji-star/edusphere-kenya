@@ -101,3 +101,10 @@
     background: hsl(var(--sidebar-accent) / 0.8);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
