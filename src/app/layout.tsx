@@ -5,7 +5,6 @@ import './globals.css';
 import { Suspense } from 'react';
 import { AuthProvider } from '@/context/auth-context';
 import Script from 'next/script';
-import { ClientPageLoader } from '@/components/ui/client-page-loader';
 import { ThemeProvider } from '@/context/theme-provider';
 
 
@@ -35,7 +34,6 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <AuthProvider>
-              <ClientPageLoader />
               <Suspense>{children}</Suspense>
               <Toaster />
             </AuthProvider>
