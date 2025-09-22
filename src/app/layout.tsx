@@ -2,18 +2,27 @@
 import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
-import { ClientPageLoader } from '@/components/ui/client-page-loader';
 import { Suspense } from 'react';
 import { AuthProvider } from '@/context/auth-context';
 import { SplashScreen } from '@/components/layout/splash-screen';
 import Script from 'next/script';
 import { ThemeProvider } from '@/context/theme-provider';
+import dynamic from 'next/dynamic';
+
+const ClientPageLoader = dynamic(() => import('@/components/ui/client-page-loader').then(mod => mod.ClientPageLoader), {
+  ssr: false,
+});
+
 
 export const metadata: Metadata = {
   title: 'EduSphere Kenya',
   description: "Empowering Kenya's Future, One School at a Time.",
   manifest: '/manifest.json',
-  themeColor: '#2563eb',
+  themeColor: '#8B5CF6',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  }
 };
 
 export default function RootLayout({
@@ -23,26 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <head>
-        {/* Viewport meta tag for responsive scaling and to disable zooming */}
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        {/* Favicon */}
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
-        {/* Fonts */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;800&display=swap"
-          rel="stylesheet"
-        />
-        {/* PWA Icons */}
-        <link rel="apple-touch-icon" href="/icon.svg" />
-      </head>
-      <body className="font-body antialiased">
+      <body>
           <AuthProvider>
             <SplashScreen />
             <ClientPageLoader />
