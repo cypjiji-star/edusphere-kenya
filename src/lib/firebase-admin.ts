@@ -9,27 +9,32 @@ export async function getFirebaseAdminApp(): Promise<App> {
     return getApp();
   }
 
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  // Replace the escaped newlines with actual newline characters
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-  if (!serviceAccountJson) {
+  if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      'FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please add it to your .env file.'
+      'Firebase Admin SDK environment variables are not set. Please check FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in your .env file.'
     );
   }
 
   try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
-
     return initializeApp({
-      credential: credential.cert(serviceAccount),
+      credential: credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
     });
   } catch (error: any) {
     console.error(
-      'Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:',
+      'Failed to initialize Firebase Admin SDK:',
       error.message
     );
     throw new Error(
-      'The FIREBASE_SERVICE_ACCOUNT_JSON in your .env file is not formatted correctly.'
+      'Failed to initialize Firebase Admin SDK. Please check your environment variables.'
     );
   }
 }
