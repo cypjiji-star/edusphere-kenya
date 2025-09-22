@@ -26,6 +26,7 @@ export default {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
+          border: 'hsl(var(--card-border))',
         },
         popover: {
           DEFAULT: 'hsl(var(--popover))',
@@ -80,6 +81,7 @@ export default {
       },
       boxShadow: {
         'glow-accent': '0 10px 20px -5px hsl(var(--accent) / 0.1), 0 4px 6px -2px hsl(var(--accent) / 0.05)',
+        'glow-sidebar': '0 0 15px -3px hsl(var(--sidebar-accent) / 0.2), 0 4px 6px -4px hsl(var(--sidebar-accent) / 0.1)',
       },
       keyframes: {
         'accordion-down': {

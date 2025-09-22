@@ -5,35 +5,35 @@
 
 @layer base {
   :root {
-    --background: 224 71% 4%; /* #050615 */
+    --background: 224 71% 4%; /* Deep charcoal */
     --foreground: 210 40% 98%;
-    --card: 224 71% 6%; /* #0a0b24 */
+    --card: 224 71% 9%; /* Slightly lighter charcoal for cards */
     --card-foreground: 210 40% 98%;
-    --card-border: 224 71% 10%; /* #10123b */
+    --card-border: 224 71% 15%; /* Subtle border for cards */
     --popover: 224 71% 4%;
     --popover-foreground: 210 40% 98%;
-    --primary: 259 95% 68%; /* #8B5CF6 - vibrant violet */
+    --primary: 259 95% 68%; /* Vibrant violet */
     --primary-foreground: 210 40% 98%;
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 33% 17%;
     --muted-foreground: 215 20% 65%;
-    --accent: 45 95% 51%; /* #FACC15 - Golden/Amber */
+    --accent: 45 95% 51%; /* Golden/Amber */
     --accent-foreground: 210 40% 98%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
     --success: 158 79% 41%;
-    --border: 224 71% 10%; /* Slightly lighter border */
+    --border: 224 71% 12%; /* A slightly more visible border */
     --input: 224 71% 10%;
     --ring: 259 95% 68%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 224 71% 4%; /* Match new background */
+    --sidebar-background: 224 71% 4%;
     --sidebar-foreground: 210 20% 96%;
-    --sidebar-accent: 259 95% 68%; /* Match new primary */
+    --sidebar-accent: 259 95% 68%;
     --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 224 71% 10%; /* Match new border */
+    --sidebar-border: 224 71% 10%;
     --sidebar-ring: 259 95% 68%;
   }
 }
@@ -78,4 +78,3 @@
     background: hsl(var(--sidebar-accent) / 0.8);
   }
 }
-
