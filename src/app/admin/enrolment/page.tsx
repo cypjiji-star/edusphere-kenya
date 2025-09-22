@@ -96,7 +96,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { createUserAction } from '../users/actions';
+import { createUserAction } from '@/app/developer/actions';
 
 const enrolmentSchema = z.object({
   studentFirstName: z.string().min(2, 'First name is required.'),
@@ -731,4 +731,3 @@ export default function StudentEnrolmentPage() {
     </div>
   );
 }
-
