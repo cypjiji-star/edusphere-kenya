@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -39,7 +38,7 @@ export function DeveloperLoginForm() {
         await auth.signOut();
         toast({
           title: 'Access Denied',
-          description: "You are not registered as a developer.",
+          description: 'You are not registered as a developer.',
           variant: 'destructive',
         });
       }
@@ -62,22 +61,36 @@ export function DeveloperLoginForm() {
           id="dev-email"
           type="email"
           placeholder="dev@example.com"
+          autoComplete="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
         />
       </div>
+
       <div className="grid gap-2">
-          <Label htmlFor="dev-password">Password</Label>
-        <Input id="dev-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
+        <Label htmlFor="dev-password">Password</Label>
+        <Input
+          id="dev-password"
+          type="password"
+          placeholder="••••••••"
+          autoComplete="current-password"
+          minLength={6}
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={isLoading}
+        />
       </div>
+
       <Button type="submit" className="w-full" disabled={isLoading} onClick={() => light()}>
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Developer Login
       </Button>
-       <div className="mt-4 text-center text-sm">
-        Don't have an account?{' '}
+
+      <div className="mt-4 text-center text-sm">
+        Don&apos;t have an account?{' '}
         <Link href="/developer/create-dev-account" className="underline">
           Sign up as a developer
         </Link>
