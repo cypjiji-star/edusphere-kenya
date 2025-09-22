@@ -1,7 +1,7 @@
 
 'use server';
 
-import "server-only";
+import 'server-only';
 import { initializeApp, getApp, getApps, type App } from 'firebase-admin/app';
 import { credential } from 'firebase-admin';
 
@@ -13,23 +13,24 @@ export async function getFirebaseAdminApp(): Promise<App> {
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
   if (!serviceAccountJson) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please add it to your .env file.');
+    throw new Error(
+      'FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please add it to your .env.local file.'
+    );
   }
 
   try {
     const serviceAccount = JSON.parse(serviceAccountJson);
-    
-    // The private_key needs to have its escaped newlines converted back to actual newlines
-    if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-    }
 
     return initializeApp({
-        credential: credential.cert(serviceAccount),
+      credential: credential.cert(serviceAccount),
     });
-
   } catch (error: any) {
-    console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:", error.message);
-    throw new Error("The FIREBASE_SERVICE_ACCOUNT_JSON in your .env file is not formatted correctly.");
+    console.error(
+      'Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:',
+      error.message
+    );
+    throw new Error(
+      'The FIREBASE_SERVICE_ACCOUNT_JSON in your .env.local file is not formatted correctly.'
+    );
   }
 }
