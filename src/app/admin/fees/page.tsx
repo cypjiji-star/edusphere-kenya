@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -1144,21 +1145,23 @@ export default function FeesPage() {
                 if (!currentStudentSnap.exists()) continue;
 
                 const studentData = currentStudentSnap.data();
-                const newTotalFee = (studentData.totalFee || 0) + fee;
-                const newBalance = (studentData.balance || 0) + fee;
+                // Overwrite totalFee, recalculate balance
+                const newTotalFee = fee; 
+                const amountPaid = studentData.amountPaid || 0;
+                const newBalance = newTotalFee - amountPaid;
 
                 transaction.update(studentRef, {
                     totalFee: newTotalFee,
                     balance: newBalance,
                     dueDate: Timestamp.fromDate(dueDate),
                 });
-
+                
                 const transactionRef = doc(collection(studentRef, 'transactions'));
                 transaction.set(transactionRef, {
                     date: Timestamp.now(),
-                    description: `Annual School Fees`,
+                    description: `Annual School Fees (Updated)`,
                     type: 'Charge',
-                    amount: fee,
+                    amount: newTotalFee, // The full new amount is the charge
                     balance: newBalance,
                 });
             }
