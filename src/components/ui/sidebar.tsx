@@ -288,7 +288,7 @@ const SidebarTrigger = React.forwardRef<
           toggleSidebar();
         }}
         className={cn(
-          "group fixed top-1/2 right-0 z-20 -translate-y-1/2 flex h-24 w-6 items-center justify-center rounded-l-lg bg-background/70 backdrop-blur-sm border-y border-l border-border transition-all duration-300 hover:bg-muted active:scale-95",
+          "group fixed top-1/2 right-0 z-20 -translate-y-1/2 flex h-24 w-6 items-center justify-center rounded-l-lg bg-background/70 backdrop-blur-sm border-y border-l border-border transition-all duration-300 hover:bg-muted active:scale-95 md:hidden",
           className
         )}
         {...props}
@@ -799,3 +799,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
