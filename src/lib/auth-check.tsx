@@ -34,11 +34,15 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
     return null;
   }
   
-  if (role === 'developer' && requiredRole === 'admin') {
-    return <>{children}</>;
-  }
+  // Case-insensitive role check
+  const hasPermission = role.toLowerCase() === requiredRole.toLowerCase();
 
-  if (role !== 'unknown' && role !== requiredRole) {
+  if (role !== 'unknown' && !hasPermission) {
+    // Special case: Developers can access admin pages.
+    if (role === 'developer' && requiredRole === 'admin') {
+      return <>{children}</>;
+    }
+    
     return (
       <div className="flex h-screen flex-col items-center justify-center p-8 text-center">
         <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
