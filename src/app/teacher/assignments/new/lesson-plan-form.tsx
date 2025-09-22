@@ -1,8 +1,8 @@
 
 'use client';
 
-import * as React from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse, isValid } from 'date-fns';
@@ -35,8 +35,9 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { firestore, auth } from '@/lib/firebase';
-import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where, writeBatch, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
+import { light } from '@/lib/haptic';
 
 
 export const lessonPlanSchema = z.object({
@@ -61,14 +62,14 @@ interface LessonPlanFormProps {
 }
 
 export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: LessonPlanFormProps) {
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [aiLoadingField, setAiLoadingField] = React.useState<AiField | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [aiLoadingField, setAiLoadingField] = useState<AiField | null>(null);
   const { toast } = useToast();
-  const [isEditMode, setIsEditMode] = React.useState(!!lessonPlanId);
+  const [isEditMode, setIsEditMode] = useState(!!lessonPlanId);
   const { user } = useAuth();
   
-  const [subjects, setSubjects] = React.useState<string[]>([]);
-  const [grades, setGrades] = React.useState<string[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [grades, setGrades] = useState<string[]>([]);
 
 
   const form = useForm<LessonPlanFormValues>({
@@ -85,7 +86,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
     },
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     const restoredData = sessionStorage.getItem('restoredLessonPlan');
     if (restoredData) {
       const parsedData = JSON.parse(restoredData);
@@ -98,36 +99,45 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
     }
   }, [form]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!schoolId || !user) return;
 
-    // Fetch subjects taught by the teacher
-    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
-    const subjectsUnsub = onSnapshot(subjectsQuery, (snapshot) => {
-        const subjectData = new Set<string>();
-        snapshot.docs.forEach(doc => {
-            if (doc.data().name) subjectData.add(doc.data().name);
-        });
-        setSubjects(Array.from(subjectData));
-    });
-    
     // Fetch classes assigned to the teacher
     const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user.uid));
-    const classesUnsub = onSnapshot(classesQuery, (snapshot) => {
+    const classesUnsub = onSnapshot(classesQuery, async (snapshot) => {
         const gradeData = new Set<string>();
-        snapshot.docs.forEach(doc => {
+        const classIds = snapshot.docs.map(doc => {
             gradeData.add(doc.data().name);
+            return doc.id;
         });
         setGrades(Array.from(gradeData));
+        
+        if (classIds.length > 0) {
+            // Fetch subjects taught in those classes
+            const subjectNames = new Set<string>();
+            for (const classId of classIds) {
+                const assignmentsDoc = await getDoc(doc(firestore, `schools/${schoolId}/class-assignments`, classId));
+                if (assignmentsDoc.exists()) {
+                    const assignments = assignmentsDoc.data().assignments || [];
+                    assignments.forEach((assignment: { subject: string; teacher: string | null; }) => {
+                        if (assignment.teacher === user.displayName) {
+                            subjectNames.add(assignment.subject);
+                        }
+                    });
+                }
+            }
+            setSubjects(Array.from(subjectNames));
+        } else {
+            setSubjects([]);
+        }
     });
 
     return () => {
-        subjectsUnsub();
         classesUnsub();
     }
   }, [schoolId, user]);
 
-   React.useEffect(() => {
+   useEffect(() => {
     if (lessonPlanId && schoolId) {
       const docRef = doc(firestore, `schools/${schoolId}/lesson-plans`, lessonPlanId);
       const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -223,6 +233,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   }
   
   const handleGenerateContent = async (field: AiField) => {
+    light();
     setAiLoadingField(field);
 
     const result = await generateContentAction({
@@ -467,7 +478,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         <Separator className="my-8"/>
 
         <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading || !!aiLoadingField} className="w-full md:w-auto">
+            <Button type="submit" disabled={isLoading || !!aiLoadingField} className="w-full md:w-auto" onClick={() => light()}>
                 {isLoading ? (
                 <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

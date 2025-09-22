@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -37,6 +38,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { light } from '@/lib/haptic';
 
 type Student = {
     id: string;
@@ -354,7 +356,7 @@ export default function TeacherGradesPage() {
                         </CardContent>
                         {isGradeEntryReady && studentsInClass.length > 0 && (
                             <CardFooter className="justify-end">
-                                <Button onClick={handleSaveGrades} disabled={isSaving}>
+                                <Button onClick={() => {light(); handleSaveGrades()}} disabled={isSaving}>
                                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
                                     Save Grades
                                 </Button>

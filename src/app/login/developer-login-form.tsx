@@ -12,6 +12,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { light } from '@/lib/haptic';
 
 export function DeveloperLoginForm() {
   const router = useRouter();
@@ -71,7 +72,7 @@ export function DeveloperLoginForm() {
           <Label htmlFor="dev-password">Password</Label>
         <Input id="dev-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
       </div>
-      <Button type="submit" className="w-full" disabled={isLoading}>
+      <Button type="submit" className="w-full" disabled={isLoading} onClick={() => light()}>
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Developer Login
       </Button>

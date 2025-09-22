@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -36,6 +37,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { light } from '@/lib/haptic';
 
 
 export const assignmentSchema = z.object({
@@ -264,7 +266,7 @@ export function AssignmentForm() {
 
 
         <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
+            <Button type="submit" disabled={isLoading} className="w-full md:w-auto" onClick={() => light()}>
                 {isLoading ? (
                 <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

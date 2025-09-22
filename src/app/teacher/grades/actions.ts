@@ -5,6 +5,7 @@ import { firestore } from '@/lib/firebase';
 import { addDoc, collection, serverTimestamp, query, where, getDocs, writeBatch, doc, getDoc } from 'firebase/firestore';
 import { z } from 'zod';
 import { logAuditEvent } from '@/lib/audit-log.service';
+import { light } from '@/lib/haptic';
 
 interface GradeData {
   [studentId: string]: {
