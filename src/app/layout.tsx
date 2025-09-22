@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import { AuthProvider } from '@/context/auth-context';
 import Script from 'next/script';
 import { ThemeProvider } from '@/context/theme-provider';
+import { StatusBarOverlay } from '@/components/layout/status-bar-overlay';
 
 
 export const metadata: Metadata = {
@@ -20,7 +21,6 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'EduSphere Kenya',
   },
 };
 
@@ -48,7 +48,10 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <AuthProvider>
-              <Suspense>{children}</Suspense>
+              <Suspense>
+                <StatusBarOverlay />
+                {children}
+              </Suspense>
               <Toaster />
             </AuthProvider>
           </ThemeProvider>
