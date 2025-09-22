@@ -20,11 +20,9 @@ export default function TeacherLayout({
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
-             <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm">
-                <div className="flex-1 md:hidden">
-                    <SidebarTrigger />
-                </div>
-            </header>
+            <div className="md:hidden absolute top-4 left-4 z-20">
+              <SidebarTrigger />
+            </div>
             <div>{children}</div>
             <FloatingSupportWidget />
           </main>

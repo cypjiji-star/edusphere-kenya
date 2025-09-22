@@ -19,12 +19,10 @@ export default function AdminLayout({
           </Suspense>
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
-           <main className="h-full w-full overflow-auto rounded-xl shadow bg-background">
-            <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm md:hidden">
-                <div className="flex-1">
-                    <SidebarTrigger />
-                </div>
-            </header>
+           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
+            <div className="md:hidden absolute top-4 left-4 z-20">
+              <SidebarTrigger />
+            </div>
             <div>{children}</div>
             <FloatingChatWidget />
           </main>
