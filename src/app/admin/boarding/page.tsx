@@ -31,7 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Bed, Search, Filter, ChevronDown, UserCheck, Moon, Sun, Loader2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
@@ -69,7 +69,7 @@ export default function BoardingPage() {
             return;
         }
 
-        const q = query(collection(firestore, `schools/${schoolId}/students`));
+        const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const studentData = snapshot.docs.map(doc => {
                 const data = doc.data();
@@ -97,7 +97,7 @@ export default function BoardingPage() {
         if (!schoolId || !adminUser) return;
         
         try {
-            const studentRef = doc(firestore, `schools/${schoolId}/students`, studentId);
+            const studentRef = doc(firestore, `schools/${schoolId}/users`, studentId);
             await updateDoc(studentRef, { boardingStatus: newStatus });
 
             await logAuditEvent({
@@ -243,4 +243,3 @@ export default function BoardingPage() {
         </div>
     );
 }
-

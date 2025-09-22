@@ -60,8 +60,13 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
 }
 
 export function AuthCheck({ children, requiredRole }: { children: ReactNode; requiredRole: AllowedRole }) {
+  const validRoles = ['developer', 'admin', 'teacher', 'parent'];
+  const normalizedRole = validRoles.includes(requiredRole.toLowerCase())
+    ? requiredRole.toLowerCase() as AllowedRole
+    : 'unknown';
+
   return (
-    <AuthChecker requiredRole={requiredRole}>
+    <AuthChecker requiredRole={normalizedRole}>
       {children}
     </AuthChecker>
   );

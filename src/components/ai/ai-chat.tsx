@@ -34,29 +34,26 @@ type Message = {
 const escalationTriggerMessage = "Understood. I'm escalating your request to a human administrator who will get back to you shortly.";
 
 async function getUserDisplayName(schoolId: string, userId: string): Promise<string> {
-    const collectionsToSearch = ['admins', 'teachers', 'parents', 'students'];
-    for (const collectionName of collectionsToSearch) {
-        try {
-            const userDocRef = doc(firestore, 'schools', schoolId, collectionName, userId);
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists()) {
-                return userDocSnap.data().name || 'User';
-            }
-        } catch (e) {
-            // This can happen if the collection doesn't exist for a certain role, which is fine.
-            console.warn(`Could not search in '${collectionName}' collection`, e);
+    try {
+        const userDocRef = doc(firestore, 'schools', schoolId, 'users', userId);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+            return userDocSnap.data().name || 'User';
         }
+    } catch (e) {
+        console.warn(`Could not find user ${userId} in users collection`, e);
     }
+    
+    // Fallback for parents who might not have a separate doc
      try {
-        const parentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', userId), limit(1));
-        const parentSnap = await getDocs(parentQuery);
-        if (!parentSnap.empty) {
-            return parentSnap.docs[0].data().parentName || 'Parent';
+        const studentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', userId), limit(1));
+        const studentSnap = await getDocs(studentQuery);
+        if (!studentSnap.empty) {
+            return studentSnap.docs[0].data().parentName || 'Parent';
         }
     } catch(e) {
         console.error("Could not find parent user details via student lookup", e);
     }
-
     return 'User';
 }
 

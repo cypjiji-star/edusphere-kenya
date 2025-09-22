@@ -43,11 +43,10 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      const roleCollectionName = role.toLowerCase() + 's';
-      const userDocRef = doc(firestore, 'schools', schoolCode, roleCollectionName, user.uid);
+      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
-      if (userDocSnap.exists()) {
+      if (userDocSnap.exists() && userDocSnap.data().role === role) {
         await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
 
         await logAuditEvent({

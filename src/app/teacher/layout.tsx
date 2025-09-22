@@ -11,7 +11,7 @@ export default function TeacherLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthCheck requiredRole="teacher">
+    <AuthCheck requiredRole="Teacher">
       <SidebarProvider>
         <Sidebar>
           <Suspense>

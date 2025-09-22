@@ -11,7 +11,7 @@ export default function ParentLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthCheck requiredRole="parent">
+    <AuthCheck requiredRole="Parent">
       <SidebarProvider>
         <Sidebar>
           <Suspense>
