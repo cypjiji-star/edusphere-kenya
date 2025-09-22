@@ -12,21 +12,17 @@ export function getFirebaseAdminApp() {
     return getApp();
   }
 
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  };
 
-  if (!serviceAccountJson) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please add it to your .env file.');
+  if (!serviceAccount.privateKey || !serviceAccount.clientEmail) {
+    throw new Error('Firebase Admin credentials are not set in environment variables.');
   }
 
-  try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
-
-    return initializeApp({
-        credential: credential.cert(serviceAccount),
-    });
-
-  } catch (error: any) {
-    console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:", error.message);
-    throw new Error("The FIREBASE_SERVICE_ACCOUNT_JSON in your .env file is not formatted correctly.");
-  }
+  return initializeApp({
+      credential: credential.cert(serviceAccount),
+  });
 }
