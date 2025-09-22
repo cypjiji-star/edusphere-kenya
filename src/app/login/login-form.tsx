@@ -21,17 +21,17 @@ export function LoginForm() {
   const [role, setRole] = React.useState('admin');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
-  const [schoolCode, setSchoolCode] = React.useState('');
+  const [schoolId, setSchoolId] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!schoolCode) {
+    if (!schoolId) {
       toast({
-        title: 'School Code Required',
-        description: 'Please enter your school code to log in.',
+        title: 'School ID Required',
+        description: 'Please enter your school ID to log in.',
         variant: 'destructive',
       });
       setIsLoading(false);
@@ -43,23 +43,23 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
+      const userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists() && userDocSnap.data().role.toLowerCase() === role) {
         
         await updateDoc(userDocRef, { lastLogin: serverTimestamp() }).catch(() => {
-          // If the user doesn't exist in the 'users' collection (e.g., pure admin), this will fail silently, which is fine.
+          // This can fail if the user is a developer, which is fine.
         });
 
         await logAuditEvent({
-            schoolId: schoolCode,
+            schoolId: schoolId,
             action: 'USER_LOGIN_SUCCESS',
             actionType: 'Security',
             description: `User ${user.email} successfully logged in as ${role}.`,
             user: { id: user.uid, name: userDocSnap.data().name, role: role },
         });
-        router.push(`/${role}?schoolId=${schoolCode}`);
+        router.push(`/${role}?schoolId=${schoolId}`);
       } else {
         await auth.signOut();
         toast({
@@ -81,12 +81,12 @@ export function LoginForm() {
           description = 'The email or password you entered is incorrect.';
           break;
         default:
-          description = 'Please check your credentials and school code.';
+          description = 'Please check your credentials and school ID.';
           break;
       }
       
       await logAuditEvent({
-          schoolId: schoolCode || 'unknown',
+          schoolId: schoolId || 'unknown',
           action: 'USER_LOGIN_FAILURE',
           actionType: 'Security',
           description: `Failed login attempt for ${email}.`,
@@ -107,14 +107,14 @@ export function LoginForm() {
   return (
     <form className="grid gap-4" onSubmit={handleLogin}>
       <div className="grid gap-2">
-        <Label htmlFor="schoolCode">School Code</Label>
+        <Label htmlFor="schoolId">School ID</Label>
         <Input
-          id="schoolCode"
+          id="schoolId"
           type="text"
-          placeholder="Enter your school's unique code"
+          placeholder="Enter your school's unique ID"
           required
-          value={schoolCode}
-          onChange={(e) => setSchoolCode(e.target.value)}
+          value={schoolId}
+          onChange={(e) => setSchoolId(e.target.value)}
           disabled={isLoading}
         />
       </div>
