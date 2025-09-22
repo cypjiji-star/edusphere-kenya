@@ -3,7 +3,7 @@
 
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import { doc, setDoc, serverTimestamp, addDoc, collection, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, addDoc, collection, deleteDoc, getDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { logAuditEvent } from '@/lib/audit-log.service';
 
@@ -86,7 +86,6 @@ export async function createUserAction(params: {
     const auth = getAuth(adminApp);
     
     const isNonAuthRole = ['Board Member', 'PTA Member'].includes(role);
-    const isAdminRole = role === 'Admin';
     
     if (isNonAuthRole) {
         const newUserDocRef = doc(collection(firestore, `schools/${schoolId}/users`));
@@ -117,8 +116,7 @@ export async function createUserAction(params: {
         uid = userRecord.uid;
         
         const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
-        const collectionPath = isAdminRole ? `schools/${schoolId}/admins` : `schools/${schoolId}/users`;
-        const userDocRef = doc(firestore, collectionPath, uid);
+        const userDocRef = doc(firestore, `schools/${schoolId}/users`, uid);
 
         const userData = {
             id: uid, schoolId, name, email, role, 
