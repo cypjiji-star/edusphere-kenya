@@ -739,5 +739,3 @@ export function TimetableBuilder() {
     </DndContext>
   );
 }
-
-    

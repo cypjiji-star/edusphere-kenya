@@ -34,7 +34,7 @@ type Message = {
 const escalationTriggerMessage = "Understood. I'm escalating your request to a human administrator who will get back to you shortly.";
 
 async function getUserDisplayName(schoolId: string, userId: string): Promise<string> {
-    const collectionsToSearch = ['admins', 'teachers'];
+    const collectionsToSearch = ['admins', 'teachers', 'parents', 'students'];
     for (const collectionName of collectionsToSearch) {
         try {
             const userDocRef = doc(firestore, 'schools', schoolId, collectionName, userId);
@@ -43,7 +43,8 @@ async function getUserDisplayName(schoolId: string, userId: string): Promise<str
                 return userDocSnap.data().name || 'User';
             }
         } catch (e) {
-            console.error(`Could not find user in '${collectionName}' collection`, e);
+            // This can happen if the collection doesn't exist for a certain role, which is fine.
+            console.warn(`Could not search in '${collectionName}' collection`, e);
         }
     }
      try {
@@ -53,7 +54,7 @@ async function getUserDisplayName(schoolId: string, userId: string): Promise<str
             return parentSnap.docs[0].data().parentName || 'Parent';
         }
     } catch(e) {
-        console.error("Could not find parent user details", e);
+        console.error("Could not find parent user details via student lookup", e);
     }
 
     return 'User';
