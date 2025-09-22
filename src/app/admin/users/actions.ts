@@ -130,9 +130,8 @@ export async function createUserAction(params: {
     });
 
     return { success: true, uid, message: 'User record created successfully.' };
-  } catch (error: any {
+  } catch (error: any) {
     console.error("Error creating new user:", error);
     return { success: false, message: error.message || 'Failed to create user.' };
   }
 }
-
