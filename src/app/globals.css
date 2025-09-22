@@ -58,6 +58,12 @@
     --sidebar-accent-foreground: 210 20% 98%;
     --sidebar-border: 224 71% 10%;
     --sidebar-ring: 259 95% 68%;
+    
+    /* 1. Safe-area insets become CSS variables */
+    --sat: env(safe-area-inset-top);
+    --sar: env(safe-area-inset-right);
+    --sab: env(safe-area-inset-bottom);
+    --sal: env(safe-area-inset-left);
   }
 }
  
@@ -65,9 +71,15 @@
   * {
     @apply border-border;
   }
+  /* 2. Scaffold that always fills the glass */
   body {
     @apply bg-background text-foreground;
-    padding-top: env(safe-area-inset-top);
+    margin: 0;
+    /* iOS / Android both */
+    height: 100dvh;
+    width: 100dvw;
+    overflow: hidden;
+    padding: var(--sat) var(--sar) var(--sab) var(--sal);
   }
   
   /* Custom Scrollbar for Webkit browsers */
@@ -108,4 +120,17 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* 3.  Status-bar overlay becomes YOUR UI */
+.status-bar-glass {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  z-index: 9999;
+  background: linear-gradient(to bottom, #0b0f19 50%, transparent);
+  /* optional: show time/battery on top of your brand colour */
+  backdrop-filter: blur(4px);
 }
