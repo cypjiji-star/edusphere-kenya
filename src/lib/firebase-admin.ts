@@ -11,7 +11,7 @@ export async function getFirebaseAdminApp(): Promise<App> {
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  // Replace the escaped newlines with actual newline characters
+  // The private key needs to have its escaped newlines replaced with actual newline characters.
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
   if (!projectId || !clientEmail || !privateKey) {
@@ -29,10 +29,7 @@ export async function getFirebaseAdminApp(): Promise<App> {
       }),
     });
   } catch (error: any) {
-    console.error(
-      'Failed to initialize Firebase Admin SDK:',
-      error.message
-    );
+    console.error('Failed to initialize Firebase Admin SDK:', error.message);
     throw new Error(
       'Failed to initialize Firebase Admin SDK. Please check your environment variables.'
     );
