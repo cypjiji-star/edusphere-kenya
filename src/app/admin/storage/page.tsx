@@ -122,24 +122,17 @@ export default function SchoolStoragePage() {
             setUsageLogs(logs);
         });
 
-        const userCollections = ['teachers', 'admins', 'non_teaching_staff'];
-        const unsubscribers = userCollections.map(col => {
-            const userQuery = query(collection(firestore, `schools/${schoolId}/${col}`));
-            return onSnapshot(userQuery, (snapshot) => {
-                const usersData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-                setAllUsers(prev => {
-                    const existingIds = new Set(prev.map(u => u.id));
-                    const newUsers = usersData.filter(u => !existingIds.has(u.id));
-                    return [...prev, ...newUsers];
-                });
-            });
+        const userQuery = query(collection(firestore, `schools/${schoolId}/users`));
+        const unsubUsers = onSnapshot(userQuery, (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+            setAllUsers(usersData);
         });
         
 
         return () => {
             unsubResources();
             unsubUsage();
-            unsubscribers.forEach(unsub => unsub());
+            unsubUsers();
         }
     }, [schoolId]);
 

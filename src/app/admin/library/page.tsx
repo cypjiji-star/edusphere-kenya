@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -330,14 +331,14 @@ export default function AdminLibraryPage() {
             setDbGrades([...new Set(gradeNames)]);
         });
 
-        const teachersQuery = query(collection(firestore, `schools/${schoolId}/teachers`));
+        const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher'));
         const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
             const teacherData = snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
             setAllTeachers(teacherData);
         });
         
         const fetchStudentsAndAssignments = async () => {
-          const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
+          const studentsQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Student'));
           const studentsSnap = await getDocs(studentsQuery);
           const studentData: Record<string, { className: string }> = {};
           studentsSnap.forEach(doc => {
@@ -486,7 +487,7 @@ export default function AdminLibraryPage() {
                 borrowedBy: newBorrowedBy
             });
 
-            const borrowedItemRef = doc(firestore, 'schools', schoolId, 'teachers', userId, 'borrowed-items', checkingOutResource.id);
+            const borrowedItemRef = doc(firestore, 'schools', schoolId, 'users', userId, 'borrowed-items', checkingOutResource.id);
             const dueDate = new Date();
             dueDate.setDate(dueDate.getDate() + 14); // 2 week loan period
 
@@ -514,7 +515,7 @@ export default function AdminLibraryPage() {
         try {
             await runTransaction(firestore, async (transaction) => {
                 const resourceRef = doc(firestore, `schools/${schoolId}/library-resources`, item.id);
-                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/teachers/${item.borrowerId}/borrowed-items`, item.id);
+                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/users/${item.borrowerId}/borrowed-items`, item.id);
                 
                 const resourceDoc = await transaction.get(resourceRef);
                 const borrowedItemDoc = await transaction.get(teacherBorrowedItemRef);
@@ -548,7 +549,7 @@ export default function AdminLibraryPage() {
                     }
                 }
     
-                const historyRef = doc(collection(firestore, `schools/${schoolId}/teachers/${item.borrowerId}/borrowing-history`));
+                const historyRef = doc(collection(firestore, `schools/${schoolId}/users/${item.borrowerId}/borrowing-history`));
                 transaction.set(historyRef, {
                     title: item.title,
                     quantity: quantityToReturn,
@@ -722,7 +723,7 @@ export default function AdminLibraryPage() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center h-24">No items are currently checked out.</TableCell>
+                                            <TableCell colSpan={4} className="h-24 text-center">No items are currently checked out.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>

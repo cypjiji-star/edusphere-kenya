@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -377,7 +378,7 @@ export default function ClassesAndSubjectsPage() {
         const unsubSubjects = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
             setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
         });
-        const unsubTeachers = onSnapshot(collection(firestore, `schools/${schoolId}/teachers`), (snapshot) => {
+        const unsubTeachers = onSnapshot(query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher')), (snapshot) => {
             setTeachers(snapshot.docs.map(d => ({ id: d.id, name: d.data().name, avatarUrl: d.data().avatarUrl } as Teacher)));
         });
         const unsubAssignments = onSnapshot(collection(firestore, 'schools', schoolId, 'class-assignments'), (snapshot) => {

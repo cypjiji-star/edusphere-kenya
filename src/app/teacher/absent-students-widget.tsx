@@ -65,7 +65,7 @@ export function AbsentStudentsWidget() {
                 for (const attendanceDoc of attendanceSnapshot.docs) {
                     const attendance = attendanceDoc.data();
                     if (attendance.studentId) {
-                        const studentDocSnap = await getDoc(doc(firestore, `schools/${schoolId}/students`, attendance.studentId));
+                        const studentDocSnap = await getDoc(doc(firestore, `schools/${schoolId}/users`, attendance.studentId));
                         if (studentDocSnap.exists()) {
                              const studentData = studentDocSnap.data();
                              absentStudentData.push({

@@ -192,11 +192,8 @@ export default function AdminAnnouncementsPage() {
     });
     
     const countUsers = async () => {
-        const studentSnap = await getDocs(collection(firestore, `schools/${schoolId}/students`));
-        const teacherSnap = await getDocs(collection(firestore, `schools/${schoolId}/teachers`));
-        const adminSnap = await getDocs(collection(firestore, `schools/${schoolId}/admins`));
-        const parentSnap = await getDocs(collection(firestore, `schools/${schoolId}/parents`));
-        setTotalUserCount(studentSnap.size + teacherSnap.size + adminSnap.size + parentSnap.size);
+        const usersSnap = await getDocs(collection(firestore, `schools/${schoolId}/users`));
+        setTotalUserCount(usersSnap.size);
     };
 
     countUsers();
@@ -754,3 +751,4 @@ export default function AdminAnnouncementsPage() {
     </>
   );
 }
+

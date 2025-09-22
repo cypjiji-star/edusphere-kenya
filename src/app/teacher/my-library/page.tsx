@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -105,14 +106,14 @@ export default function MyLibraryPage() {
 
         setClientReady(true);
 
-        const borrowedQuery = query(collection(firestore, `schools/${schoolId}/teachers/${teacherId}/borrowed-items`));
+        const borrowedQuery = query(collection(firestore, `schools/${schoolId}/users/${teacherId}/borrowed-items`));
         const unsubBorrowed = onSnapshot(borrowedQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowedItem));
             setBorrowedItems(items);
         });
 
         setIsHistoryLoading(true);
-        const historyQuery = query(collection(firestore, `schools/${schoolId}/teachers/${teacherId}/borrowing-history`));
+        const historyQuery = query(collection(firestore, `schools/${schoolId}/users/${teacherId}/borrowing-history`));
         const unsubHistory = onSnapshot(historyQuery, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HistoryItem));
             setHistoryItems(items);
@@ -162,7 +163,7 @@ export default function MyLibraryPage() {
         const classIds = teacherClasses.map(c => c.id);
         if(classIds.length === 0) return;
 
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', 'in', classIds));
         const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
             const students = snapshot.docs.map(doc => {
                 const data = doc.data();
@@ -214,7 +215,7 @@ export default function MyLibraryPage() {
 
     const handleRenew = async (item: BorrowedItem) => {
         if (!schoolId || !user) return;
-        const itemRef = doc(firestore, 'schools', schoolId, 'teachers', user.uid, 'borrowed-items', item.id);
+        const itemRef = doc(firestore, 'schools', schoolId, 'users', user.uid, 'borrowed-items', item.id);
         const newDueDate = new Date(item.dueDate.toDate());
         newDueDate.setDate(newDueDate.getDate() + 14); // Extend by 2 weeks
 
@@ -303,7 +304,7 @@ export default function MyLibraryPage() {
         
         try {
             await runTransaction(firestore, async (transaction) => {
-                const teacherBorrowedItemRef = doc(firestore, 'schools', schoolId, 'teachers', user.uid, 'borrowed-items', book.id);
+                const teacherBorrowedItemRef = doc(firestore, 'schools', schoolId, 'users', user.uid, 'borrowed-items', book.id);
 
                 // Create the new student assignment
                 const newAssignmentRef = doc(collection(firestore, `schools/${schoolId}/student-assignments`));
@@ -327,7 +328,7 @@ export default function MyLibraryPage() {
             });
             
             // Send notification to parent
-            const studentDoc = await getDoc(doc(firestore, `schools/${schoolId}/students`, student.id));
+            const studentDoc = await getDoc(doc(firestore, `schools/${schoolId}/users`, student.id));
             if(studentDoc.exists()) {
                 const parentId = studentDoc.data().parentId;
                 if(parentId) {
@@ -363,7 +364,7 @@ export default function MyLibraryPage() {
         try {
             await runTransaction(firestore, async (transaction) => {
                 const assignmentRef = doc(firestore, 'schools', schoolId, 'student-assignments', assignment.id);
-                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/teachers/${assignment.teacherId}/borrowed-items`, assignment.bookId);
+                const teacherBorrowedItemRef = doc(firestore, `schools/${schoolId}/users/${assignment.teacherId}/borrowed-items`, assignment.bookId);
                 
                 const borrowedItemSnap = await transaction.get(teacherBorrowedItemRef);
                 

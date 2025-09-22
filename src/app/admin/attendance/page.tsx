@@ -391,7 +391,7 @@ export default function AdminAttendancePage() {
         }
     });
 
-    const qTeachers = query(collection(firestore, 'schools', schoolId, 'teachers'));
+    const qTeachers = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Teacher'));
     const unsubTeachers = onSnapshot(qTeachers, (snapshot) => {
       setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
     });
@@ -405,7 +405,7 @@ export default function AdminAttendancePage() {
       setClasses(['All Classes', ...new Set(classNames)]);
     });
 
-     const qStudents = query(collection(firestore, 'schools', schoolId, 'students'));
+     const qStudents = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Student'));
     const unsubStudents = onSnapshot(qStudents, (snapshot) => {
         setAllStudents(snapshot.docs.map(doc => ({
             id: doc.id,
@@ -1344,6 +1344,7 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+
 
 
 

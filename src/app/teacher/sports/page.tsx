@@ -91,7 +91,7 @@ export default function SportsPage() {
         setIsLoading(false);
     });
 
-    const teachersQuery = query(collection(firestore, 'schools', schoolId, 'teachers'));
+    const teachersQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher'));
     const unsubTeachers = onSnapshot(teachersQuery, (snapshot) => {
         const teachers = snapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -325,3 +325,5 @@ export default function SportsPage() {
     </div>
   );
 }
+
+    
