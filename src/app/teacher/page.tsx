@@ -333,7 +333,7 @@ export default function TeacherDashboard() {
                 if(docSnap.exists()) setSchoolName(docSnap.data().name);
             }));
             
-            const teacherDocRef = doc(firestore, `schools/${schoolId}/teachers`, teacherId);
+            const teacherDocRef = doc(firestore, `schools/${schoolId}/users`, teacherId);
             unsubscribers.push(onSnapshot(teacherDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     setTeacherName(docSnap.data().name || 'Teacher');
@@ -420,10 +420,13 @@ export default function TeacherDashboard() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="font-headline text-3xl font-bold">Welcome, {teacherName}!</h1>
-        {clientReady && <p className="text-muted-foreground">Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>}
-      </div>
+      <Card className="mb-8 overflow-hidden">
+          <CardHeader className="bg-muted/30">
+              <CardTitle className="font-headline text-3xl font-bold text-primary">Welcome, {teacherName}!</CardTitle>
+              {clientReady && <CardDescription>Your dashboard for {schoolName}. Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</CardDescription>}
+          </CardHeader>
+          <Separator variant="highlighted" className="h-1 bg-primary/80" />
+      </Card>
 
        <div className="mb-8">
           <MyAttendanceWidget />

@@ -450,10 +450,13 @@ export default function ParentDashboard() {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <div className="mb-8">
-                <h1 className="font-headline text-3xl font-bold">Welcome, {parentName}!</h1>
-                {clientReady && <p className="text-muted-foreground">Your dashboard for the {schoolName} parent portal.</p>}
-            </div>
+            <Card className="mb-8 overflow-hidden">
+                <CardHeader className="bg-muted/30">
+                    <CardTitle className="font-headline text-3xl font-bold text-primary">Welcome, {parentName}!</CardTitle>
+                    {clientReady && <CardDescription>Your dashboard for the {schoolName} parent portal.</CardDescription>}
+                </CardHeader>
+                <Separator variant="highlighted" className="h-1 bg-primary/80" />
+            </Card>
 
             {/* Dashboard stats cards */}
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
