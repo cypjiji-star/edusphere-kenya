@@ -333,7 +333,7 @@ export default function AttendancePage() {
     const classIds = teacherClasses.map(c => c.id);
     if (classIds.length === 0) return;
 
-    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+    const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', 'in', classIds));
     const unsub = onSnapshot(studentsQuery, (snapshot) => {
         setAllTeacherStudents(snapshot.docs.map(doc => doc.data() as Student));
     });
@@ -361,7 +361,8 @@ export default function AttendancePage() {
 
     try {
         const studentsQuery = query(
-            collection(firestore, "schools", schoolId, "students"),
+            collection(firestore, "schools", schoolId, "users"),
+            where('role', '==', 'Student'),
             where("classId", "==", activeClassId),
             orderBy("name")
         );
@@ -375,7 +376,7 @@ export default function AttendancePage() {
                 avatarUrl: data.avatarUrl || `https://picsum.photos/seed/${d.id}/100`,
                 status: "unmarked",
                 notes: "",
-            };
+            } as Student;
         });
 
         const startOfDay = new Date(selectedDate);
