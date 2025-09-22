@@ -16,52 +16,75 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import React, { useEffect, useState } from 'react';
+import { firestore } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 export const dynamicParams = false;
 
-// Mock data fetching - in a real app, this would be an API call.
-const getStudentData = (studentId: string) => {
-    // This is a simplified mock data fetch. A real implementation would be more robust.
-    const name = studentId.replace(/-\d+$/, '').replace(/-/g, ' ');
-    const studentName = name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    
-    return {
-        id: studentId,
-        name: studentName,
-        rollNumber: 'F4-001',
-        class: 'Form 4 - Chemistry',
-        avatarUrl: `https://picsum.photos/seed/${studentId}/100`,
-        overallGrade: '78%',
-        dateOfBirth: '2008-05-12',
-        studentContact: '0712 345 678',
-        guardian: {
-            name: 'Joseph Kariuki',
-            relationship: 'Father',
-            contact: '0722 123 456',
-        },
-    }
-}
+type StudentData = {
+    id: string;
+    name: string;
+    admissionNumber: string;
+    class: string;
+    avatarUrl: string;
+    overallGrade: string;
+    dateOfBirth: string;
+    studentContact: string;
+    guardian: {
+        name: string;
+        relationship: string;
+        contact: string;
+    };
+};
 
 
 export default function StudentProfilePage({ params }: { params: { studentId: string } }) {
   const { studentId } = params;
-  const student = getStudentData(studentId);
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get('schoolId');
+  const [student, setStudent] = useState<StudentData | null>(null);
   const [formattedDob, setFormattedDob] = useState('');
   const [clientReady, setClientReady] = useState(false);
 
   useEffect(() => {
     setClientReady(true);
-    if (student) {
-        setFormattedDob(new Date(student.dateOfBirth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric'}));
+    if (schoolId && studentId) {
+      const getStudentData = async () => {
+        const studentRef = doc(firestore, 'schools', schoolId, 'users', studentId);
+        const docSnap = await getDoc(studentRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setStudent({
+            id: docSnap.id,
+            name: data.name,
+            admissionNumber: data.admissionNumber,
+            class: data.class,
+            avatarUrl: data.avatarUrl || `https://picsum.photos/seed/${docSnap.id}/100`,
+            overallGrade: '78%', // Placeholder
+            dateOfBirth: data.dateOfBirth?.toDate().toISOString() || '',
+            studentContact: data.phone || 'N/A',
+            guardian: {
+              name: data.parentName || 'N/A',
+              relationship: data.parentRelationship || 'N/A',
+              contact: data.parentPhone || 'N/A',
+            },
+          });
+          if (data.dateOfBirth) {
+            setFormattedDob(data.dateOfBirth.toDate().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric'}));
+          }
+        }
+      };
+      getStudentData();
     }
-  }, [student]);
+  }, [studentId, schoolId]);
 
   if (!student) {
     return (
         <div className="p-8">
             <h1 className="text-2xl font-bold">Student not found</h1>
             <Button asChild variant="link">
-                <Link href="/teacher/students">
+                <Link href={`/teacher/students?schoolId=${schoolId}`}>
                     <ArrowLeft className="mr-2"/> Back to Class Management
                 </Link>
             </Button>
@@ -73,7 +96,7 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
         <Button asChild variant="outline" size="sm">
-            <Link href="/teacher/students">
+            <Link href={`/teacher/students?schoolId=${schoolId}`}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Class View
             </Link>
@@ -88,7 +111,7 @@ export default function StudentProfilePage({ params }: { params: { studentId: st
                         <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <h2 className="font-headline text-2xl font-bold">{student.name}</h2>
-                    <p className="text-muted-foreground">{student.rollNumber} | {student.class}</p>
+                    <p className="text-muted-foreground">{student.admissionNumber} | {student.class}</p>
                     <div className="mt-4 flex justify-center gap-2">
                          <Badge variant="secondary">Overall Grade: {student.overallGrade}</Badge>
                     </div>

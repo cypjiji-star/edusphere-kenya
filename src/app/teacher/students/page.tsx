@@ -121,7 +121,7 @@ export default function TeacherClassManagementPage() {
         
         if (classesData.length > 0) {
             const classIds = classesData.map(c => c.id);
-            const qStudents = query(collection(firestore, `schools/${schoolId}/users`), where('classId', 'in', classIds), where('role', '==', 'Student'));
+            const qStudents = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', 'in', classIds));
             
             const unsubscribeStudents = onSnapshot(qStudents, async (studentsSnapshot) => {
                 const studentList = studentsSnapshot.docs.map(doc => {
