@@ -3,7 +3,7 @@
 
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/firebase-admin';
-import { doc, setDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, addDoc, collection, deleteDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { logAuditEvent } from '@/lib/audit-log.service';
 
@@ -85,9 +85,10 @@ export async function createUserAction(params: {
     const adminApp = await getFirebaseAdminApp();
     const auth = getAuth(adminApp);
     
-    // For roles that don't need authentication, we create a document with a generated ID.
-    const nonAuthRoles = ['Board Member', 'PTA Member'];
-    if (nonAuthRoles.includes(role)) {
+    const isNonAuthRole = ['Board Member', 'PTA Member'].includes(role);
+    const isAdminRole = role === 'Admin';
+    
+    if (isNonAuthRole) {
         const newUserDocRef = doc(collection(firestore, `schools/${schoolId}/users`));
         uid = newUserDocRef.id;
         
@@ -102,7 +103,7 @@ export async function createUserAction(params: {
         await setDoc(newUserDocRef, userData);
 
     } else {
-        // For roles that need authentication
+        // For roles that need authentication (Admin, Teacher, Parent, Student)
         if (!email || !password) {
             return { success: false, message: 'Email and password are required for this role.' };
         }
@@ -116,8 +117,9 @@ export async function createUserAction(params: {
         uid = userRecord.uid;
         
         const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
+        const collectionPath = isAdminRole ? `schools/${schoolId}/admins` : `schools/${schoolId}/users`;
+        const userDocRef = doc(firestore, collectionPath, uid);
 
-        const userDocRef = doc(firestore, `schools/${schoolId}/users`, uid);
         const userData = {
             id: uid, schoolId, name, email, role, 
             phone: phone || null, 
@@ -144,5 +146,64 @@ export async function createUserAction(params: {
   } catch (error: any) {
     console.error("Error creating new user:", error);
     return { success: false, message: error.message || 'Failed to create user.' };
+  }
+}
+
+/**
+ * Deletes a user from Firebase Authentication and their Firestore record.
+ */
+export async function deleteUserAction(userId: string, schoolId: string) {
+  if (!userId || !schoolId) {
+    return { success: false, message: 'User ID and School ID are required.' };
+  }
+
+  try {
+    const adminApp = await getFirebaseAdminApp();
+    const auth = getAuth(adminApp);
+    
+    // Attempt to delete from Firebase Auth. This will fail if the user is non-auth, which is fine.
+    try {
+      await auth.deleteUser(userId);
+    } catch (error: any) {
+        if (error.code !== 'auth/user-not-found') {
+            throw error; // Re-throw if it's not a "user not found" error
+        }
+        // If user is not in Auth, proceed to delete from Firestore.
+    }
+
+    // Delete from Firestore. Check both collections.
+    const userDocRef = doc(firestore, `schools/${schoolId}/users`, userId);
+    const adminDocRef = doc(firestore, `schools/${schoolId}/admins`, userId);
+
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+        await deleteDoc(userDocRef);
+    } else {
+        await deleteDoc(adminDocRef);
+    }
+
+    return { success: true, message: 'User deleted successfully.' };
+  } catch (error: any) {
+    console.error("Error deleting user:", error);
+    return { success: false, message: error.message || 'Failed to delete user.' };
+  }
+}
+
+/**
+ * Updates a user's details in Firebase Authentication.
+ */
+export async function updateUserAuthAction(userId: string, updates: { email?: string; password?: string; displayName?: string; disabled?: boolean; }) {
+   if (!userId) {
+    return { success: false, message: 'User ID is required.' };
+  }
+
+  try {
+    const adminApp = await getFirebaseAdminApp();
+    const auth = getAuth(adminApp);
+    await auth.updateUser(userId, updates);
+    return { success: true, message: 'User authentication details updated.' };
+  } catch (error: any) {
+    console.error("Error updating user auth:", error);
+    return { success: false, message: error.message || 'Failed to update user auth details.' };
   }
 }
