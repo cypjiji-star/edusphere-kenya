@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -21,7 +22,7 @@ export async function createAssignmentAction(
   
   try {
     // 1. Get all students for the selected class
-    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'), where('classId', '==', data.classId));
+    const studentsQuery = query(collection(firestore, 'schools', schoolId, 'users'), where('role', '==', 'Student'), where('classId', '==', data.classId));
     const studentsSnapshot = await getDocs(studentsQuery);
     const totalStudents = studentsSnapshot.size;
 
@@ -40,7 +41,7 @@ export async function createAssignmentAction(
     studentsSnapshot.forEach((studentDoc) => {
         const submissionRef = doc(collection(firestore, `schools/${schoolId}/assignments/${assignmentRef.id}/submissions`));
         batch.set(submissionRef, {
-            studentRef: doc(firestore, 'schools', schoolId, 'students', studentDoc.id),
+            studentRef: doc(firestore, 'schools', schoolId, 'users', studentDoc.id),
             status: 'Not Handed In',
             grade: null,
             feedback: null,
