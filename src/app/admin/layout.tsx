@@ -18,16 +18,14 @@ export default function AdminLayout({
             <AdminSidebar />
           </Suspense>
         </Sidebar>
-        <SidebarInset>
-          <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
-            <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm md:hidden">
-              <div className="flex-1">
-                <SidebarTrigger />
-              </div>
-            </header>
-            <div>{children}</div>
-            <FloatingChatWidget />
-          </main>
+        <SidebarInset className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
+          <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm md:hidden">
+            <div className="flex-1">
+              <SidebarTrigger />
+            </div>
+          </header>
+          <div>{children}</div>
+          <FloatingChatWidget />
         </SidebarInset>
       </SidebarProvider>
     </AuthCheck>
