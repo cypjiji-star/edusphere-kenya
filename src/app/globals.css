@@ -113,6 +113,18 @@
   [data-sidebar] ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--sidebar-accent) / 0.8);
   }
+
+  header {
+    app-region: drag;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  [role="button"] {
+    app-region: no-drag;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
