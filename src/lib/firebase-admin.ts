@@ -5,9 +5,10 @@ import "server-only";
 import { initializeApp, getApp, getApps, type App } from 'firebase-admin/app';
 import { credential } from 'firebase-admin';
 
-let app: App;
+// Re-declare app variable inside the function to avoid module-level state.
+// let app: App;
 
-export function getFirebaseAdminApp() {
+export async function getFirebaseAdminApp(): Promise<App> {
   if (getApps().length > 0) {
     return getApp();
   }

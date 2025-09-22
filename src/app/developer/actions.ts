@@ -20,7 +20,7 @@ export async function createDeveloperUserAction(params: {
 
   // Use the Firebase Admin SDK to create the user.
   // This is a privileged operation.
-  const adminApp = getFirebaseAdminApp();
+  const adminApp = await getFirebaseAdminApp();
   const auth = getAuth(adminApp);
   
   try {
@@ -82,7 +82,7 @@ export async function createUserAction(params: {
   
   try {
     let uid: string;
-    const adminApp = getFirebaseAdminApp();
+    const adminApp = await getFirebaseAdminApp();
     const auth = getAuth(adminApp);
     
     // For roles that don't need authentication, we create a document with a generated ID.
