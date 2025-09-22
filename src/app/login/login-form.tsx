@@ -43,13 +43,7 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      let userDocRef;
-      if (role === 'admin') {
-          userDocRef = doc(firestore, 'schools', schoolCode, 'admins', user.uid);
-      } else {
-          userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
-      }
-      
+      const userDocRef = doc(firestore, 'schools', schoolCode, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists() && userDocSnap.data().role === role) {
