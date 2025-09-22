@@ -1,10 +1,13 @@
+
 "use client";
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { AuthProvider } from '@/context/auth-context';
 
-export default function NotFoundPage() {
+function NotFoundContent() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center">
       <h1 className="text-6xl font-bold text-primary">404</h1>
@@ -20,4 +23,15 @@ export default function NotFoundPage() {
       </Button>
     </div>
   );
+}
+
+// Dynamically import AuthProvider to avoid SSR issues during build
+const DynamicAuthProvider = dynamic(() => import('@/context/auth-context').then(mod => mod.AuthProvider), { ssr: false });
+
+export default function NotFoundPage() {
+    return (
+        <DynamicAuthProvider>
+            <NotFoundContent />
+        </DynamicAuthProvider>
+    );
 }
