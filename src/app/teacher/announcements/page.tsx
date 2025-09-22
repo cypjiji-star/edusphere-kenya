@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -29,6 +30,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
@@ -117,6 +119,7 @@ function AnnouncementCard({ announcement }: { announcement: Announcement }) {
 }
 
 export default function AnnouncementsPage() {
+  usePullRefresh();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const { user } = useAuth();
@@ -299,10 +302,10 @@ export default function AnnouncementsPage() {
     }
   }
 
-  if (!schoolId) return <div className="p-8">Error: School ID missing from URL.</div>
+  if (!schoolId) return <main className="p-8">Error: School ID missing from URL.</main>
 
   return (
-    <div className="md:-m-4 md:p-4">
+    <main className="md:-m-4 md:p-4">
        <div className="mb-6 p-4 md:p-6 bg-card-border/20 rounded-lg md:bg-transparent md:p-0">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Megaphone className="h-8 w-8 text-primary"/>Announcements</h1>
         <p className="text-muted-foreground">Broadcast messages to students, parents, and staff.</p>
@@ -406,6 +409,6 @@ export default function AnnouncementsPage() {
                 </Card>
             </TabsContent>
        </Tabs>
-    </div>
+    </main>
   );
 }

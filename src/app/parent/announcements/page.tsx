@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -22,6 +23,7 @@ import { firestore } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy, limit, doc, updateDoc, Timestamp, getDocs, startAfter, arrayUnion, increment } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 type AnnouncementCategory = 'Urgent' | 'Academic' | 'Event' | 'General';
 
@@ -46,6 +48,7 @@ type Announcement = {
 }
 
 export default function ParentAnnouncementsPage() {
+  usePullRefresh();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
@@ -156,11 +159,11 @@ export default function ParentAnnouncementsPage() {
   }
 
   if (!schoolId) {
-    return <div className="p-8">Error: School ID is missing from URL.</div>
+    return <main className="p-8">Error: School ID is missing from URL.</main>
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <main className="p-4 sm:p-6 lg:p-8">
        <div className="mb-6">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Megaphone className="h-8 w-8 text-primary"/>Announcements</h1>
         <p className="text-muted-foreground">View school-wide and class-specific announcements.</p>
@@ -280,6 +283,6 @@ export default function ParentAnnouncementsPage() {
             </>
             )}
         </Card>
-    </div>
+    </main>
   );
 }
