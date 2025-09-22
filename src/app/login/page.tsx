@@ -72,14 +72,14 @@ function LoginPageContent() {
                             <TabsTrigger value="developer">Developer</TabsTrigger>
                         </TabsList>
                         <TabsContent value="school">
-                            <Card className="shadow-none border-none">
+                            <Card className="shadow-none border-none bg-transparent">
                                 <CardContent className="p-0 pt-6">
                                     <LoginForm />
                                 </CardContent>
                             </Card>
                         </TabsContent>
                         <TabsContent value="developer">
-                            <Card className="shadow-none border-none">
+                            <Card className="shadow-none border-none bg-transparent">
                                 <CardContent className="p-0 pt-6">
                                     <DeveloperLoginForm />
                                 </CardContent>
