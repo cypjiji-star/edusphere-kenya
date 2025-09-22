@@ -16,8 +16,22 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icon.svg',
     apple: '/icon.svg',
-  }
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'EduSphere Kenya',
+  },
 };
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
+
 
 export default function RootLayout({
   children,
@@ -43,3 +57,4 @@ export default function RootLayout({
     </html>
   );
 }
+
