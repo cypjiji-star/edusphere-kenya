@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -540,7 +541,7 @@ export default function AdminHealthPage() {
                                                         {attachedFile ? (
                                                             <div className="w-full p-4 rounded-lg border bg-muted/50 flex items-center justify-between">
                                                                 <div className="flex items-center gap-2 text-sm font-medium"> <FileText className="h-5 w-5 text-primary" /> <span className="truncate">{attachedFile.name}</span> </div>
-                                                                <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6"> <X className="h-4 w-4 text-destructive" /> </Button>
+                                                                <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile}> <X className="h-4 w-4 text-destructive" /> </Button>
                                                             </div>
                                                         ) : (
                                                             <Label htmlFor="dropzone-file-admin" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted">

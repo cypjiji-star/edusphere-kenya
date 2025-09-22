@@ -459,7 +459,7 @@ export default function AdminAnnouncementsPage() {
                                             </Badge>
                                              <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <Button variant="ghost" size="icon">
                                                         <MoreVertical className="h-4 w-4"/>
                                                     </Button>
                                                 </DropdownMenuTrigger>
@@ -577,7 +577,7 @@ export default function AdminAnnouncementsPage() {
                                           <Paperclip className="h-5 w-5 text-primary" />
                                           <span className="truncate">{attachedFile.name}</span>
                                       </div>
-                                      <Button variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6">
+                                      <Button variant="ghost" size="icon" onClick={handleRemoveFile}>
                                           <X className="h-4 w-4 text-destructive" />
                                       </Button>
                                   </div>
@@ -751,4 +751,5 @@ export default function AdminAnnouncementsPage() {
     </>
   );
 }
+
 
