@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
@@ -56,7 +57,7 @@ function LoginPageContent() {
       </div>
 
       {/* Right panel – always scrollable */}
-      <div className="flex bg-background min-h-[100dvh] overflow-y-auto">
+      <div className="flex items-center justify-center bg-background min-h-[100dvh] overflow-y-auto">
         <div className="w-full max-w-sm mx-auto px-6 py-12">
           <div className="grid gap-6">
             <div className="text-center">
