@@ -302,8 +302,8 @@ export default function AnnouncementsPage() {
   if (!schoolId) return <div className="p-8">Error: School ID missing from URL.</div>
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-       <div className="mb-6">
+    <div className="md:-m-4 md:p-4">
+       <div className="mb-6 p-4 md:p-6 bg-card-border/20 rounded-lg md:bg-transparent md:p-0">
         <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Megaphone className="h-8 w-8 text-primary"/>Announcements</h1>
         <p className="text-muted-foreground">Broadcast messages to students, parents, and staff.</p>
        </div>

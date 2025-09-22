@@ -25,7 +25,7 @@ export default function AdminLayout({
                 <SidebarTrigger />
               </div>
             </header>
-            <div className="px-4 sm:px-6 lg:px-8">{children}</div>
+            <div>{children}</div>
             <FloatingChatWidget />
           </main>
         </SidebarInset>
