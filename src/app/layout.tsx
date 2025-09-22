@@ -7,6 +7,7 @@ import { AuthProvider } from '@/context/auth-context';
 import Script from 'next/script';
 import { ThemeProvider } from '@/context/theme-provider';
 import { StatusBarOverlay } from '@/components/layout/status-bar-overlay';
+import { MetaTheme } from '@/components/meta-theme';
 
 
 export const metadata: Metadata = {
@@ -43,6 +44,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+       <head>
+        <MetaTheme color="#0b0f19" />
+      </head>
       <body>
           <ThemeProvider
             attribute="class"
