@@ -8,7 +8,7 @@ import { credential } from 'firebase-admin';
 let app: App;
 
 export function getFirebaseAdminApp() {
-  if (getApps().length) {
+  if (getApps().length > 0) {
     return getApp();
   }
 
