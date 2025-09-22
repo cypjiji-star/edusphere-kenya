@@ -3,6 +3,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Define custom font faces */
+@font-face {
+  font-family: 'Playfair Display';
+  src: url('/fonts/PlayfairDisplay-VariableFont_wght.ttf') format('truetype');
+  font-weight: 1 999;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-display: swap;
+  font-style: normal;
+}
+
 @layer base {
   :root {
     --background: 224 71% 4%; /* Deep charcoal */
