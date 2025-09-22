@@ -132,12 +132,12 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
     });
     
     const fetchAllStudents = async () => {
-        const studentsQuery = query(collection(firestore, 'schools', schoolId, 'students'));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'));
         const studentsSnapshot = await getDocs(studentsQuery);
         const studentsList = studentsSnapshot.docs.map(doc => ({
             id: doc.id,
             name: doc.data().name || 'Unknown Student',
-            class: doc.data().class || doc.data().className || 'N/A'
+            class: doc.data().class || 'N/A'
         }));
         setAllStudents(studentsList);
     };
@@ -201,7 +201,7 @@ export default function TeamDetailsPage({ params }: { params: { teamId: string }
     }
 
     try {
-        const studentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'students', newStudentId));
+        const studentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'users', newStudentId));
         if (!studentDoc.exists()) throw new Error("Student document not found");
 
         const studentData = studentDoc.data();

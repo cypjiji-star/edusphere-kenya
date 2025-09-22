@@ -710,7 +710,7 @@ export default function FeesPage() {
         }
     }));
 
-    const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
+    const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'));
     unsubscribers.push(onSnapshot(studentsQuery, (snapshot) => {
       let totalBilled = 0;
       let totalCollected = 0;
@@ -870,7 +870,7 @@ export default function FeesPage() {
 
   const openStudentDialog = async (student: StudentFeeProfile) => {
     const transactionsQuery = query(
-      collection(firestore, `schools/${schoolId}/students/${student.id}/transactions`),
+      collection(firestore, `schools/${schoolId}/users/${student.id}/transactions`),
       orderBy('date', 'desc')
     );
     try {
@@ -896,7 +896,7 @@ export default function FeesPage() {
     }
     setIsSavingPayment(true);
 
-    const studentRef = doc(firestore, `schools/${schoolId}/students`, selectedStudentForPayment);
+    const studentRef = doc(firestore, `schools/${schoolId}/users`, selectedStudentForPayment);
     
     try {
       let studentName = 'Unknown Student';
@@ -932,7 +932,7 @@ export default function FeesPage() {
           date: Timestamp.fromDate(paymentDate),
           description: `Payment via ${paymentMethod}`,
           type: 'Payment',
-          amount: -amount,
+          amount: amount,
           method: paymentMethod,
         });
       });
@@ -975,7 +975,7 @@ export default function FeesPage() {
     }
     setIsSavingInvoice(true);
 
-    const studentRef = doc(firestore, `schools/${schoolId}/students`, newInvoiceStudentId);
+    const studentRef = doc(firestore, `schools/${schoolId}/users`, newInvoiceStudentId);
 
     try {
       let studentName = 'Unknown Student';
@@ -1127,17 +1127,18 @@ export default function FeesPage() {
             const structureRef = doc(firestore, `schools/${schoolId}/fee-structures`, selectedClassForStructure);
             transaction.set(structureRef, { items: feeStructure }, { merge: true });
 
-            const studentsInClassQuery = query(
-                collection(firestore, `schools/${schoolId}/students`),
-                where('classId', '==', selectedClassForStructure)
+            const studentsQuery = query(
+                collection(firestore, `schools/${schoolId}/users`),
+                where('classId', '==', selectedClassForStructure),
+                where('role', '==', 'Student')
             );
-            const studentsSnapshot = await getDocs(studentsInClassQuery);
+            const studentsSnapshot = await getDocs(studentsQuery);
 
             const fee = totalYearlyFee;
             const dueDate = yearlyDueDate;
 
             for (const studentDoc of studentsSnapshot.docs) {
-                const studentRef = doc(firestore, `schools/${schoolId}/students`, studentDoc.id);
+                const studentRef = doc(firestore, `schools/${schoolId}/users`, studentDoc.id);
                 const currentStudentSnap = await transaction.get(studentRef); // Read within transaction
                 if (!currentStudentSnap.exists()) continue;
 
