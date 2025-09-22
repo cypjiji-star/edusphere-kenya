@@ -436,3 +436,5 @@ export default function SchoolStoragePage() {
         </div>
     );
 }
+
+    
