@@ -140,7 +140,7 @@ export function SecurityAlertsWidget({ schoolId }: { schoolId: string }) {
          )}
       </CardContent>
        <CardFooter>
-        <Button asChild variant="outline" className="w-full">
+        <Button asChild variant="outline" className="w-full text-primary hover:text-primary">
           <Link href={`/admin/logs?schoolId=${schoolId}`}>
             View Full Audit Log
             <ArrowRight className="ml-2 h-4 w-4" />

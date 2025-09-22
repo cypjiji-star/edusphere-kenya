@@ -143,7 +143,7 @@ export function FinanceSnapshot() {
           )}
         </CardContent>
          <CardFooter>
-            <Button variant="outline" asChild className="w-full">
+            <Button variant="outline" asChild className="w-full text-primary hover:text-primary">
                 <Link href={`/admin/fees?schoolId=${schoolId}`}>
                     View Details
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -233,7 +233,7 @@ export function PerformanceSnapshot() {
         )}
         </CardContent>
         <CardFooter>
-            <Button variant="outline" asChild className="w-full">
+            <Button variant="outline" asChild className="w-full text-primary hover:text-primary">
                 <Link href={`/admin/grades?schoolId=${schoolId}`}>
                     View Detailed Reports
                     <ArrowRight className="ml-2 h-4 w-4" />

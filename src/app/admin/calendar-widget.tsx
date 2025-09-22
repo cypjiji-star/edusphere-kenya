@@ -176,7 +176,7 @@ export function CalendarWidget() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button asChild variant="outline" size="sm" className="w-full">
+          <Button asChild variant="outline" size="sm" className="w-full text-primary hover:text-primary">
             <Link href={`/admin/calendar?schoolId=${schoolId}`}>
               View Full Calendar
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -284,4 +284,3 @@ export function CalendarWidget() {
     </Dialog>
   );
 }
-
