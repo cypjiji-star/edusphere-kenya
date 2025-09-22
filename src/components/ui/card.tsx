@@ -20,8 +20,8 @@ const Card = React.forwardRef<
         "shadow-sm hover:shadow-xl hover:shadow-black/5",
         // Dark mode styles with mobile-first border and a new shadow
         "dark:border-card-border dark:bg-card/60 dark:hover:border-white/20 dark:shadow-2xl dark:shadow-black/20 dark:hover:shadow-accent/10",
-        // Premium hover effect
-        "hover:-translate-y-1 hover:scale-[1.01]",
+        // Premium active/press effect for mobile and desktop
+        "active:scale-[0.98]",
         className
       )}
       {...props}
