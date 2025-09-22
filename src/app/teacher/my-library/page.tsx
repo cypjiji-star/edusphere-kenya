@@ -665,5 +665,3 @@ export default function MyLibraryPage() {
     </div>
   );
 }
-
-    

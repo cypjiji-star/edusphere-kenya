@@ -121,7 +121,7 @@ export default function TeacherClassManagementPage() {
         
         if (classesData.length > 0) {
             const classIds = classesData.map(c => c.id);
-            const qStudents = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+            const qStudents = query(collection(firestore, `schools/${schoolId}/users`), where('classId', 'in', classIds), where('role', '==', 'Student'));
             
             const unsubscribeStudents = onSnapshot(qStudents, async (studentsSnapshot) => {
                 const studentList = studentsSnapshot.docs.map(doc => {
@@ -230,10 +230,7 @@ export default function TeacherClassManagementPage() {
               <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
                  <Select value={classFilter} onValueChange={setClassFilter}>
                     <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="All Classes"/></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="All Classes">All My Classes</SelectItem>
-                        {teacherClasses.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{['All Classes', ...teacherClasses.map(c => c.name)].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
