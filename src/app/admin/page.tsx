@@ -100,20 +100,10 @@ export default function AdminDashboard() {
       }
     }));
     
-    const updateStaffCount = () => {
-      const teachersQuery = query(collection(firestore, `schools/${schoolId}/teachers`));
-      const adminsQuery = query(collection(firestore, `schools/${schoolId}/admins`));
-
-      Promise.all([getDocs(teachersQuery), getDocs(adminsQuery)]).then(([teachersSnapshot, adminsSnapshot]) => {
-        const totalStaff = teachersSnapshot.size + adminsSnapshot.size;
-        setStats(prev => ({...prev, totalStaff }));
-      });
-    };
-
-    const unsubTeachers = onSnapshot(query(collection(firestore, `schools/${schoolId}/teachers`)), updateStaffCount);
-    const unsubAdmins = onSnapshot(query(collection(firestore, `schools/${schoolId}/admins`)), updateStaffCount);
-    unsubscribers.push(unsubTeachers, unsubAdmins);
-
+    const usersQuery = query(collection(firestore, `schools/${schoolId}/users`));
+    unsubscribers.push(onSnapshot(usersQuery, (usersSnapshot) => {
+        setStats(prev => ({...prev, totalStaff: usersSnapshot.size }));
+    }));
 
     const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
     unsubscribers.push(onSnapshot(studentsQuery, async (studentsSnapshot) => {

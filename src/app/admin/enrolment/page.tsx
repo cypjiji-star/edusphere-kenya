@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -338,7 +337,7 @@ export default function StudentEnrolmentPage() {
         try {
             let parentUserId;
             let parentIsNew = false;
-            const parentQuery = query(collection(firestore, `schools/${schoolId}/parents`), where('email', '==', values.parentEmail));
+            const parentQuery = query(collection(firestore, `schools/${schoolId}/users`), where('email', '==', values.parentEmail), where('role', '==', 'Parent'));
             const parentQuerySnapshot = await getDocs(parentQuery);
 
             if (parentQuerySnapshot.empty) {

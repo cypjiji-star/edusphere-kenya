@@ -59,7 +59,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, Timestamp, getDocs, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -141,17 +141,11 @@ export default function UserManagementListPage() {
         setClientReady(true);
         setIsLoading(true);
 
-        const collectionsToFetch = ['admins', 'teachers', 'parents'];
-        const unsubscribers = collectionsToFetch.map(collectionName => {
-            const q = query(collection(firestore, `schools/${schoolId}/${collectionName}`));
-            return onSnapshot(q, (snapshot) => {
-                const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-                
-                setAllUsers(prevUsers => {
-                    const otherUsers = prevUsers.filter(u => u.role.toLowerCase() + 's' !== collectionName);
-                    return [...otherUsers, ...usersData];
-                });
-            });
+        const q = query(collection(firestore, `schools/${schoolId}/users`));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setAllUsers(usersData);
+            setIsLoading(false);
         });
 
         const unsubRoles = onSnapshot(collection(firestore, 'schools', schoolId, 'roles'), (snapshot) => {
@@ -163,10 +157,8 @@ export default function UserManagementListPage() {
             setClasses(classData);
         });
 
-        setIsLoading(false);
-
         return () => {
-            unsubscribers.forEach(unsub => unsub());
+            unsubscribe();
             unsubRoles();
             unsubClasses();
         };
@@ -290,9 +282,8 @@ export default function UserManagementListPage() {
                 }
             }
 
-            // Step 2: Update Firestore document in the correct collection
-            const collectionName = editingUser.role.toLowerCase() + 's';
-            const userRef = doc(firestore, 'schools', schoolId, collectionName, editingUser.id);
+            // Step 2: Update Firestore document
+            const userRef = doc(firestore, 'schools', schoolId, 'users', editingUser.id);
             await updateDoc(userRef, updatedData);
 
             toast({ title: 'User Updated', description: 'The user details have been saved successfully.' });
@@ -313,7 +304,7 @@ export default function UserManagementListPage() {
       if (!userToDelete || !schoolId || !adminUser) return;
       
       try {
-        const result = await deleteUserAction(userToDelete.id, schoolId, userToDelete.role);
+        const result = await deleteUserAction(userToDelete.id, schoolId);
         
         if (!result.success) {
           throw new Error(result.message);

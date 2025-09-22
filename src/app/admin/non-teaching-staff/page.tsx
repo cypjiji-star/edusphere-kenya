@@ -59,7 +59,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Users, PlusCircle, User, Search, ArrowRight, Edit, UserPlus, Trash2, Filter, FileDown, ChevronDown, CheckCircle, Clock, XCircle, KeyRound, AlertTriangle, Upload, Columns, Phone, History, FileText, GraduationCap, Loader2, Contact2, Crown } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, updateDoc, Timestamp, getDocs, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, updateDoc, Timestamp, getDocs, setDoc, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -218,7 +218,7 @@ export default function NonTeachingStaffPage() {
         }
         setIsLoading(true);
 
-        const q = query(collection(firestore, `schools/${schoolId}/non_teaching_staff`));
+        const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', 'in', roles));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
             setStaff(usersData);
@@ -289,7 +289,7 @@ export default function NonTeachingStaffPage() {
         setIsSaving(true);
         
         try {
-            const userRef = doc(firestore, 'schools', schoolId, 'non_teaching_staff', editingUser.id);
+            const userRef = doc(firestore, 'schools', schoolId, 'users', editingUser.id);
             await updateDoc(userRef, updatedData);
 
             await logAuditEvent({
@@ -312,7 +312,7 @@ export default function NonTeachingStaffPage() {
     const handleDeleteUser = async () => {
       if (!userToDelete || !schoolId || !adminUser) return;
       try {
-        const result = await deleteUserAction(userToDelete.id, schoolId, userToDelete.role);
+        const result = await deleteUserAction(userToDelete.id, schoolId);
         if (!result.success) throw new Error(result.message);
 
         await logAuditEvent({

@@ -80,9 +80,7 @@ const navGroups = [
     items: [
       { href: '/admin/enrolment', label: 'Student Enrolment', icon: UserPlus, badge: '0', collection: 'students', field: 'status', value: 'Pending' },
       { href: '/admin/students', label: 'Student Management', icon: GraduationCap },
-      { href: '/admin/boarding', label: 'Boarding', icon: Bed },
       { href: '/admin/users-list', label: 'User Management', icon: Users },
-      { href: '/admin/non-teaching-staff', label: 'Non-Teaching Staff', icon: Contact2 },
       { href: '/admin/permissions', label: 'Roles & Permissions', icon: ShieldCheck },
     ],
   },

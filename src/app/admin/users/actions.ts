@@ -31,36 +31,21 @@ export async function updateUserAuthAction(uid: string, updates: { email?: strin
  * This is a privileged operation and must only be executed on the server.
  * @param uid The user's unique ID.
  * @param schoolId The school ID.
- * @param role The user's role, to find the correct Firestore collection.
  */
-export async function deleteUserAction(uid: string, schoolId: string, role: string) {
+export async function deleteUserAction(uid: string, schoolId: string) {
   try {
     const adminApp = getFirebaseAdminApp();
     const auth = getAuth(adminApp);
     
-    const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
-    const isNonTeaching = nonTeachingRoles.includes(role);
-
-    // Only try to delete from Auth if it's NOT a non-teaching staff member
-    if (!isNonTeaching) {
-        try {
-            await auth.deleteUser(uid);
-        } catch (error: any) {
-            // If user is not in Auth (e.g. created before auth was enforced), don't fail the whole operation
-            if (error.code !== 'auth/user-not-found') {
-                throw error;
-            }
+    await auth.deleteUser(uid).catch(error => {
+        // If user is not in Auth (e.g. created before auth was enforced), don't fail the whole operation
+        if (error.code !== 'auth/user-not-found') {
+            throw error;
         }
-    }
+    });
     
-    let roleCollectionName = isNonTeaching ? 'non_teaching_staff' : role.toLowerCase() + 's';
-
-    const userDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
+    const userDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
     await deleteDoc(userDocRef);
-    
-    // Also delete from the general 'users' collection if it exists there
-    const generalUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
-    await deleteDoc(generalUserDocRef).catch(() => {}); // Ignore error if it doesn't exist
     
     return { success: true, message: 'User record completely deleted.' };
   } catch (error: any) {
@@ -93,80 +78,47 @@ export async function createUserAction(params: {
     return { success: false, message: 'Missing required user information.' };
   }
   
-  const nonTeachingRoles = ['Watchman', 'Cook', 'Board Member', 'PTA Member', 'Matron', 'Patron', 'Farm Worker', 'Cleaner'];
-  const isNonTeachingStaff = nonTeachingRoles.includes(role);
-  
   try {
     let uid: string;
-    let finalUserData: any;
-
-    const batch = writeBatch(firestore);
-
-    if (isNonTeachingStaff) {
-      // This is a record, not a login-enabled user.
-      const newDocRef = doc(collection(firestore, 'schools', schoolId, 'non_teaching_staff'));
-      uid = newDocRef.id;
-
-      finalUserData = {
-        id: uid,
-        schoolId,
-        name,
-        role,
-        phone,
-        startYear,
-        salary,
-        nationalId,
-        status: 'Active',
-        createdAt: serverTimestamp(),
-      };
-      batch.set(newDocRef, finalUserData);
+    
+    // For roles that don't need authentication, we create a document with a generated ID.
+    const nonAuthRoles = ['Board Member', 'PTA Member'];
+    if (nonAuthRoles.includes(role)) {
+        const newUserDocRef = doc(collection(firestore, `schools/${schoolId}/users`));
+        uid = newUserDocRef.id;
+        
+        const userData = {
+            id: uid, schoolId, name, role, phone, startYear, salary, nationalId,
+            status: 'Active', createdAt: serverTimestamp(),
+        };
+        await setDoc(newUserDocRef, userData);
 
     } else {
-      // This is a user with login credentials.
-      if (!email || !password) {
-        return { success: false, message: 'Email and password are required for this role.' };
-      }
-      const adminApp = getFirebaseAdminApp();
-      const auth = getAuth(adminApp);
-      const userRecord = await auth.createUser({
-        email,
-        password,
-        displayName: name,
-        disabled: false,
-      });
-      uid = userRecord.uid;
-      const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
+        // For roles that need authentication
+        if (!email || !password) {
+            return { success: false, message: 'Email and password are required for this role.' };
+        }
+        const adminApp = getFirebaseAdminApp();
+        const auth = getAuth(adminApp);
+        const userRecord = await auth.createUser({
+            email,
+            password,
+            displayName: name,
+            disabled: false,
+        });
+        uid = userRecord.uid;
+        
+        const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
 
-      const roleCollectionName = role.toLowerCase() + 's';
-      const roleDocRef = doc(firestore, 'schools', schoolId, roleCollectionName, uid);
-      const generalUserDocRef = doc(firestore, 'schools', schoolId, 'users', uid);
-
-      finalUserData = {
-        id: uid,
-        schoolId,
-        name,
-        email,
-        role,
-        phone,
-        startYear,
-        salary,
-        nationalId,
-        status: 'Active',
-        createdAt: serverTimestamp(),
-        lastLogin: null,
-        avatarUrl,
-      };
-
-      if (role === 'Teacher' && classes) {
-        finalUserData.classIds = classes;
-      }
-      
-      batch.set(roleDocRef, finalUserData);
-      batch.set(generalUserDocRef, { name, role });
+        const userDocRef = doc(firestore, `schools/${schoolId}/users`, uid);
+        const userData = {
+            id: uid, schoolId, name, email, role, phone, startYear, salary, nationalId,
+            status: 'Active', createdAt: serverTimestamp(), lastLogin: null, avatarUrl,
+            ...(role === 'Teacher' && { classIds: classes }),
+        };
+        await setDoc(userDocRef, userData);
     }
     
-    await batch.commit();
-
     // Log the audit event
     await logAuditEvent({
         schoolId,
@@ -178,8 +130,9 @@ export async function createUserAction(params: {
     });
 
     return { success: true, uid, message: 'User record created successfully.' };
-  } catch (error: any) {
+  } catch (error: any {
     console.error("Error creating new user:", error);
     return { success: false, message: error.message || 'Failed to create user.' };
   }
 }
+

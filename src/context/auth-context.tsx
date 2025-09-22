@@ -59,29 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           const schoolId = searchParams.get('schoolId');
           if (schoolId) {
-              const collectionsToSearch = ['admins', 'teachers'];
-              let foundRole: AllowedRole | null = null;
-
-              for (const collectionName of collectionsToSearch) {
-                  const userDocRef = doc(firestore, 'schools', schoolId, collectionName, authUser.uid);
-                  const userDocSnap = await getDoc(userDocRef);
-                  if (userDocSnap.exists()) {
-                      foundRole = collectionName.slice(0, -1) as AllowedRole;
-                      break;
-                  }
-              }
-
-              if (foundRole) {
-                  setRole(foundRole);
+              const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
+              const userDocSnap = await getDoc(userDocRef);
+              if (userDocSnap.exists()) {
+                  setRole(userDocSnap.data().role as AllowedRole);
               } else {
-                   // Fallback for parents who might not have a separate user doc.
-                   const parentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', authUser.uid), limit(1));
-                   const parentSnap = await getDocs(parentQuery);
-                   if (!parentSnap.empty) {
-                      setRole('parent');
-                   } else {
-                      setRole('unknown');
-                   }
+                  setRole('unknown');
               }
           } else if (pathname !== '/login' && pathname !== '/') {
               setRole('unknown');
