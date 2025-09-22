@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -326,7 +327,7 @@ export default function ParentDashboard() {
                 if(docSnap.exists()) setSchoolName(docSnap.data().name);
             }));
 
-            const childrenQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+            const childrenQuery = query(collection(firestore, `schools/${schoolId}/users`), where('parentId', '==', parentId), where('role', '==', 'Student'));
             unsubscribers.push(onSnapshot(childrenQuery, (studentsSnapshot) => {
                 if (studentsSnapshot.empty) {
                     setChildrenData([]);
@@ -606,3 +607,4 @@ export default function ParentDashboard() {
         </div>
     );
 }
+

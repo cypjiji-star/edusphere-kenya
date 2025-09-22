@@ -162,7 +162,7 @@ export default function MyLibraryPage() {
         const classIds = teacherClasses.map(c => c.id);
         if(classIds.length === 0) return;
 
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('classId', 'in', classIds));
         const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
             const students = snapshot.docs.map(doc => {
                 const data = doc.data();
@@ -327,7 +327,7 @@ export default function MyLibraryPage() {
             });
             
             // Send notification to parent
-            const studentDoc = await getDoc(doc(firestore, `schools/${schoolId}/students`, student.id));
+            const studentDoc = await getDoc(doc(firestore, `schools/${schoolId}/users`, student.id));
             if(studentDoc.exists()) {
                 const parentId = studentDoc.data().parentId;
                 if(parentId) {

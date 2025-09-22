@@ -421,17 +421,6 @@ export default function StudentEnrolmentPage() {
                     amountPaid,
                     balance: initialBalance,
                 });
-                
-                const studentProfileDocRef = doc(firestore, 'schools', schoolId, 'students', studentUserDocRef.id);
-                transaction.set(studentProfileDocRef, { 
-                    name: `${values.studentFirstName} ${values.studentLastName}`,
-                    class: classOptions.find(c => c.value === values.classId)?.label || 'N/A',
-                    classId: values.classId,
-                    parentId: parentUserId,
-                    createdAt: serverTimestamp(),
-                    status: 'Approved',
-                });
-
 
                 if (values.generateInvoice && totalFee > 0) {
                     const chargeTransactionRef = doc(collection(studentUserDocRef, 'transactions'));
@@ -742,3 +731,4 @@ export default function StudentEnrolmentPage() {
     </div>
   );
 }
+

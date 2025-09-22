@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -46,7 +47,7 @@ async function getUserDisplayName(schoolId: string, userId: string): Promise<str
     
     // Fallback for parents who might not have a separate doc
      try {
-        const studentQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', userId), limit(1));
+        const studentQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('parentId', '==', userId), limit(1));
         const studentSnap = await getDocs(studentQuery);
         if (!studentSnap.empty) {
             return studentSnap.docs[0].data().parentName || 'Parent';

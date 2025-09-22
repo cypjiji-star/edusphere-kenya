@@ -115,7 +115,7 @@ export default function ParentHealthPage() {
             return;
         };
 
-        const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+        const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('parentId', '==', parentId));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
             setChildrenData(fetchedChildren);
@@ -130,7 +130,7 @@ export default function ParentHealthPage() {
         if (!selectedChild || !schoolId) return;
 
         setIsLoading(true);
-        const childRef = doc(firestore, 'schools', schoolId, 'students', selectedChild);
+        const childRef = doc(firestore, 'schools', schoolId, 'users', selectedChild);
         const unsubChild = onSnapshot(childRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
@@ -181,11 +181,12 @@ export default function ParentHealthPage() {
                 reportedBy: user.displayName || 'Parent',
                 reporterId: user.uid,
                 reportedAt: serverTimestamp(),
+                status: 'Pending',
             });
 
             toast({
                 title: "Absence Reported",
-                description: "The school has been notified of your child's absence.",
+                description: "The school administration has been notified of your child's absence.",
             });
             setAbsenceReason('');
         } catch (error) {

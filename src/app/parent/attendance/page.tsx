@@ -128,7 +128,7 @@ export default function ParentAttendancePage() {
     };
     const parentId = user.uid;
     setIsLoading(true);
-    const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+    const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class } as Child));
         setChildrenData(fetchedChildren);

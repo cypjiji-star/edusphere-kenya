@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -75,7 +76,7 @@ export function ParentSidebar() {
   React.useEffect(() => {
     if (user && schoolId) {
       // Parents might not have a direct user doc, so we find their name from one of their children's records.
-      const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', user.uid), limit(1));
+      const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('parentId', '==', user.uid), where('role', '==', 'Student'), limit(1));
       const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
         if (!snapshot.empty) {
           const studentData = snapshot.docs[0].data();
