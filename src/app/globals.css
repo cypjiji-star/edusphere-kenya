@@ -5,36 +5,36 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%; /* #0f172a */
-    --foreground: 0 0% 100%;
-    --card: 222 39% 19%; /* #1e293b */
-    --card-foreground: 0 0% 100%;
-    --card-border: 221 39% 28%; /* #293548 - Slightly lighter for card borders */
-    --popover: 222 47% 11%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 259 88% 66%; /* #8B5CF6 */
-    --primary-foreground: 259 88% 97%;
-    --secondary: 222 39% 19%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 222 39% 19%;
-    --muted-foreground: 220 14% 65%; /* #94a3b8 */
-    --accent: 45 95% 51%; /* #FACC15 */
-    --accent-foreground: 222 47% 11%;
-    --destructive: 351 96% 60%; /* #F43F5E */
-    --destructive-foreground: 0 0% 100%;
-    --success: 158 79% 41%; /* #10B981 */
-    --border: 221 39% 32%; /* Lighter border: #334155 */
-    --input: 221 39% 28%;
-    --ring: 259 88% 66%;
-    
+    --background: 224 71% 4%; /* #050615 */
+    --foreground: 210 40% 98%;
+    --card: 224 71% 6%; /* #0a0b24 */
+    --card-foreground: 210 40% 98%;
+    --card-border: 224 71% 10%; /* #10123b */
+    --popover: 224 71% 4%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 259 95% 68%; /* #8B5CF6 - vibrant violet */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 158 79% 41%;
+    --border: 224 71% 10%; /* Slightly lighter border */
+    --input: 224 71% 10%;
+    --ring: 259 95% 68%;
+
     --radius: 0.5rem;
 
-    --sidebar-background: 222 47% 9%;
+    --sidebar-background: 224 71% 4%; /* Match new background */
     --sidebar-foreground: 210 20% 96%;
-    --sidebar-accent: 259 88% 66%;
+    --sidebar-accent: 259 95% 68%; /* Match new primary */
     --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 221 39% 22%;
-    --sidebar-ring: 259 88% 66%;
+    --sidebar-border: 224 71% 10%; /* Match new border */
+    --sidebar-ring: 259 95% 68%;
   }
 }
  
