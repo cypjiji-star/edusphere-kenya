@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { GraduationCap, ShieldHelp } from "lucide-react";
+import { GraduationCap, ShieldQuestion } from "lucide-react";
 import Link from "next/link";
 import { getAuth } from "firebase/auth";
 
@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="p-4">
-              <ShieldHelp className="mx-auto h-12 w-12 text-primary mb-4" />
+              <ShieldQuestion className="mx-auto h-12 w-12 text-primary mb-4" />
               <h3 className="text-xl font-semibold">Contact Your School</h3>
               <p className="text-muted-foreground mt-2">
                 For security reasons, password resets must be handled by your

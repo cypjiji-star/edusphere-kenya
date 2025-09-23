@@ -55,6 +55,9 @@ export function TimetableWidget() {
     [],
   );
   const [isLoading, setIsLoading] = React.useState(true);
+  const [allClasses, setAllClasses] = React.useState<
+    { id: string; name: string }[]
+  >([]);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -71,6 +74,15 @@ export function TimetableWidget() {
     const today = new Date();
     const dayOfWeek = today.toLocaleString("en-US", { weekday: "long" });
     const teacherName = user.displayName;
+
+    const classesQuery = query(
+      collection(firestore, `schools/${schoolId}/classes`),
+    );
+    const unsubClasses = onSnapshot(classesQuery, (snap) => {
+      setAllClasses(
+        snap.docs.map((d) => ({ id: d.id, name: d.data().name })),
+      );
+    });
 
     const periodsRef = doc(
       firestore,
@@ -105,17 +117,17 @@ export function TimetableWidget() {
 
             timetablesSnapshot.forEach((doc) => {
               const timetable = doc.data() as TimetableData;
+              const className =
+                allClasses.find((c) => c.id === doc.id)?.name || "Class";
               const daySchedule = timetable[dayOfWeek];
               if (daySchedule) {
                 const lesson = daySchedule[period.time];
                 if (lesson && lesson.subject.teacher === teacherName) {
-                  const classDoc = doc.data()
-                  const className = classDoc.name || 'Class'
                   lessonForPeriod = {
                     startTime,
                     endTime,
                     title: lesson.subject.name,
-                    location: `${className} - ${lesson.room}` ,
+                    location: `${className} - ${lesson.room}`,
                   };
                 }
               }
@@ -142,9 +154,10 @@ export function TimetableWidget() {
 
     return () => {
       unsubPeriods();
+      unsubClasses();
       clearInterval(timer);
     };
-  }, [schoolId, user]);
+  }, [schoolId, user, allClasses]);
 
   const isCurrentClass = (entry: TimetableEntry) => {
     if (!currentTime || entry.isBreak) return false;
