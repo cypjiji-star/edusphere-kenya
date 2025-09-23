@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -32,7 +33,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { CircleDollarSign, PlusCircle, Search, FileDown, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { firestore, auth } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, Timestamp, doc, runTransaction } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
@@ -98,7 +99,7 @@ export default function TeacherPaymentsPage() {
         const classIds = teacherClasses.map(c => c.id);
         if(classIds.length === 0) return;
 
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', 'in', classIds));
         const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, classId: doc.data().classId }));
             setAllTeacherStudents(studentsData);
@@ -133,39 +134,78 @@ export default function TeacherPaymentsPage() {
             return;
         }
         setIsSubmitting(true);
+        const paymentAmount = Number(amount);
 
         try {
             const student = allTeacherStudents.find(s => s.id === selectedStudentId);
             if (!student) throw new Error("Student not found");
 
-            await addDoc(collection(firestore, `schools/${schoolId}/mini_payments`), {
-                studentId: selectedStudentId,
-                studentName: student.name,
-                classId: student.classId,
-                className: teacherClasses.find(c => c.id === student.classId)?.name || 'Unknown',
-                amount: Number(amount),
-                description: description,
-                teacherId: user.uid,
-                teacherName: user.displayName || 'Teacher',
-                recordedAt: serverTimestamp(),
+            // Use a transaction to ensure all writes succeed or fail together
+            await runTransaction(firestore, async (transaction) => {
+                const studentRef = doc(firestore, 'schools', schoolId, 'users', selectedStudentId);
+                const studentDoc = await transaction.get(studentRef);
+
+                if (!studentDoc.exists()) {
+                    throw new Error("Student data could not be found.");
+                }
+
+                // 1. Update the student's main fee profile
+                const currentData = studentDoc.data();
+                const newAmountPaid = (currentData.amountPaid || 0) + paymentAmount;
+                const newBalance = (currentData.totalFee || 0) - newAmountPaid;
+
+                transaction.update(studentRef, {
+                    amountPaid: newAmountPaid,
+                    balance: newBalance,
+                });
+
+                // 2. Add a transaction to the student's ledger
+                const studentTransactionRef = doc(collection(studentRef, 'transactions'));
+                transaction.set(studentTransactionRef, {
+                    date: serverTimestamp(),
+                    description: `Class Funds: ${description}`,
+                    type: 'Payment',
+                    amount: -paymentAmount,
+                    balance: newBalance,
+                    recordedBy: user.displayName || 'Teacher',
+                });
+                
+                // 3. Add to the school-wide transaction log for financial reporting
+                const schoolTransactionRef = doc(collection(firestore, `schools/${schoolId}/transactions`));
+                 transaction.set(schoolTransactionRef, {
+                    studentId: selectedStudentId,
+                    studentName: student.name,
+                    class: teacherClasses.find(c => c.id === student.classId)?.name || 'Unknown',
+                    date: serverTimestamp(),
+                    description: `Class Funds: ${description}`,
+                    type: 'Payment',
+                    amount: paymentAmount,
+                    method: 'Class Collection',
+                });
+
+                // 4. Log the mini-payment for the teacher's record
+                const miniPaymentRef = doc(collection(firestore, `schools/${schoolId}/mini_payments`));
+                transaction.set(miniPaymentRef, {
+                    studentId: selectedStudentId,
+                    studentName: student.name,
+                    classId: student.classId,
+                    className: teacherClasses.find(c => c.id === student.classId)?.name || 'Unknown',
+                    amount: paymentAmount,
+                    description: description,
+                    teacherId: user.uid,
+                    teacherName: user.displayName || 'Teacher',
+                    recordedAt: serverTimestamp(),
+                });
             });
             
-            await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
-                title: 'Class Funds Payment Recorded',
-                description: `${user.displayName || 'A teacher'} recorded a payment of ${formatCurrency(Number(amount))} for ${student.name}.`,
-                createdAt: serverTimestamp(),
-                category: 'Finance',
-                href: `/admin/expenses?schoolId=${schoolId}`,
-            });
-
-            toast({ title: 'Payment Recorded', description: 'The payment has been successfully logged.' });
+            toast({ title: 'Payment Recorded', description: 'The payment has been successfully logged and student balance updated.' });
             setSelectedStudentId('');
             setAmount('');
             setDescription('');
 
         } catch (error) {
             console.error("Error recording payment:", error);
-            toast({ title: 'Submission Failed', variant: 'destructive' });
+            toast({ title: 'Submission Failed', description: 'Could not record payment. Please try again later.', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
         }
