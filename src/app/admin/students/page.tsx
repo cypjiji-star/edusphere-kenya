@@ -114,6 +114,7 @@ import 'jspdf-autotable';
 import { Calendar } from '@/components/ui/calendar';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
+import { Combobox } from '@/components/ui/combobox';
 
 
 const formatCurrency = (amount: number): string => {
@@ -661,7 +662,7 @@ export default function FeesPage() {
 
   // State for manual payment dialog
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [selectedStudentForPayment, setSelectedStudentForPayment] = React.useState('');
+  const [selectedStudentForPayment, setSelectedStudentForPayment] = React.useState<string>('');
   const [paymentAmount, setPaymentAmount] = React.useState('');
   const [paymentMethod, setPaymentMethod] = React.useState('Cash');
   const [paymentDate, setPaymentDate] = React.useState<Date | undefined>(new Date());
@@ -777,7 +778,8 @@ export default function FeesPage() {
     const paymentsQuery = query(
       collection(firestore, `schools/${schoolId}/transactions`),
       where('date', '>=', Timestamp.fromDate(startOfToday)),
-      where('type', '==', 'Payment')
+      where('type', '==', 'Payment'),
+      where('method', '!=', 'Class Collection')
     );
     unsubscribers.push(onSnapshot(paymentsQuery, (snapshot) => {
       let todaysTotal = 0;
@@ -787,7 +789,8 @@ export default function FeesPage() {
     
     const transactionsQuery = query(
       collection(firestore, `schools/${schoolId}/transactions`),
-      where('type', '==', 'Payment')
+      where('type', '==', 'Payment'),
+      where('method', '!=', 'Class Collection')
     );
     unsubscribers.push(onSnapshot(transactionsQuery, (snapshot) => {
       const monthlyCollections: Record<string, number> = {};
@@ -869,14 +872,45 @@ export default function FeesPage() {
   }, [allStudents, classFilter]);
 
   const openStudentDialog = async (student: StudentFeeProfile) => {
+    // Query for main student transactions
     const transactionsQuery = query(
       collection(firestore, `schools/${schoolId}/users/${student.id}/transactions`),
       orderBy('date', 'desc')
     );
+    // Query for class fund transactions from the central log
+    const classFundsQuery = query(
+      collection(firestore, `schools/${schoolId}/transactions`),
+      where('studentId', '==', student.id),
+      where('method', '==', 'Class Collection')
+    );
+  
     try {
-      const transactionsSnapshot = await getDocs(transactionsQuery);
-      const transactions = transactionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Transaction));
-      setSelectedStudent({ ...student, transactions });
+      const [transactionsSnapshot, classFundsSnapshot] = await Promise.all([
+        getDocs(transactionsQuery),
+        getDocs(classFundsQuery)
+      ]);
+  
+      const mainTransactions = transactionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Transaction));
+      
+      const classFundTransactions = classFundsSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        // Adapt the school-wide transaction to the student ledger format
+        return {
+          id: doc.id,
+          date: data.date,
+          description: data.description,
+          type: 'Payment', // All class funds are payments
+          amount: -Math.abs(data.amount), // Ensure it's a negative value for ledger
+          balance: student.balance, // Note: This balance might not be perfectly chronological if mixed
+          notes: `Recorded by ${data.recordedBy || 'teacher'}`,
+        } as Transaction;
+      });
+  
+      const allTransactions = [...mainTransactions, ...classFundTransactions]
+        .sort((a, b) => b.date.seconds - a.date.seconds);
+  
+      setSelectedStudent({ ...student, transactions: allTransactions });
+  
     } catch (e: unknown) {
       console.error('Error fetching transactions:', e);
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
@@ -1143,21 +1177,23 @@ export default function FeesPage() {
                 if (!currentStudentSnap.exists()) continue;
 
                 const studentData = currentStudentSnap.data();
-                const newTotalFee = (studentData.totalFee || 0) + fee;
-                const newBalance = (studentData.balance || 0) + fee;
+                // Overwrite totalFee, recalculate balance
+                const newTotalFee = fee; 
+                const amountPaid = studentData.amountPaid || 0;
+                const newBalance = newTotalFee - amountPaid;
 
                 transaction.update(studentRef, {
                     totalFee: newTotalFee,
                     balance: newBalance,
                     dueDate: Timestamp.fromDate(dueDate),
                 });
-
+                
                 const transactionRef = doc(collection(studentRef, 'transactions'));
                 transaction.set(transactionRef, {
                     date: Timestamp.now(),
-                    description: `Annual School Fees`,
+                    description: `Annual School Fees (Updated)`,
                     type: 'Charge',
-                    amount: fee,
+                    amount: newTotalFee, // The full new amount is the charge
                     balance: newBalance,
                 });
             }
@@ -1344,7 +1380,7 @@ export default function FeesPage() {
     <>
       <Dialog onOpenChange={(open) => !open && setSelectedStudent(null)}>
         <div className="p-4 sm:p-6 lg:p-8">
-          <div className="mb-6">
+          <div className="mb-6 p-4 md:p-6 bg-card border rounded-lg">
             <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
               <CircleDollarSign className="h-8 w-8 text-primary" />
               Fees & Payments
@@ -1437,19 +1473,14 @@ export default function FeesPage() {
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <Label htmlFor="payment-student">Student</Label>
-                          <Select value={selectedStudentForPayment} onValueChange={setSelectedStudentForPayment}>
-                            <SelectTrigger id="payment-student" aria-label="Select student">
-                              <SelectValue placeholder="Select a student..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {allStudents.map((s) => (
-                                <SelectItem key={s.id} value={s.id}>
-                                  {s.name} ({s.class})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            <Label htmlFor="payment-student">Student</Label>
+                            <Combobox
+                                options={allStudents.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
+                                value={selectedStudentForPayment}
+                                onValueChange={setSelectedStudentForPayment}
+                                placeholder="Select a student..."
+                                emptyMessage="No students found."
+                            />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
@@ -1552,14 +1583,13 @@ export default function FeesPage() {
                         <div className="space-y-4 py-4">
                             <div className="space-y-2">
                                 <Label htmlFor="invoice-student">Student</Label>
-                                <Select value={newInvoiceStudentId} onValueChange={setNewInvoiceStudentId}>
-                                    <SelectTrigger id="invoice-student"><SelectValue placeholder="Select a student..." /></SelectTrigger>
-                                    <SelectContent>
-                                    {allStudents.map((s) => (
-                                        <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={allStudents.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
+                                    value={newInvoiceStudentId}
+                                    onValueChange={setNewInvoiceStudentId}
+                                    placeholder="Select a student..."
+                                    emptyMessage="No students found."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="invoice-desc">Description</Label>
@@ -1690,7 +1720,7 @@ export default function FeesPage() {
                     <CardDescription>A look at the fee collection performance over the past few months.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ChartContainer config={collectionTrendConfig} className="h-[250px] w-full">
+                   <ChartContainer config={collectionTrendConfig} className="h-[250px] w-full">
                       <BarChart data={collectionTrend}>
                         <CartesianGrid vertical={false} />
                         <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
@@ -1722,19 +1752,13 @@ export default function FeesPage() {
                       />
                     </div>
                     <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                      <Select value={classFilter} onValueChange={setClassFilter}>
-                        <SelectTrigger className="w-full md:w-[180px]" aria-label="Select class filter">
-                          <SelectValue placeholder="All Classes" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="All Classes">All Classes</SelectItem>
-                          {classes.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                          options={[{ value: 'All Classes', label: 'All Classes' }, ...classes.map(c => ({ value: c.id, label: c.name }))]}
+                          value={classFilter}
+                          onValueChange={setClassFilter}
+                          placeholder="All Classes"
+                          className="w-full md:w-[180px]"
+                      />
                       <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v)}>
                         <SelectTrigger className="w-full md:w-[180px]" aria-label="Select status filter">
                           <SelectValue placeholder="All Statuses" />
