@@ -83,7 +83,8 @@ type MediaHighlight = {
 };
 
 
-export default function TeamDetailsPage({ params: { teamId } }: { params: { teamId: string } }) {
+export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
+  const { teamId } = params;
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');

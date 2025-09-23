@@ -39,7 +39,8 @@ type StudentData = {
 };
 
 
-export default function StudentProfilePage({ params: { studentId } }: { params: { studentId: string } }) {
+export default function StudentProfilePage({ params }: { params: { studentId: string } }) {
+  const { studentId } = params;
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
   const [student, setStudent] = useState<StudentData | null>(null);
