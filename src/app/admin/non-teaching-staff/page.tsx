@@ -67,6 +67,7 @@ import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { deleteUserAction, updateUserAuthAction, createUserAction } from '../users/actions';
 import { Separator } from '@/components/ui/separator';
+import { Combobox } from '@/components/ui/combobox';
 
 type UserRole = 'Cook' | 'Watchman' | 'Cleaner' | 'Farm Worker' | 'Board Member' | 'PTA Member' | 'Matron' | 'Patron' | string;
 type UserStatus = 'Active' | 'On Leave' | 'Suspended' | 'Terminated';
@@ -137,6 +138,8 @@ function DepartmentHeadManager({ role, staffInRole, schoolId }: { role: string; 
             toast({ title: 'Assignment Failed', variant: 'destructive'});
         }
     };
+    
+    const staffOptions = staffInRole.map(s => ({ value: s.id, label: s.name }));
 
     return (
         <Card className="mb-6 bg-muted/50">
@@ -162,16 +165,12 @@ function DepartmentHeadManager({ role, staffInRole, schoolId }: { role: string; 
                                 <DialogDescription>Select a staff member to be responsible for this department.</DialogDescription>
                             </DialogHeader>
                             <div className="py-4">
-                                <Select value={selectedHeadId} onValueChange={setSelectedHeadId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a staff member..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {staffInRole.map(staff => (
-                                            <SelectItem key={staff.id} value={staff.id}>{staff.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={staffOptions}
+                                    value={selectedHeadId}
+                                    onValueChange={setSelectedHeadId}
+                                    placeholder="Select a staff member..."
+                                />
                             </div>
                             <DialogFooter>
                                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>

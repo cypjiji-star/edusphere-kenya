@@ -164,6 +164,13 @@ function LeaveManagementTab({ schoolId, user, teacherName }: { schoolId: string,
             setIsSubmitting(false);
         }
     };
+    
+    const leaveTypeOptions = [
+        { value: 'Annual', label: 'Annual Leave' },
+        { value: 'Sick', label: 'Sick Leave' },
+        { value: 'Compassionate', label: 'Compassionate Leave' },
+        { value: 'Unpaid', label: 'Unpaid Leave' },
+    ];
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -192,15 +199,12 @@ function LeaveManagementTab({ schoolId, user, teacherName }: { schoolId: string,
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label>Leave Type</Label>
-                            <Select value={leaveType} onValueChange={setLeaveType}>
-                                <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Annual">Annual Leave</SelectItem>
-                                    <SelectItem value="Sick">Sick Leave</SelectItem>
-                                    <SelectItem value="Compassionate">Compassionate Leave</SelectItem>
-                                    <SelectItem value="Unpaid">Unpaid Leave</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                options={leaveTypeOptions}
+                                value={leaveType}
+                                onValueChange={setLeaveType}
+                                placeholder="Select type..."
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label>Date Range</Label>

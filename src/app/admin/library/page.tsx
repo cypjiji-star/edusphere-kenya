@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -51,6 +50,7 @@ import type { Resource, ResourceType, ResourceStatus } from '@/app/teacher/libra
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Combobox } from '@/components/ui/combobox';
 
 type StudentAssignment = {
     id: string;
@@ -115,6 +115,8 @@ function CheckOutDialog({ resource, open, onOpenChange, teachers, onCheckOut }: 
         }
     }
 
+    const teacherOptions = teachers.map(t => ({ value: t.id, label: t.name }));
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
@@ -130,16 +132,12 @@ function CheckOutDialog({ resource, open, onOpenChange, teachers, onCheckOut }: 
                 <div className="py-4 space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="checkout-user">Borrower</Label>
-                         <Select value={selectedUser} onValueChange={setSelectedUser}>
-                            <SelectTrigger id="checkout-user">
-                                <SelectValue placeholder="Select a teacher..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {teachers.map(teacher => (
-                                    <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                         <Combobox
+                           options={teacherOptions}
+                           value={selectedUser}
+                           onValueChange={setSelectedUser}
+                           placeholder="Select a teacher..."
+                         />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="checkout-quantity">Number of Copies</Label>
