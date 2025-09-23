@@ -5,7 +5,7 @@ export function AppLogo({ className }: { className?: string }) {
   return (
     <svg
       className={cn("h-8 w-8", className)}
-      viewBox="0 0 120 120"
+      viewBox="0 0 512 512"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
@@ -17,8 +17,8 @@ export function AppLogo({ className }: { className?: string }) {
         </linearGradient>
 
         <filter id="inner-shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
-          <feOffset dx="2" dy="2" />
+          <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur" />
+          <feOffset dx="8.5" dy="8.5" />
           <feComposite
             in2="SourceAlpha"
             operator="arithmetic"
@@ -32,32 +32,32 @@ export function AppLogo({ className }: { className?: string }) {
         </filter>
       </defs>
 
-      <rect width="120" height="120" rx="20" fill="#0B0F19" />
+      <rect width="512" height="512" rx="85" fill="#0B0F19" />
       <rect
-        width="120"
-        height="120"
-        rx="20"
+        width="512"
+        height="512"
+        rx="85"
         fill="url(#glow)"
         fillOpacity=".1"
       />
 
       <g filter="url(#inner-shadow)">
         <path
-          d="M25 100 L25 50 L60 25 L95 50 L95 100 Z"
+          d="M106 425 L106 212 L256 106 L406 212 L406 425 Z"
           fill="#121826"
           stroke="#00BFFF"
-          strokeWidth="1.5"
+          strokeWidth="6.3"
           strokeOpacity=".2"
         />
       </g>
 
       <rect
-        x="38"
-        y="60"
-        width="8"
-        height="25"
+        x="162"
+        y="255"
+        width="34"
+        height="106"
         fill="#00BFFF"
-        rx="2"
+        rx="8.5"
         opacity=".8"
       >
         <animate
@@ -68,12 +68,12 @@ export function AppLogo({ className }: { className?: string }) {
         />
       </rect>
       <rect
-        x="56"
-        y="60"
-        width="8"
-        height="35"
+        x="239"
+        y="255"
+        width="34"
+        height="149"
         fill="#00BFFF"
-        rx="2"
+        rx="8.5"
         opacity=".9"
       >
         <animate
@@ -85,12 +85,12 @@ export function AppLogo({ className }: { className?: string }) {
         />
       </rect>
       <rect
-        x="74"
-        y="60"
-        width="8"
-        height="25"
+        x="316"
+        y="255"
+        width="34"
+        height="106"
         fill="#00BFFF"
-        rx="2"
+        rx="8.5"
         opacity=".8"
       >
         <animate
@@ -102,7 +102,7 @@ export function AppLogo({ className }: { className?: string }) {
         />
       </rect>
 
-      <path d="M60 25 L95 50 L25 50 Z" fill="url(#glow)" fillOpacity=".5" />
+      <path d="M256 106 L406 212 L106 212 Z" fill="url(#glow)" fillOpacity=".5" />
     </svg>
   );
 }
