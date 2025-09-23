@@ -30,6 +30,8 @@ import {
   GraduationCap,
   Search,
   Loader2,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
 import { firestore } from "@/lib/firebase";
 import {
@@ -64,9 +66,9 @@ type Class = {
 const getStatusBadge = (status: Student["status"]) => {
   switch (status) {
     case "Active":
-      return <Badge>Active</Badge>;
+      return <Badge><CheckCircle className="mr-1 h-3 w-3" />Active</Badge>;
     case "Inactive":
-      return <Badge variant="secondary">Inactive</Badge>;
+      return <Badge variant="secondary"><Clock className="mr-1 h-3 w-3" />Inactive</Badge>;
     case "Graduated":
       return <Badge variant="outline">Graduated</Badge>;
   }
@@ -92,7 +94,7 @@ export default function StudentManagementPage() {
     const studentsQuery = query(
       collection(firestore, `schools/${schoolId}/users`),
       where("role", "==", "Student"),
-      orderBy("name")
+      orderBy("name"),
     );
     const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
       const studentData = snapshot.docs.map((doc) => ({
@@ -103,7 +105,9 @@ export default function StudentManagementPage() {
       setIsLoading(false);
     });
 
-    const classQuery = query(collection(firestore, `schools/${schoolId}/classes`));
+    const classQuery = query(
+      collection(firestore, `schools/${schoolId}/classes`),
+    );
     const unsubClasses = onSnapshot(classQuery, (snapshot) => {
       const classList = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -124,11 +128,12 @@ export default function StudentManagementPage() {
       filtered = filtered.filter(
         (s) =>
           s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (s.admissionNumber && s.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase()))
+          (s.admissionNumber &&
+            s.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase())),
       );
     }
     if (classFilter !== "All Classes") {
-        filtered = filtered.filter((s) => s.classId === classFilter);
+      filtered = filtered.filter((s) => s.classId === classFilter);
     }
     return filtered;
   }, [students, searchTerm, classFilter]);
@@ -141,7 +146,12 @@ export default function StudentManagementPage() {
   const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
 
   if (!schoolId) {
-    return <NiceError title="School ID Missing" description="The school identifier is missing from the URL. Please access this page through your school's portal." />;
+    return (
+      <NiceError
+        title="School ID Missing"
+        description="The school identifier is missing from the URL. Please access this page through your school's portal."
+      />
+    );
   }
 
   return (
@@ -175,7 +185,9 @@ export default function StudentManagementPage() {
               <SelectContent>
                 <SelectItem value="All Classes">All Classes</SelectItem>
                 {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -203,8 +215,13 @@ export default function StudentManagementPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9">
-                            <AvatarImage src={student.avatarUrl} alt={student.name} />
-                            <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                            <AvatarImage
+                              src={student.avatarUrl}
+                              alt={student.name}
+                            />
+                            <AvatarFallback>
+                              {student.name.charAt(0)}
+                            </AvatarFallback>
                           </Avatar>
                           <span className="font-medium">{student.name}</span>
                         </div>
@@ -225,26 +242,26 @@ export default function StudentManagementPage() {
             <strong>{filteredStudents.length}</strong> students.
           </div>
           {totalPages > 1 && (
-             <div className="ml-auto flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm">
-                  Page {page} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                >
-                  Next
-                </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+              </Button>
             </div>
           )}
         </CardFooter>

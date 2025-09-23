@@ -199,38 +199,70 @@ export default function TeacherGradesPage() {
     };
   }, [schoolId, user]);
 
-  // Fetch students when a class is selected for grade entry
-  React.useEffect(() => {
-    if (!selectedClassId || !schoolId) {
+  const fetchStudentsAndGrades = React.useCallback(async () => {
+    if (!selectedClassId || !selectedSubject || !selectedExamId || !schoolId) {
       setStudents([]);
       return;
     }
 
     setIsLoading((prev) => ({ ...prev, students: true }));
-    const studentsQuery = query(
-      collection(firestore, `schools/${schoolId}/users`),
-      where("role", "==", "Student"),
-      where("classId", "==", selectedClassId),
-      orderBy("name"),
-    );
-    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
-      setStudents(
-        snapshot.docs.map(
-          (doc) =>
-            ({
-              id: doc.id,
-              name: doc.data().name,
-              avatarUrl:
-                doc.data().avatarUrl ||
-                `https://picsum.photos/seed/${doc.id}/100`,
-            }) as Student,
-        ),
+    try {
+      const studentsQuery = query(
+        collection(firestore, `schools/${schoolId}/users`),
+        where("role", "==", "Student"),
+        where("classId", "==", selectedClassId),
+        orderBy("name"),
       );
-      setIsLoading((prev) => ({ ...prev, students: false }));
-    });
+      const studentsSnapshot = await getDocs(studentsQuery);
+      const studentList: Student[] = studentsSnapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          name: data.name || "Unknown",
+          avatarUrl:
+            data.avatarUrl || `https://picsum.photos/seed/${d.id}/100`,
+        } as Student;
+      });
 
-    return () => unsubStudents();
-  }, [selectedClassId, schoolId]);
+      const gradesQuery = query(
+        collection(firestore, `schools/${schoolId}/grades`),
+        where("classId", "==", selectedClassId),
+        where("subject", "==", selectedSubject),
+        where("examId", "==", selectedExamId),
+      );
+      const gradesSnapshot = await getDocs(gradesQuery);
+      const gradesMap = new Map<string, string>();
+      gradesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        gradesMap.set(data.studentId, data.grade);
+      });
+
+      const initialGrades: Record<string, { grade: string; studentName: string }> = {};
+      studentList.forEach(student => {
+        if (gradesMap.has(student.id)) {
+          initialGrades[student.id] = { grade: gradesMap.get(student.id)!, studentName: student.name };
+        }
+      });
+      setGrades(initialGrades);
+      setStudents(studentList);
+    } catch (error) {
+      console.error("Failed to fetch students and grades:", error);
+      toast({
+        title: "Error",
+        description: "Could not load students and their existing grades.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading((prev) => ({ ...prev, students: false }));
+    }
+  }, [selectedClassId, selectedSubject, selectedExamId, schoolId, toast]);
+
+
+  // Fetch students when class/subject/exam selection changes
+  React.useEffect(() => {
+    fetchStudentsAndGrades();
+    setGrades({}); // Reset grades when context changes
+  }, [selectedClassId, selectedSubject, selectedExamId, fetchStudentsAndGrades]);
 
   // Fetch and compute rankings for all teacher's classes for the selected archived exam
   React.useEffect(() => {
