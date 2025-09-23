@@ -19,6 +19,8 @@ import { firestore } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export const dynamicParams = false;
 
 type StudentData = {
