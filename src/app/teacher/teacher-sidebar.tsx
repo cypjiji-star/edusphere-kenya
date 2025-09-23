@@ -131,13 +131,6 @@ const navGroups = [
         icon: FileText,
         badgeKey: null,
       },
-      {
-        href: "/teacher/lesson-plans",
-        label: "Lesson Plans",
-        icon: BookOpen,
-        disabled: false,
-        badgeKey: null,
-      },
     ],
   },
   {

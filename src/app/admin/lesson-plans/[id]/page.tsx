@@ -1,378 +1,349 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  BookOpen,
-  Share2,
-  Copy,
-  FileDown,
-  ChevronDown,
-  History,
-  Users,
-  Eye,
-  Trash2,
-} from "lucide-react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import {
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  ChevronDown,
+  Settings,
+  HelpCircle,
+  FileText,
+  MessageCircle,
+  Calendar,
+  CircleDollarSign,
+  ClipboardCheck,
+  Megaphone,
+  HeartPulse,
+  Trophy,
+  User,
+  Users,
+  Library,
+  BookOpen,
+  Bell,
+  Check,
+  BookMarked,
+} from "lucide-react";
+import {
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuBadge,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { LessonPlanForm } from "../new/lesson-plan-form";
 import * as React from "react";
 import { firestore } from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
 import {
   collection,
-  doc,
   onSnapshot,
-  orderBy,
   query,
-  Timestamp,
-  deleteDoc,
+  where,
+  doc,
+  updateDoc,
+  orderBy,
+  limit,
   getDocs,
-  writeBatch,
 } from "firebase/firestore";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
+import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 
-export const dynamic = 'force-dynamic';
+const navGroups = [
+  {
+    title: "Core Modules",
+    items: [
+      {
+        href: "/teacher/students",
+        label: "Class Management",
+        icon: Users,
+        badgeKey: null,
+      },
+      {
+        href: "/teacher/attendance",
+        label: "Attendance",
+        icon: ClipboardCheck,
+        badgeKey: null,
+      },
+      {
+        href: "/teacher/assignments",
+        label: "Assignments",
+        icon: BookMarked,
+        badgeKey: "ungradedAssignments",
+      },
+      {
+        href: "/teacher/timetable",
+        label: "Timetable",
+        icon: Calendar,
+        badgeKey: null,
+      },
+      {
+        href: "/teacher/payments",
+        label: "Class Funds",
+        icon: CircleDollarSign,
+        badgeKey: null,
+      },
+      {
+        href: "/teacher/sports",
+        label: "Sports",
+        icon: Trophy,
+        badgeKey: null,
+      },
+      {
+        href: "/teacher/health",
+        label: "Health & Incidents",
+        icon: HeartPulse,
+        badgeKey: null,
+      },
+    ],
+  },
+  {
+    title: "Instructional Tools",
+    items: [
+      {
+        href: "/teacher/grades",
+        label: "Grades & Exams",
+        icon: FileText,
+        badgeKey: null,
+      },
+    ],
+  },
+  {
+    title: "Communication",
+    items: [
+      {
+        href: "/teacher/announcements",
+        label: "Announcements",
+        icon: Megaphone,
+        disabled: false,
+        badgeKey: null,
+      },
+      {
+        href: "/teacher/calendar",
+        label: "Events Calendar",
+        icon: Calendar,
+        disabled: false,
+        badgeKey: null,
+      },
+    ],
+  },
+  {
+    title: "Tools & Resources",
+    items: [
+      {
+        href: "/teacher/library",
+        label: "Library Access",
+        icon: Library,
+        disabled: false,
+        badgeKey: null,
+      },
+      {
+        href: "/teacher/my-library",
+        label: "My Library",
+        icon: User,
+        disabled: false,
+        badgeKey: null,
+      },
+    ],
+  },
+];
 
-type VersionHistoryItem = {
-  id: string;
-  version: number;
-  date: Timestamp;
-  author: string;
-  summary: string;
-  data: any;
-};
+export function TeacherSidebar() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get("schoolId")!;
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/teacher" && pathname.startsWith(href));
+  const [dynamicBadges, setDynamicBadges] = React.useState<
+    Record<string, number>
+  >({});
+  const { user } = useAuth();
+  const [teacherName, setTeacherName] = React.useState("Teacher");
+  const [teacherEmail, setTeacherEmail] = React.useState("");
+  const { isMobile, setOpenMobile } = useSidebar();
 
-export default function EditLessonPlanPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { date?: string; schoolId: string };
-}) {
-  const { id: lessonPlanId } = params;
-  const { schoolId, date: prefilledDate } = searchParams;
-  const isEditMode = !!lessonPlanId && lessonPlanId !== "new";
-  const [versionHistory, setVersionHistory] = React.useState<
-    VersionHistoryItem[]
-  >([]);
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = React.useState("editor");
-  const [formKey, setFormKey] = React.useState(Date.now()); // Used to force re-render of form
-  const router = useRouter();
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   React.useEffect(() => {
-    if (!isEditMode || !schoolId) return;
+    if (user) {
+      setTeacherName(user.displayName || "Teacher");
+      setTeacherEmail(user.email || "");
+    }
+  }, [user]);
 
-    const historyQuery = query(
-      collection(
-        firestore,
-        `schools/${schoolId}/lesson-plans/${lessonPlanId}/history`,
-      ),
-      orderBy("date", "desc"),
+  React.useEffect(() => {
+    if (!schoolId || !user) return;
+
+    const teacherId = user.uid;
+
+    const assignmentsQuery = query(
+      collection(firestore, `schools/${schoolId}/assignments`),
+      where("teacherId", "==", teacherId),
     );
-
-    const unsubscribe = onSnapshot(historyQuery, (snapshot) => {
-      const historyData = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() }) as VersionHistoryItem,
-      );
-      setVersionHistory(historyData);
+    const unsubscribeAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
+      let ungradedCount = 0;
+      snapshot.forEach((doc) => {
+        const assignment = doc.data();
+        if (assignment.submissions < assignment.totalStudents) {
+          ungradedCount++;
+        }
+      });
+      setDynamicBadges((prev) => ({
+        ...prev,
+        ungradedAssignments: ungradedCount,
+      }));
     });
 
-    return () => unsubscribe();
-  }, [lessonPlanId, schoolId, isEditMode]);
-
-  const handleRestore = (version: VersionHistoryItem) => {
-    // We'll use session storage to pass the data to the form component
-    // This is a simple way to trigger a re-render with new default values
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(
-        "restoredLessonPlan",
-        JSON.stringify(version.data),
-      );
-    }
-    setFormKey(Date.now()); // Force re-render of LessonPlanForm
-    toast({
-      title: `Version ${version.version} Restored`,
-      description:
-        "The selected version has been loaded into the editor. Review and save to make it the current version.",
-    });
-    setActiveTab("editor");
-  };
-
-  const handleDelete = async () => {
-    if (!isEditMode || !schoolId || !lessonPlanId) return;
-
-    try {
-      const lessonPlanRef = doc(
-        firestore,
-        "schools",
-        schoolId,
-        "lesson-plans",
-        lessonPlanId,
-      );
-      const historyCollectionRef = collection(lessonPlanRef, "history");
-
-      // Get all documents in the history subcollection
-      const historySnapshot = await getDocs(historyCollectionRef);
-
-      // Create a batch to delete all history documents and the main plan
-      const batch = writeBatch(firestore);
-      historySnapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-      batch.delete(lessonPlanRef);
-
-      await batch.commit();
-
-      toast({
-        title: "Lesson Plan Deleted",
-        description:
-          "The lesson plan and all of its version history have been permanently removed.",
-        variant: "destructive",
-      });
-      router.push(`/admin/lesson-plans?schoolId=${schoolId}`);
-    } catch (error) {
-      console.error("Error deleting lesson plan:", error);
-      toast({
-        title: "Error",
-        description: "Could not delete the lesson plan. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+    return () => {
+      unsubscribeAssignments();
+    };
+  }, [schoolId, user]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/lesson-plans?schoolId=${schoolId}`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to All Lesson Plans
-          </Link>
-        </Button>
-      </div>
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between">
-          <div>
-            <CardTitle className="font-headline text-2xl flex items-center gap-2">
-              <BookOpen className="h-6 w-6 text-primary" />
-              {isEditMode ? "Edit Lesson Plan" : "Lesson Plan Builder"}
-            </CardTitle>
-            <CardDescription>
-              {isEditMode
-                ? "Update the details for your existing lesson plan."
-                : "Fill in the details below. Use the AI Assistant to help generate content."}
-            </CardDescription>
-          </div>
-          {isEditMode && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary">
-                  Share / Actions
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem disabled>
-                  <Share2 className="mr-2" />
-                  Share with a colleague
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled>
-                  <Copy className="mr-2" />
-                  Copy to another class
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled>
-                  <FileDown className="mr-2" />
-                  Print / Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2" />
-                      Delete Lesson Plan
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Are you absolutely sure?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently
-                        delete this lesson plan and all of its version history.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </CardHeader>
-        <CardContent>
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            {isEditMode && (
-              <TabsList className="mb-4">
-                <TabsTrigger value="editor">Editor</TabsTrigger>
-                <TabsTrigger value="history">Version History</TabsTrigger>
-                <TabsTrigger value="permissions">Permissions</TabsTrigger>
-              </TabsList>
-            )}
-            <TabsContent value="editor">
-              <LessonPlanForm
-                key={formKey}
-                lessonPlanId={lessonPlanId}
-                prefilledDate={prefilledDate}
-                schoolId={schoolId}
-              />
-            </TabsContent>
-            <TabsContent value="history">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Version History</CardTitle>
-                  <CardDescription>
-                    Review and restore previous versions of this lesson plan.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {versionHistory.map((version) => (
-                    <div key={version.id} className="flex items-start gap-4">
-                      <Avatar>
-                        <AvatarImage
-                          src={`https://picsum.photos/seed/${version.author}/100`}
-                        />
-                        <AvatarFallback>
-                          {version.author.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">
-                            Version {version.version}
-                            <span className="font-normal text-muted-foreground">
-                              {" "}
-                              by {version.author}
-                            </span>
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {version.date.toDate().toLocaleString()}
-                          </p>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {version.summary}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRestore(version)}
+    <>
+      <SidebarHeader>
+        <Link
+          href={`/teacher?schoolId=${schoolId}`}
+          onClick={handleLinkClick}
+          className="flex items-center gap-2"
+        >
+          <GraduationCap className="size-6 text-primary" />
+          <span className="font-bold font-headline text-lg">
+            Teacher Portal
+          </span>
+        </Link>
+      </SidebarHeader>
+
+      <SidebarContent className="p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={pathname === "/teacher"}
+              tooltip={{ children: "Dashboard" }}
+            >
+              <Link
+                href={`/teacher?schoolId=${schoolId}`}
+                onClick={handleLinkClick}
+              >
+                <LayoutDashboard />
+                <span>Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        {navGroups.map((group) => (
+          <Collapsible key={group.title} defaultOpen>
+            <CollapsibleTrigger className="w-full p-2 text-left">
+              <span className="text-xs font-semibold text-primary">
+                {group.title}
+              </span>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const badgeCount = item.badgeKey
+                    ? dynamicBadges[item.badgeKey]
+                    : 0;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.href)}
+                        disabled={item.disabled}
+                        tooltip={{ children: item.label }}
                       >
-                        Restore
-                      </Button>
-                    </div>
-                  ))}
-                  {versionHistory.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No version history found.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="permissions">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Permissions & Access Control</CardTitle>
-                  <CardDescription>
-                    Control who can view and edit this lesson plan. (This is a
-                    mock UI, functionality is coming soon).
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold">
-                      Editing Permissions (Collaboration)
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Grant editing rights to other teachers to collaborate on
-                      this plan.
-                    </p>
-                    <div className="flex items-center space-x-2 p-3 rounded-md border">
-                      <Users className="h-5 w-5 text-primary" />
-                      <div className="flex-1">
-                        <p className="font-medium">Allow co-teachers to edit</p>
-                      </div>
-                      <Switch id="edit-perms" disabled />
-                    </div>
-                  </div>
-                  <Separator />
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold">
-                      Viewing Permissions (Sharing)
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Shared lesson plans will appear as "read-only" for other
-                      teachers unless they are granted editing rights above.
-                    </p>
-                    <div className="flex items-center space-x-2 p-3 rounded-md border">
-                      <Eye className="h-5 w-5 text-primary" />
-                      <div className="flex-1">
-                        <p className="font-medium">
-                          Share with all Science Department teachers
-                        </p>
-                      </div>
-                      <Switch id="view-perms" disabled />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+                        <Link
+                          href={`${item.href}?schoolId=${schoolId}`}
+                          onClick={handleLinkClick}
+                        >
+                          <item.icon />
+                          <span>{item.label}</span>
+                          {badgeCount > 0 && (
+                            <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
+      </SidebarContent>
+
+      <SidebarFooter className="p-2 flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 p-2 h-auto"
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.photoURL || ''} alt={teacherName} />
+                <AvatarFallback>{teacherName.charAt(0) || "T"}</AvatarFallback>
+              </Avatar>
+              <div className="text-left">
+                <p className="text-sm font-medium">{teacherName}</p>
+                <p className="text-xs text-muted-foreground">Teacher</p>
+              </div>
+              <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{teacherName}</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {teacherEmail}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled>
+              <Settings className="mr-2" />
+              Profile &amp; Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/" onClick={() => getAuth().signOut()}>
+                <LogOut className="mr-2" />
+                <span>Log out</span>
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarFooter>
+    </>
   );
 }

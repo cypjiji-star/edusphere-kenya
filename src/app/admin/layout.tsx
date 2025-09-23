@@ -8,7 +8,7 @@ import {
 import { AdminSidebar } from "./admin-sidebar";
 import { Suspense } from "react";
 import { AuthCheck } from "@/lib/auth-check";
-import { FloatingChatWidget } from "./floating-chat-widget";
+import { FloatingSupportWidget } from "@/components/layout/support-widget-client";
 
 export default function AdminLayout({
   children,
@@ -19,16 +19,14 @@ export default function AdminLayout({
     <AuthCheck requiredRole="admin">
       <SidebarProvider>
         <Sidebar>
-          <Suspense>
-            <AdminSidebar />
-          </Suspense>
+          <AdminSidebar />
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
             <SidebarTrigger />
             <Suspense>{children}</Suspense>
             <Suspense>
-              <FloatingChatWidget />
+              <FloatingSupportWidget />
             </Suspense>
           </main>
         </SidebarInset>

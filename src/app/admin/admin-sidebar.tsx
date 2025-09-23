@@ -94,7 +94,6 @@ const navGroups = [
       { href: "/admin/grades", label: "Grades & Exams", icon: FileText },
       { href: "/admin/timetable", label: "Timetable", icon: Calendar },
       { href: "/admin/subjects", label: "Classes & Subjects", icon: Shapes },
-      { href: "/admin/lesson-plans", label: "Lesson Plans", icon: BookOpen },
       { href: "/admin/health", label: "Health & Incidents", icon: HeartPulse },
     ],
   },
