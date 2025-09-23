@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from 'next/navigation';
@@ -53,7 +54,7 @@ export function LoginForm() {
       const userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
-      if (userDocSnap.exists() && userDocSnap.data().role.toLowerCase() === role) {
+      if (userDocSnap.exists() && userDocSnap.data().role.toLowerCase() === role.toLowerCase()) {
         await updateDoc(userDocRef, { lastLogin: serverTimestamp() }).catch(() => {});
         await logAuditEvent({
           schoolId,
