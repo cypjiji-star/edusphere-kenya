@@ -55,6 +55,9 @@ export function LoginForm() {
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists() && userDocSnap.data().role?.toLowerCase() === role.toLowerCase()) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('schoolId', schoolId);
+        }
         await updateDoc(userDocRef, { lastLogin: serverTimestamp() }).catch(() => {});
         await logAuditEvent({
           schoolId,

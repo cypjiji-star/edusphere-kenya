@@ -58,7 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          const schoolId = searchParams.get('schoolId');
+          const urlSchoolId = searchParams.get('schoolId');
+          const sessionSchoolId = typeof window !== 'undefined' ? sessionStorage.getItem('schoolId') : null;
+          const schoolId = urlSchoolId || sessionSchoolId;
+          
           if (schoolId) {
               const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
               const userDocSnap = await getDoc(userDocRef);
