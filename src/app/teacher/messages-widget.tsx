@@ -14,7 +14,7 @@ import { MessageCircle, ArrowRight, User, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import * as React from "react";
-import { firestore, auth } from "@/lib/firebase";
+import { firestore } from "@/lib/firebase";
 import {
   collection,
   query,
@@ -24,6 +24,7 @@ import {
   where,
   doc,
   getDoc,
+  getDocs,
 } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
@@ -53,35 +54,15 @@ async function getParticipantDetails(
   schoolId: string,
   userId: string,
 ): Promise<ConversationParticipant | null> {
-  const collectionsToSearch = ["admins", "teachers", "parents"];
-  for (const collectionName of collectionsToSearch) {
-    const docRef = doc(firestore, "schools", schoolId, collectionName, userId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return {
-        id: userId,
-        name: data.name || "Unknown User",
-        avatar: data.avatarUrl || "",
-      };
-    }
-  }
-  // Fallback for parents who might not have a separate doc
-  try {
-    const studentsQuery = query(
-      collection(firestore, `schools/${schoolId}/students`),
-      where("parentId", "==", userId),
-    );
-    const studentsSnap = await getDocs(studentsQuery);
-    if (!studentsSnap.empty) {
-      return {
-        id: userId,
-        name: studentsSnap.docs[0].data().parentName || "Parent",
-        avatar: "",
-      };
-    }
-  } catch (e) {
-    console.error("Could not find parent user details", e);
+  const userDocRef = doc(firestore, "schools", schoolId, "users", userId);
+  const docSnap = await getDoc(userDocRef);
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    return {
+      id: userId,
+      name: data.name || "Unknown User",
+      avatar: data.avatarUrl || "",
+    };
   }
   return null;
 }

@@ -60,7 +60,7 @@ import {
   Save,
   Trophy,
 } from "lucide-react";
-import { firestore, auth } from "@/lib/firebase";
+import { firestore } from "@/lib/firebase";
 import {
   collection,
   onSnapshot,
