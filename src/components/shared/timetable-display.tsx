@@ -612,8 +612,6 @@ export function TimetableDisplay({
       ? allClasses.find((c) => c.id === selectedItem)?.name || selectedItem
       : selectedItem;
 
-  const isTeacherView = user?.role === 'Teacher';
-
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -623,7 +621,7 @@ export function TimetableDisplay({
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <CardTitle>Timetable for {selectedName}</CardTitle>
-                  {view === "class" && (
+                  {view === "class" && user?.role === "Admin" && (
                     <CardDescription>
                       Drag subjects from the right panel and drop them into time
                       slots.
@@ -645,10 +643,9 @@ export function TimetableDisplay({
                   </Select>
                   <Select
                     value={view}
-                    onValueChange={(v: 'class' | 'teacher' | 'room') => {
-                      setView(v);
-                      if (v === "class")
-                        setSelectedItem(allClasses[0]?.id);
+                    onValueChange={(v) => {
+                      setView(v as "class" | "teacher" | "room");
+                      if (v === "class") setSelectedItem(allClasses[0]?.id);
                       if (v === "teacher") setSelectedItem(allTeachers[0]);
                       if (v === "room") setSelectedItem(allRooms[0]);
                     }}
@@ -860,71 +857,73 @@ export function TimetableDisplay({
                                         </p>
                                       )}
                                     </div>
-                                    {view === "class" && user?.role === 'Admin' && (
-                                      <div className="text-right">
-                                        <Dialog>
-                                          <DialogTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white"
-                                            >
-                                              <Edit className="h-4 w-4" />
-                                            </Button>
-                                          </DialogTrigger>
-                                          <DialogContent>
-                                            <DialogHeader>
-                                              <DialogTitle>
-                                                Edit Lesson
-                                              </DialogTitle>
-                                              <DialogDescription>
-                                                Change the room for this lesson.
-                                              </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="py-4">
-                                              <Label htmlFor="room-select">
-                                                Room
-                                              </Label>
-                                              <Select
-                                                defaultValue={cellData.room}
+                                    {view === "class" &&
+                                      user?.role === "Admin" && (
+                                        <div className="text-right">
+                                          <Dialog>
+                                            <DialogTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white"
                                               >
-                                                <SelectTrigger id="room-select">
-                                                  <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  {allRooms.map((r) => (
-                                                    <SelectItem
-                                                      key={r}
-                                                      value={r}
-                                                    >
-                                                      {r}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                            </div>
-                                            <DialogFooter>
-                                              <DialogClose asChild>
-                                                <Button variant="outline">
-                                                  Cancel
-                                                </Button>
-                                              </DialogClose>
-                                              <Button disabled>Save</Button>
-                                            </DialogFooter>
-                                          </DialogContent>
-                                        </Dialog>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white"
-                                          onClick={() =>
-                                            handleClearCell(day, period.time)
-                                          }
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    )}
+                                                <Edit className="h-4 w-4" />
+                                              </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                              <DialogHeader>
+                                                <DialogTitle>
+                                                  Edit Lesson
+                                                </DialogTitle>
+                                                <DialogDescription>
+                                                  Change the room for this
+                                                  lesson.
+                                                </DialogDescription>
+                                              </DialogHeader>
+                                              <div className="py-4">
+                                                <Label htmlFor="room-select">
+                                                  Room
+                                                </Label>
+                                                <Select
+                                                  defaultValue={cellData.room}
+                                                >
+                                                  <SelectTrigger id="room-select">
+                                                    <SelectValue />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {allRooms.map((r) => (
+                                                      <SelectItem
+                                                        key={r}
+                                                        value={r}
+                                                      >
+                                                        {r}
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                              <DialogFooter>
+                                                <DialogClose asChild>
+                                                  <Button variant="outline">
+                                                    Cancel
+                                                  </Button>
+                                                </DialogClose>
+                                                <Button disabled>Save</Button>
+                                              </DialogFooter>
+                                            </DialogContent>
+                                          </Dialog>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-white/50 hover:bg-white/20 hover:text-white"
+                                            onClick={() =>
+                                              handleClearCell(day, period.time)
+                                            }
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      )}
                                   </div>
                                 ) : null}
                               </div>
@@ -963,120 +962,123 @@ export function TimetableDisplay({
                 </div>
               )}
             </CardContent>
-            {view === 'class' && user?.role === 'Admin' && (
+            {view === "class" && user?.role === "Admin" && (
               <CardFooter className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setTimetable({})}>
-                Clear Timetable
-              </Button>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="secondary">
-                    <Share className="mr-2 h-4 w-4" />
-                    Publish
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Confirm Publish</DialogTitle>
-                    <DialogDescription>
-                      Are you sure you want to publish this timetable? This will
-                      make it visible to all teachers and students in this
-                      class.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="outline">Cancel</Button>
-                    </DialogClose>
-                    <DialogClose asChild>
-                      <Button onClick={handlePublish}>Yes, Publish</Button>
-                    </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Button onClick={handleSave}>
-                <Save className="mr-2 h-4 w-4" />
-                Save Timetable
-              </Button>
-            </CardFooter>)}
+                <Button variant="outline" onClick={() => setTimetable({})}>
+                  Clear Timetable
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="secondary">
+                      <Share className="mr-2 h-4 w-4" />
+                      Publish
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Confirm Publish</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to publish this timetable? This
+                        will make it visible to all teachers and students in
+                        this class.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <DialogClose asChild>
+                        <Button onClick={handlePublish}>Yes, Publish</Button>
+                      </DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Button onClick={handleSave}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Timetable
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         </div>
-        {view === 'class' && user?.role === 'Admin' && <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Subjects</CardTitle>
-              <CardDescription>Drag these to the timetable.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {subjects.map((subject) => (
-                <DraggableSubject key={subject.name} subject={subject} />
-              ))}
-              <Separator />
-              <Dialog
-                open={isAddSubjectOpen}
-                onOpenChange={setIsAddSubjectOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button variant="secondary" className="w-full">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add New Subject
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Subject</DialogTitle>
-                    <DialogDescription>
-                      Define a new subject that can be added to the timetable.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="new-subject-name">Subject Name</Label>
-                      <Input
-                        id="new-subject-name"
-                        value={newSubjectName}
-                        onChange={(e) => setNewSubjectName(e.target.value)}
-                        placeholder="e.g., Computer Science"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="new-subject-code">Subject Code</Label>
-                      <Input
-                        id="new-subject-code"
-                        value={newSubjectCode}
-                        onChange={(e) => setNewSubjectCode(e.target.value)}
-                        placeholder="e.g., 451"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="new-subject-dept">Department</Label>
-                      <Select
-                        onValueChange={setNewSubjectDept}
-                        value={newSubjectDept}
-                      >
-                        <SelectTrigger id="new-subject-dept">
-                          <SelectValue placeholder="Select a department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {mockDepartments.map((dept) => (
-                            <SelectItem key={dept} value={dept}>
-                              {dept}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" onClick={handleAddNewSubject}>
-                      Save Subject
+        {view === "class" && user?.role === "Admin" && (
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Available Subjects</CardTitle>
+                <CardDescription>Drag these to the timetable.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {subjects.map((subject) => (
+                  <DraggableSubject key={subject.name} subject={subject} />
+                ))}
+                <Separator />
+                <Dialog
+                  open={isAddSubjectOpen}
+                  onOpenChange={setIsAddSubjectOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button variant="secondary" className="w-full">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add New Subject
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
-        </div>}
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Add New Subject</DialogTitle>
+                      <DialogDescription>
+                        Define a new subject that can be added to the timetable.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-subject-name">Subject Name</Label>
+                        <Input
+                          id="new-subject-name"
+                          value={newSubjectName}
+                          onChange={(e) => setNewSubjectName(e.target.value)}
+                          placeholder="e.g., Computer Science"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-subject-code">Subject Code</Label>
+                        <Input
+                          id="new-subject-code"
+                          value={newSubjectCode}
+                          onChange={(e) => setNewSubjectCode(e.target.value)}
+                          placeholder="e.g., 451"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-subject-dept">Department</Label>
+                        <Select
+                          onValueChange={setNewSubjectDept}
+                          value={newSubjectDept}
+                        >
+                          <SelectTrigger id="new-subject-dept">
+                            <SelectValue placeholder="Select a department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {mockDepartments.map((dept) => (
+                              <SelectItem key={dept} value={dept}>
+                                {dept}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" onClick={handleAddNewSubject}>
+                        Save Subject
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </DndContext>
   );

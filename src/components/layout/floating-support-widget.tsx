@@ -10,7 +10,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, BadgeHelp } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { AiChat } from "../ai/ai-chat";
 import { useAuth } from "@/context/auth-context";
 import { collection, onSnapshot, query, where } from "firebase/firestore";

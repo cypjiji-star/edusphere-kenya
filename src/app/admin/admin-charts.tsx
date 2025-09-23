@@ -208,9 +208,11 @@ export function PerformanceSnapshot() {
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+      setIsLoading(false);
+      return;
+    }
 
-    // Listen to changes in submissions across all assessments
     const submissionsQuery = query(
       collection(firestore, `schools/${schoolId}/grades`),
     );
