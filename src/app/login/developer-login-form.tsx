@@ -11,7 +11,6 @@ import { doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { light } from "@/lib/haptic";
 
 export function DeveloperLoginForm() {
   const router = useRouter();
@@ -92,7 +91,6 @@ export function DeveloperLoginForm() {
         type="submit"
         className="w-full"
         disabled={isLoading}
-        onClick={() => light()}
       >
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Developer Login

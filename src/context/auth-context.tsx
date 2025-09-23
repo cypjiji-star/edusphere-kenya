@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const urlSchoolId = searchParams.get("schoolId");
           const sessionSchoolId =
             typeof window !== "undefined"
-              ? sessionStorage.getItem("schoolId")
+              ? window.sessionStorage.getItem("schoolId")
               : null;
           const schoolId = urlSchoolId || sessionSchoolId;
 
