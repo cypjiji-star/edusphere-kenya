@@ -351,24 +351,27 @@ export default function UserManagementListPage() {
 
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingUser || !schoolId) return;
+    if (!editingUser || !schoolId || !adminUser) return;
 
     const formData = new FormData(e.target as HTMLFormElement);
-    const updatedData: Partial<User> = {
+    const updatedData: Partial<User> & { newPassword?: string } = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       role: formData.get("role") as string,
       status: formData.get("status") as UserStatus,
+      newPassword: formData.get("newPassword") as string,
     };
 
     setIsSaving(true);
-    let authUpdates: { email?: string } = {};
+    let authUpdates: { email?: string; password?: string } = {};
     if (updatedData.email && updatedData.email !== editingUser.email) {
       authUpdates.email = updatedData.email;
     }
+    if (updatedData.newPassword) {
+      authUpdates.password = updatedData.newPassword;
+    }
 
     try {
-      // Step 1: Update Firebase Auth if email changed
       if (Object.keys(authUpdates).length > 0) {
         const authResult = await updateUserAuthAction(
           editingUser.id,
@@ -379,7 +382,6 @@ export default function UserManagementListPage() {
         }
       }
 
-      // Step 2: Update Firestore document
       const userRef = doc(
         firestore,
         "schools",
@@ -387,11 +389,28 @@ export default function UserManagementListPage() {
         "users",
         editingUser.id,
       );
-      await updateDoc(userRef, updatedData);
+      await updateDoc(userRef, {
+        name: updatedData.name,
+        email: updatedData.email,
+        role: updatedData.role,
+        status: updatedData.status,
+      });
+
+      await logAuditEvent({
+        schoolId,
+        action: "USER_PROFILE_UPDATED",
+        actionType: "User Management",
+        user: {
+          id: adminUser.uid,
+          name: adminUser.displayName || "Admin",
+          role: "Admin",
+        },
+        details: `Updated details for user ${editingUser.name}.`,
+      });
 
       toast({
         title: "User Updated",
-        description: "The user details have been saved successfully.",
+        description: "The user's details have been saved successfully.",
       });
       setEditingUser(null);
     } catch (e: any) {
@@ -403,13 +422,6 @@ export default function UserManagementListPage() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleSendPasswordReset = () => {
-    toast({
-      title: "Password Reset Sent",
-      description: "A password reset link has been sent to the user's email.",
-    });
   };
 
   const handleDeleteUser = async () => {
@@ -637,7 +649,7 @@ export default function UserManagementListPage() {
                       {statuses
                         .filter((s) => s !== "All Statuses")
                         .map((status) => (
-                          <SelectItem key={status} value={status}>
+                          <SelectItem key={status} value={status as string}>
                             {status}
                           </SelectItem>
                         ))}
@@ -650,24 +662,24 @@ export default function UserManagementListPage() {
                 <h4 className="font-semibold text-base">
                   Administrative Actions
                 </h4>
-                <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSendPasswordReset}
-                  >
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    Send Password Reset
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => setUserToDelete(editingUser)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete User
-                  </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">Set New Password</Label>
+                  <Input
+                    id="newPassword"
+                    name="newPassword"
+                    type="password"
+                    placeholder="Leave blank to keep current password"
+                  />
                 </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setUserToDelete(editingUser)}
+                  className="w-full sm:w-auto"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete User Account
+                </Button>
               </div>
             </div>
             <DialogFooter>
