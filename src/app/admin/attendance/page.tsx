@@ -83,6 +83,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Combobox } from '@/components/ui/combobox';
 
 
 // Define both lowercase and title case status types
@@ -809,16 +810,13 @@ export default function AdminAttendancePage() {
                                 </div>
                             </div>
                             <div className="flex w-full md:w-auto items-center gap-2">
-                                <Select value={selectedTerm} onValueChange={(v) => setSelectedTerm(v)}>
-                                    <SelectTrigger className="w-full md:w-auto">
-                                        <SelectValue placeholder="Select term" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {academicTerms.map(term => (
-                                            <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                  options={academicTerms.map(term => ({ value: term.value, label: term.label }))}
+                                  value={selectedTerm}
+                                  onValueChange={setSelectedTerm}
+                                  placeholder="Select term"
+                                  className="w-full md:w-auto"
+                                />
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
@@ -877,26 +875,23 @@ export default function AdminAttendancePage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="p-4 space-y-4 w-64">
                                         <div>
-                                            <label className="text-sm font-medium">Class</label>
-                                            <Select value={classFilter} onValueChange={setClassFilter}>
-                                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                                <SelectContent>
-                                                    {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                            <Label className="text-sm font-medium">Class</Label>
+                                            <Combobox
+                                                options={classes.map(c => ({ value: c, label: c }))}
+                                                value={classFilter}
+                                                onValueChange={setClassFilter}
+                                            />
                                         </div>
                                         <div>
-                                            <label className="text-sm font-medium">Teacher</label>
-                                            <Select value={teacherFilter} onValueChange={setTeacherFilter}>
-                                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                                <SelectContent>
-                                                     <SelectItem value="All Teachers">All Teachers</SelectItem>
-                                                    {teachers.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                            <Label className="text-sm font-medium">Teacher</Label>
+                                             <Combobox
+                                                options={[{ value: 'All Teachers', label: 'All Teachers' }, ...teachers.map(t => ({ value: t.name, label: t.name }))]}
+                                                value={teacherFilter}
+                                                onValueChange={setTeacherFilter}
+                                            />
                                         </div>
                                         <div>
-                                            <label className="text-sm font-medium">Status</label>
+                                            <Label className="text-sm font-medium">Status</Label>
                                             <Select value={statusFilter} onValueChange={(v: AttendanceStatus | 'All Statuses') => setStatusFilter(v)}>
                                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                                 <SelectContent>
@@ -1344,3 +1339,4 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
+

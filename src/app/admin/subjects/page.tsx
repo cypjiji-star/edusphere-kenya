@@ -74,6 +74,7 @@ import 'jspdf-autotable';
 import { CommandList } from '@/components/ui/command';
 import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
+import { Combobox } from '@/components/ui/combobox';
 
 
 type SchoolClass = {
@@ -279,16 +280,12 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="subject-dept-edit">Department</Label>
-                        <Select value={department} onValueChange={setDepartment}>
-                            <SelectTrigger id="subject-dept-edit">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {departments.map(dept => (
-                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            options={departments.map(d => ({ value: d, label: d }))}
+                            value={department}
+                            onValueChange={setDepartment}
+                            placeholder="Select a department"
+                        />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="subject-teachers-edit">Assign Teachers</Label>
@@ -720,16 +717,12 @@ export default function ClassesAndSubjectsPage() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="class-teacher">Class Teacher</Label>
-                                            <Select value={newClassTeacherId} onValueChange={setNewClassTeacherId}>
-                                                <SelectTrigger id="class-teacher">
-                                                    <SelectValue placeholder="Select a teacher" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {teachers.map(teacher => (
-                                                        <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <Combobox
+                                                options={teacherOptions}
+                                                value={newClassTeacherId}
+                                                onValueChange={setNewClassTeacherId}
+                                                placeholder="Select a teacher"
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="class-capacity">Capacity</Label>
@@ -854,16 +847,12 @@ export default function ClassesAndSubjectsPage() {
                                                         </div>
                                                         <div className="space-y-2">
                                                             <Label htmlFor="teacherId">Class Teacher</Label>
-                                                            <Select name="teacherId" defaultValue={schoolClass.teacherId}>
-                                                                <SelectTrigger id="teacherId">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {teachers.map(teacher => (
-                                                                        <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                            <Combobox
+                                                                options={teacherOptions}
+                                                                value={newClassTeacherId}
+                                                                onValueChange={setNewClassTeacherId}
+                                                                placeholder="Select a teacher"
+                                                            />
                                                         </div>
                                                         <div className="space-y-2">
                                                             <Label htmlFor="capacity">Capacity</Label>
@@ -993,16 +982,12 @@ export default function ClassesAndSubjectsPage() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="subject-dept">Department</Label>
-                                            <Select value={newSubjectDept} onValueChange={setNewSubjectDept}>
-                                                <SelectTrigger id="subject-dept">
-                                                    <SelectValue placeholder="Select a department" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {departments.map(dept => (
-                                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <Combobox
+                                                options={departments.map(d => ({ value: d, label: d }))}
+                                                value={newSubjectDept}
+                                                onValueChange={setNewSubjectDept}
+                                                placeholder="Select a department"
+                                            />
                                         </div>
                                          <div className="space-y-2">
                                             <Label>Assign Teachers</Label>
@@ -1139,16 +1124,13 @@ export default function ClassesAndSubjectsPage() {
                     </div>
                      <div className="mt-4">
                         <Label htmlFor="class-assignment-filter">Select Class</Label>
-                        <Select value={selectedAssignmentClass} onValueChange={setSelectedAssignmentClass}>
-                            <SelectTrigger id="class-assignment-filter" className="w-full md:w-[280px]">
-                                <SelectValue placeholder="Select a class to view" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {classes.map((c) => (
-                                    <SelectItem key={c.id} value={c.id}>{c.name} {c.stream || ''}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                         <Combobox
+                            options={classes.map(c => ({ value: c.id, label: c.name }))}
+                            value={selectedAssignmentClass}
+                            onValueChange={setSelectedAssignmentClass}
+                            placeholder="Select a class to view"
+                            className="w-full md:w-[280px] mt-2"
+                        />
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
