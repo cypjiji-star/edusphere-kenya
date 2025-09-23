@@ -2,7 +2,7 @@
 'use client';
 
 import { ReactNode, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, AuthContextType, AllowedRole } from '@/context/auth-context';
