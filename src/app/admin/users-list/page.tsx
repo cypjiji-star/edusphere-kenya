@@ -109,7 +109,20 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Combobox } from "@/components/ui/combobox";
 
-type UserRole = "Admin" | "Teacher" | "Parent" | "Student" | string;
+type UserRole =
+  | "Admin"
+  | "Teacher"
+  | "Parent"
+  | "Student"
+  | "Cook"
+  | "Watchman"
+  | "Cleaner"
+  | "Farm Worker"
+  | "Board Member"
+  | "PTA Member"
+  | "Matron"
+  | "Patron"
+  | string;
 type UserStatus =
   | "Active"
   | "Pending"
@@ -566,6 +579,8 @@ export default function UserManagementListPage() {
     );
   }
 
+  const allRoleTabs = ["All", ...roles];
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <AlertDialog
@@ -714,7 +729,9 @@ export default function UserManagementListPage() {
                 </Button>
               </DialogClose>
               <Button type="submit" disabled={isSaving}>
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSaving && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Save Changes
               </Button>
             </DialogFooter>
@@ -737,8 +754,7 @@ export default function UserManagementListPage() {
             <div>
               <CardTitle>User Directory</CardTitle>
               <CardDescription>
-                A list of all non-student users in the system, organized by
-                role.
+                A list of all users in the system, organized by role.
               </CardDescription>
             </div>
             <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
@@ -1036,48 +1052,24 @@ export default function UserManagementListPage() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all">All Users</TabsTrigger>
-              <TabsTrigger value="Teacher">Teachers</TabsTrigger>
-              <TabsTrigger value="Parent">Parents</TabsTrigger>
-              <TabsTrigger value="Admin">Admins</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
+              {allRoleTabs.map((role) => (
+                <TabsTrigger key={role} value={role.toLowerCase()}>
+                  {role}
+                </TabsTrigger>
+              ))}
             </TabsList>
-            <TabsContent value="all" className="mt-4">
-              {isLoading ? (
-                <div className="flex h-64 items-center justify-center">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
-              ) : (
-                renderUserTable("All")
-              )}
-            </TabsContent>
-            <TabsContent value="Teacher" className="mt-4">
-              {isLoading ? (
-                <div className="flex h-64 items-center justify-center">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
-              ) : (
-                renderUserTable("Teacher")
-              )}
-            </TabsContent>
-            <TabsContent value="Parent" className="mt-4">
-              {isLoading ? (
-                <div className="flex h-64 items-center justify-center">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
-              ) : (
-                renderUserTable("Parent")
-              )}
-            </TabsContent>
-            <TabsContent value="Admin" className="mt-4">
-              {isLoading ? (
-                <div className="flex h-64 items-center justify-center">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
-              ) : (
-                renderUserTable("Admin")
-              )}
-            </TabsContent>
+            {allRoleTabs.map((role) => (
+              <TabsContent key={role} value={role.toLowerCase()} className="mt-4">
+                {isLoading ? (
+                  <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  renderUserTable(role as UserRole | "All")
+                )}
+              </TabsContent>
+            ))}
           </Tabs>
         </CardContent>
       </Card>

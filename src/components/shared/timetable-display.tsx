@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -621,12 +622,12 @@ export function TimetableDisplay({
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <CardTitle>Timetable for {selectedName}</CardTitle>
-                  {(view === "class" && user?.role === "admin") ? (
+                  {view === "class" && user?.role === "admin" && (
                     <CardDescription>
                       Drag subjects from the right panel and drop them into time
                       slots.
                     </CardDescription>
-                  ) : null}
+                  )}
                 </div>
                 <div className="flex w-full flex-col sm:flex-row sm:flex-wrap md:w-auto items-center gap-2">
                   <Select defaultValue={currentYear.toString()}>
