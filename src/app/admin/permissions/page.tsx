@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -182,6 +183,7 @@ export default function PermissionsPage() {
             actionType: 'Security',
             description: `Permissions updated for the "${role}" role.`,
             user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
+            details: `Permissions updated for the "${role}" role.`
         });
 
         toast({
@@ -220,6 +222,10 @@ export default function PermissionsPage() {
 
   const handleDeleteRole = async (roleToDelete: string) => {
       if (!schoolId) return;
+      if (rolePermissions[roleToDelete]?.isCore) {
+          toast({ title: 'Action Denied', description: `Cannot delete a core system role.`, variant: 'destructive' });
+          return;
+      }
       if (window.confirm(`Are you sure you want to delete the "${roleToDelete}" role?`)) {
           try {
               await deleteDoc(doc(firestore, `schools/${schoolId}/roles`, roleToDelete));
