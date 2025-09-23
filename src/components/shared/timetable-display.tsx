@@ -954,12 +954,12 @@ export function TimetableDisplay({
               )}
             </CardContent>
             {view === "class" && user?.role === "admin" && (
-               <CardFooter className="flex justify-end gap-2">
-                 <Button onClick={handleSave}>
-                   <Save className="mr-2 h-4 w-4" />
-                   Save Timetable
-                 </Button>
-               </CardFooter>
+              <CardFooter className="flex justify-end gap-2">
+                <Button onClick={handleSave}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Timetable
+                </Button>
+              </CardFooter>
             )}
           </Card>
         </div>
