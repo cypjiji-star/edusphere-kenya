@@ -26,6 +26,7 @@ import {
   updateDoc,
   arrayUnion,
   serverTimestamp,
+  deleteDoc,
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";

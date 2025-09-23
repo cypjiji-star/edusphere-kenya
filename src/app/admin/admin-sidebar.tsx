@@ -126,6 +126,11 @@ const navGroups = [
         badge: null,
         collection: "",
       },
+      {
+        href: "/admin/messaging",
+        label: "Direct Messaging",
+        icon: MessageCircle,
+      },
       { href: "/admin/calendar", label: "Events Calendar", icon: Calendar },
     ],
   },
@@ -141,6 +146,7 @@ const navGroups = [
     items: [
       { href: "/admin/sports", label: "Teams & Clubs", icon: Trophy },
       { href: "/admin/library", label: "Library", icon: Library },
+      { href: "/admin/boarding", label: "Boarding", icon: Bed },
       { href: "/admin/storage", label: "School Storage", icon: Package },
     ],
   },

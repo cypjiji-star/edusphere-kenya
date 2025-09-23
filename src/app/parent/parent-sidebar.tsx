@@ -89,6 +89,12 @@ const navItems = [
     icon: Calendar,
     badgeKey: null,
   },
+  {
+    href: "/parent/messaging",
+    label: "Direct Messaging",
+    icon: MessageCircle,
+    badgeKey: "unreadMessages",
+  },
 ];
 
 export function ParentSidebar() {
@@ -96,7 +102,7 @@ export function ParentSidebar() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get("schoolId");
   const isActive = (href: string) => pathname.startsWith(href);
-  const [dynamicBadges, setDynamicBadgets] = React.useState<
+  const [dynamicBadges, setDynamicBadges] = React.useState<
     Record<string, number>
   >({});
   const { user } = useAuth();
@@ -142,14 +148,33 @@ export function ParentSidebar() {
           unreadCount++;
         }
       });
-      setDynamicBadgets((prev) => ({
+      setDynamicBadges((prev) => ({
         ...prev,
         unreadAnnouncements: unreadCount,
       }));
     });
 
+    const messagesQuery = query(
+      collection(firestore, `schools/${schoolId}/conversations`),
+      where("participants", "array-contains", user.uid),
+    );
+    const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+      let unreadMessages = 0;
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.unread && data.lastMessageSender !== user.uid) {
+          unreadMessages++;
+        }
+      });
+      setDynamicBadges((prev) => ({
+        ...prev,
+        unreadMessages: unreadMessages,
+      }));
+    });
+
     return () => {
       unsubscribeAnnouncements();
+      unsubscribeMessages();
     };
   }, [schoolId, user]);
 
