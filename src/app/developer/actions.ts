@@ -118,15 +118,19 @@ export async function createUserAction(params: {
         const avatarUrl = `https://picsum.photos/seed/${uid}/100`;
         const userDocRef = doc(firestore, `schools/${schoolId}/users`, uid);
 
-        const userData = {
+        const userData: { [key: string]: any } = {
             id: uid, schoolId, name, email, role, 
             phone: phone || null, 
             startYear: startYear || null, 
             salary: salary || null, 
             nationalId: nationalId || null,
             status: 'Active', createdAt: serverTimestamp(), lastLogin: null, avatarUrl,
-            ...(role === 'Teacher' && { classIds: classes }),
         };
+
+        if (role === 'Teacher' && classes) {
+          userData['classIds'] = classes;
+        }
+
         await setDoc(userDocRef, userData);
     }
     
