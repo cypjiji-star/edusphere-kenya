@@ -122,7 +122,8 @@ export function FullCalendar({ schoolId }: { schoolId: string }) {
   React.useEffect(() => {
     if (!schoolId || !parentId) return;
     const q = query(
-      collection(firestore, `schools/${schoolId}/students`),
+      collection(firestore, `schools/${schoolId}/users`),
+      where("role", "==", "Student"),
       where("parentId", "==", parentId),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
