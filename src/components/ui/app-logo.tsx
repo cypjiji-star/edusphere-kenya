@@ -4,105 +4,57 @@ import { cn } from "@/lib/utils";
 export function AppLogo({ className }: { className?: string }) {
   return (
     <svg
-      className={cn("h-8 w-8", className)}
       viewBox="0 0 512 512"
+      className={cn("h-8 w-8", className)}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
-        {/* ① attribute-only → identical string on server & client */}
-        <linearGradient id="glow" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0%" stopColor="#00BFFF" stopOpacity=".8" />
-          <stop offset="100%" stopColor="#00BFFF" stopOpacity=".3" />
-        </linearGradient>
-
-        <filter id="inner-shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur" />
-          <feOffset dx="8.5" dy="8.5" />
-          <feComposite
-            in2="SourceAlpha"
-            operator="arithmetic"
-            k2="-1"
-            k3="1"
-            result="shadowDiff"
-          />
-          <feFlood floodColor="#000" floodOpacity=".3" />
-          <feComposite in2="shadowDiff" operator="in" />
-          <feComposite in2="SourceGraphic" operator="over" />
-        </filter>
-      </defs>
-
       <rect width="512" height="512" rx="85" fill="#0B0F19" />
-      <rect
-        width="512"
-        height="512"
-        rx="85"
-        fill="url(#glow)"
-        fillOpacity=".1"
+      <path
+        d="M64 96 C64 64 64 64 128 64 H384 C448 64 448 64 448 96 V288 C448 384 256 448 256 448 S64 384 64 288 V96 Z"
+        fill="#121826"
+        stroke="hsl(var(--primary) / 0.3)"
+        strokeWidth="8"
       />
-
-      <g filter="url(#inner-shadow)">
-        <path
-          d="M106 425 L106 212 L256 106 L406 212 L406 425 Z"
-          fill="#121826"
-          stroke="#00BFFF"
-          strokeWidth="6.3"
-          strokeOpacity=".2"
-        />
-      </g>
-
-      <rect
-        x="162"
-        y="255"
-        width="34"
-        height="106"
-        fill="#00BFFF"
-        rx="8.5"
-        opacity=".8"
-      >
+      <path
+        d="M256 220 C200 210 160 240 160 280 V360 H256 V220 Z"
+        fill="#1E293B"
+      />
+      <path
+        d="M256 220 C312 210 352 240 352 280 V360 H256 V220 Z"
+        fill="#1E293B"
+      />
+      <path
+        d="M160 360 C160 380 200 390 256 390 C312 390 352 380 352 360 H160 Z"
+        fill="#293548"
+      />
+      <path
+        d="M160 280 C160 240 200 210 256 220 C312 210 352 240 352 280"
+        stroke="hsl(var(--primary) / 0.5)"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      <circle cx="256" cy="180" r="40" fill="hsl(var(--accent))">
         <animate
-          attributeName="opacity"
-          values="0.6;1;0.6"
+          attributeName="r"
+          values="40;45;40"
           dur="3s"
           repeatCount="indefinite"
         />
-      </rect>
-      <rect
-        x="239"
-        y="255"
-        width="34"
-        height="149"
-        fill="#00BFFF"
-        rx="8.5"
-        opacity=".9"
-      >
         <animate
           attributeName="opacity"
-          values="0.7;1;0.7"
+          values="0.8;1;0.8"
           dur="3s"
           repeatCount="indefinite"
-          begin="0.5s"
         />
-      </rect>
-      <rect
-        x="316"
-        y="255"
-        width="34"
-        height="106"
-        fill="#00BFFF"
-        rx="8.5"
-        opacity=".8"
-      >
-        <animate
-          attributeName="opacity"
-          values="0.6;1;0.6"
-          dur="3s"
-          repeatCount="indefinite"
-          begin="1s"
-        />
-      </rect>
-
-      <path d="M256 106 L406 212 L106 212 Z" fill="url(#glow)" fillOpacity=".5" />
+      </circle>
+      <path
+        d="M256 180 L256 140 M256 220 L256 260 M200 180 L160 180 M312 180 L352 180 M216 140 L190 114 M300 140 L326 114 M216 220 L190 246 M300 220 L326 246"
+        stroke="hsl(var(--accent))"
+        strokeWidth="8"
+        strokeLinecap="round"
+        opacity="0.5"
+      />
     </svg>
   );
 }
