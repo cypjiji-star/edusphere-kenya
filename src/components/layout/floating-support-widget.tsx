@@ -71,7 +71,7 @@ export function FloatingSupportWidget() {
           <span className="sr-only">Open Support Chat</span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-full">
+      <SheetContent side="bottom" className="h-auto max-h-[80svh] w-full rounded-t-lg p-0 flex flex-col sm:max-w-md">
         <SheetHeader className="p-4 border-b">
           <SheetTitle>Support Assistant</SheetTitle>
         </SheetHeader>
