@@ -1,19 +1,13 @@
-// components/ui/page-loader.tsx
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-
-function LoaderCore() {
-  const searchParams = useSearchParams(); // ← hook lives here
-  /* your logic */
-  return null;
-}
+import { usePathname } from "next/navigation";
 
 export function ClientPageLoader() {
-  return (
-    <Suspense fallback={null}>
-      <LoaderCore />
-    </Suspense>
-  );
+  const pathname = usePathname();
+
+  // don’t run on 404 or any non-existent route
+  if (pathname === "/404" || pathname === "/_not-found") return null;
+
+  /* your existing loader logic (no hooks that crash) */
+  return null;
 }
