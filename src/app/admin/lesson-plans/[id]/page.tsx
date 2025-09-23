@@ -61,6 +61,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 type VersionHistoryItem = {
   id: string;
   version: number;
