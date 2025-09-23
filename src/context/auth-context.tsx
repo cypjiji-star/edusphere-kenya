@@ -28,6 +28,7 @@ export interface AuthContextType {
   role: AllowedRole;
   loading: boolean;
   clientReady: boolean;
+  schoolId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [clientReady, setClientReady] = React.useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const schoolId = searchParams.get("schoolId");
 
   useEffect(() => {
     // This effect runs only once on the client after initial mount.
@@ -72,18 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          const urlSchoolId = searchParams.get("schoolId");
-          const sessionSchoolId =
-            typeof window !== "undefined"
-              ? window.sessionStorage.getItem("schoolId")
-              : null;
-          const schoolId = urlSchoolId || sessionSchoolId;
+          if (schoolId && typeof window !== "undefined") {
+            window.sessionStorage.setItem("schoolId", schoolId);
+          }
 
-          if (schoolId) {
+          const resolvedSchoolId =
+            schoolId ||
+            (typeof window !== "undefined"
+              ? window.sessionStorage.getItem("schoolId")
+              : null);
+
+          if (resolvedSchoolId) {
             const userDocRef = doc(
               firestore,
               "schools",
-              schoolId,
+              resolvedSchoolId,
               "users",
               authUser.uid,
             );
@@ -105,10 +110,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return () => unsubscribe();
     });
-  }, [pathname, searchParams]);
+  }, [pathname, schoolId]);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, clientReady }}>
+    <AuthContext.Provider
+      value={{ user, role, loading, clientReady, schoolId }}
+    >
       <SplashScreen />
       <ClientPageLoader />
       {children}

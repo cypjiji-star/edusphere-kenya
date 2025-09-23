@@ -14,10 +14,10 @@ function AuthChecker({
   children: ReactNode;
   requiredRole: AllowedRole;
 }) {
-  const { user, role, loading, clientReady } = useAuth() as AuthContextType;
+  const { user, role, loading, clientReady, schoolId } =
+    useAuth() as AuthContextType;
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (
@@ -56,7 +56,6 @@ function AuthChecker({
 
   if (role !== "unknown" && !hasPermission) {
     // Special case: Developers can access admin pages.
-    const schoolId = searchParams.get("schoolId");
     if (role === "developer" && requiredRole === "admin" && schoolId) {
       return <>{children}</>;
     }
