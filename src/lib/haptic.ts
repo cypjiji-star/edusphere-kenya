@@ -1,3 +1,6 @@
+
+import { ImpactStyle } from "@capacitor/haptics";
+
 export const light = () => {
   if ("vibrate" in navigator) navigator.vibrate(10);
   // Capacitor Haptics plugin check
@@ -6,7 +9,7 @@ export const light = () => {
     (window as any).Capacitor.isPluginAvailable("Haptics")
   ) {
     import("@capacitor/haptics").then((haptics) =>
-      haptics.Haptics.impact({ style: "light" }),
+      haptics.Haptics.impact({ style: ImpactStyle.Light }),
     );
   }
 };
