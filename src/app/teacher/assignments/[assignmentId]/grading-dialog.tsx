@@ -33,7 +33,6 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
-import { light } from "@/lib/haptic";
 
 export const gradingSchema = z.object({
   grade: z.string().min(1, "Grade is required."),
@@ -208,7 +207,6 @@ export function GradingDialog({
               <Button
                 type="submit"
                 disabled={isLoading}
-                onClick={() => light()}
               >
                 {isLoading ? (
                   <>

@@ -19,7 +19,6 @@ import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { logAuditEvent } from "@/lib/audit-log.service";
-import { light } from "@/lib/haptic";
 
 export function LoginForm() {
   const router = useRouter();
@@ -38,7 +37,7 @@ export function LoginForm() {
     if (!schoolId) {
       toast({
         title: "School ID Required",
-        description: "Please enter your school ID to log in.",
+        description: "Please enter your school's unique ID to log in.",
         variant: "destructive",
       });
       setIsLoading(false);
@@ -180,7 +179,6 @@ export function LoginForm() {
         type="submit"
         className="w-full"
         disabled={isLoading}
-        onClick={() => light()}
       >
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Login

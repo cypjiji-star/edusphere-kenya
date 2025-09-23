@@ -123,7 +123,6 @@ import { useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/auth-context";
 import { usePullRefresh } from "@/hooks/use-pull-refresh";
-import { light } from "@/lib/haptic";
 
 type AnnouncementCategory = "Urgent" | "Academic" | "Event" | "General";
 
@@ -335,7 +334,6 @@ export default function AdminAnnouncementsPage() {
   const totalPages = Math.ceil(pastAnnouncements.length / announcementsPerPage);
 
   const handleTranslate = async () => {
-    light();
     const message = form.getValues("message");
     if (!message) {
       toast({
@@ -1037,7 +1035,6 @@ export default function AdminAnnouncementsPage() {
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      onClick={() => light()}
                     >
                       {isSubmitting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -39,7 +39,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { firestore } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { light } from "@/lib/haptic";
 
 export const assignmentSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
@@ -314,7 +313,6 @@ export function AssignmentForm() {
             type="submit"
             disabled={isLoading}
             className="w-full md:w-auto"
-            onClick={() => light()}
           >
             {isLoading ? (
               <>
