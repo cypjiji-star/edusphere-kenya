@@ -8,7 +8,7 @@ import {
 import { AdminSidebar } from "./admin-sidebar";
 import { Suspense } from "react";
 import { AuthCheck } from "@/lib/auth-check";
-import { FloatingChatWidget } from "../admin/client-widgets";
+import { FloatingChatWidget } from "@/components/layout/support-widget-client";
 
 export default function AdminLayout({
   children,
