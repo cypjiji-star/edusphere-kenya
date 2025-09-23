@@ -877,8 +877,7 @@ export function TimetableDisplay({
                                                   Edit Lesson
                                                 </DialogTitle>
                                                 <DialogDescription>
-                                                  Change the room for this
-                                                  lesson.
+                                                  Change the room for this lesson.
                                                 </DialogDescription>
                                               </DialogHeader>
                                               <div className="py-4">
@@ -1084,3 +1083,5 @@ export function TimetableDisplay({
     </DndContext>
   );
 }
+
+    
