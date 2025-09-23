@@ -140,50 +140,20 @@ export default function TeacherPaymentsPage() {
             const student = allTeacherStudents.find(s => s.id === selectedStudentId);
             if (!student) throw new Error("Student not found");
 
-            // Use a transaction to ensure all writes succeed or fail together
             await runTransaction(firestore, async (transaction) => {
-                const studentRef = doc(firestore, 'schools', schoolId, 'users', selectedStudentId);
-                const studentDoc = await transaction.get(studentRef);
-
-                if (!studentDoc.exists()) {
-                    throw new Error("Student data could not be found.");
-                }
-
-                // 1. Update the student's main fee profile
-                const currentData = studentDoc.data();
-                const newAmountPaid = (currentData.amountPaid || 0) + paymentAmount;
-                const newBalance = (currentData.totalFee || 0) - newAmountPaid;
-
-                transaction.update(studentRef, {
-                    amountPaid: newAmountPaid,
-                    balance: newBalance,
-                });
-
-                // 2. Add a transaction to the student's ledger
-                const studentTransactionRef = doc(collection(studentRef, 'transactions'));
-                transaction.set(studentTransactionRef, {
-                    date: serverTimestamp(),
-                    description: `Class Funds: ${description}`,
-                    type: 'Payment',
-                    amount: -paymentAmount,
-                    balance: newBalance,
-                    recordedBy: user.displayName || 'Teacher',
-                });
-                
-                // 3. Add to the school-wide transaction log for financial reporting
                 const schoolTransactionRef = doc(collection(firestore, `schools/${schoolId}/transactions`));
                  transaction.set(schoolTransactionRef, {
                     studentId: selectedStudentId,
                     studentName: student.name,
                     class: teacherClasses.find(c => c.id === student.classId)?.name || 'Unknown',
                     date: serverTimestamp(),
-                    description: `Class Funds: ${description}`,
+                    description: `Class Funds (${description})`,
                     type: 'Payment',
                     amount: paymentAmount,
                     method: 'Class Collection',
+                    recordedBy: user.displayName || 'Teacher',
                 });
 
-                // 4. Log the mini-payment for the teacher's record
                 const miniPaymentRef = doc(collection(firestore, `schools/${schoolId}/mini_payments`));
                 transaction.set(miniPaymentRef, {
                     studentId: selectedStudentId,
@@ -198,7 +168,7 @@ export default function TeacherPaymentsPage() {
                 });
             });
             
-            toast({ title: 'Payment Recorded', description: 'The payment has been successfully logged and student balance updated.' });
+            toast({ title: 'Payment Recorded', description: 'The payment has been successfully logged.' });
             setSelectedStudentId('');
             setAmount('');
             setDescription('');
