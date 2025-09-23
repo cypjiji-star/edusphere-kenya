@@ -26,7 +26,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { FileText, Loader2, Save } from 'lucide-react';
+import { FileText, Loader2, Save, Archive } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, where, getDocs, Timestamp, orderBy, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
@@ -36,11 +36,16 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { saveGradesAction } from './actions';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type Student = {
     id: string;
     name: string;
     avatarUrl: string;
+    grades?: Record<string, string>; // Optional for grade entry list
+    average?: number;
+    rank?: number;
 };
 
 type TeacherClass = {
@@ -61,6 +66,13 @@ type Exam = {
     status: 'Open' | 'Closed';
 }
 
+type GradeRecord = {
+    studentId: string;
+    subject: string;
+    grade: string;
+    examId: string;
+}
+
 export default function TeacherGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
@@ -71,13 +83,20 @@ export default function TeacherGradesPage() {
     const [allSubjects, setAllSubjects] = React.useState<Subject[]>([]);
     const [students, setStudents] = React.useState<Student[]>([]);
     const [openExams, setOpenExams] = React.useState<Exam[]>([]);
+    const [archivedExams, setArchivedExams] = React.useState<Exam[]>([]);
     
+    // State for Grade Entry
     const [selectedClassId, setSelectedClassId] = React.useState<string>('');
     const [selectedSubject, setSelectedSubject] = React.useState<string>('');
     const [selectedExamId, setSelectedExamId] = React.useState<string>('');
-
     const [grades, setGrades] = React.useState<Record<string, { grade: string, studentName: string }>>({});
     
+    // State for Exam Archives
+    const [rankingExamId, setRankingExamId] = React.useState<string>('');
+    const [rankedStudentsByClass, setRankedStudentsByClass] = React.useState<Record<string, Student[]>>({});
+    const [rankingSubjects, setRankingSubjects] = React.useState<string[]>([]);
+    const [isRankingLoading, setIsRankingLoading] = React.useState(false);
+
     const [isLoading, setIsLoading] = React.useState({
         classes: true,
         subjects: true,
@@ -87,7 +106,7 @@ export default function TeacherGradesPage() {
     const [isSaving, setIsSaving] = React.useState(false);
 
 
-    // Fetch teacher's classes and subjects
+    // Fetch teacher's classes, subjects, and exams
     React.useEffect(() => {
         if (!schoolId || !user) return;
         const teacherId = user.uid;
@@ -112,14 +131,20 @@ export default function TeacherGradesPage() {
             setIsLoading(prev => ({ ...prev, exams: false }));
         });
 
+        const archivedExamsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('status', '==', 'Closed'), orderBy('date', 'desc'));
+        const unsubArchivedExams = onSnapshot(archivedExamsQuery, (snapshot) => {
+            setArchivedExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+        });
+
         return () => {
             unsubClasses();
             unsubSubjects();
             unsubOpenExams();
+            unsubArchivedExams();
         };
     }, [schoolId, user]);
 
-    // Fetch students when a class is selected
+    // Fetch students when a class is selected for grade entry
     React.useEffect(() => {
         if (!selectedClassId || !schoolId) {
             setStudents([]);
@@ -139,6 +164,75 @@ export default function TeacherGradesPage() {
 
         return () => unsubStudents();
     }, [selectedClassId, schoolId]);
+
+    // Fetch and compute rankings for all teacher's classes for the selected archived exam
+    React.useEffect(() => {
+        if (!rankingExamId || !schoolId || allClasses.length === 0) {
+            setRankedStudentsByClass({});
+            return;
+        }
+
+        setIsRankingLoading(true);
+
+        const fetchAllRankings = async () => {
+            const studentsByClass: Record<string, Student[]> = {};
+            const classIds = allClasses.map(c => c.id);
+
+            const studentQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', 'in', classIds));
+            const studentSnap = await getDocs(studentQuery);
+            studentSnap.forEach(doc => {
+                const data = doc.data();
+                if (!studentsByClass[data.classId]) {
+                    studentsByClass[data.classId] = [];
+                }
+                studentsByClass[data.classId].push({
+                    id: doc.id,
+                    name: data.name,
+                    avatarUrl: data.avatarUrl || `https://picsum.photos/seed/${doc.id}/100`,
+                    grades: {},
+                });
+            });
+            
+            const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('examId', '==', rankingExamId), where('status', 'in', ['Approved', 'Pending Approval']));
+            const gradesSnapshot = await getDocs(gradesQuery);
+            const gradesData: GradeRecord[] = gradesSnapshot.docs.map(d => d.data() as GradeRecord);
+            const allSubjectsInView = new Set<string>();
+
+            const newRankedData: Record<string, Student[]> = {};
+
+            for (const classId in studentsByClass) {
+                const studentsInClass = studentsByClass[classId];
+                if(studentsInClass.length === 0) continue;
+                
+                const studentsWithGrades = studentsInClass.map(student => {
+                    const studentGrades: Record<string, string> = {};
+                    gradesData.forEach(grade => {
+                        if (grade.studentId === student.id) {
+                            studentGrades[grade.subject] = grade.grade;
+                            allSubjectsInView.add(grade.subject);
+                        }
+                    });
+                    const numericGrades = Object.values(studentGrades).map(g => parseInt(g, 10)).filter(g => !isNaN(g));
+                    const average = numericGrades.length > 0 ? Math.round(numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length) : 0;
+                    return { ...student, grades: studentGrades, average };
+                });
+
+                studentsWithGrades.sort((a, b) => (b.average || 0) - (a.average || 0));
+                
+                newRankedData[classId] = studentsWithGrades.map((student, index) => ({
+                    ...student,
+                    rank: index + 1
+                }));
+            }
+
+            setRankedStudentsByClass(newRankedData);
+            setRankingSubjects(Array.from(allSubjectsInView).sort());
+            setIsRankingLoading(false);
+        };
+
+        fetchAllRankings();
+
+    }, [rankingExamId, schoolId, allClasses]);
 
     const handleGradeChange = (studentId: string, studentName: string, grade: string) => {
         setGrades(prev => ({
@@ -172,105 +266,187 @@ export default function TeacherGradesPage() {
             <div className="mb-6">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                     <FileText className="h-8 w-8 text-primary" />
-                    Grade Entry
+                    Grades & Exams
                 </h1>
-                <p className="text-muted-foreground">Enter student grades for a specific class, subject, and exam.</p>
+                <p className="text-muted-foreground">Enter student grades and review exam history.</p>
             </div>
             
-            <Card>
-                <CardHeader>
-                    <CardTitle>Select Details</CardTitle>
-                    <CardDescription>Choose a class, subject, and exam to begin entering grades.</CardDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-                        <div className="space-y-2">
-                            <Label>Class</Label>
-                            <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={isLoading.classes}>
-                                <SelectTrigger><SelectValue placeholder="Select a class..." /></SelectTrigger>
-                                <SelectContent>
-                                    {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Subject</Label>
-                             <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={isLoading.subjects}>
-                                <SelectTrigger><SelectValue placeholder="Select a subject..." /></SelectTrigger>
-                                <SelectContent>
-                                    {allSubjects.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Exam</Label>
-                             <Select value={selectedExamId} onValueChange={setSelectedExamId} disabled={isLoading.exams}>
-                                <SelectTrigger><SelectValue placeholder="Select an exam..." /></SelectTrigger>
-                                <SelectContent>
-                                    {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </CardHeader>
-                {canShowTable && (
-                <>
-                <CardContent>
-                    {isLoading.students ? (
-                        <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
-                    ) : (
-                        <div className="w-full overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Student</TableHead>
-                                        <TableHead className="w-48">Grade/Score (%)</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {students.length > 0 ? (
-                                        students.map((student) => (
-                                            <TableRow key={student.id}>
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="h-9 w-9">
-                                                            <AvatarImage src={student.avatarUrl} />
-                                                            <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                        {student.name}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input 
-                                                        type="number" 
-                                                        placeholder="Enter grade" 
-                                                        max="100" 
-                                                        min="0"
-                                                        value={grades[student.id]?.grade || ''}
-                                                        onChange={(e) => handleGradeChange(student.id, student.name, e.target.value)}
-                                                    />
-                                                </TableCell>
+            <Tabs defaultValue="entry">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="entry">Grade Entry</TabsTrigger>
+                    <TabsTrigger value="archives">Exam Archives</TabsTrigger>
+                </TabsList>
+                <TabsContent value="entry" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Select Details</CardTitle>
+                            <CardDescription>Choose a class, subject, and exam to begin entering grades.</CardDescription>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                                <div className="space-y-2">
+                                    <Label>Class</Label>
+                                    <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={isLoading.classes}>
+                                        <SelectTrigger><SelectValue placeholder="Select a class..." /></SelectTrigger>
+                                        <SelectContent>
+                                            {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Subject</Label>
+                                    <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={isLoading.subjects}>
+                                        <SelectTrigger><SelectValue placeholder="Select a subject..." /></SelectTrigger>
+                                        <SelectContent>
+                                            {allSubjects.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Exam</Label>
+                                    <Select value={selectedExamId} onValueChange={setSelectedExamId} disabled={isLoading.exams}>
+                                        <SelectTrigger><SelectValue placeholder="Select an exam..." /></SelectTrigger>
+                                        <SelectContent>
+                                            {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        {canShowTable && (
+                        <>
+                        <CardContent>
+                            {isLoading.students ? (
+                                <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+                            ) : (
+                                <div className="w-full overflow-auto rounded-lg border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Student</TableHead>
+                                                <TableHead className="w-48">Grade/Score (%)</TableHead>
                                             </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                                                No students found in this class.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                </CardContent>
-                <CardFooter className="flex justify-end">
-                    <Button onClick={handleSaveGrades} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
-                        Save Grades
-                    </Button>
-                </CardFooter>
-                </>
-                )}
-            </Card>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {students.length > 0 ? (
+                                                students.map((student) => (
+                                                    <TableRow key={student.id}>
+                                                        <TableCell className="font-medium">
+                                                            <div className="flex items-center gap-2">
+                                                                <Avatar className="h-9 w-9">
+                                                                    <AvatarImage src={student.avatarUrl} />
+                                                                    <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                                                                </Avatar>
+                                                                {student.name}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Input 
+                                                                type="number" 
+                                                                placeholder="Enter grade" 
+                                                                max="100" 
+                                                                min="0"
+                                                                value={grades[student.id]?.grade || ''}
+                                                                onChange={(e) => handleGradeChange(student.id, student.name, e.target.value)}
+                                                            />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                                                        No students found in this class.
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                        <CardFooter className="flex justify-end">
+                            <Button onClick={handleSaveGrades} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
+                                Save Grades
+                            </Button>
+                        </CardFooter>
+                        </>
+                        )}
+                    </Card>
+                </TabsContent>
+                <TabsContent value="archives" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <div className="space-y-2">
+                                <Label>Select an Exam to View History</Label>
+                                <Select value={rankingExamId} onValueChange={setRankingExamId} disabled={isLoading.exams}>
+                                    <SelectTrigger className="w-full md:w-72"><SelectValue placeholder="Select an archived exam..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {archivedExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {isRankingLoading ? (
+                                <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+                            ) : !rankingExamId ? (
+                                    <div className="text-center py-16 text-muted-foreground">Please select an archived exam to view class rankings.</div>
+                            ) : (
+                            <Accordion type="single" collapsible className="w-full">
+                                {allClasses.map(c => {
+                                    const rankedStudents = rankedStudentsByClass[c.id] || [];
+                                    return (
+                                    <AccordionItem value={c.id} key={c.id}>
+                                        <AccordionTrigger className="text-lg font-semibold">{c.name}</AccordionTrigger>
+                                        <AccordionContent>
+                                            {rankedStudents.length > 0 ? (
+                                                    <div className="w-full overflow-auto rounded-lg border">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Rank</TableHead>
+                                                                <TableHead>Student</TableHead>
+                                                                {rankingSubjects.map(subject => (
+                                                                    <TableHead key={subject} className="text-center">{subject}</TableHead>
+                                                                ))}
+                                                                <TableHead className="text-right font-bold">Average</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {rankedStudents.map((student) => (
+                                                                <TableRow key={student.id}>
+                                                                    <TableCell className="font-bold text-lg text-center">{student.rank}</TableCell>
+                                                                    <TableCell className="font-medium">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Avatar className="h-9 w-9">
+                                                                                <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                                                                            </Avatar>
+                                                                            {student.name}
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    {rankingSubjects.map(subject => (
+                                                                        <TableCell key={subject} className="text-center font-semibold">
+                                                                            {student.grades?.[subject] || '—'}
+                                                                        </TableCell>
+                                                                    ))}
+                                                                    <TableCell className="text-right font-extrabold text-primary">{student.average?.toFixed(1)}%</TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            ) : (
+                                                <div className="text-center text-muted-foreground py-8">No grades found for this class for the selected exam.</div>
+                                            )}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                    )
+                                })}
+                            </Accordion>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
