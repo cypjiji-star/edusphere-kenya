@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -30,7 +31,6 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { FinanceSnapshot } from "./admin-charts";
 import { CalendarWidget } from "./calendar-widget";
