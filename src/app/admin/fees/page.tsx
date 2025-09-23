@@ -779,7 +779,8 @@ export default function FeesPage() {
     const paymentsQuery = query(
       collection(firestore, `schools/${schoolId}/transactions`),
       where('date', '>=', Timestamp.fromDate(startOfToday)),
-      where('type', '==', 'Payment')
+      where('type', '==', 'Payment'),
+      where('method', '!=', 'Class Collection')
     );
     unsubscribers.push(onSnapshot(paymentsQuery, (snapshot) => {
       let todaysTotal = 0;
@@ -789,7 +790,8 @@ export default function FeesPage() {
     
     const transactionsQuery = query(
       collection(firestore, `schools/${schoolId}/transactions`),
-      where('type', '==', 'Payment')
+      where('type', '==', 'Payment'),
+      where('method', '!=', 'Class Collection')
     );
     unsubscribers.push(onSnapshot(transactionsQuery, (snapshot) => {
       const monthlyCollections: Record<string, number> = {};

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -23,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, getDocs, where } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 
@@ -42,34 +43,35 @@ const performanceChartConfig = {
 export function FinanceSnapshot() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
-  const [financeData, setFinanceData] = React.useState({ totalCollected: 0, totalBilled: 1 });
+  const [financeData, setFinanceData] = React.useState({ totalCollected: 0, totalBilled: 0 });
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+      setIsLoading(false);
+      return;
+    }
 
-    const transactionsQuery = query(collection(firestore, `schools/${schoolId}/transactions`));
-    const unsubscribe = onSnapshot(transactionsQuery, (querySnapshot) => {
-        let totalCollected = 0;
+    const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'));
+    const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
         let totalBilled = 0;
+        let totalCollected = 0;
 
-        querySnapshot.forEach(doc => {
-            const transaction = doc.data();
-            if (transaction.type === 'Payment') {
-                totalCollected += Math.abs(transaction.amount);
-            } else if (transaction.type === 'Charge') {
-                totalBilled += transaction.amount;
-            }
+        snapshot.forEach(doc => {
+            const student = doc.data();
+            totalBilled += student.totalFee || 0;
+            totalCollected += student.amountPaid || 0;
         });
-
+        
         setFinanceData({ totalCollected, totalBilled });
         setIsLoading(false);
+
     }, (error) => {
-        console.error("Error fetching finance data:", error);
+        console.error("Error fetching finance data from students:", error);
         setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeStudents();
   }, [schoolId]);
 
   const totalOutstanding = financeData.totalBilled - financeData.totalCollected;
