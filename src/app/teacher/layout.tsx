@@ -1,3 +1,4 @@
+
 import {
   SidebarProvider,
   Sidebar,
@@ -29,7 +30,7 @@ export default function TeacherLayout({
             </div>
           </header>
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
-            {children}
+            <Suspense>{children}</Suspense>
             <Suspense>
               <FloatingSupportWidget />
             </Suspense>

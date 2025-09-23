@@ -1,3 +1,4 @@
+
 import {
   SidebarProvider,
   Sidebar,
@@ -28,7 +29,7 @@ export default function ParentLayout({
               <SidebarTrigger />
             </div>
           </header>
-          {children}
+          <Suspense>{children}</Suspense>
           <Suspense>
             <FloatingSupportWidget />
           </Suspense>

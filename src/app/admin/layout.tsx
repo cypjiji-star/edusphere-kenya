@@ -26,7 +26,7 @@ export default function AdminLayout({
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
             <SidebarTrigger />
-            {children}
+            <Suspense>{children}</Suspense>
             <Suspense>
               <FloatingChatWidget />
             </Suspense>
