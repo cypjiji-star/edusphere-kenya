@@ -10,7 +10,7 @@ import {
 import { AdminSidebar } from "./admin-sidebar";
 import { Suspense } from "react";
 import { AuthCheck } from "@/lib/auth-check";
-import { FloatingChatWidget } from "@/components/layout/floating-support-widget";
+import { FloatingChatWidget } from "./floating-chat-widget";
 import { usePathname } from "next/navigation";
 
 export default function AdminLayout({
