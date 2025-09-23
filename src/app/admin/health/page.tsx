@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -197,7 +196,7 @@ export default function AdminHealthPage() {
     React.useEffect(() => {
         if (!schoolId) return;
 
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'));
         const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
             const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class, ...doc.data() }));
             setAllStudents(studentsData);
@@ -224,7 +223,7 @@ export default function AdminHealthPage() {
 
     React.useEffect(() => {
         if (selectedHealthStudent && schoolId) {
-            const studentRef = doc(firestore, 'schools', schoolId, 'students', selectedHealthStudent);
+            const studentRef = doc(firestore, 'schools', schoolId, 'users', selectedHealthStudent);
             const unsubscribe = onSnapshot(studentRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
@@ -531,27 +530,29 @@ export default function AdminHealthPage() {
                                                 </div>
                                                 <FormField control={form.control} name="location" render={({ field }) => ( <FormItem> <FormLabel>Location</FormLabel> <FormControl> <Input placeholder="e.g., Science Lab, Playground" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                                                 <FormField
-                                                  control={form.control}
-                                                  name="urgency"
-                                                  render={({ field }) => (
+                                                    control={form.control}
+                                                    name="urgency"
+                                                    render={({ field }) => (
                                                     <FormItem>
                                                       <FormLabel>Urgency Level</FormLabel>
-                                                      <RadioGroup
-                                                        onValueChange={field.onChange}
-                                                        defaultValue={field.value}
-                                                        className="flex space-x-4"
-                                                      >
-                                                        {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                          <FormItem key={level} className="flex items-center space-x-2 space-y-0">
-                                                            <FormControl>
-                                                              <RadioGroupItem value={level} id={`urgency-admin-${level}`} />
-                                                            </FormControl>
-                                                            <Label htmlFor={`urgency-admin-${level}`} className="font-normal">
-                                                              <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                            </Label>
-                                                          </FormItem>
-                                                        ))}
-                                                      </RadioGroup>
+                                                        <FormControl>
+                                                            <RadioGroup
+                                                                onValueChange={field.onChange}
+                                                                defaultValue={field.value}
+                                                                className="flex space-x-4"
+                                                            >
+                                                                {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                                <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                                    <FormControl>
+                                                                    <RadioGroupItem value={level} id={`urgency-admin-${level}`} />
+                                                                    </FormControl>
+                                                                    <Label htmlFor={`urgency-admin-${level}`} className="font-normal">
+                                                                    <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                                    </Label>
+                                                                </FormItem>
+                                                                ))}
+                                                            </RadioGroup>
+                                                        </FormControl>
                                                       <FormMessage />
                                                     </FormItem>
                                                   )}

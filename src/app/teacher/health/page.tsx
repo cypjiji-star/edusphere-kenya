@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -66,54 +65,31 @@ type IncidentStatus = 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
 
 type Incident = {
   id: string;
-  studentId: string;
-  studentName: string;
-  class: string;
-  type: IncidentType;
-  description: string;
   date: Timestamp;
+  time?: string;
+  location?: string;
+  type: 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
+  description: string;
   reportedBy: string;
-  reportedById: string;
-  status: IncidentStatus;
-  urgency?: 'Low' | 'Medium' | 'High' | 'Critical';
+  status: 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
+  actionsTaken?: string;
+  followUpNeeded?: string;
 };
 
-type TeacherStudent = { id: string; name: string; class: string; };
-type TeacherClass = { id: string; name: string; };
+type Medication = {
+    id: string;
+    date: Timestamp;
+    medication: string;
+    dosage: string;
+    administeredBy: string;
+};
 
-const incidentSchema = z.object({
-  studentId: z.string({ required_error: 'Please select a student.' }),
-  incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue', 'Other']),
-  incidentDate: z.date({ required_error: 'An incident date is required.' }),
-  incidentTime: z.string().min(1, 'Time is required'),
-  location: z.string().optional(),
-  description: z.string().min(20, 'Please provide a detailed description (at least 20 characters).'),
-  actionsTaken: z.string().min(10, 'Please describe the actions taken.'),
-  urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
-});
-
-type IncidentFormValues = z.infer<typeof incidentSchema>;
-
-const getStatusBadge = (status: IncidentStatus) => {
-    switch (status) {
-        case 'Reported': return <Badge variant="secondary">Reported</Badge>;
-        case 'Under Review': return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
-        case 'Resolved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
-        case 'Archived': return <Badge variant="outline">Archived</Badge>;
-        default: return <Badge variant="secondary">{status}</Badge>;
-    }
-}
-
-const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
-    switch (urgency) {
-        case 'Critical': return 'bg-red-700 text-white';
-        case 'High': return 'bg-red-500 text-white';
-        case 'Medium': return 'bg-yellow-500 text-white';
-        case 'Low': return 'bg-blue-500 text-white';
-        default: return 'bg-gray-500 text-white';
-    }
-}
-
+type HealthRecord = {
+    allergies: string[];
+    conditions: string[];
+    emergencyContact: { name: string; relationship: string; phone: string };
+    lastHealthCheck?: string;
+};
 
 export default function TeacherHealthPage() {
     const { toast } = useToast();
@@ -121,8 +97,8 @@ export default function TeacherHealthPage() {
     const schoolId = searchParams.get('schoolId');
     const { user } = useAuth();
     
-    const [teacherClasses, setTeacherClasses] = React.useState<TeacherClass[]>([]);
-    const [teacherStudents, setTeacherStudents] = React.useState<TeacherStudent[]>([]);
+    const [teacherClasses, setTeacherClasses] = React.useState<any[]>([]);
+    const [teacherStudents, setTeacherStudents] = React.useState<any[]>([]);
     const [incidents, setIncidents] = React.useState<Incident[]>([]);
     
     const [selectedIncident, setSelectedIncident] = React.useState<Incident | null>(null);
@@ -135,6 +111,19 @@ export default function TeacherHealthPage() {
     });
     const [incidentsPage, setIncidentsPage] = React.useState(1);
     const incidentsPerPage = 10;
+
+    const incidentSchema = z.object({
+        studentId: z.string({ required_error: 'Please select a student.' }),
+        incidentType: z.enum(['Health', 'Discipline', 'Accident', 'Bullying', 'Safety Issue', 'Other']),
+        incidentDate: z.date({ required_error: 'An incident date is required.' }),
+        incidentTime: z.string().min(1, 'Time is required'),
+        location: z.string().optional(),
+        description: z.string().min(20, 'Please provide a detailed description (at least 20 characters).'),
+        actionsTaken: z.string().min(10, 'Please describe the actions taken.'),
+        urgency: z.enum(['Low', 'Medium', 'High', 'Critical']),
+    });
+
+    type IncidentFormValues = z.infer<typeof incidentSchema>;
 
     const form = useForm<IncidentFormValues>({
         resolver: zodResolver(incidentSchema),
@@ -258,6 +247,26 @@ export default function TeacherHealthPage() {
       [filteredIncidents, incidentsPage]
     );
 
+    const getStatusBadge = (status: IncidentStatus) => {
+        switch (status) {
+            case 'Reported': return <Badge variant="secondary">Reported</Badge>;
+            case 'Under Review': return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600">Under Review</Badge>;
+            case 'Resolved': return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Resolved</Badge>;
+            case 'Archived': return <Badge variant="outline">Archived</Badge>;
+            default: return <Badge variant="secondary">{status}</Badge>;
+        }
+    }
+    
+    const getUrgencyBadge = (urgency: IncidentFormValues['urgency']) => {
+        switch (urgency) {
+            case 'Critical': return 'bg-red-700 text-white';
+            case 'High': return 'bg-red-500 text-white';
+            case 'Medium': return 'bg-yellow-500 text-white';
+            case 'Low': return 'bg-blue-500 text-white';
+            default: return 'bg-gray-500 text-white';
+        }
+    }
+
     async function onSubmit(values: IncidentFormValues) {
         if (!schoolId || !user) {
           toast({
@@ -365,7 +374,7 @@ export default function TeacherHealthPage() {
                                                       <Select onValueChange={field.onChange} defaultValue={field.value}> 
                                                         <FormControl> 
                                                           <SelectTrigger> 
-                                                            <SelectValue placeholder="Select a student" /> 
+                                                            <SelectValue placeholder="Select a student from your classes" /> 
                                                           </SelectTrigger> 
                                                         </FormControl> 
                                                         <SelectContent> 
@@ -455,33 +464,33 @@ export default function TeacherHealthPage() {
                                                   )}
                                                 />
                                                 <FormField
-                                                  control={form.control}
-                                                  name="urgency"
-                                                  render={({ field }) => (
-                                                    <FormItem>
-                                                      <FormLabel>Urgency Level</FormLabel>
-                                                      <FormControl>
-                                                        <RadioGroup
-                                                          onValueChange={field.onChange}
-                                                          defaultValue={field.value}
-                                                          className="flex space-x-4"
-                                                        >
-                                                          {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                            <FormItem key={level} className="flex items-center space-x-2 space-y-0">
-                                                              <FormControl>
-                                                                <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
-                                                              </FormControl>
-                                                              <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
-                                                                <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                              </Label>
-                                                            </FormItem>
-                                                          ))}
-                                                        </RadioGroup>
-                                                      </FormControl>
-                                                      <FormMessage />
-                                                    </FormItem>
-                                                  )}
-                                                />
+                                                    control={form.control}
+                                                    name="urgency"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                        <FormLabel>Urgency Level</FormLabel>
+                                                        <FormControl>
+                                                            <RadioGroup
+                                                            onValueChange={field.onChange}
+                                                            defaultValue={field.value}
+                                                            className="flex space-x-4"
+                                                            >
+                                                            {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                                <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                                <FormControl>
+                                                                    <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
+                                                                </FormControl>
+                                                                <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
+                                                                    <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                                </Label>
+                                                                </FormItem>
+                                                            ))}
+                                                            </RadioGroup>
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                    />
                                             </div>
                                             <div className="space-y-6">
                                                 <FormField 
@@ -522,7 +531,7 @@ export default function TeacherHealthPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-
+                    
                     <TabsContent value="log">
                         <Card className="mt-4">
                             <CardHeader>
@@ -725,4 +734,3 @@ export default function TeacherHealthPage() {
         </Dialog>
     );
 }
-
