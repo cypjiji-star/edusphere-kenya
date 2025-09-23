@@ -871,14 +871,45 @@ export default function FeesPage() {
   }, [allStudents, classFilter]);
 
   const openStudentDialog = async (student: StudentFeeProfile) => {
+    // Query for main student transactions
     const transactionsQuery = query(
       collection(firestore, `schools/${schoolId}/users/${student.id}/transactions`),
       orderBy('date', 'desc')
     );
+    // Query for class fund transactions from the central log
+    const classFundsQuery = query(
+      collection(firestore, `schools/${schoolId}/transactions`),
+      where('studentId', '==', student.id),
+      where('method', '==', 'Class Collection')
+    );
+  
     try {
-      const transactionsSnapshot = await getDocs(transactionsQuery);
-      const transactions = transactionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Transaction));
-      setSelectedStudent({ ...student, transactions });
+      const [transactionsSnapshot, classFundsSnapshot] = await Promise.all([
+        getDocs(transactionsQuery),
+        getDocs(classFundsQuery)
+      ]);
+  
+      const mainTransactions = transactionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Transaction));
+      
+      const classFundTransactions = classFundsSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        // Adapt the school-wide transaction to the student ledger format
+        return {
+          id: doc.id,
+          date: data.date,
+          description: data.description,
+          type: 'Payment', // All class funds are payments
+          amount: -Math.abs(data.amount), // Ensure it's a negative value for ledger
+          balance: student.balance, // Note: This balance might not be perfectly chronological if mixed
+          notes: `Recorded by ${data.recordedBy || 'teacher'}`,
+        } as Transaction;
+      });
+  
+      const allTransactions = [...mainTransactions, ...classFundTransactions]
+        .sort((a, b) => b.date.seconds - a.date.seconds);
+  
+      setSelectedStudent({ ...student, transactions: allTransactions });
+  
     } catch (e: unknown) {
       console.error('Error fetching transactions:', e);
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
@@ -2001,5 +2032,3 @@ export default function FeesPage() {
     </>
   );
 }
-
-    
