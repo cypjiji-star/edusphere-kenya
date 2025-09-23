@@ -16,7 +16,9 @@ export function isFullscreen(): boolean {
  * Defaults to the document's root element.
  * @param {HTMLElement} [element=document.documentElement] - The element to make fullscreen.
  */
-export function enterFullscreen(element: HTMLElement = document.documentElement): void {
+export function enterFullscreen(
+  element: HTMLElement = document.documentElement,
+): void {
   if (element.requestFullscreen) {
     element.requestFullscreen();
   } else if ((element as any).webkitRequestFullscreen) {

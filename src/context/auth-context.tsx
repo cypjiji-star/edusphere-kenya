@@ -1,15 +1,27 @@
+"use client";
 
-'use client';
+import React, { createContext, useContext, useEffect, ReactNode } from "react";
+import { onAuthStateChanged, User, Auth } from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  limit,
+} from "firebase/firestore";
+import { app, firestore } from "@/lib/firebase";
+import { usePathname, useSearchParams } from "next/navigation";
+import { SplashScreen } from "@/components/layout/splash-screen";
+import { ClientPageLoader } from "@/components/ui/client-page-loader";
 
-import React, { createContext, useContext, useEffect, ReactNode } from 'react';
-import { onAuthStateChanged, User, Auth } from 'firebase/auth';
-import { doc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
-import { app, firestore } from '@/lib/firebase';
-import { usePathname, useSearchParams } from 'next/navigation';
-import { SplashScreen } from '@/components/layout/splash-screen';
-import { ClientPageLoader } from '@/components/ui/client-page-loader';
-
-export type AllowedRole = 'developer' | 'admin' | 'teacher' | 'parent' | 'unknown';
+export type AllowedRole =
+  | "developer"
+  | "admin"
+  | "teacher"
+  | "parent"
+  | "unknown";
 
 export interface AuthContextType {
   user: User | null;
@@ -25,12 +37,12 @@ let auth: Auth;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
-  const [role, setRole] = React.useState<AllowedRole>('unknown');
+  const [role, setRole] = React.useState<AllowedRole>("unknown");
   const [loading, setLoading] = React.useState(true);
   const [clientReady, setClientReady] = React.useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  
+
   useEffect(() => {
     // This effect runs only once on the client after initial mount.
     setClientReady(true);
@@ -38,44 +50,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Dynamically import Firebase Auth on the client
-    import('firebase/auth').then((firebaseAuth) => {
+    import("firebase/auth").then((firebaseAuth) => {
       auth = firebaseAuth.getAuth(app);
-      
+
       const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
         setUser(authUser);
         if (!authUser) {
-          setRole('unknown');
+          setRole("unknown");
           setLoading(false);
           return;
         }
 
         setLoading(true);
         try {
-          const devDoc = await getDoc(doc(firestore, 'developers', authUser.uid));
+          const devDoc = await getDoc(
+            doc(firestore, "developers", authUser.uid),
+          );
           if (devDoc.exists()) {
-            setRole('developer');
+            setRole("developer");
             setLoading(false);
             return;
           }
 
-          const urlSchoolId = searchParams.get('schoolId');
-          const sessionSchoolId = typeof window !== 'undefined' ? sessionStorage.getItem('schoolId') : null;
+          const urlSchoolId = searchParams.get("schoolId");
+          const sessionSchoolId =
+            typeof window !== "undefined"
+              ? sessionStorage.getItem("schoolId")
+              : null;
           const schoolId = urlSchoolId || sessionSchoolId;
-          
+
           if (schoolId) {
-              const userDocRef = doc(firestore, 'schools', schoolId, 'users', authUser.uid);
-              const userDocSnap = await getDoc(userDocRef);
-              if (userDocSnap.exists()) {
-                  setRole(userDocSnap.data().role as AllowedRole);
-              } else {
-                  setRole('unknown');
-              }
-          } else if (pathname !== '/login' && pathname !== '/') {
-              setRole('unknown');
+            const userDocRef = doc(
+              firestore,
+              "schools",
+              schoolId,
+              "users",
+              authUser.uid,
+            );
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              setRole(userDocSnap.data().role as AllowedRole);
+            } else {
+              setRole("unknown");
+            }
+          } else if (pathname !== "/login" && pathname !== "/") {
+            setRole("unknown");
           }
         } catch (err) {
-          console.error('Error fetching user role:', err);
-          setRole('unknown');
+          console.error("Error fetching user role:", err);
+          setRole("unknown");
         } finally {
           setLoading(false);
         }
@@ -96,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

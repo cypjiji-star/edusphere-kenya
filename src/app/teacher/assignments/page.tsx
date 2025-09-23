@@ -1,7 +1,6 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
+import * as React from "react";
 import {
   Card,
   CardContent,
@@ -9,24 +8,30 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { PlusCircle, BookMarked, ArrowRight, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, BookMarked, ArrowRight, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { firestore, auth } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  Timestamp,
+} from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
 export type Assignment = {
   id: string;
@@ -39,78 +44,101 @@ export type Assignment = {
 
 export default function AssignmentsPage() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get("schoolId");
   const [allAssignments, setAllAssignments] = React.useState<Assignment[]>([]);
-  const [teacherClasses, setTeacherClasses] = React.useState<string[]>(['All Classes']);
+  const [teacherClasses, setTeacherClasses] = React.useState<string[]>([
+    "All Classes",
+  ]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [filteredClass, setFilteredClass] = React.useState('All Classes');
+  const [filteredClass, setFilteredClass] = React.useState("All Classes");
   const [clientReady, setClientReady] = React.useState(false);
   const { user } = useAuth();
 
   React.useEffect(() => {
     if (!schoolId || !user) {
-        setIsLoading(false);
-        return;
+      setIsLoading(false);
+      return;
     }
     const teacherId = user.uid;
 
     setClientReady(true);
-    
-    const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', teacherId));
+
+    const classesQuery = query(
+      collection(firestore, `schools/${schoolId}/classes`),
+      where("teacherId", "==", teacherId),
+    );
     const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
-        const classes = snapshot.docs.map(doc => `${doc.data().name} ${doc.data().stream || ''}`.trim());
-        setTeacherClasses(['All Classes', ...classes]);
-    });
-    
-    const assignmentsQuery = query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId));
-    
-    const unsubscribeAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
-        const fetchedAssignments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Assignment));
-        setAllAssignments(fetchedAssignments);
-        setIsLoading(false);
-    }, (error) => {
-        console.error("Error fetching assignments:", error);
-        setIsLoading(false);
+      const classes = snapshot.docs.map((doc) =>
+        `${doc.data().name} ${doc.data().stream || ""}`.trim(),
+      );
+      setTeacherClasses(["All Classes", ...classes]);
     });
 
+    const assignmentsQuery = query(
+      collection(firestore, `schools/${schoolId}/assignments`),
+      where("teacherId", "==", teacherId),
+    );
+
+    const unsubscribeAssignments = onSnapshot(
+      assignmentsQuery,
+      (snapshot) => {
+        const fetchedAssignments = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() }) as Assignment,
+        );
+        setAllAssignments(fetchedAssignments);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching assignments:", error);
+        setIsLoading(false);
+      },
+    );
+
     return () => {
-        unsubClasses();
-        unsubscribeAssignments();
+      unsubClasses();
+      unsubscribeAssignments();
     };
   }, [schoolId, user]);
 
-  const assignments = allAssignments.filter(assignment => 
-    filteredClass === 'All Classes' || assignment.className === filteredClass
+  const assignments = allAssignments.filter(
+    (assignment) =>
+      filteredClass === "All Classes" || assignment.className === filteredClass,
   );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-6">
-          <div className="text-left">
-            <h1 className="font-headline text-3xl font-bold">Assignment Tracking</h1>
-            <p className="text-muted-foreground">Create, view, and grade offline student assignments.</p>
-          </div>
-          <Button asChild className="w-full md:w-auto">
-            <Link href={`/teacher/assignments/new?schoolId=${schoolId}`}>
-              <PlusCircle className="mr-2" />
-              Create Assignment
-            </Link>
-          </Button>
+        <div className="text-left">
+          <h1 className="font-headline text-3xl font-bold">
+            Assignment Tracking
+          </h1>
+          <p className="text-muted-foreground">
+            Create, view, and grade offline student assignments.
+          </p>
+        </div>
+        <Button asChild className="w-full md:w-auto">
+          <Link href={`/teacher/assignments/new?schoolId=${schoolId}`}>
+            <PlusCircle className="mr-2" />
+            Create Assignment
+          </Link>
+        </Button>
       </div>
-      
+
       <div className="mb-6 flex items-center gap-4">
-        <Label htmlFor="class-filter" className="text-sm font-medium">Filter by Class</Label>
+        <Label htmlFor="class-filter" className="text-sm font-medium">
+          Filter by Class
+        </Label>
         <Select value={filteredClass} onValueChange={setFilteredClass}>
-            <SelectTrigger id="class-filter" className="w-full md:w-[240px]">
-                <SelectValue placeholder="Select a class" />
-            </SelectTrigger>
-            <SelectContent>
-                {teacherClasses.map((cls) => (
-                    <SelectItem key={cls} value={cls}>
-                    {cls}
-                    </SelectItem>
-                ))}
-            </SelectContent>
+          <SelectTrigger id="class-filter" className="w-full md:w-[240px]">
+            <SelectValue placeholder="Select a class" />
+          </SelectTrigger>
+          <SelectContent>
+            {teacherClasses.map((cls) => (
+              <SelectItem key={cls} value={cls}>
+                {cls}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 
@@ -124,52 +152,81 @@ export default function AssignmentsPage() {
             <Card key={assignment.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
-                    <BookMarked className="h-6 w-6 text-primary" />
-                    {clientReady && (
-                        <Badge variant={assignment.dueDate.toDate() < new Date() ? 'destructive' : 'secondary'}>
-                            Due {assignment.dueDate.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </Badge>
-                    )}
+                  <BookMarked className="h-6 w-6 text-primary" />
+                  {clientReady && (
+                    <Badge
+                      variant={
+                        assignment.dueDate.toDate() < new Date()
+                          ? "destructive"
+                          : "secondary"
+                      }
+                    >
+                      Due{" "}
+                      {assignment.dueDate
+                        .toDate()
+                        .toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                    </Badge>
+                  )}
                 </div>
-                <CardTitle className="font-headline text-xl pt-2">{assignment.title}</CardTitle>
+                <CardTitle className="font-headline text-xl pt-2">
+                  {assignment.title}
+                </CardTitle>
                 <CardDescription>{assignment.className}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Grading Progress</span>
-                        <span>{assignment.submissions} / {assignment.totalStudents} Graded</span>
-                    </div>
-                    <Progress value={(assignment.submissions / assignment.totalStudents) * 100} />
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">
+                      Grading Progress
+                    </span>
+                    <span>
+                      {assignment.submissions} / {assignment.totalStudents}{" "}
+                      Graded
+                    </span>
+                  </div>
+                  <Progress
+                    value={
+                      (assignment.submissions / assignment.totalStudents) * 100
+                    }
+                  />
                 </div>
               </CardContent>
               <CardFooter>
-                 <Button asChild variant="outline" className="w-full">
-                    <Link href={`/teacher/assignments/${assignment.id}?schoolId=${schoolId}`}>
-                        Track & Grade
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
+                <Button asChild variant="outline" className="w-full">
+                  <Link
+                    href={`/teacher/assignments/${assignment.id}?schoolId=${schoolId}`}
+                  >
+                    Track & Grade
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
                 </Button>
               </CardFooter>
             </Card>
           ))}
         </div>
       ) : (
-         <Card>
-            <CardContent className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                <div className="text-center">
-                <BookMarked className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-xl font-semibold">No Assignments Found</h3>
-                <p className="mt-2 text-sm text-muted-foreground">No assignments match your current filter. Why not create one?</p>
-                  <Button asChild className="mt-6">
-                    <Link href={`/teacher/assignments/new?schoolId=${schoolId}`}>
-                      <PlusCircle className="mr-2" />
-                      Create a New Assignment
-                    </Link>
-                  </Button>
-                </div>
-            </CardContent>
-         </Card>
+        <Card>
+          <CardContent className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+            <div className="text-center">
+              <BookMarked className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-xl font-semibold">
+                No Assignments Found
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                No assignments match your current filter. Why not create one?
+              </p>
+              <Button asChild className="mt-6">
+                <Link href={`/teacher/assignments/new?schoolId=${schoolId}`}>
+                  <PlusCircle className="mr-2" />
+                  Create a New Assignment
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -1,8 +1,7 @@
-
-import { AppHeader } from '@/components/layout/header';
-import { AppFooter } from '@/components/layout/footer';
-import { LearningPathForm } from './learning-path-form';
-import { Sparkles } from 'lucide-react';
+import { AppHeader } from "@/components/layout/header";
+import { AppFooter } from "@/components/layout/footer";
+import { LearningPathForm } from "./learning-path-form";
+import { Sparkles } from "lucide-react";
 
 export default function LearningPathPage() {
   return (
@@ -17,7 +16,8 @@ export default function LearningPathPage() {
                 Personalized Learning Path Generator
               </h1>
               <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                Fill out the form below to generate a custom learning path for a student using our advanced AI.
+                Fill out the form below to generate a custom learning path for a
+                student using our advanced AI.
               </p>
             </div>
           </div>

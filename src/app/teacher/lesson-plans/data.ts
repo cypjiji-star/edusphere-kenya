@@ -1,9 +1,13 @@
+"use client";
 
-'use client';
+import { Timestamp } from "firebase/firestore";
 
-import { Timestamp } from 'firebase/firestore';
-
-export type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
+export type LessonPlanStatus =
+  | "Published"
+  | "Draft"
+  | "Completed"
+  | "In Progress"
+  | "Skipped";
 
 export type LessonPlan = {
   id: string;

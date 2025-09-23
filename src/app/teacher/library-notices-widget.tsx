@@ -1,34 +1,46 @@
+"use client";
 
-'use client';
-
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Library, ArrowRight, AlertTriangle, Gift } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { differenceInDays, parseISO } from 'date-fns';
-import * as React from 'react';
-import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
-
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Library, ArrowRight, AlertTriangle, Gift } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { differenceInDays, parseISO } from "date-fns";
+import * as React from "react";
+import { firestore } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  limit,
+  Timestamp,
+} from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
 type BorrowedItem = {
-    id: string;
-    title: string;
-    dueDate: Timestamp;
+  id: string;
+  title: string;
+  dueDate: Timestamp;
 };
 
 type NewResource = {
-    id: string;
-    title: string;
-    createdAt: Timestamp;
-}
+  id: string;
+  title: string;
+  createdAt: Timestamp;
+};
 
 export function LibraryNoticesWidget() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get("schoolId");
   const [overdueItems, setOverdueItems] = React.useState<BorrowedItem[]>([]);
   const [newArrivals, setNewArrivals] = React.useState<NewResource[]>([]);
   const { user } = useAuth();
@@ -38,28 +50,50 @@ export function LibraryNoticesWidget() {
     const teacherId = user.uid;
 
     // Fetch overdue items
-    const borrowedQuery = query(collection(firestore, 'schools', schoolId, 'teachers', teacherId, 'borrowed-items'));
+    const borrowedQuery = query(
+      collection(
+        firestore,
+        "schools",
+        schoolId,
+        "teachers",
+        teacherId,
+        "borrowed-items",
+      ),
+    );
     const unsubBorrowed = onSnapshot(borrowedQuery, (snapshot) => {
-        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BorrowedItem));
-        const overdue = items.filter(item => {
-            if (!item.dueDate) return false;
-            const dueDate = item.dueDate.toDate();
-            return differenceInDays(new Date(), dueDate) > 0;
-        });
-        setOverdueItems(overdue);
+      const items = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() }) as BorrowedItem,
+      );
+      const overdue = items.filter((item) => {
+        if (!item.dueDate) return false;
+        const dueDate = item.dueDate.toDate();
+        return differenceInDays(new Date(), dueDate) > 0;
+      });
+      setOverdueItems(overdue);
     });
 
     // Fetch new arrivals
-    const newArrivalsQuery = query(collection(firestore, 'schools', schoolId, 'library-resources'), orderBy('createdAt', 'desc'), limit(2));
+    const newArrivalsQuery = query(
+      collection(firestore, "schools", schoolId, "library-resources"),
+      orderBy("createdAt", "desc"),
+      limit(2),
+    );
     const unsubArrivals = onSnapshot(newArrivalsQuery, (snapshot) => {
-        const items = snapshot.docs.map(doc => ({ id: doc.id, title: doc.data().title, createdAt: doc.data().createdAt } as NewResource));
-        setNewArrivals(items);
+      const items = snapshot.docs.map(
+        (doc) =>
+          ({
+            id: doc.id,
+            title: doc.data().title,
+            createdAt: doc.data().createdAt,
+          }) as NewResource,
+      );
+      setNewArrivals(items);
     });
 
     return () => {
-        unsubBorrowed();
-        unsubArrivals();
-    }
+      unsubBorrowed();
+      unsubArrivals();
+    };
   }, [schoolId, user]);
 
   return (
@@ -74,33 +108,43 @@ export function LibraryNoticesWidget() {
         <div className="space-y-4">
           {overdueItems.length > 0 && (
             <div className="space-y-3">
-                {overdueItems.map((item, index) => (
-                     <div key={index}>
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="space-y-1">
-                                <p className="font-semibold text-sm">{item.title}</p>
-                                <div className="flex items-center gap-2 text-xs text-red-600">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <span>Due: {new Date(item.dueDate.toDate()).toLocaleDateString()}</span>
-                                </div>
-                            </div>
-                            <Button asChild size="sm" variant="secondary">
-                                <Link href={`/teacher/my-library?schoolId=${schoolId}`}>Return</Link>
-                            </Button>
-                        </div>
-                     </div>
-                ))}
-                <Separator />
+              {overdueItems.map((item, index) => (
+                <div key={index}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="font-semibold text-sm">{item.title}</p>
+                      <div className="flex items-center gap-2 text-xs text-red-600">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>
+                          Due:{" "}
+                          {new Date(item.dueDate.toDate()).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <Button asChild size="sm" variant="secondary">
+                      <Link href={`/teacher/my-library?schoolId=${schoolId}`}>
+                        Return
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Separator />
             </div>
           )}
 
           {newArrivals.map((item) => (
-             <div key={item.id} className="flex items-center gap-3">
-                <Gift className="h-5 w-5 text-blue-500" />
-                <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">New Arrival: <span className="font-semibold text-foreground">{item.title}</span></p>
-                </div>
-             </div>
+            <div key={item.id} className="flex items-center gap-3">
+              <Gift className="h-5 w-5 text-blue-500" />
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground">
+                  New Arrival:{" "}
+                  <span className="font-semibold text-foreground">
+                    {item.title}
+                  </span>
+                </p>
+              </div>
+            </div>
           ))}
 
           {overdueItems.length === 0 && newArrivals.length === 0 && (
@@ -112,10 +156,10 @@ export function LibraryNoticesWidget() {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-            <Link href={`/teacher/library?schoolId=${schoolId}`}>
-                Go to Library
-                <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
+          <Link href={`/teacher/library?schoolId=${schoolId}`}>
+            Go to Library
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
         </Button>
       </CardFooter>
     </Card>

@@ -1,4 +1,3 @@
-
 import fs from "fs";
 import path from "path";
 
@@ -6,25 +5,37 @@ const keyFileName = "serviceAccountKey.json";
 const keyFilePath = path.join(process.cwd(), keyFileName);
 
 if (!fs.existsSync(keyFilePath)) {
-    console.error(`\x1b[31mError: '${keyFileName}' not found in the root directory.\x1b[0m`);
-    console.log(`\nPlease download your service account key from the Firebase console:`);
-    console.log(`Project Settings > Service accounts > Generate new private key.`);
-    console.log(`Then, save it as '${keyFileName}' in the root of this project and run this script again.`);
-    process.exit(1);
+  console.error(
+    `\x1b[31mError: '${keyFileName}' not found in the root directory.\x1b[0m`,
+  );
+  console.log(
+    `\nPlease download your service account key from the Firebase console:`,
+  );
+  console.log(
+    `Project Settings > Service accounts > Generate new private key.`,
+  );
+  console.log(
+    `Then, save it as '${keyFileName}' in the root of this project and run this script again.`,
+  );
+  process.exit(1);
 }
 
 try {
-    const serviceAccount = JSON.parse(
-      fs.readFileSync(keyFilePath, "utf-8")
+  const serviceAccount = JSON.parse(fs.readFileSync(keyFilePath, "utf-8"));
+
+  if (
+    !serviceAccount.project_id ||
+    !serviceAccount.client_email ||
+    !serviceAccount.private_key
+  ) {
+    throw new Error(
+      "The service account key file is missing required properties (project_id, client_email, private_key).",
     );
-    
-    if (!serviceAccount.project_id || !serviceAccount.client_email || !serviceAccount.private_key) {
-        throw new Error("The service account key file is missing required properties (project_id, client_email, private_key).");
-    }
+  }
 
-    const safePrivateKey = serviceAccount.private_key.replace(/\n/g, "\\n");
+  const safePrivateKey = serviceAccount.private_key.replace(/\n/g, "\\n");
 
-    const envContent = `
+  const envContent = `
 # -----------------------------------------------------------------------------
 # FIREBASE SERVICE ACCOUNT (For Server-Side Admin SDK)
 # -----------------------------------------------------------------------------
@@ -38,15 +49,17 @@ FIREBASE_CLIENT_EMAIL="${serviceAccount.client_email}"
 FIREBASE_PRIVATE_KEY="${safePrivateKey}"
 `;
 
-    console.log('\x1b[32m%s\x1b[0m', '✅ Success! Copy the lines below and paste them into your .env file:');
-    console.log(envContent);
-
+  console.log(
+    "\x1b[32m%s\x1b[0m",
+    "✅ Success! Copy the lines below and paste them into your .env file:",
+  );
+  console.log(envContent);
 } catch (error) {
-    console.error(`\x1b[31mError processing '${keyFileName}':\x1b[0m`);
-    if (error instanceof Error) {
-        console.error(error.message);
-    } else {
-        console.error("An unknown error occurred. Is the JSON file valid?");
-    }
-    process.exit(1);
+  console.error(`\x1b[31mError processing '${keyFileName}':\x1b[0m`);
+  if (error instanceof Error) {
+    console.error(error.message);
+  } else {
+    console.error("An unknown error occurred. Is the JSON file valid?");
+  }
+  process.exit(1);
 }

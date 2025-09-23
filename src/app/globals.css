@@ -1,26 +1,25 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Define custom font faces */
 @font-face {
-  font-family: 'Playfair Display';
-  src: url('/fonts/PlayfairDisplay-VariableFont_wght.ttf') format('truetype');
+  font-family: "Playfair Display";
+  src: url("/fonts/PlayfairDisplay-VariableFont_wght.ttf") format("truetype");
   font-weight: 1 999;
   font-display: swap;
   font-style: normal;
 }
 @font-face {
-  font-family: 'PT Sans';
-  src: url('/fonts/PTSans-Regular.ttf') format('truetype');
+  font-family: "PT Sans";
+  src: url("/fonts/PTSans-Regular.ttf") format("truetype");
   font-weight: normal;
   font-display: swap;
   font-style: normal;
 }
 @font-face {
-  font-family: 'PT Sans';
-  src: url('/fonts/PTSans-Bold.ttf') format('truetype');
+  font-family: "PT Sans";
+  src: url("/fonts/PTSans-Bold.ttf") format("truetype");
   font-weight: bold;
   font-display: swap;
   font-style: normal;
@@ -58,7 +57,7 @@
     --sidebar-accent-foreground: 0 0% 96%;
     --sidebar-border: 0 0% 11%;
     --sidebar-ring: 194 100% 55%;
-    
+
     /* 1. Safe-area insets become CSS variables */
     --sat: env(safe-area-inset-top);
     --sar: env(safe-area-inset-right);
@@ -68,13 +67,14 @@
     --bg: hsl(var(--background));
   }
 }
- 
+
 @layer base {
   * {
     @apply border-border;
   }
   /* 2. Scaffold that always fills the glass */
-  html, body {
+  html,
+  body {
     @apply bg-background text-foreground;
     background: var(--bg);
     margin: 0;
@@ -83,7 +83,7 @@
     width: 100dvw;
     padding: var(--sat) var(--sar) var(--sab) var(--sal);
   }
-  
+
   /* Custom Scrollbar for Webkit browsers */
   ::-webkit-scrollbar {
     width: 8px;
@@ -107,9 +107,9 @@
   [data-sidebar] ::-webkit-scrollbar-thumb {
     background: hsl(var(--sidebar-border));
   }
-  
+
   .dark [data-sidebar] ::-webkit-scrollbar-thumb {
-      background: hsl(var(--sidebar-border));
+    background: hsl(var(--sidebar-border));
   }
 
   [data-sidebar] ::-webkit-scrollbar-thumb:hover {
@@ -144,7 +144,11 @@
   right: 0;
   height: env(safe-area-inset-top);
   z-index: 9999;
-  background: linear-gradient(to bottom, hsl(var(--background)) 50%, transparent);
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--background)) 50%,
+    transparent
+  );
   /* optional: show time/battery on top of your brand colour */
   backdrop-filter: blur(4px);
 }

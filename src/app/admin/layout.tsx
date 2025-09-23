@@ -1,9 +1,13 @@
-
-import { SidebarProvider, Sidebar, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { AdminSidebar } from './admin-sidebar';
-import { Suspense } from 'react';
-import { AuthCheck } from '@/lib/auth-check';
-import { FloatingChatWidget } from './floating-chat-widget';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { AdminSidebar } from "./admin-sidebar";
+import { Suspense } from "react";
+import { AuthCheck } from "@/lib/auth-check";
+import { FloatingChatWidget } from "./floating-chat-widget";
 
 export default function AdminLayout({
   children,
@@ -19,7 +23,7 @@ export default function AdminLayout({
           </Suspense>
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
-           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
+          <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
             <SidebarTrigger />
             <div>{children}</div>
             <FloatingChatWidget />

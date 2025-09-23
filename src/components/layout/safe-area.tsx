@@ -1,9 +1,8 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
-import { Slot } from '@radix-ui/react-slot';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cn } from "@/lib/utils";
 
 interface SafeAreaProps extends React.HTMLAttributes<HTMLDivElement> {
   asChild?: boolean;
@@ -16,19 +15,19 @@ interface SafeAreaProps extends React.HTMLAttributes<HTMLDivElement> {
  */
 const SafeArea = React.forwardRef<HTMLDivElement, SafeAreaProps>(
   ({ className, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : 'div';
+    const Comp = asChild ? Slot : "div";
     return (
       <Comp
         ref={ref}
         className={cn(
-          'pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]',
-          className
+          "pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]",
+          className,
         )}
         {...props}
       />
     );
-  }
+  },
 );
-SafeArea.displayName = 'SafeArea';
+SafeArea.displayName = "SafeArea";
 
 export { SafeArea };

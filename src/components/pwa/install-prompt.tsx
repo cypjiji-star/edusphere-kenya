@@ -1,24 +1,30 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { ArrowDownToLine, X } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { AppLogo } from '../ui/app-logo';
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ArrowDownToLine, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AppLogo } from "../ui/app-logo";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
+    outcome: "accepted" | "dismissed";
     platform: string;
   }>;
   prompt(): Promise<void>;
 }
 
 export function InstallPrompt() {
-  const [installPromptEvent, setInstallPromptEvent] = React.useState<BeforeInstallPromptEvent | null>(null);
+  const [installPromptEvent, setInstallPromptEvent] =
+    React.useState<BeforeInstallPromptEvent | null>(null);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const isMobile = useIsMobile();
 
@@ -31,10 +37,13 @@ export function InstallPrompt() {
       setTimeout(() => setIsSheetOpen(true), 3000);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
     };
   }, []);
 
@@ -44,10 +53,10 @@ export function InstallPrompt() {
     }
     await installPromptEvent.prompt();
     const { outcome } = await installPromptEvent.userChoice;
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
+    if (outcome === "accepted") {
+      console.log("User accepted the install prompt");
     } else {
-      console.log('User dismissed the install prompt');
+      console.log("User dismissed the install prompt");
     }
     setInstallPromptEvent(null);
     setIsSheetOpen(false);
@@ -63,26 +72,27 @@ export function InstallPrompt() {
 
   return (
     <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-lg">
-            <SheetHeader className="text-left">
-                <SheetTitle className="flex items-center gap-2">
-                    <AppLogo className="h-6 w-6" />
-                    Install EduSphere
-                </SheetTitle>
-                <SheetDescription>
-                    Add EduSphere to your home screen for a faster, full-screen experience.
-                </SheetDescription>
-            </SheetHeader>
-            <div className="py-4 flex gap-4">
-                <Button onClick={handleInstallClick} className="w-full">
-                    <ArrowDownToLine className="mr-2 h-4 w-4" />
-                    Install App
-                </Button>
-                <Button variant="ghost" onClick={handleClose}>
-                    Not Now
-                </Button>
-            </div>
-        </SheetContent>
+      <SheetContent side="bottom" className="rounded-t-lg">
+        <SheetHeader className="text-left">
+          <SheetTitle className="flex items-center gap-2">
+            <AppLogo className="h-6 w-6" />
+            Install EduSphere
+          </SheetTitle>
+          <SheetDescription>
+            Add EduSphere to your home screen for a faster, full-screen
+            experience.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="py-4 flex gap-4">
+          <Button onClick={handleInstallClick} className="w-full">
+            <ArrowDownToLine className="mr-2 h-4 w-4" />
+            Install App
+          </Button>
+          <Button variant="ghost" onClick={handleClose}>
+            Not Now
+          </Button>
+        </div>
+      </SheetContent>
     </Sheet>
   );
 }

@@ -1,5 +1,4 @@
-
-'use server';
+"use server";
 /**
  * @fileOverview AI-powered lesson plan content generator.
  *
@@ -8,37 +7,58 @@
  * - GenerateLessonPlanContentOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from "@/ai/genkit";
+import { z } from "genkit";
 
 const GenerateLessonPlanContentInputSchema = z.object({
-  topic: z.string().describe('The main topic of the lesson.'),
-  subject: z.string().describe('The subject of the lesson.'),
-  grade: z.string().describe('The grade level of the students.'),
-  fieldToGenerate: z.enum(['objectives', 'activities', 'assessment']).describe('The specific section of the lesson plan to generate content for.'),
-  existingContent: z.object({
-      objectives: z.string().optional().describe('Any existing content for learning objectives.'),
-      activities: z.string().optional().describe('Any existing content for lesson activities.'),
-      assessment: z.string().optional().describe('Any existing content for assessment methods.'),
-  }).describe('The content that has already been written for other fields.'),
+  topic: z.string().describe("The main topic of the lesson."),
+  subject: z.string().describe("The subject of the lesson."),
+  grade: z.string().describe("The grade level of the students."),
+  fieldToGenerate: z
+    .enum(["objectives", "activities", "assessment"])
+    .describe(
+      "The specific section of the lesson plan to generate content for.",
+    ),
+  existingContent: z
+    .object({
+      objectives: z
+        .string()
+        .optional()
+        .describe("Any existing content for learning objectives."),
+      activities: z
+        .string()
+        .optional()
+        .describe("Any existing content for lesson activities."),
+      assessment: z
+        .string()
+        .optional()
+        .describe("Any existing content for assessment methods."),
+    })
+    .describe("The content that has already been written for other fields."),
 });
-export type GenerateLessonPlanContentInput = z.infer<typeof GenerateLessonPlanContentInputSchema>;
+export type GenerateLessonPlanContentInput = z.infer<
+  typeof GenerateLessonPlanContentInputSchema
+>;
 
 const GenerateLessonPlanContentOutputSchema = z.object({
-  generatedContent: z.string().describe('The AI-generated content for the requested field.'),
+  generatedContent: z
+    .string()
+    .describe("The AI-generated content for the requested field."),
 });
-export type GenerateLessonPlanContentOutput = z.infer<typeof GenerateLessonPlanContentOutputSchema>;
+export type GenerateLessonPlanContentOutput = z.infer<
+  typeof GenerateLessonPlanContentOutputSchema
+>;
 
 export async function generateLessonPlanContent(
-  input: GenerateLessonPlanContentInput
+  input: GenerateLessonPlanContentInput,
 ): Promise<GenerateLessonPlanContentOutput> {
   return lessonPlanContentFlow(input);
 }
 
 const prompt = ai.definePrompt({
-  name: 'lessonPlanContentPrompt',
-  input: {schema: GenerateLessonPlanContentInputSchema},
-  output: {schema: GenerateLessonPlanContentOutputSchema},
+  name: "lessonPlanContentPrompt",
+  input: { schema: GenerateLessonPlanContentInputSchema },
+  output: { schema: GenerateLessonPlanContentOutputSchema },
   prompt: `You are an expert curriculum designer for the Kenyan education system. Your task is to generate content for a specific section of a lesson plan.
 
   Lesson Details:
@@ -59,12 +79,12 @@ const prompt = ai.definePrompt({
 
 const lessonPlanContentFlow = ai.defineFlow(
   {
-    name: 'lessonPlanContentFlow',
+    name: "lessonPlanContentFlow",
     inputSchema: GenerateLessonPlanContentInputSchema,
     outputSchema: GenerateLessonPlanContentOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (input) => {
+    const { output } = await prompt(input);
     return output!;
-  }
+  },
 );

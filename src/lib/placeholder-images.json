@@ -1,4 +1,3 @@
-
 {
   "placeholderImages": [
     {
@@ -10,37 +9,37 @@
     {
       "id": "feature-portal",
       "description": "A secure digital gate symbolizing a school's private portal.",
-      "imageUrl": "https://picsum.photos/seed/edusphere-portal/600/400",
+      "imageUrl": "https://images.unsplash.com/photo-1667372283513-6359170ad781?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzZWN1cmUlMjBkYXRhfGVufDB8fHx8MTc1ODYzNjAyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "secure data"
     },
     {
       "id": "feature-roles",
       "description": "Silhouettes of a teacher, student, and administrator.",
-      "imageUrl": "https://picsum.photos/seed/edusphere-roles/600/400",
+      "imageUrl": "https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZWFtJTIwY29sbGFib3JhdGlvbnxlbnwwfHx8fDE3NTg1ODUzMjF8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "team collaboration"
     },
     {
       "id": "feature-ai",
       "description": "Abstract representation of an AI neural network with glowing nodes.",
-      "imageUrl": "https://picsum.photos/seed/edusphere-ai/600/400",
+      "imageUrl": "https://images.unsplash.com/photo-1534723328310-e82dad3ee43f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8MTc1ODU4ODU1MXww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "artificial intelligence"
     },
     {
       "id": "feature-brand",
       "description": "A color palette and design tools, representing customization.",
-      "imageUrl": "https://picsum.photos/seed/edusphere-brand/600/400",
+      "imageUrl": "https://images.unsplash.com/photo-1656921350153-b6389adaad57?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxkZXNpZ24lMjB0b29sc3xlbnwwfHx8fDE3NTg1ODgxMjV8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "design tools"
     },
     {
       "id": "mission",
       "description": "A beautiful view of the Kenyan landscape with a school in the distance.",
-      "imageUrl": "https://picsum.photos/seed/edusphere-mission/600/400",
+      "imageUrl": "https://images.unsplash.com/photo-1553777907-f5dbbbb44d7c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxrZW55YW4lMjBsYW5kc2NhcGUlMjBzY2hvb2x8ZW58MHx8fHwxNzU4NjM2MDI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "kenyan landscape school"
     },
     {
       "id": "ai-cta",
       "description": "A student looking thoughtfully at a screen displaying a learning path.",
-      "imageUrl": "https://picsum.photos/seed/edusphere-cta/800/600",
+      "imageUrl": "https://images.unsplash.com/photo-1610500796385-3ffc1ae2f046?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxzdHVkZW50JTIwbGVhcm5pbmd8ZW58MHx8fHwxNzU4NTk2NjUzfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "student learning"
     }
   ]

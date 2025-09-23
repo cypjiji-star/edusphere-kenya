@@ -1,111 +1,152 @@
+"use client";
 
-
-'use client';
-
-import * as React from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell } from 'recharts';
+import * as React from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  Pie,
+  PieChart,
+  Cell,
+} from "recharts";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
-} from '@/components/ui/chart';
-import { firestore } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+} from "@/components/ui/chart";
+import { firestore } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
-type TimetableData = Record<string, Record<string, { subject: { teacher: string } }>>;
+type TimetableData = Record<
+  string,
+  Record<string, { subject: { teacher: string } }>
+>;
 
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 const scheduleChartConfig = {
   classes: {
-    label: 'Classes',
-    color: 'hsl(var(--primary))',
+    label: "Classes",
+    color: "hsl(var(--primary))",
   },
 };
 
 const assignmentChartConfig = {
-    Ungraded: { label: 'Ungraded', color: 'hsl(var(--chart-2))' },
-    Graded: { label: 'Graded', color: 'hsl(var(--chart-1))' },
+  Ungraded: { label: "Ungraded", color: "hsl(var(--chart-2))" },
+  Graded: { label: "Graded", color: "hsl(var(--chart-1))" },
 } satisfies React.ComponentProps<typeof ChartContainer>["config"];
 
-export function DashboardCharts({ teacherId, teacherName }: { teacherId: string; teacherName: string }) {
-    const searchParams = useSearchParams();
-    const schoolId = searchParams.get('schoolId');
-    const [scheduleData, setScheduleData] = React.useState<any[]>([]);
-    const [assignmentData, setAssignmentData] = React.useState<any[]>([]);
-    const [isLoading, setIsLoading] = React.useState(true);
+export function DashboardCharts({
+  teacherId,
+  teacherName,
+}: {
+  teacherId: string;
+  teacherName: string;
+}) {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get("schoolId");
+  const [scheduleData, setScheduleData] = React.useState<any[]>([]);
+  const [assignmentData, setAssignmentData] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-    React.useEffect(() => {
-        if (!schoolId || !teacherId || !teacherName) return;
+  React.useEffect(() => {
+    if (!schoolId || !teacherId || !teacherName) return;
 
-        const fetchData = async () => {
-            setIsLoading(true);
-            
-            try {
-                // Fetch Schedule Data
-                const timetablesSnapshot = await getDocs(collection(firestore, `schools/${schoolId}/timetables`));
-                const dailyCounts = days.map(day => {
-                    let classCount = 0;
-                    timetablesSnapshot.forEach(doc => {
-                        const timetable = doc.data() as TimetableData;
-                        const daySchedule = timetable[day];
-                        if (daySchedule) {
-                            classCount += Object.values(daySchedule).filter(
-                                lesson => lesson.subject.teacher === teacherName
-                            ).length;
-                        }
-                    });
-                    return { day: day.substring(0, 3), classes: classCount };
-                });
-                setScheduleData(dailyCounts);
+    const fetchData = async () => {
+      setIsLoading(true);
 
-                // Fetch Assignment Data
-                const assignmentsSnapshot = await getDocs(query(collection(firestore, `schools/${schoolId}/assignments`), where('teacherId', '==', teacherId)));
-                let graded = 0;
-                let ungraded = 0;
-                assignmentsSnapshot.forEach(doc => {
-                    const assignment = doc.data();
-                    if (assignment.submissions === assignment.totalStudents) {
-                        graded++;
-                    } else {
-                        ungraded++;
-                    }
-                });
-
-                setAssignmentData([
-                    { status: 'Graded', value: graded, fill: 'hsl(var(--chart-1))' },
-                    { status: 'Ungraded', value: ungraded, fill: 'hsl(var(--chart-2))' },
-                ].filter(item => item.value > 0));
-
-            } catch (error) {
-                console.error("Error fetching chart data:", error);
-            } finally {
-                setIsLoading(false);
+      try {
+        // Fetch Schedule Data
+        const timetablesSnapshot = await getDocs(
+          collection(firestore, `schools/${schoolId}/timetables`),
+        );
+        const dailyCounts = days.map((day) => {
+          let classCount = 0;
+          timetablesSnapshot.forEach((doc) => {
+            const timetable = doc.data() as TimetableData;
+            const daySchedule = timetable[day];
+            if (daySchedule) {
+              classCount += Object.values(daySchedule).filter(
+                (lesson) => lesson.subject.teacher === teacherName,
+              ).length;
             }
-        };
+          });
+          return { day: day.substring(0, 3), classes: classCount };
+        });
+        setScheduleData(dailyCounts);
 
-        fetchData();
-    }, [schoolId, teacherId, teacherName]);
+        // Fetch Assignment Data
+        const assignmentsSnapshot = await getDocs(
+          query(
+            collection(firestore, `schools/${schoolId}/assignments`),
+            where("teacherId", "==", teacherId),
+          ),
+        );
+        let graded = 0;
+        let ungraded = 0;
+        assignmentsSnapshot.forEach((doc) => {
+          const assignment = doc.data();
+          if (assignment.submissions === assignment.totalStudents) {
+            graded++;
+          } else {
+            ungraded++;
+          }
+        });
 
-    if (isLoading) {
-        return (
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card><CardHeader><CardTitle>Weekly Schedule</CardTitle></CardHeader><CardContent className="flex items-center justify-center h-[150px]"><Loader2 className="h-8 w-8 animate-spin text-primary"/></CardContent></Card>
-                <Card><CardHeader><CardTitle>Assignments Overview</CardTitle></CardHeader><CardContent className="flex items-center justify-center h-[200px]"><Loader2 className="h-8 w-8 animate-spin text-primary"/></CardContent></Card>
-            </div>
-        )
-    }
+        setAssignmentData(
+          [
+            { status: "Graded", value: graded, fill: "hsl(var(--chart-1))" },
+            {
+              status: "Ungraded",
+              value: ungraded,
+              fill: "hsl(var(--chart-2))",
+            },
+          ].filter((item) => item.value > 0),
+        );
+      } catch (error) {
+        console.error("Error fetching chart data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [schoolId, teacherId, teacherName]);
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Weekly Schedule</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center h-[150px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignments Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center h-[200px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -115,7 +156,10 @@ export function DashboardCharts({ teacherId, teacherName }: { teacherId: string;
           <CardDescription>Your teaching load for the week.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={scheduleChartConfig} className="h-[150px] w-full">
+          <ChartContainer
+            config={scheduleChartConfig}
+            className="h-[150px] w-full"
+          >
             <BarChart
               accessibilityLayer
               data={scheduleData}

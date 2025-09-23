@@ -1,4 +1,3 @@
-
 export type Permission = {
   id: string;
   label: string;
@@ -10,61 +9,67 @@ export type PermissionCategory = {
 };
 
 export type Role = {
-    permissions: string[];
-    userCount: number;
-    isCore: boolean;
+  permissions: string[];
+  userCount: number;
+  isCore: boolean;
 };
 
 export const initialPermissionStructure: PermissionCategory[] = [
   {
-    title: 'User Management',
+    title: "User Management",
     permissions: [
-      { id: 'users.create', label: 'Create new users' },
-      { id: 'users.edit', label: 'Edit user profiles' },
-      { id: 'users.delete', label: 'Delete users' },
-      { id: 'users.roles', label: 'Change user roles' },
+      { id: "users.create", label: "Create new users" },
+      { id: "users.edit", label: "Edit user profiles" },
+      { id: "users.delete", label: "Delete users" },
+      { id: "users.roles", label: "Change user roles" },
     ],
   },
   {
-    title: 'Academics',
+    title: "Academics",
     permissions: [
-      { id: 'academics.grades.view', label: 'View school-wide grades' },
-      { id: 'academics.grades.edit', label: 'Edit all student grades' },
-      { id: 'academics.timetable.edit', label: 'Manage school timetable' },
-      { id: 'academics.subjects.manage', label: 'Manage classes and subjects' },
+      { id: "academics.grades.view", label: "View school-wide grades" },
+      { id: "academics.grades.edit", label: "Edit all student grades" },
+      { id: "academics.timetable.edit", label: "Manage school timetable" },
+      { id: "academics.subjects.manage", label: "Manage classes and subjects" },
     ],
   },
   {
-    title: 'Communication',
+    title: "Communication",
     permissions: [
-      { id: 'comms.announcements.school', label: 'Send school-wide announcements' },
-      { id: 'comms.messaging.all', label: 'View all messages' },
+      {
+        id: "comms.announcements.school",
+        label: "Send school-wide announcements",
+      },
+      { id: "comms.messaging.all", label: "View all messages" },
     ],
   },
-   {
-    title: 'Finance',
+  {
+    title: "Finance",
     permissions: [
-      { id: 'finance.fees.manage', label: 'Manage fee structures and payments' },
-      { id: 'finance.expenses.manage', label: 'Manage school expenses' },
+      {
+        id: "finance.fees.manage",
+        label: "Manage fee structures and payments",
+      },
+      { id: "finance.expenses.manage", label: "Manage school expenses" },
     ],
   },
-   {
-    title: 'System',
-    permissions: [
-      { id: 'admin.logs', label: 'View Audit Logs' },
-    ],
+  {
+    title: "System",
+    permissions: [{ id: "admin.logs", label: "View Audit Logs" }],
   },
 ];
 
 // This initial data is used to bootstrap roles for a new school.
 // The actual role data will be read from Firestore.
-export const initialRolePermissions: Record<string, Omit<Role, 'userCount'>> = {
+export const initialRolePermissions: Record<string, Omit<Role, "userCount">> = {
   Admin: {
-    permissions: initialPermissionStructure.flatMap(cat => cat.permissions.map(p => p.id)),
+    permissions: initialPermissionStructure.flatMap((cat) =>
+      cat.permissions.map((p) => p.id),
+    ),
     isCore: true,
   },
   Teacher: {
-    permissions: ['academics.grades.view'],
+    permissions: ["academics.grades.view"],
     isCore: true,
   },
   Student: {
@@ -83,11 +88,11 @@ export const initialRolePermissions: Record<string, Omit<Role, 'userCount'>> = {
     permissions: [],
     isCore: false,
   },
-  'Board Member': {
-    permissions: ['finance.fees.manage', 'admin.logs'],
+  "Board Member": {
+    permissions: ["finance.fees.manage", "admin.logs"],
     isCore: false,
   },
-  'PTA Member': {
+  "PTA Member": {
     permissions: [],
     isCore: false,
   },
@@ -99,7 +104,7 @@ export const initialRolePermissions: Record<string, Omit<Role, 'userCount'>> = {
     permissions: [],
     isCore: false,
   },
-  'Farm Worker': {
+  "Farm Worker": {
     permissions: [],
     isCore: false,
   },

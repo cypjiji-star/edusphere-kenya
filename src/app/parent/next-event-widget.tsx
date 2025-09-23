@@ -1,17 +1,19 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
-import Link from 'next/link';
+import * as React from "react";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar, Loader2 } from "lucide-react";
+import { firestore } from "@/lib/firebase";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Calendar, Loader2 } from 'lucide-react';
-import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  limit,
+  Timestamp,
+} from "firebase/firestore";
 
 type UpcomingEvent = {
   id: string;
@@ -31,9 +33,9 @@ export function NextEventWidget({ schoolId }: { schoolId: string }) {
 
     const q = query(
       collection(firestore, `schools/${schoolId}/calendar-events`),
-      where('date', '>=', Timestamp.now()),
-      orderBy('date', 'asc'),
-      limit(1)
+      where("date", ">=", Timestamp.now()),
+      orderBy("date", "asc"),
+      limit(1),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -66,15 +68,17 @@ export function NextEventWidget({ schoolId }: { schoolId: string }) {
           <>
             <div className="text-lg font-bold">{nextEvent.title}</div>
             <p className="text-xs text-muted-foreground">
-              {nextEvent.date.toDate().toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
+              {nextEvent.date.toDate().toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
               })}
             </p>
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">No upcoming events scheduled.</p>
+          <p className="text-sm text-muted-foreground">
+            No upcoming events scheduled.
+          </p>
         )}
       </CardContent>
     </Card>

@@ -1,7 +1,6 @@
+import * as React from "react";
 
-import * as React from "react"
-
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const FluidTable = React.forwardRef<
   HTMLTableElement,
@@ -14,16 +13,16 @@ const FluidTable = React.forwardRef<
       {...props}
     />
   </div>
-))
-FluidTable.displayName = "FluidTable"
+));
+FluidTable.displayName = "FluidTable";
 
 const FluidTableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
   <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
-))
-FluidTableHeader.displayName = "FluidTableHeader"
+));
+FluidTableHeader.displayName = "FluidTableHeader";
 
 const FluidTableBody = React.forwardRef<
   HTMLTableSectionElement,
@@ -34,8 +33,8 @@ const FluidTableBody = React.forwardRef<
     className={cn("[&_tr:last-child]:border-0", className)}
     {...props}
   />
-))
-FluidTableBody.displayName = "FluidTableBody"
+));
+FluidTableBody.displayName = "FluidTableBody";
 
 const FluidTableFooter = React.forwardRef<
   HTMLTableSectionElement,
@@ -45,12 +44,12 @@ const FluidTableFooter = React.forwardRef<
     ref={ref}
     className={cn(
       "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
-      className
+      className,
     )}
     {...props}
   />
-))
-FluidTableFooter.displayName = "FluidTableFooter"
+));
+FluidTableFooter.displayName = "FluidTableFooter";
 
 const FluidTableRow = React.forwardRef<
   HTMLTableRowElement,
@@ -60,12 +59,12 @@ const FluidTableRow = React.forwardRef<
     ref={ref}
     className={cn(
       "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
-      className
+      className,
     )}
     {...props}
   />
-))
-FluidTableRow.displayName = "FluidTableRow"
+));
+FluidTableRow.displayName = "FluidTableRow";
 
 const FluidTableHead = React.forwardRef<
   HTMLTableCellElement,
@@ -75,12 +74,12 @@ const FluidTableHead = React.forwardRef<
     ref={ref}
     className={cn(
       "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-      className
+      className,
     )}
     {...props}
   />
-))
-FluidTableHead.displayName = "FluidTableHead"
+));
+FluidTableHead.displayName = "FluidTableHead";
 
 const FluidTableCell = React.forwardRef<
   HTMLTableCellElement,
@@ -91,8 +90,8 @@ const FluidTableCell = React.forwardRef<
     className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}
     {...props}
   />
-))
-FluidTableCell.displayName = "FluidTableCell"
+));
+FluidTableCell.displayName = "FluidTableCell";
 
 const FluidTableCaption = React.forwardRef<
   HTMLTableCaptionElement,
@@ -103,8 +102,8 @@ const FluidTableCaption = React.forwardRef<
     className={cn("mt-4 text-sm text-muted-foreground", className)}
     {...props}
   />
-))
-FluidTableCaption.displayName = "FluidTableCaption"
+));
+FluidTableCaption.displayName = "FluidTableCaption";
 
 export {
   FluidTable,
@@ -115,4 +114,4 @@ export {
   FluidTableRow,
   FluidTableCell,
   FluidTableCaption,
-}
+};

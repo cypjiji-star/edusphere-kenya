@@ -1,35 +1,34 @@
-
 "use client";
 
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from '@/components/ui/select';
-import * as React from 'react';
-import Link from 'next/link';
-import { firestore } from '@/lib/firebase';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
-import { logAuditEvent } from '@/lib/audit-log.service';
-import { light } from '@/lib/haptic';
+} from "@/components/ui/select";
+import * as React from "react";
+import Link from "next/link";
+import { firestore } from "@/lib/firebase";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import { logAuditEvent } from "@/lib/audit-log.service";
+import { light } from "@/lib/haptic";
 
 export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [role, setRole] = React.useState('admin');
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [schoolId, setSchoolId] = React.useState('');
+  const [role, setRole] = React.useState("admin");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [schoolId, setSchoolId] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -38,9 +37,9 @@ export function LoginForm() {
 
     if (!schoolId) {
       toast({
-        title: 'School ID Required',
-        description: 'Please enter your school ID to log in.',
-        variant: 'destructive',
+        title: "School ID Required",
+        description: "Please enter your school ID to log in.",
+        variant: "destructive",
       });
       setIsLoading(false);
       return;
@@ -48,21 +47,30 @@ export function LoginForm() {
 
     try {
       const auth = getAuth();
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
       const user = userCredential.user;
 
-      const userDocRef = doc(firestore, 'schools', schoolId, 'users', user.uid);
+      const userDocRef = doc(firestore, "schools", schoolId, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
-      if (userDocSnap.exists() && userDocSnap.data().role?.toLowerCase() === role.toLowerCase()) {
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('schoolId', schoolId);
+      if (
+        userDocSnap.exists() &&
+        userDocSnap.data().role?.toLowerCase() === role.toLowerCase()
+      ) {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("schoolId", schoolId);
         }
-        await updateDoc(userDocRef, { lastLogin: serverTimestamp() }).catch(() => {});
+        await updateDoc(userDocRef, { lastLogin: serverTimestamp() }).catch(
+          () => {},
+        );
         await logAuditEvent({
           schoolId,
-          action: 'USER_LOGIN_SUCCESS',
-          actionType: 'Security',
+          action: "USER_LOGIN_SUCCESS",
+          actionType: "Security",
           description: `User ${user.email} successfully logged in as ${role}.`,
           user: { id: user.uid, name: userDocSnap.data().name, role },
         });
@@ -70,37 +78,37 @@ export function LoginForm() {
       } else {
         await auth.signOut();
         toast({
-          title: 'Access Denied',
+          title: "Access Denied",
           description: `Your credentials are correct, but you do not have the "${role}" role for this school.`,
-          variant: 'destructive',
+          variant: "destructive",
         });
       }
     } catch (error: any) {
-      let title = 'Login Failed';
-      let description = 'An unexpected error occurred. Please try again.';
+      let title = "Login Failed";
+      let description = "An unexpected error occurred. Please try again.";
 
       switch (error.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          title = 'Invalid Credentials';
-          description = 'The email or password you entered is incorrect.';
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+        case "auth/invalid-credential":
+          title = "Invalid Credentials";
+          description = "The email or password you entered is incorrect.";
           break;
         default:
-          description = 'Please check your credentials and school ID.';
+          description = "Please check your credentials and school ID.";
           break;
       }
 
       await logAuditEvent({
-        schoolId: schoolId || 'unknown',
-        action: 'USER_LOGIN_FAILURE',
-        actionType: 'Security',
+        schoolId: schoolId || "unknown",
+        action: "USER_LOGIN_FAILURE",
+        actionType: "Security",
         description: `Failed login attempt for ${email}.`,
-        user: { id: 'unknown', name: email, role: 'unknown' },
+        user: { id: "unknown", name: email, role: "unknown" },
         details: `Reason: ${description}`,
       });
 
-      toast({ title, description, variant: 'destructive' });
+      toast({ title, description, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }

@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import * as React from 'react';
-import { firestore } from '@/lib/firebase';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { light } from '@/lib/haptic';
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import * as React from "react";
+import { firestore } from "@/lib/firebase";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { light } from "@/lib/haptic";
 
 export function DeveloperLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -26,27 +26,31 @@ export function DeveloperLoginForm() {
 
     try {
       const auth = getAuth();
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
       const user = userCredential.user;
 
-      const devDocRef = doc(firestore, 'developers', user.uid);
+      const devDocRef = doc(firestore, "developers", user.uid);
       const devDocSnap = await getDoc(devDocRef);
 
       if (devDocSnap.exists()) {
-        router.push('/developer');
+        router.push("/developer");
       } else {
         await auth.signOut();
         toast({
-          title: 'Access Denied',
-          description: 'You are not registered as a developer.',
-          variant: 'destructive',
+          title: "Access Denied",
+          description: "You are not registered as a developer.",
+          variant: "destructive",
         });
       }
     } catch (error: any) {
       toast({
-        title: 'Login Failed',
-        description: 'Please check your email and password.',
-        variant: 'destructive',
+        title: "Login Failed",
+        description: "Please check your email and password.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -84,13 +88,18 @@ export function DeveloperLoginForm() {
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={isLoading} onClick={() => light()}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isLoading}
+        onClick={() => light()}
+      >
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Developer Login
       </Button>
 
       <div className="mt-4 text-center text-sm">
-        Don&apos;t have an account?{' '}
+        Don&apos;t have an account?{" "}
         <Link href="/developer/create-dev-account" className="underline">
           Sign up as a developer
         </Link>

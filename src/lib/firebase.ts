@@ -1,17 +1,16 @@
-
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeApp, getApp, getApps } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 // We will import getAuth dynamically in the AuthProvider
 // import { getAuth } from 'firebase/auth';
 
 export const firebaseConfig = {
-  "projectId": "studio-8322695498-589c5",
-  "appId": "1:853801330881:web:025112dc4e29e784024c40",
-  "storageBucket": "studio-8322695498-589c5.appspot.com",
-  "apiKey": "AIzaSyDxRU3vLJzXKFD5PpZ73eYxoI48pFveLNY",
-  "authDomain": "studio-8322695498-589c5.firebaseapp.com",
-  "messagingSenderId": "853801330881"
+  projectId: "studio-8322695498-589c5",
+  appId: "1:853801330881:web:025112dc4e29e784024c40",
+  storageBucket: "studio-8322695498-589c5.appspot.com",
+  apiKey: "AIzaSyDxRU3vLJzXKFD5PpZ73eYxoI48pFveLNY",
+  authDomain: "studio-8322695498-589c5.firebaseapp.com",
+  messagingSenderId: "853801330881",
 };
 
 // Initialize Firebase

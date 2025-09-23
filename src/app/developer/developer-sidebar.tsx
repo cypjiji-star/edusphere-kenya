@@ -1,8 +1,7 @@
+"use client";
 
-'use client';
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   GraduationCap,
   LayoutDashboard,
@@ -12,7 +11,7 @@ import {
   HelpCircle,
   ShieldCheck,
   FileClock,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   SidebarHeader,
   SidebarContent,
@@ -20,10 +19,10 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  useSidebar
-} from '@/components/ui/sidebar';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +30,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import * as React from 'react';
-import { useAuth } from '@/context/auth-context';
+} from "@/components/ui/dropdown-menu";
+import * as React from "react";
+import { useAuth } from "@/context/auth-context";
 
 export function DeveloperSidebar() {
   const pathname = usePathname();
@@ -50,32 +49,50 @@ export function DeveloperSidebar() {
   return (
     <>
       <SidebarHeader>
-        <Link href="/developer" onClick={handleLinkClick} className="flex items-center gap-2">
+        <Link
+          href="/developer"
+          onClick={handleLinkClick}
+          className="flex items-center gap-2"
+        >
           <GraduationCap className="size-6 text-primary" />
-          <span className="font-bold font-headline text-lg">Developer Portal</span>
+          <span className="font-bold font-headline text-lg">
+            Developer Portal
+          </span>
         </Link>
       </SidebarHeader>
 
       <SidebarContent className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === '/developer'} tooltip={{ children: 'Dashboard' }}>
+            <SidebarMenuButton
+              asChild
+              isActive={pathname === "/developer"}
+              tooltip={{ children: "Dashboard" }}
+            >
               <Link href="/developer" onClick={handleLinkClick}>
                 <LayoutDashboard />
                 <span>Dashboard</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/developer/logs')} tooltip={{ children: 'Audit Logs' }}>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/developer/logs")}
+              tooltip={{ children: "Audit Logs" }}
+            >
               <Link href="/developer/logs" onClick={handleLinkClick}>
                 <FileClock />
                 <span>Audit Logs</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/developer/settings')} tooltip={{ children: 'System Settings' }}>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive("/developer/settings")}
+              tooltip={{ children: "System Settings" }}
+            >
               <Link href="/developer/settings" onClick={handleLinkClick}>
                 <Settings />
                 <span>System Settings</span>
@@ -88,12 +105,19 @@ export function DeveloperSidebar() {
       <SidebarFooter className="flex items-center gap-2 p-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 p-2 h-auto"
+            >
               <Avatar className="h-8 w-8">
-                <AvatarFallback>{user?.displayName?.charAt(0) || 'D'}</AvatarFallback>
+                <AvatarFallback>
+                  {user?.displayName?.charAt(0) || "D"}
+                </AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <p className="text-sm font-medium">{user?.displayName || 'Developer'}</p>
+                <p className="text-sm font-medium">
+                  {user?.displayName || "Developer"}
+                </p>
                 <p className="text-xs text-muted-foreground">Super Admin</p>
               </div>
               <ChevronDown className="ml-auto h-4 w-4 shrink-0" />
@@ -102,25 +126,29 @@ export function DeveloperSidebar() {
           <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.displayName || 'Developer'}</p>
+                <p className="text-sm font-medium leading-none">
+                  {user?.displayName || "Developer"}
+                </p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email || ''}
+                  {user?.email || ""}
                 </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled>
-              <Settings className="mr-2" />Profile
+              <Settings className="mr-2" />
+              Profile
             </DropdownMenuItem>
             <DropdownMenuItem disabled>
-              <HelpCircle className="mr-2" />Support
+              <HelpCircle className="mr-2" />
+              Support
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-             <DropdownMenuItem asChild>
-                <Link href="/" onClick={handleLinkClick}>
-                    <LogOut className="mr-2" />
-                    <span>Log out</span>
-                </Link>
+            <DropdownMenuItem asChild>
+              <Link href="/" onClick={handleLinkClick}>
+                <LogOut className="mr-2" />
+                <span>Log out</span>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

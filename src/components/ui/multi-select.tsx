@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -40,14 +39,14 @@ export function MultiSelect({
     (option: Option) => {
       onChange([...selected, option.value]);
     },
-    [onChange, selected]
+    [onChange, selected],
   );
 
   const handleUnselect = React.useCallback(
     (value: string) => {
       onChange(selected.filter((s) => s !== value));
     },
-    [onChange, selected]
+    [onChange, selected],
   );
 
   const handleKeyDown = React.useCallback(
@@ -66,11 +65,11 @@ export function MultiSelect({
         }
       }
     },
-    [onChange, selected]
+    [onChange, selected],
   );
 
   const selectables = options.filter(
-    (option) => !selected.includes(option.value)
+    (option) => !selected.includes(option.value),
   );
 
   return (
@@ -145,5 +144,3 @@ export function MultiSelect({
     </Command>
   );
 }
-
-    

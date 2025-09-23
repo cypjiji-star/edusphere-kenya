@@ -1,5 +1,4 @@
-
-export type SubmissionStatus = 'Graded' | 'Handed In' | 'Not Handed In';
+export type SubmissionStatus = "Graded" | "Handed In" | "Not Handed In";
 
 export type Submission = {
   studentId: string;

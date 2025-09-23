@@ -1,15 +1,14 @@
-
-import Link from 'next/link';
-import { Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import Image from 'next/image';
-import { AppLogo } from '../ui/app-logo';
+import Link from "next/link";
+import { Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import Image from "next/image";
+import { AppLogo } from "../ui/app-logo";
 
 const navLinks = [
-  { href: '/#features', label: 'Features' },
-  { href: '/#about', label: 'About' },
-  { href: '/learning-path', label: 'AI Learning Path' },
+  { href: "/#features", label: "Features" },
+  { href: "/#about", label: "About" },
+  { href: "/learning-path", label: "AI Learning Path" },
 ];
 
 export function AppHeader() {
@@ -50,7 +49,9 @@ export function AppHeader() {
               <div className="flex flex-col gap-6 pt-6">
                 <Link href="/" className="flex items-center space-x-2">
                   <AppLogo className="h-6 w-6" />
-                  <span className="font-bold font-headline">EduSphere Kenya</span>
+                  <span className="font-bold font-headline">
+                    EduSphere Kenya
+                  </span>
                 </Link>
                 <nav className="flex flex-col gap-4">
                   {navLinks.map((link) => (

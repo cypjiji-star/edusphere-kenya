@@ -19,7 +19,13 @@ export function AppLogo({ className }: { className?: string }) {
         <filter id="inner-shadow" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
           <feOffset dx="2" dy="2" />
-          <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="shadowDiff" />
+          <feComposite
+            in2="SourceAlpha"
+            operator="arithmetic"
+            k2="-1"
+            k3="1"
+            result="shadowDiff"
+          />
           <feFlood floodColor="#000" floodOpacity=".3" />
           <feComposite in2="shadowDiff" operator="in" />
           <feComposite in2="SourceGraphic" operator="over" />
@@ -27,7 +33,13 @@ export function AppLogo({ className }: { className?: string }) {
       </defs>
 
       <rect width="120" height="120" rx="20" fill="#0B0F19" />
-      <rect width="120" height="120" rx="20" fill="url(#glow)" fillOpacity=".1" />
+      <rect
+        width="120"
+        height="120"
+        rx="20"
+        fill="url(#glow)"
+        fillOpacity=".1"
+      />
 
       <g filter="url(#inner-shadow)">
         <path
@@ -39,14 +51,55 @@ export function AppLogo({ className }: { className?: string }) {
         />
       </g>
 
-      <rect x="38" y="60" width="8" height="25" fill="#00BFFF" rx="2" opacity=".8">
-        <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite" />
+      <rect
+        x="38"
+        y="60"
+        width="8"
+        height="25"
+        fill="#00BFFF"
+        rx="2"
+        opacity=".8"
+      >
+        <animate
+          attributeName="opacity"
+          values="0.6;1;0.6"
+          dur="3s"
+          repeatCount="indefinite"
+        />
       </rect>
-      <rect x="56" y="60" width="8" height="35" fill="#00BFFF" rx="2" opacity=".9">
-        <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite" begin="0.5s" />
+      <rect
+        x="56"
+        y="60"
+        width="8"
+        height="35"
+        fill="#00BFFF"
+        rx="2"
+        opacity=".9"
+      >
+        <animate
+          attributeName="opacity"
+          values="0.7;1;0.7"
+          dur="3s"
+          repeatCount="indefinite"
+          begin="0.5s"
+        />
       </rect>
-      <rect x="74" y="60" width="8" height="25" fill="#00BFFF" rx="2" opacity=".8">
-        <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite" begin="1s" />
+      <rect
+        x="74"
+        y="60"
+        width="8"
+        height="25"
+        fill="#00BFFF"
+        rx="2"
+        opacity=".8"
+      >
+        <animate
+          attributeName="opacity"
+          values="0.6;1;0.6"
+          dur="3s"
+          repeatCount="indefinite"
+          begin="1s"
+        />
       </rect>
 
       <path d="M60 25 L95 50 L25 50 Z" fill="url(#glow)" fillOpacity=".5" />

@@ -1,5 +1,4 @@
-
-'use server';
+"use server";
 /**
  * @fileOverview An AI-powered support chatbot flow.
  *
@@ -8,32 +7,36 @@
  * - SupportChatbotOutput - The return type for the function.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { ai } from "@/ai/genkit";
+import { z } from "genkit";
 
 const MessageSchema = z.object({
-  role: z.enum(['user', 'model']),
+  role: z.enum(["user", "model"]),
   content: z.string(),
 });
 
 const SupportChatbotInputSchema = z.object({
-  history: z.array(MessageSchema).describe('The history of the conversation so far.'),
+  history: z
+    .array(MessageSchema)
+    .describe("The history of the conversation so far."),
 });
 export type SupportChatbotInput = z.infer<typeof SupportChatbotInputSchema>;
 
 const SupportChatbotOutputSchema = z.object({
-  response: z.string().describe('The AI chatbot\'s helpful and context-aware response.'),
+  response: z
+    .string()
+    .describe("The AI chatbot's helpful and context-aware response."),
 });
 export type SupportChatbotOutput = z.infer<typeof SupportChatbotOutputSchema>;
 
 export async function supportChatbot(
-  input: SupportChatbotInput
+  input: SupportChatbotInput,
 ): Promise<SupportChatbotOutput> {
   return supportChatbotFlow(input);
 }
 
 const prompt = ai.definePrompt({
-  name: 'supportChatbotPrompt',
+  name: "supportChatbotPrompt",
   input: { schema: SupportChatbotInputSchema },
   output: { schema: SupportChatbotOutputSchema },
   prompt: `You are a friendly and helpful AI assistant for a school management system called EduSphere Kenya. Your role is to be the first line of support for parents and teachers.
@@ -51,12 +54,12 @@ const prompt = ai.definePrompt({
 
 const supportChatbotFlow = ai.defineFlow(
   {
-    name: 'supportChatbotFlow',
+    name: "supportChatbotFlow",
     inputSchema: SupportChatbotInputSchema,
     outputSchema: SupportChatbotOutputSchema,
   },
   async (input) => {
     const { output } = await prompt(input);
     return output!;
-  }
+  },
 );

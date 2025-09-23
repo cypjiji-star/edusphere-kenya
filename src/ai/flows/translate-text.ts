@@ -1,5 +1,4 @@
-
-'use server';
+"use server";
 /**
  * @fileOverview A simple text translation flow.
  *
@@ -8,30 +7,32 @@
  * - TranslateTextOutput - The return type for the function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from "@/ai/genkit";
+import { z } from "genkit";
 
 const TranslateTextInputSchema = z.object({
-  text: z.string().describe('The text to translate.'),
-  targetLanguage: z.string().describe('The language to translate the text into.'),
+  text: z.string().describe("The text to translate."),
+  targetLanguage: z
+    .string()
+    .describe("The language to translate the text into."),
 });
 export type TranslateTextInput = z.infer<typeof TranslateTextInputSchema>;
 
 const TranslateTextOutputSchema = z.object({
-  translatedText: z.string().describe('The translated text.'),
+  translatedText: z.string().describe("The translated text."),
 });
 export type TranslateTextOutput = z.infer<typeof TranslateTextOutputSchema>;
 
 export async function translateText(
-  input: TranslateTextInput
+  input: TranslateTextInput,
 ): Promise<TranslateTextOutput> {
   return translateTextFlow(input);
 }
 
 const prompt = ai.definePrompt({
-  name: 'translateTextPrompt',
-  input: {schema: TranslateTextInputSchema},
-  output: {schema: TranslateTextOutputSchema},
+  name: "translateTextPrompt",
+  input: { schema: TranslateTextInputSchema },
+  output: { schema: TranslateTextOutputSchema },
   prompt: `Translate the following text into {{{targetLanguage}}}. Only return the translated text, with no preamble or additional explanation.
 
 Text to translate:
@@ -40,12 +41,12 @@ Text to translate:
 
 const translateTextFlow = ai.defineFlow(
   {
-    name: 'translateTextFlow',
+    name: "translateTextFlow",
     inputSchema: TranslateTextInputSchema,
     outputSchema: TranslateTextOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (input) => {
+    const { output } = await prompt(input);
     return output!;
-  }
+  },
 );

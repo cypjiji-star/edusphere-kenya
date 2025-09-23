@@ -1,8 +1,6 @@
+"use client";
 
-
-'use client';
-
-import * as React from 'react';
+import * as React from "react";
 import {
   Card,
   CardContent,
@@ -10,13 +8,22 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ShieldCheck, User, Save, PlusCircle, Trash2, Users2, Search, Loader2 } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  ShieldCheck,
+  User,
+  Save,
+  PlusCircle,
+  Trash2,
+  Users2,
+  Search,
+  Loader2,
+} from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -26,14 +33,20 @@ import {
   DialogFooter,
   DialogTrigger,
   DialogClose,
-} from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
-import { logAuditEvent } from '@/lib/audit-log.service';
-
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { firestore } from "@/lib/firebase";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  updateDoc,
+  setDoc,
+  deleteDoc,
+} from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
+import { logAuditEvent } from "@/lib/audit-log.service";
 
 type Permission = {
   id: string;
@@ -46,69 +59,74 @@ type PermissionCategory = {
 };
 
 type Role = {
-    permissions: string[];
-    userCount: number;
-    isCore: boolean;
+  permissions: string[];
+  userCount: number;
+  isCore: boolean;
 };
 
 // This can remain static as it defines the available permissions in the system.
 const permissionStructure: PermissionCategory[] = [
   {
-    title: 'User Management',
+    title: "User Management",
     permissions: [
-      { id: 'users.create', label: 'Create new users' },
-      { id: 'users.edit', label: 'Edit user profiles' },
-      { id: 'users.delete', label: 'Delete users' },
-      { id: 'users.roles', label: 'Change user roles' },
+      { id: "users.create", label: "Create new users" },
+      { id: "users.edit", label: "Edit user profiles" },
+      { id: "users.delete", label: "Delete users" },
+      { id: "users.roles", label: "Change user roles" },
     ],
   },
   {
-    title: 'Academics',
+    title: "Academics",
     permissions: [
-      { id: 'academics.grades.view', label: 'View school-wide grades' },
-      { id: 'academics.grades.edit', label: 'Edit all student grades' },
-      { id: 'academics.timetable.edit', label: 'Manage school timetable' },
-      { id: 'academics.subjects.manage', label: 'Manage classes and subjects' },
+      { id: "academics.grades.view", label: "View school-wide grades" },
+      { id: "academics.grades.edit", label: "Edit all student grades" },
+      { id: "academics.timetable.edit", label: "Manage school timetable" },
+      { id: "academics.subjects.manage", label: "Manage classes and subjects" },
     ],
   },
   {
-    title: 'Communication',
+    title: "Communication",
     permissions: [
-      { id: 'comms.announcements.school', label: 'Send school-wide announcements' },
-      { id: 'comms.messaging.all', label: 'View all messages' },
+      {
+        id: "comms.announcements.school",
+        label: "Send school-wide announcements",
+      },
+      { id: "comms.messaging.all", label: "View all messages" },
     ],
   },
-   {
-    title: 'Finance',
+  {
+    title: "Finance",
     permissions: [
-      { id: 'finance.fees.manage', label: 'Manage fee structures and payments' },
-      { id: 'finance.expenses.manage', label: 'Manage school expenses' },
+      {
+        id: "finance.fees.manage",
+        label: "Manage fee structures and payments",
+      },
+      { id: "finance.expenses.manage", label: "Manage school expenses" },
     ],
   },
-   {
-    title: 'System',
-    permissions: [
-      { id: 'admin.logs', label: 'View Audit Logs' },
-    ],
+  {
+    title: "System",
+    permissions: [{ id: "admin.logs", label: "View Audit Logs" }],
   },
 ];
 
-
 export default function PermissionsPage() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get("schoolId");
   const { user: adminUser } = useAuth();
-  const [rolePermissions, setRolePermissions] = React.useState<Record<string, Role>>({});
+  const [rolePermissions, setRolePermissions] = React.useState<
+    Record<string, Role>
+  >({});
   const [isLoading, setIsLoading] = React.useState(true);
-  const [newRoleName, setNewRoleName] = React.useState('');
-  const [searchTerm, setSearchTerm] = React.useState('');
+  const [newRoleName, setNewRoleName] = React.useState("");
+  const [searchTerm, setSearchTerm] = React.useState("");
   const { toast } = useToast();
 
   React.useEffect(() => {
     if (!schoolId) {
-        setIsLoading(false);
-        return;
-    };
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
 
@@ -118,157 +136,210 @@ export default function PermissionsPage() {
     let rolesData: Record<string, Role> = {};
 
     const unsubRoles = onSnapshot(rolesRef, (snapshot) => {
-        snapshot.forEach(doc => {
-            rolesData[doc.id] = doc.data() as Role;
-        });
-        // We might get user counts before roles, so let's re-apply them.
-        setRolePermissions(currentPermissions => {
-            const updated = { ...rolesData };
-             for (const roleName in updated) {
-                if(currentPermissions[roleName]) {
-                    updated[roleName].userCount = currentPermissions[roleName].userCount || 0;
-                }
-            }
-            return updated;
-        });
-        setIsLoading(false);
+      snapshot.forEach((doc) => {
+        rolesData[doc.id] = doc.data() as Role;
+      });
+      // We might get user counts before roles, so let's re-apply them.
+      setRolePermissions((currentPermissions) => {
+        const updated = { ...rolesData };
+        for (const roleName in updated) {
+          if (currentPermissions[roleName]) {
+            updated[roleName].userCount =
+              currentPermissions[roleName].userCount || 0;
+          }
+        }
+        return updated;
+      });
+      setIsLoading(false);
     });
 
     const unsubUsers = onSnapshot(usersRef, (snapshot) => {
-        const userCounts: Record<string, number> = {};
-        snapshot.forEach(doc => {
-            const roleName = doc.data().role;
-            if (roleName) {
-                userCounts[roleName] = (userCounts[roleName] || 0) + 1;
-            }
-        });
+      const userCounts: Record<string, number> = {};
+      snapshot.forEach((doc) => {
+        const roleName = doc.data().role;
+        if (roleName) {
+          userCounts[roleName] = (userCounts[roleName] || 0) + 1;
+        }
+      });
 
-        setRolePermissions(currentPermissions => {
-            const updated = { ...currentPermissions };
-            for (const roleName in updated) {
-                updated[roleName].userCount = userCounts[roleName] || 0;
-            }
-            return updated;
-        });
+      setRolePermissions((currentPermissions) => {
+        const updated = { ...currentPermissions };
+        for (const roleName in updated) {
+          updated[roleName].userCount = userCounts[roleName] || 0;
+        }
+        return updated;
+      });
     });
 
     return () => {
-        unsubRoles();
-        unsubUsers();
+      unsubRoles();
+      unsubUsers();
     };
   }, [schoolId]);
 
-  const handlePermissionChange = (role: string, permissionId: string, checked: boolean) => {
-    setRolePermissions(prev => {
-        const currentPermissions = prev[role]?.permissions || [];
-        const updatedRole = {
-            ...prev[role],
-            permissions: checked
-                ? [...currentPermissions, permissionId]
-                : currentPermissions.filter(id => id !== permissionId)
-        };
-        return { ...prev, [role]: updatedRole };
+  const handlePermissionChange = (
+    role: string,
+    permissionId: string,
+    checked: boolean,
+  ) => {
+    setRolePermissions((prev) => {
+      const currentPermissions = prev[role]?.permissions || [];
+      const updatedRole = {
+        ...prev[role],
+        permissions: checked
+          ? [...currentPermissions, permissionId]
+          : currentPermissions.filter((id) => id !== permissionId),
+      };
+      return { ...prev, [role]: updatedRole };
     });
   };
 
   const handleSave = async (role: string) => {
     if (!schoolId || !adminUser) return;
     try {
-        const roleRef = doc(firestore, `schools/${schoolId}/roles`, role);
-        await updateDoc(roleRef, { permissions: rolePermissions[role].permissions });
+      const roleRef = doc(firestore, `schools/${schoolId}/roles`, role);
+      await updateDoc(roleRef, {
+        permissions: rolePermissions[role].permissions,
+      });
 
-        await logAuditEvent({
-            schoolId,
-            action: 'ROLE_PERMISSIONS_UPDATED',
-            actionType: 'Security',
-            description: `Permissions updated for the "${role}" role.`,
-            user: { id: adminUser.uid, name: adminUser.displayName || 'Admin', role: 'Admin' },
-            details: `Permissions updated for the "${role}" role.`
-        });
+      await logAuditEvent({
+        schoolId,
+        action: "ROLE_PERMISSIONS_UPDATED",
+        actionType: "Security",
+        description: `Permissions updated for the "${role}" role.`,
+        user: {
+          id: adminUser.uid,
+          name: adminUser.displayName || "Admin",
+          role: "Admin",
+        },
+        details: `Permissions updated for the "${role}" role.`,
+      });
 
-        toast({
-            title: 'Permissions Saved',
-            description: `Permissions for the ${role} role have been updated.`,
-        });
+      toast({
+        title: "Permissions Saved",
+        description: `Permissions for the ${role} role have been updated.`,
+      });
     } catch (e) {
-        toast({ title: 'Save Failed', variant: 'destructive'});
-        console.error(e);
+      toast({ title: "Save Failed", variant: "destructive" });
+      console.error(e);
     }
-  }
-  
+  };
+
   const handleCreateRole = async () => {
     const trimmedRoleName = newRoleName.trim();
-    
+
     if (!trimmedRoleName || !schoolId) {
-        toast({ title: 'Error', description: 'Role name or School ID is missing.', variant: 'destructive' });
-        return;
+      toast({
+        title: "Error",
+        description: "Role name or School ID is missing.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    if (Object.keys(rolePermissions).some(r => r.toLowerCase() === trimmedRoleName.toLowerCase())) {
-        toast({ title: 'Duplicate Role', description: `A role named "${trimmedRoleName}" already exists.`, variant: 'destructive' });
-        return;
+    if (
+      Object.keys(rolePermissions).some(
+        (r) => r.toLowerCase() === trimmedRoleName.toLowerCase(),
+      )
+    ) {
+      toast({
+        title: "Duplicate Role",
+        description: `A role named "${trimmedRoleName}" already exists.`,
+        variant: "destructive",
+      });
+      return;
     }
-    
+
     try {
-        const roleRef = doc(firestore, `schools/${schoolId}/roles`, trimmedRoleName);
-        await setDoc(roleRef, { permissions: [], isCore: false });
-        setNewRoleName('');
-        toast({ title: 'Role Created', description: `The "${trimmedRoleName}" role has been added.` });
+      const roleRef = doc(
+        firestore,
+        `schools/${schoolId}/roles`,
+        trimmedRoleName,
+      );
+      await setDoc(roleRef, { permissions: [], isCore: false });
+      setNewRoleName("");
+      toast({
+        title: "Role Created",
+        description: `The "${trimmedRoleName}" role has been added.`,
+      });
     } catch (e) {
-        toast({ title: 'Creation Failed', variant: 'destructive' });
-        console.error(e);
+      toast({ title: "Creation Failed", variant: "destructive" });
+      console.error(e);
     }
   };
 
   const handleDeleteRole = async (roleToDelete: string) => {
-      if (!schoolId) return;
-      if (rolePermissions[roleToDelete]?.isCore) {
-          toast({ title: 'Action Denied', description: `Cannot delete a core system role.`, variant: 'destructive' });
-          return;
+    if (!schoolId) return;
+    if (rolePermissions[roleToDelete]?.isCore) {
+      toast({
+        title: "Action Denied",
+        description: `Cannot delete a core system role.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (
+      window.confirm(
+        `Are you sure you want to delete the "${roleToDelete}" role?`,
+      )
+    ) {
+      try {
+        await deleteDoc(
+          doc(firestore, `schools/${schoolId}/roles`, roleToDelete),
+        );
+        toast({
+          title: "Role Deleted",
+          description: `The "${roleToDelete}" role has been removed.`,
+          variant: "destructive",
+        });
+      } catch (e) {
+        toast({ title: "Deletion Failed", variant: "destructive" });
+        console.error(e);
       }
-      if (window.confirm(`Are you sure you want to delete the "${roleToDelete}" role?`)) {
-          try {
-              await deleteDoc(doc(firestore, `schools/${schoolId}/roles`, roleToDelete));
-              toast({ title: 'Role Deleted', description: `The "${roleToDelete}" role has been removed.`, variant: 'destructive' });
-          } catch(e) {
-               toast({ title: 'Deletion Failed', variant: 'destructive' });
-               console.error(e);
-          }
-      }
-  }
-    
+    }
+  };
+
   const renderPermissions = (role: string) => {
     const isReadOnly = rolePermissions[role]?.isCore;
-    
+
     return permissionStructure.map((category, index) => (
       <div key={category.title}>
         <h4 className="font-semibold text-base mb-3">{category.title}</h4>
         <div className="space-y-3">
-          {category.permissions.map(permission => (
+          {category.permissions.map((permission) => (
             <div key={permission.id} className="flex items-center space-x-3">
               <Checkbox
                 id={`${role}-${permission.id}`}
-                checked={rolePermissions[role]?.permissions.includes(permission.id)}
-                onCheckedChange={(checked) => handlePermissionChange(role, permission.id, !!checked)}
+                checked={rolePermissions[role]?.permissions.includes(
+                  permission.id,
+                )}
+                onCheckedChange={(checked) =>
+                  handlePermissionChange(role, permission.id, !!checked)
+                }
                 disabled={isReadOnly}
               />
-              <Label htmlFor={`${role}-${permission.id}`} className="text-sm font-normal">
+              <Label
+                htmlFor={`${role}-${permission.id}`}
+                className="text-sm font-normal"
+              >
                 {permission.label}
               </Label>
             </div>
           ))}
         </div>
-        {index < permissionStructure.length - 1 && <Separator className="my-4"/>}
+        {index < permissionStructure.length - 1 && (
+          <Separator className="my-4" />
+        )}
       </div>
     ));
   };
 
-  const filteredRoles = Object.keys(rolePermissions).filter(role =>
-    role.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRoles = Object.keys(rolePermissions).filter((role) =>
+    role.toLowerCase().includes(searchTerm.toLowerCase()),
   );
-  
+
   if (!schoolId) {
-      return <div className="p-8">Error: School ID is missing from URL.</div>
+    return <div className="p-8">Error: School ID is missing from URL.</div>;
   }
 
   return (
@@ -279,98 +350,111 @@ export default function PermissionsPage() {
             <ShieldCheck className="h-8 w-8 text-primary" />
             Roles &amp; Permissions
           </h1>
-          <p className="text-muted-foreground">Define what each user role can see and do within the portal.</p>
+          <p className="text-muted-foreground">
+            Define what each user role can see and do within the portal.
+          </p>
         </div>
         <div className="flex w-full md:w-auto items-center gap-2">
-            <div className="relative w-full md:max-w-xs">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                    type="search"
-                    placeholder="Search roles..."
-                    className="w-full bg-background pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button>
-                        <PlusCircle className="mr-2"/>
-                        Create Role
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Create a New Role</DialogTitle>
-                        <DialogDescription>Define a custom role and assign specific permissions.</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="role-name">Role Name</Label>
-                            <Input id="role-name" placeholder="e.g., Librarian, Accountant" value={newRoleName} onChange={(e) => setNewRoleName(e.target.value)} />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                        <DialogClose asChild>
-                           <Button onClick={handleCreateRole}>Create Role</Button>
-                        </DialogClose>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+          <div className="relative w-full md:max-w-xs">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search roles..."
+              className="w-full bg-background pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="mr-2" />
+                Create Role
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create a New Role</DialogTitle>
+                <DialogDescription>
+                  Define a custom role and assign specific permissions.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="role-name">Role Name</Label>
+                  <Input
+                    id="role-name"
+                    placeholder="e.g., Librarian, Accountant"
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button onClick={handleCreateRole}>Create Role</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-       {isLoading ? (
+      {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredRoles.map(role => {
+          {filteredRoles.map((role) => {
             const roleData = rolePermissions[role];
             if (!roleData) return null;
 
             return (
-                <Card key={role}>
+              <Card key={role}>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5 text-primary" />
-                        {role}
+                      <User className="h-5 w-5 text-primary" />
+                      {role}
                     </CardTitle>
                     {!roleData.isCore && (
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteRole(role)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteRole(role)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     )}
-                    </div>
-                    <CardDescription className="flex items-center gap-2 pt-1">
-                        <Users2 className="h-4 w-4"/>
-                        {roleData.userCount} users assigned
-                    </CardDescription>
+                  </div>
+                  <CardDescription className="flex items-center gap-2 pt-1">
+                    <Users2 className="h-4 w-4" />
+                    {roleData.userCount} users assigned
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    {renderPermissions(role)}
-                </CardContent>
+                <CardContent>{renderPermissions(role)}</CardContent>
                 {!roleData.isCore && (
-                    <CardFooter>
-                        <Button onClick={() => handleSave(role)}>
-                            <Save className="mr-2 h-4 w-4"/>
-                            Save Permissions
-                        </Button>
-                    </CardFooter>
+                  <CardFooter>
+                    <Button onClick={() => handleSave(role)}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Permissions
+                    </Button>
+                  </CardFooter>
                 )}
-                </Card>
+              </Card>
             );
-            })}
+          })}
         </div>
-       )}
-       {!isLoading && filteredRoles.length === 0 && (
-          <div className="text-center text-muted-foreground py-16">
-            <p>No roles found matching your search.</p>
-          </div>
-       )}
+      )}
+      {!isLoading && filteredRoles.length === 0 && (
+        <div className="text-center text-muted-foreground py-16">
+          <p>No roles found matching your search.</p>
+        </div>
+      )}
     </div>
   );
 }

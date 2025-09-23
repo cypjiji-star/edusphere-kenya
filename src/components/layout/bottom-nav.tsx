@@ -1,10 +1,17 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Home, ClipboardCheck, BookMarked, MessageCircle, User, LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Home,
+  ClipboardCheck,
+  BookMarked,
+  MessageCircle,
+  User,
+  LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type BottomNavItem = {
   href: string;
@@ -25,11 +32,11 @@ export function BottomNav({ items }: BottomNavProps) {
   }
 
   const isActive = (href: string) => {
-    if (href === '/teacher' || href === '/admin' || href === '/parent') {
-        return pathname === href;
+    if (href === "/teacher" || href === "/admin" || href === "/parent") {
+      return pathname === href;
     }
     return pathname.startsWith(href);
-  }
+  };
 
   return (
     <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-background border-t border-border/40 md:hidden">
@@ -39,14 +46,12 @@ export function BottomNav({ items }: BottomNavProps) {
             key={item.label}
             href={item.href}
             className={cn(
-              'inline-flex flex-col items-center justify-center px-2 hover:bg-muted/50 group',
-              isActive(item.href) ? 'text-primary' : 'text-muted-foreground'
+              "inline-flex flex-col items-center justify-center px-2 hover:bg-muted/50 group",
+              isActive(item.href) ? "text-primary" : "text-muted-foreground",
             )}
           >
             <item.icon className="w-5 h-5 mb-1 transition-transform group-hover:scale-110" />
-            <span className="text-[10px] font-bold">
-              {item.label}
-            </span>
+            <span className="text-[10px] font-bold">{item.label}</span>
           </Link>
         ))}
       </div>

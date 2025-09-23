@@ -1,8 +1,7 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
-import Link from 'next/link';
+import * as React from "react";
+import Link from "next/link";
 import {
   format,
   startOfMonth,
@@ -16,11 +15,11 @@ import {
   sub,
   eachWeekOfInterval,
   isToday,
-} from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+} from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 type LessonPlan = {
   id: string;
@@ -30,14 +29,14 @@ type LessonPlan = {
 };
 
 interface LessonPlanCalendarProps {
-    lessonPlans: LessonPlan[];
+  lessonPlans: LessonPlan[];
 }
 
 const statusColors: Record<string, string> = {
-    'Mr. Otieno': 'bg-blue-500',
-    'Ms. Njeri': 'bg-purple-500',
-    'Ms. Wanjiku': 'bg-green-600',
-    'Mr. Kamau': 'bg-yellow-500',
+  "Mr. Otieno": "bg-blue-500",
+  "Ms. Njeri": "bg-purple-500",
+  "Ms. Wanjiku": "bg-green-600",
+  "Mr. Kamau": "bg-yellow-500",
 };
 
 export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
@@ -57,12 +56,14 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
         <Button variant="outline" size="icon" onClick={handlePrevMonth}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <Button variant="outline" size="sm" onClick={handleToday}>Today</Button>
+        <Button variant="outline" size="sm" onClick={handleToday}>
+          Today
+        </Button>
         <Button variant="outline" size="icon" onClick={handleNextMonth}>
           <ChevronRight className="h-4 w-4" />
         </Button>
         <h2 className="text-xl font-semibold ml-4 font-headline">
-          {format(currentDate, 'MMMM yyyy')}
+          {format(currentDate, "MMMM yyyy")}
         </h2>
       </div>
     </div>
@@ -73,31 +74,49 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
       {renderHeader()}
       <div className="border rounded-lg">
         <div className="grid grid-cols-7 text-center font-semibold text-sm text-muted-foreground border-b">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="py-2 text-xs">{day}</div>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            <div key={day} className="py-2 text-xs">
+              {day}
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-7">
-          {weeks.map(weekStart =>
-            eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart) }).map(day => {
-              const plansForDay = lessonPlans.filter(p => isSameDay(new Date(p.date), day));
+          {weeks.map((weekStart) =>
+            eachDayOfInterval({
+              start: weekStart,
+              end: endOfWeek(weekStart),
+            }).map((day) => {
+              const plansForDay = lessonPlans.filter((p) =>
+                isSameDay(new Date(p.date), day),
+              );
               return (
                 <div
                   key={day.toString()}
                   className={cn(
-                    'h-28 md:h-40 p-1 md:p-2 border-t border-l flex flex-col',
-                    !isSameMonth(day, monthStart) && 'bg-muted/50 text-muted-foreground',
-                    isToday(day) && 'bg-accent/20'
+                    "h-28 md:h-40 p-1 md:p-2 border-t border-l flex flex-col",
+                    !isSameMonth(day, monthStart) &&
+                      "bg-muted/50 text-muted-foreground",
+                    isToday(day) && "bg-accent/20",
                   )}
                 >
-                  <span className={cn('font-medium text-xs', isToday(day) && 'text-primary')}>{format(day, 'd')}</span>
+                  <span
+                    className={cn(
+                      "font-medium text-xs",
+                      isToday(day) && "text-primary",
+                    )}
+                  >
+                    {format(day, "d")}
+                  </span>
                   <div className="mt-1 space-y-1 overflow-y-auto">
-                    {plansForDay.map(plan => (
-                      <Link key={plan.id} href={`/admin/lesson-plans/${plan.id}`}>
-                        <Badge 
+                    {plansForDay.map((plan) => (
+                      <Link
+                        key={plan.id}
+                        href={`/admin/lesson-plans/${plan.id}`}
+                      >
+                        <Badge
                           className={cn(
-                            'w-full truncate text-white cursor-pointer text-[10px] md:text-xs',
-                             statusColors[plan.teacher.name] || 'bg-gray-500'
+                            "w-full truncate text-white cursor-pointer text-[10px] md:text-xs",
+                            statusColors[plan.teacher.name] || "bg-gray-500",
                           )}
                           title={`${plan.topic} - ${plan.teacher.name}`}
                         >
@@ -109,7 +128,7 @@ export function LessonPlanCalendar({ lessonPlans }: LessonPlanCalendarProps) {
                   </div>
                 </div>
               );
-            })
+            }),
           )}
         </div>
       </div>

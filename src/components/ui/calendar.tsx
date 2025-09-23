@@ -1,22 +1,21 @@
+"use client";
 
-"use client"
+import * as React from "react";
+import { format } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { DayPicker, useDayPicker, useNavigation } from "react-day-picker";
 
-import * as React from "react"
-import { format } from "date-fns"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker, useDayPicker, useNavigation } from "react-day-picker"
-
-import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./select"
+} from "./select";
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 function Calendar({
   className,
@@ -37,7 +36,7 @@ function Calendar({
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
@@ -49,7 +48,7 @@ function Calendar({
         cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+          "h-9 w-9 p-0 font-normal aria-selected:opacity-100",
         ),
         day_range_end: "day-range-end",
         day_selected:
@@ -69,10 +68,13 @@ function Calendar({
         Caption: ({ ...props }) => {
           const { goToMonth, currentMonth } = useNavigation();
           const { fromYear, toYear } = useDayPicker();
-          
+
           const years = Array.from(
-            { length: (toYear || new Date().getFullYear()) - (fromYear || 1900) + 1 },
-            (_, i) => (fromYear || 1900) + i
+            {
+              length:
+                (toYear || new Date().getFullYear()) - (fromYear || 1900) + 1,
+            },
+            (_, i) => (fromYear || 1900) + i,
           ).reverse();
 
           return (
@@ -91,7 +93,10 @@ function Calendar({
                 <SelectContent>
                   {Array.from({ length: 12 }).map((_, i) => (
                     <SelectItem key={i} value={i.toString()}>
-                      {format(new Date(currentMonth.getFullYear(), i, 1), "MMMM")}
+                      {format(
+                        new Date(currentMonth.getFullYear(), i, 1),
+                        "MMMM",
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -99,9 +104,9 @@ function Calendar({
               <Select
                 value={currentMonth.getFullYear().toString()}
                 onValueChange={(value) => {
-                   const newDate = new Date(currentMonth);
-                   newDate.setFullYear(parseInt(value, 10));
-                   goToMonth(newDate);
+                  const newDate = new Date(currentMonth);
+                  newDate.setFullYear(parseInt(value, 10));
+                  goToMonth(newDate);
                 }}
               >
                 <SelectTrigger className="w-[100px]">
@@ -121,8 +126,8 @@ function Calendar({
       }}
       {...props}
     />
-  )
+  );
 }
-Calendar.displayName = "Calendar"
+Calendar.displayName = "Calendar";
 
-export { Calendar }
+export { Calendar };

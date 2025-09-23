@@ -1,8 +1,6 @@
+"use client";
 
-
-'use client';
-
-import * as React from 'react';
+import * as React from "react";
 import {
   Card,
   CardContent,
@@ -10,31 +8,55 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { PlusCircle, BookOpen, ArrowRight, Search, FileDown, Filter, ChevronDown, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  PlusCircle,
+  BookOpen,
+  ArrowRight,
+  Search,
+  FileDown,
+  Filter,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LessonPlanCalendar } from './lesson-plan-calendar';
-import { cn } from '@/lib/utils';
-import { firestore, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LessonPlanCalendar } from "./lesson-plan-calendar";
+import { cn } from "@/lib/utils";
+import { firestore, auth } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  Timestamp,
+} from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
-
-export type LessonPlanStatus = 'Published' | 'Draft' | 'Completed' | 'In Progress' | 'Skipped';
+export type LessonPlanStatus =
+  | "Published"
+  | "Draft"
+  | "Completed"
+  | "In Progress"
+  | "Skipped";
 
 export type LessonPlan = {
   id: string;
@@ -47,61 +69,75 @@ export type LessonPlan = {
 };
 
 const statusColors: Record<LessonPlanStatus, string> = {
-    'Published': 'bg-blue-500',
-    'Draft': 'bg-gray-500',
-    'Completed': 'bg-green-600',
-    'In Progress': 'bg-yellow-500',
-    'Skipped': 'bg-red-500',
-}
-
+  Published: "bg-blue-500",
+  Draft: "bg-gray-500",
+  Completed: "bg-green-600",
+  "In Progress": "bg-yellow-500",
+  Skipped: "bg-red-500",
+};
 
 export default function LessonPlansPage() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get("schoolId");
   const { user } = useAuth();
-  
+
   const [allLessonPlans, setAllLessonPlans] = React.useState<LessonPlan[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [searchTerm, setSearchTerm] = React.useState('');
-  
-  const [subjects, setSubjects] = React.useState<string[]>(['All Subjects']);
-  const [grades, setGrades] = React.useState<string[]>(['All Grades']);
+  const [searchTerm, setSearchTerm] = React.useState("");
 
-  const [filteredSubject, setFilteredSubject] = React.useState('All Subjects');
-  const [filteredGrade, setFilteredGrade] = React.useState('All Grades');
+  const [subjects, setSubjects] = React.useState<string[]>(["All Subjects"]);
+  const [grades, setGrades] = React.useState<string[]>(["All Grades"]);
+
+  const [filteredSubject, setFilteredSubject] = React.useState("All Subjects");
+  const [filteredGrade, setFilteredGrade] = React.useState("All Grades");
   const [clientReady, setClientReady] = React.useState(false);
 
   React.useEffect(() => {
     if (!schoolId || !user) {
-        setIsLoading(false);
-        return;
+      setIsLoading(false);
+      return;
     }
 
     setClientReady(true);
     const teacherId = user.uid;
 
-    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
+    const subjectsQuery = query(
+      collection(firestore, "schools", schoolId, "subjects"),
+      where("teachers", "array-contains", user.displayName),
+    );
     const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
-        const subjectNames = snapshot.docs.map(doc => doc.data().name);
-        setSubjects(['All Subjects', ...subjectNames]);
+      const subjectNames = snapshot.docs.map((doc) => doc.data().name);
+      setSubjects(["All Subjects", ...subjectNames]);
     });
 
-    const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', teacherId));
+    const classesQuery = query(
+      collection(firestore, "schools", schoolId, "classes"),
+      where("teacherId", "==", teacherId),
+    );
     const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
-        const classNames = snapshot.docs.map(doc => `${doc.data().name}`);
-        setGrades(['All Grades', ...new Set(classNames)]);
+      const classNames = snapshot.docs.map((doc) => `${doc.data().name}`);
+      setGrades(["All Grades", ...new Set(classNames)]);
     });
 
-    const q = query(collection(firestore, `schools/${schoolId}/lesson-plans`), where('teacherId', '==', teacherId));
+    const q = query(
+      collection(firestore, `schools/${schoolId}/lesson-plans`),
+      where("teacherId", "==", teacherId),
+    );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LessonPlan));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const plans = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() }) as LessonPlan,
+        );
         setAllLessonPlans(plans);
         setIsLoading(false);
-    }, (error) => {
+      },
+      (error) => {
         console.error("Error fetching lesson plans:", error);
         setIsLoading(false);
-    });
+      },
+    );
 
     return () => {
       unsubscribe();
@@ -110,150 +146,202 @@ export default function LessonPlansPage() {
     };
   }, [schoolId, user]);
 
-  const lessonPlans = allLessonPlans.filter(plan => 
-    (plan.topic.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (filteredSubject === 'All Subjects' || plan.subject === filteredSubject) &&
-    (filteredGrade === 'All Grades' || plan.grade === filteredGrade)
+  const lessonPlans = allLessonPlans.filter(
+    (plan) =>
+      plan.topic.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (filteredSubject === "All Subjects" ||
+        plan.subject === filteredSubject) &&
+      (filteredGrade === "All Grades" || plan.grade === filteredGrade),
   );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-6">
-            <div className="text-left">
-                <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-                    <BookOpen className="h-8 w-8 text-primary"/>
-                    Lesson Plans
-                </h1>
-                <p className="text-muted-foreground">Create, manage, and share your lesson plans.</p>
-            </div>
-            <Button asChild className="w-full md:w-auto">
-                <Link href={`/teacher/lesson-plans/new?schoolId=${schoolId}`}>
-                <PlusCircle className="mr-2" />
-                Create New Lesson Plan
-                </Link>
-            </Button>
+      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div className="text-left">
+          <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+            <BookOpen className="h-8 w-8 text-primary" />
+            Lesson Plans
+          </h1>
+          <p className="text-muted-foreground">
+            Create, manage, and share your lesson plans.
+          </p>
         </div>
+        <Button asChild className="w-full md:w-auto">
+          <Link href={`/teacher/lesson-plans/new?schoolId=${schoolId}`}>
+            <PlusCircle className="mr-2" />
+            Create New Lesson Plan
+          </Link>
+        </Button>
+      </div>
 
       <Tabs defaultValue="list-view" className="w-full">
         <div className="flex items-center justify-between">
-            <TabsList>
-                <TabsTrigger value="list-view">List View</TabsTrigger>
-                <TabsTrigger value="calendar-view">Calendar View</TabsTrigger>
-            </TabsList>
+          <TabsList>
+            <TabsTrigger value="list-view">List View</TabsTrigger>
+            <TabsTrigger value="calendar-view">Calendar View</TabsTrigger>
+          </TabsList>
         </div>
         <TabsContent value="list-view">
-            <Card className="mt-4">
-                <CardHeader>
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="relative w-full md:max-w-sm">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Search lesson plans..."
-                                className="w-full bg-background pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+          <Card className="mt-4">
+            <CardHeader>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="relative w-full md:max-w-sm">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search lesson plans..."
+                    className="w-full bg-background pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+                  <Select
+                    value={filteredSubject}
+                    onValueChange={setFilteredSubject}
+                  >
+                    <SelectTrigger className="w-full md:w-[180px]">
+                      <SelectValue placeholder="Filter by subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjects.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={filteredGrade}
+                    onValueChange={setFilteredGrade}
+                  >
+                    <SelectTrigger className="w-full md:w-[180px]">
+                      <SelectValue placeholder="Filter by grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {grades.map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {g}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full md:w-auto"
+                        disabled
+                      >
+                        Export
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem>
+                        <FileDown className="mr-2" />
+                        Export All (PDF)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </div>
+              ) : lessonPlans.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {lessonPlans.map((plan) => (
+                    <Card key={plan.id}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <CardTitle className="font-headline text-xl pt-2">
+                            {plan.topic}
+                          </CardTitle>
+                          <Badge
+                            className={cn(
+                              "text-white",
+                              statusColors[plan.status],
+                            )}
+                          >
+                            {plan.status}
+                          </Badge>
                         </div>
-                        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-                            <Select value={filteredSubject} onValueChange={setFilteredSubject}>
-                                <SelectTrigger className="w-full md:w-[180px]">
-                                    <SelectValue placeholder="Filter by subject" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {subjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={filteredGrade} onValueChange={setFilteredGrade}>
-                                <SelectTrigger className="w-full md:w-[180px]">
-                                    <SelectValue placeholder="Filter by grade" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {grades.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full md:w-auto" disabled>
-                                Export
-                                <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuItem>
-                                <FileDown className="mr-2" />
-                                Export All (PDF)
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    {isLoading ? (
-                         <div className="flex items-center justify-center h-64">
-                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                        </div>
-                    ) : lessonPlans.length > 0 ? (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {lessonPlans.map((plan) => (
-                            <Card key={plan.id}>
-                            <CardHeader>
-                                <div className="flex items-start justify-between">
-                                    <CardTitle className="font-headline text-xl pt-2">{plan.topic}</CardTitle>
-                                    <Badge className={cn("text-white", statusColors[plan.status])}>
-                                        {plan.status}
-                                    </Badge>
-                                </div>
-                                <CardDescription>{plan.subject} - {plan.grade}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-muted-foreground">
-                                    Lesson Date: {clientReady ? plan.date.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric'}) : ''}
-                                </p>
-                            </CardContent>
-                            <CardFooter>
-                                <Button asChild variant="outline" className="w-full">
-                                    <Link href={`/teacher/lesson-plans/new?id=${plan.id}&schoolId=${schoolId}`}>
-                                        View / Edit
-                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Link>
-                                </Button>
-                            </CardFooter>
-                            </Card>
-                        ))}
-                        </div>
-                    ) : (
-                        <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                            <div className="text-center">
-                            <BookOpen className="mx-auto h-12 w-12 text-muted-foreground" />
-                            <h3 className="mt-4 text-xl font-semibold">No Lesson Plans Found</h3>
-                            <p className="mt-2 text-sm text-muted-foreground">No plans match your current filters. Why not create one?</p>
-                            <Button asChild className="mt-6">
-                                <Link href={`/teacher/lesson-plans/new?schoolId=${schoolId}`}>
-                                <PlusCircle className="mr-2" />
-                                Create a New Lesson Plan
-                                </Link>
-                            </Button>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                        <CardDescription>
+                          {plan.subject} - {plan.grade}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          Lesson Date:{" "}
+                          {clientReady
+                            ? plan.date
+                                .toDate()
+                                .toLocaleDateString("en-US", {
+                                  month: "long",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })
+                            : ""}
+                        </p>
+                      </CardContent>
+                      <CardFooter>
+                        <Button asChild variant="outline" className="w-full">
+                          <Link
+                            href={`/teacher/lesson-plans/new?id=${plan.id}&schoolId=${schoolId}`}
+                          >
+                            View / Edit
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
+                  <div className="text-center">
+                    <BookOpen className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-xl font-semibold">
+                      No Lesson Plans Found
+                    </h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      No plans match your current filters. Why not create one?
+                    </p>
+                    <Button asChild className="mt-6">
+                      <Link
+                        href={`/teacher/lesson-plans/new?schoolId=${schoolId}`}
+                      >
+                        <PlusCircle className="mr-2" />
+                        Create a New Lesson Plan
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
         <TabsContent value="calendar-view">
-             <Card className="mt-4">
-                <CardHeader>
-                    <CardTitle>Lesson Plan Calendar</CardTitle>
-                    <CardDescription>A monthly overview of your scheduled lesson plans.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <LessonPlanCalendar lessonPlans={allLessonPlans} schoolId={schoolId!} />
-                </CardContent>
-             </Card>
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Lesson Plan Calendar</CardTitle>
+              <CardDescription>
+                A monthly overview of your scheduled lesson plans.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LessonPlanCalendar
+                lessonPlans={allLessonPlans}
+                schoolId={schoolId!}
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
-

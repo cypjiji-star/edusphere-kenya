@@ -1,24 +1,23 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
+import * as React from "react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, BookOpen } from 'lucide-react';
-import Link from 'next/link';
-import { LessonPlanForm } from '../new/lesson-plan-form';
-import { useSearchParams } from 'next/navigation';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, BookOpen } from "lucide-react";
+import Link from "next/link";
+import { LessonPlanForm } from "../new/lesson-plan-form";
+import { useSearchParams } from "next/navigation";
 
 export default function NewLessonPlanPage() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
-  const prefilledDate = searchParams.get('date') || undefined;
+  const schoolId = searchParams.get("schoolId");
+  const prefilledDate = searchParams.get("date") || undefined;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -39,7 +38,8 @@ export default function NewLessonPlanPage() {
               Lesson Plan Builder
             </CardTitle>
             <CardDescription>
-              Fill in the details below. Use the AI Assistant to help generate content.
+              Fill in the details below. Use the AI Assistant to help generate
+              content.
             </CardDescription>
           </div>
         </CardHeader>
@@ -47,9 +47,7 @@ export default function NewLessonPlanPage() {
           {schoolId ? (
             <LessonPlanForm prefilledDate={prefilledDate} schoolId={schoolId} />
           ) : (
-             <p className="text-red-500 text-sm">
-                  Error: School ID is missing.
-             </p>
+            <p className="text-red-500 text-sm">Error: School ID is missing.</p>
           )}
         </CardContent>
       </Card>

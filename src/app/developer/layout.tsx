@@ -1,11 +1,15 @@
+"use client";
 
-'use client';
-
-import { SidebarProvider, Sidebar, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { DeveloperSidebar } from './developer-sidebar';
-import { Suspense } from 'react';
-import { AuthCheck } from '@/lib/auth-check';
-import { usePathname } from 'next/navigation';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { DeveloperSidebar } from "./developer-sidebar";
+import { Suspense } from "react";
+import { AuthCheck } from "@/lib/auth-check";
+import { usePathname } from "next/navigation";
 
 export default function DeveloperLayout({
   children,
@@ -15,8 +19,8 @@ export default function DeveloperLayout({
   const pathname = usePathname();
 
   // Allow access to developer create page without auth
-  if (pathname === '/developer/create-dev-account') {
-      return <Suspense>{children}</Suspense>;
+  if (pathname === "/developer/create-dev-account") {
+    return <Suspense>{children}</Suspense>;
   }
 
   return (

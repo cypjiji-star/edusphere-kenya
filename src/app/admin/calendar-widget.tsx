@@ -1,25 +1,18 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
-import Link from 'next/link';
+import * as React from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardFooter,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  Calendar,
-  ArrowRight,
-  PlusCircle,
-  Bell,
-  Clock,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Calendar, ArrowRight, PlusCircle, Bell, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -29,43 +22,60 @@ import {
   DialogFooter,
   DialogTrigger,
   DialogClose,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from "@/components/ui/popover";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-  } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
-import { Calendar as CalendarPicker } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-import { firestore } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, query, orderBy, onSnapshot, limit, where } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { firestore } from "@/lib/firebase";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  Timestamp,
+  query,
+  orderBy,
+  onSnapshot,
+  limit,
+  where,
+} from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
 
-
-type EventType = 'Meeting' | 'Exam' | 'Holiday' | 'Event' | 'event' | 'holiday' | 'exam' | 'meeting';
+type EventType =
+  | "Meeting"
+  | "Exam"
+  | "Holiday"
+  | "Event"
+  | "event"
+  | "holiday"
+  | "exam"
+  | "meeting";
 
 const eventTypeColors: Record<string, string> = {
-    Meeting: 'bg-purple-500',
-    meeting: 'bg-purple-500',
-    Exam: 'bg-red-600',
-    exam: 'bg-red-600',
-    Holiday: 'bg-green-600',
-    holiday: 'bg-green-600',
-    Event: 'bg-blue-500',
-    event: 'bg-blue-500',
+  Meeting: "bg-purple-500",
+  meeting: "bg-purple-500",
+  Exam: "bg-red-600",
+  exam: "bg-red-600",
+  Holiday: "bg-green-600",
+  holiday: "bg-green-600",
+  Event: "bg-blue-500",
+  event: "bg-blue-500",
 };
 
 type UpcomingEvent = {
@@ -75,28 +85,32 @@ type UpcomingEvent = {
   type: EventType;
 };
 
-
 export function CalendarWidget() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
-  const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>([]);
-  const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>(new Date());
+  const schoolId = searchParams.get("schoolId");
+  const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>(
+    [],
+  );
+  const [scheduledDate, setScheduledDate] = React.useState<Date | undefined>(
+    new Date(),
+  );
   const { toast } = useToast();
-  const [newEventTitle, setNewEventTitle] = React.useState('');
-  const [newEventType, setNewEventType] = React.useState<EventType>('Event');
-
+  const [newEventTitle, setNewEventTitle] = React.useState("");
+  const [newEventType, setNewEventType] = React.useState<EventType>("Event");
 
   React.useEffect(() => {
     if (!schoolId) return;
 
     const q = query(
-      collection(firestore, 'schools', schoolId, 'calendar-events'),
-      where('date', '>=', Timestamp.now()),
-      orderBy('date', 'asc'),
-      limit(4)
+      collection(firestore, "schools", schoolId, "calendar-events"),
+      where("date", ">=", Timestamp.now()),
+      orderBy("date", "asc"),
+      limit(4),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UpcomingEvent));
+      const fetchedEvents = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() }) as UpcomingEvent,
+      );
       setUpcomingEvents(fetchedEvents);
     });
     return () => unsubscribe();
@@ -104,25 +118,32 @@ export function CalendarWidget() {
 
   const handleQuickAdd = async () => {
     if (!schoolId || !newEventTitle) {
-        toast({ title: 'Please enter a title for the event.', variant: 'destructive'});
-        return;
-    };
+      toast({
+        title: "Please enter a title for the event.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-        await addDoc(collection(firestore, 'schools', schoolId, 'calendar-events'), {
-            title: newEventTitle,
-            type: newEventType.toLowerCase(),
-            date: Timestamp.fromDate(scheduledDate || new Date()),
-            createdAt: serverTimestamp(),
-        });
-        toast({
-            title: 'Event Added',
-            description: 'The new event has been successfully added to the calendar.',
-        });
-        setNewEventTitle('');
+      await addDoc(
+        collection(firestore, "schools", schoolId, "calendar-events"),
+        {
+          title: newEventTitle,
+          type: newEventType.toLowerCase(),
+          date: Timestamp.fromDate(scheduledDate || new Date()),
+          createdAt: serverTimestamp(),
+        },
+      );
+      toast({
+        title: "Event Added",
+        description:
+          "The new event has been successfully added to the calendar.",
+      });
+      setNewEventTitle("");
     } catch (e) {
-        toast({ title: 'Error adding event', variant: 'destructive' });
-        console.error(e);
+      toast({ title: "Error adding event", variant: "destructive" });
+      console.error(e);
     }
   };
 
@@ -150,9 +171,13 @@ export function CalendarWidget() {
                 <div className="flex items-center gap-4">
                   <div className="flex flex-col items-center justify-center w-14 text-center bg-muted/50 rounded-md p-2">
                     <span className="text-sm font-bold uppercase text-primary">
-                      {event.date.toDate().toLocaleDateString('en-US', { month: 'short' })}
+                      {event.date
+                        .toDate()
+                        .toLocaleDateString("en-US", { month: "short" })}
                     </span>
-                    <span className="text-xl font-bold">{event.date.toDate().getDate()}</span>
+                    <span className="text-xl font-bold">
+                      {event.date.toDate().getDate()}
+                    </span>
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{event.title}</p>
@@ -176,7 +201,12 @@ export function CalendarWidget() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button asChild variant="outline" size="sm" className="w-full text-primary hover:text-primary">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="w-full text-primary hover:text-primary"
+          >
             <Link href={`/admin/calendar?schoolId=${schoolId}`}>
               View Full Calendar
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -192,82 +222,105 @@ export function CalendarWidget() {
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="event-title">Title</Label>
-                    <Input id="event-title" placeholder="e.g., Parent-Teacher Meeting" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="event-type">Event Type</Label>
-                    <Select onValueChange={(v: EventType) => setNewEventType(v)}>
-                        <SelectTrigger id="event-type">
-                            <SelectValue placeholder="Select a type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.keys(eventTypeColors).map((type) => (
-                                <SelectItem key={type} value={type}>
-                                    <div className="flex items-center gap-2">
-                                        <div className={cn("w-2 h-2 rounded-full", eventTypeColors[type as keyof typeof eventTypeColors])} />
-                                        <span className="capitalize">{type}</span>
-                                    </div>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="event-title">Title</Label>
+              <Input
+                id="event-title"
+                placeholder="e.g., Parent-Teacher Meeting"
+                value={newEventTitle}
+                onChange={(e) => setNewEventTitle(e.target.value)}
+              />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label>Date</Label>
-                     <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            variant={"outline"}
-                            className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !scheduledDate && "text-muted-foreground"
-                            )}
-                        >
-                            <Calendar className="mr-2 h-4 w-4" />
-                            {scheduledDate ? format(scheduledDate, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                        <CalendarPicker
-                            mode="single"
-                            selected={scheduledDate}
-                            onSelect={setScheduledDate}
-                            initialFocus
+            <div className="space-y-2">
+              <Label htmlFor="event-type">Event Type</Label>
+              <Select onValueChange={(v: EventType) => setNewEventType(v)}>
+                <SelectTrigger id="event-type">
+                  <SelectValue placeholder="Select a type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(eventTypeColors).map((type) => (
+                    <SelectItem key={type} value={type}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={cn(
+                            "w-2 h-2 rounded-full",
+                            eventTypeColors[
+                              type as keyof typeof eventTypeColors
+                            ],
+                          )}
                         />
-                        </PopoverContent>
-                    </Popover>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="start-time">Time (Optional)</Label>
-                    <Input id="start-time" type="time" />
-                </div>
+                        <span className="capitalize">{type}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-             <div className="space-y-2">
-                <Label htmlFor="event-description">Description (Optional)</Label>
-                <Textarea id="event-description" placeholder="Add a brief description..." />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !scheduledDate && "text-muted-foreground",
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {scheduledDate ? (
+                      format(scheduledDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarPicker
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={setScheduledDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="start-time">Time (Optional)</Label>
+              <Input id="start-time" type="time" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="event-description">Description (Optional)</Label>
+            <Textarea
+              id="event-description"
+              placeholder="Add a brief description..."
+            />
+          </div>
 
-            <Separator />
+          <Separator />
 
-            <div className="space-y-3">
-                <h4 className="font-medium leading-none flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Notifications</h4>
-                <p className="text-xs text-muted-foreground">Notify relevant groups about this event. (Feature coming soon).</p>
-                <div className="flex flex-col space-y-2 pt-2">
-                        <div className="flex items-center space-x-2">
-                        <Switch id="notify-staff" disabled />
-                        <Label htmlFor="notify-staff">All Staff</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Switch id="notify-parents" disabled />
-                        <Label htmlFor="notify-parents">All Parents</Label>
-                    </div>
-                </div>
+          <div className="space-y-3">
+            <h4 className="font-medium leading-none flex items-center gap-2">
+              <Bell className="h-4 w-4 text-primary" /> Notifications
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Notify relevant groups about this event. (Feature coming soon).
+            </p>
+            <div className="flex flex-col space-y-2 pt-2">
+              <div className="flex items-center space-x-2">
+                <Switch id="notify-staff" disabled />
+                <Label htmlFor="notify-staff">All Staff</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch id="notify-parents" disabled />
+                <Label htmlFor="notify-parents">All Parents</Label>
+              </div>
             </div>
+          </div>
         </div>
         <DialogFooter>
           <DialogClose asChild>

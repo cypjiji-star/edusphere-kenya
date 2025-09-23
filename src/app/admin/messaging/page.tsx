@@ -1,21 +1,20 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
+import * as React from "react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { MessageSquare, User, Send, Search, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useSearchParams } from 'next/navigation';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { MessageSquare, User, Send, Search, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
 import {
   collection,
   onSnapshot,
@@ -27,13 +26,13 @@ import {
   updateDoc,
   arrayUnion,
   serverTimestamp,
-} from 'firebase/firestore';
-import { firestore } from '@/lib/firebase';
-import { useAuth } from '@/context/auth-context';
-import { ScrollArea } from '@/components/ui/scroll-area';
+} from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
+import { useAuth } from "@/context/auth-context";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Message = {
-  role: 'user' | 'model' | 'admin';
+  role: "user" | "model" | "admin";
   content: string;
   senderName?: string;
   timestamp?: Timestamp;
@@ -51,14 +50,14 @@ type Conversation = {
 
 export default function AdminMessagingPage() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get("schoolId");
   const { user } = useAuth();
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedConversation, setSelectedConversation] =
     React.useState<Conversation | null>(null);
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [reply, setReply] = React.useState('');
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [reply, setReply] = React.useState("");
   const [isSending, setIsSending] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -69,18 +68,20 @@ export default function AdminMessagingPage() {
     }
     const q = query(
       collection(firestore, `schools/${schoolId}/support-chats`),
-      orderBy('lastUpdate', 'desc')
+      orderBy("lastUpdate", "desc"),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const convos = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as Conversation)
+        (doc) => ({ id: doc.id, ...doc.data() }) as Conversation,
       );
       setConversations(convos);
       setIsLoading(false);
-      
+
       // If a conversation is selected, update it with new data
       if (selectedConversation) {
-        const updatedConvo = convos.find(c => c.id === selectedConversation.id);
+        const updatedConvo = convos.find(
+          (c) => c.id === selectedConversation.id,
+        );
         setSelectedConversation(updatedConvo || null);
       }
     });
@@ -89,7 +90,7 @@ export default function AdminMessagingPage() {
   }, [schoolId, selectedConversation]);
 
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [selectedConversation?.messages]);
 
   const handleSendMessage = async () => {
@@ -97,19 +98,19 @@ export default function AdminMessagingPage() {
 
     setIsSending(true);
     const newAdminMessage: Message = {
-      role: 'admin',
+      role: "admin",
       content: reply,
-      senderName: user.displayName || 'Admin',
+      senderName: user.displayName || "Admin",
       timestamp: Timestamp.now(),
     };
 
     try {
       const conversationRef = doc(
         firestore,
-        'schools',
+        "schools",
         schoolId,
-        'support-chats',
-        selectedConversation.id
+        "support-chats",
+        selectedConversation.id,
       );
       await updateDoc(conversationRef, {
         messages: arrayUnion(newAdminMessage),
@@ -117,9 +118,9 @@ export default function AdminMessagingPage() {
         lastUpdate: serverTimestamp(),
         isEscalated: false, // De-escalate on reply
       });
-      setReply('');
+      setReply("");
     } catch (error) {
-      console.error('Error sending reply:', error);
+      console.error("Error sending reply:", error);
     } finally {
       setIsSending(false);
     }
@@ -128,19 +129,26 @@ export default function AdminMessagingPage() {
   const filteredConversations = conversations.filter(
     (convo) =>
       convo.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
+      convo.lastMessage.toLowerCase().includes(searchTerm.toLowerCase()),
   );
-  
+
   const handleResolveConversation = async () => {
     if (!selectedConversation || !schoolId) return;
     try {
-      await deleteDoc(doc(firestore, 'schools', schoolId, 'support-chats', selectedConversation.id));
+      await deleteDoc(
+        doc(
+          firestore,
+          "schools",
+          schoolId,
+          "support-chats",
+          selectedConversation.id,
+        ),
+      );
       setSelectedConversation(null);
     } catch (error) {
       console.error("Error resolving conversation:", error);
     }
   };
-
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -178,8 +186,8 @@ export default function AdminMessagingPage() {
                   <button
                     key={convo.id}
                     className={cn(
-                      'w-full text-left p-4 border-b hover:bg-muted/50',
-                      selectedConversation?.id === convo.id && 'bg-muted'
+                      "w-full text-left p-4 border-b hover:bg-muted/50",
+                      selectedConversation?.id === convo.id && "bg-muted",
                     )}
                     onClick={() => setSelectedConversation(convo)}
                   >
@@ -207,44 +215,69 @@ export default function AdminMessagingPage() {
               <>
                 <div className="p-4 border-b flex justify-between items-center">
                   <div className="flex items-center gap-3">
-                     <Avatar>
-                        <AvatarImage src={selectedConversation.userAvatar} />
-                        <AvatarFallback><User/></AvatarFallback>
+                    <Avatar>
+                      <AvatarImage src={selectedConversation.userAvatar} />
+                      <AvatarFallback>
+                        <User />
+                      </AvatarFallback>
                     </Avatar>
                     <div>
-                        <h3 className="font-semibold">{selectedConversation.userName}</h3>
-                        <p className="text-xs text-muted-foreground">User Support Chat</p>
+                      <h3 className="font-semibold">
+                        {selectedConversation.userName}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        User Support Chat
+                      </p>
                     </div>
                   </div>
-                   <Button variant="outline" onClick={handleResolveConversation}>Close Conversation</Button>
+                  <Button variant="outline" onClick={handleResolveConversation}>
+                    Close Conversation
+                  </Button>
                 </div>
                 <ScrollArea className="flex-1">
                   <div className="p-4 space-y-4">
                     {selectedConversation.messages.map((message, index) => {
-                      const isAdmin = message.role === 'admin';
+                      const isAdmin = message.role === "admin";
                       return (
                         <div
                           key={index}
                           className={cn(
-                            'flex items-end gap-2',
-                            isAdmin ? 'justify-end' : 'justify-start'
+                            "flex items-end gap-2",
+                            isAdmin ? "justify-end" : "justify-start",
                           )}
                         >
-                           {!isAdmin && <Avatar className="h-8 w-8"><AvatarFallback><User /></AvatarFallback></Avatar>}
-                            <div
+                          {!isAdmin && (
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback>
+                                <User />
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div
                             className={cn(
-                                'max-w-[70%] rounded-lg p-3 text-sm shadow-md',
-                                isAdmin
-                                ? 'bg-blue-600 text-white rounded-br-none'
-                                : 'bg-muted rounded-bl-none'
+                              "max-w-[70%] rounded-lg p-3 text-sm shadow-md",
+                              isAdmin
+                                ? "bg-blue-600 text-white rounded-br-none"
+                                : "bg-muted rounded-bl-none",
                             )}
-                            >
+                          >
                             <p>{message.content}</p>
                             <p className="text-xs opacity-70 mt-1">
-                               {message.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {message.timestamp
+                                ?.toDate()
+                                .toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                             </p>
                           </div>
-                          {isAdmin && <Avatar className="h-8 w-8"><AvatarFallback>{message.senderName?.charAt(0) || 'A'}</AvatarFallback></Avatar>}
+                          {isAdmin && (
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback>
+                                {message.senderName?.charAt(0) || "A"}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
                         </div>
                       );
                     })}
@@ -258,7 +291,9 @@ export default function AdminMessagingPage() {
                       className="pr-12"
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleSendMessage()
+                      }
                     />
                     <Button
                       size="icon"
@@ -266,7 +301,11 @@ export default function AdminMessagingPage() {
                       onClick={handleSendMessage}
                       disabled={isSending}
                     >
-                      {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
+                      {isSending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -278,7 +317,8 @@ export default function AdminMessagingPage() {
                   Select a conversation to view
                 </h3>
                 <p className="text-sm">
-                  Choose a chat from the left panel to see the messages and reply.
+                  Choose a chat from the left panel to see the messages and
+                  reply.
                 </p>
               </div>
             )}

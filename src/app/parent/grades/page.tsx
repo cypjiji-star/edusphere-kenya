@@ -1,7 +1,6 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
+import * as React from "react";
 import {
   Card,
   CardContent,
@@ -9,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -17,15 +16,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +33,8 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogClose,
-  DialogFooter
-} from '@/components/ui/dialog';
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   FileText,
   User,
@@ -48,57 +47,64 @@ import {
   MessageCircle,
   Send,
   Loader2,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from 'recharts';
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from '@/components/ui/chart';
-import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { firestore } from '@/lib/firebase';
-import { collection, query, onSnapshot, where, doc, getDoc, getDocs, Timestamp } from 'firebase/firestore';
-import type { DocumentData } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
-
+} from "@/components/ui/chart";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { firestore } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  onSnapshot,
+  where,
+  doc,
+  getDoc,
+  getDocs,
+  Timestamp,
+} from "firebase/firestore";
+import type { DocumentData } from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
 type Child = {
-    id: string;
-    name: string;
-    class: string;
-    classId: string;
+  id: string;
+  name: string;
+  class: string;
+  classId: string;
 };
 
 type GradeData = {
-    summary: {
-      overall: string;
-      rank: string;
-      classSize: number;
-      trend: 'up' | 'down' | 'stable';
-      trendValue: string;
-      highest: string;
-      lowest: string;
-    };
-    subjects: SubjectData[];
+  summary: {
+    overall: string;
+    rank: string;
+    classSize: number;
+    trend: "up" | "down" | "stable";
+    trendValue: string;
+    highest: string;
+    lowest: string;
+  };
+  subjects: SubjectData[];
 };
 
-type SubjectData = { 
-    id: string;
-    name: string; 
-    average: number; 
-    grade: string; 
-    comment: string; 
-    teacher: string; 
+type SubjectData = {
+  id: string;
+  name: string;
+  average: number;
+  grade: string;
+  comment: string;
+  teacher: string;
 };
-
 
 const chartConfig = {
-  average: { label: 'Average Score', color: 'hsl(var(--primary))' },
+  average: { label: "Average Score", color: "hsl(var(--primary))" },
 };
 
 const getCurrentTerm = (): string => {
@@ -106,214 +112,294 @@ const getCurrentTerm = (): string => {
   const month = today.getMonth(); // 0-11
   const year = today.getFullYear();
 
-  if (month >= 0 && month <= 3) { // Jan - Apr
+  if (month >= 0 && month <= 3) {
+    // Jan - Apr
     return `Term 1, ${year}`;
-  } else if (month >= 4 && month <= 7) { // May - Aug
+  } else if (month >= 4 && month <= 7) {
+    // May - Aug
     return `Term 2, ${year}`;
-  } else { // Sep - Dec
+  } else {
+    // Sep - Dec
     return `Term 3, ${year}`;
   }
 };
 
+function CommentDialog({
+  studentName,
+  subject,
+  open,
+  onOpenChange,
+}: {
+  studentName: string;
+  subject: SubjectData | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const handleSendReply = () => {
+    toast({
+      title: "Reply Sent (Simulation)",
+      description: `Your message has been sent to ${subject?.teacher}.`,
+    });
+    onOpenChange(false);
+  };
 
-function CommentDialog({ studentName, subject, open, onOpenChange }: { studentName: string, subject: SubjectData | null, open: boolean, onOpenChange: (open: boolean) => void }) {
-    const { toast } = useToast();
-    const handleSendReply = () => {
-        toast({
-            title: 'Reply Sent (Simulation)',
-            description: `Your message has been sent to ${subject?.teacher}.`,
-        });
-        onOpenChange(false);
-    }
+  if (!subject) return null;
 
-    if (!subject) return null;
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Teacher's Comment: {subject.name}</DialogTitle>
-                    <DialogDescription>
-                        Comment regarding {studentName}'s performance.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                    <Card className="bg-muted/50">
-                        <CardContent className="p-4">
-                             <p className="text-sm italic">"{subject.comment}"</p>
-                             <p className="text-xs text-muted-foreground mt-2">- {subject.teacher}</p>
-                        </CardContent>
-                    </Card>
-                     <Separator />
-                    <div className="space-y-2">
-                        <Label htmlFor="reply-message">Send a Reply</Label>
-                        <Textarea id="reply-message" placeholder={`Type your message to ${subject.teacher}...`} />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button onClick={handleSendReply}>
-                        <Send className="mr-2 h-4 w-4" />
-                        Send Reply
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Teacher's Comment: {subject.name}</DialogTitle>
+          <DialogDescription>
+            Comment regarding {studentName}'s performance.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <Card className="bg-muted/50">
+            <CardContent className="p-4">
+              <p className="text-sm italic">"{subject.comment}"</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                - {subject.teacher}
+              </p>
+            </CardContent>
+          </Card>
+          <Separator />
+          <div className="space-y-2">
+            <Label htmlFor="reply-message">Send a Reply</Label>
+            <Textarea
+              id="reply-message"
+              placeholder={`Type your message to ${subject.teacher}...`}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button onClick={handleSendReply}>
+            <Send className="mr-2 h-4 w-4" />
+            Send Reply
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function ParentGradesPage() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get("schoolId");
   const [childrenData, setChildrenData] = React.useState<Child[]>([]);
   const [gradeData, setGradeData] = React.useState<GradeData | null>(null);
-  const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
+  const [selectedChild, setSelectedChild] = React.useState<
+    string | undefined
+  >();
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
-  const [selectedSubjectComment, setSelectedSubjectComment] = React.useState<SubjectData | null>(null);
+  const [selectedSubjectComment, setSelectedSubjectComment] =
+    React.useState<SubjectData | null>(null);
   const { user } = useAuth();
   const parentId = user?.uid;
-  const [academicTerms, setAcademicTerms] = React.useState<{value: string, label: string}[]>([]);
+  const [academicTerms, setAcademicTerms] = React.useState<
+    { value: string; label: string }[]
+  >([]);
   const [selectedTerm, setSelectedTerm] = React.useState(getCurrentTerm());
 
   React.useEffect(() => {
     if (!schoolId || !parentId) return;
-    const unsubAcademic = onSnapshot(doc(firestore, 'schools', schoolId, 'settings', 'academic'), (docSnap) => {
+    const unsubAcademic = onSnapshot(
+      doc(firestore, "schools", schoolId, "settings", "academic"),
+      (docSnap) => {
         if (docSnap.exists()) {
-            const yearsData = docSnap.data().years || [];
-            const terms: {value: string, label: string}[] = [];
-            yearsData.forEach((yearData: any) => {
-                terms.push({ value: `Term 1, ${yearData.year}`, label: `Term 1, ${yearData.year}`});
-                terms.push({ value: `Term 2, ${yearData.year}`, label: `Term 2, ${yearData.year}`});
-                terms.push({ value: `Term 3, ${yearData.year}`, label: `Term 3, ${yearData.year}`});
+          const yearsData = docSnap.data().years || [];
+          const terms: { value: string; label: string }[] = [];
+          yearsData.forEach((yearData: any) => {
+            terms.push({
+              value: `Term 1, ${yearData.year}`,
+              label: `Term 1, ${yearData.year}`,
             });
-            setAcademicTerms(terms);
+            terms.push({
+              value: `Term 2, ${yearData.year}`,
+              label: `Term 2, ${yearData.year}`,
+            });
+            terms.push({
+              value: `Term 3, ${yearData.year}`,
+              label: `Term 3, ${yearData.year}`,
+            });
+          });
+          setAcademicTerms(terms);
         }
-    });
+      },
+    );
 
-    const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('parentId', '==', parentId));
+    const q = query(
+      collection(firestore, `schools/${schoolId}/users`),
+      where("role", "==", "Student"),
+      where("parentId", "==", parentId),
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
-        setChildrenData(fetchedChildren);
-        if (!selectedChild && fetchedChildren.length > 0) {
-            setSelectedChild(fetchedChildren[0].id);
-        }
+      const fetchedChildren = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() }) as Child,
+      );
+      setChildrenData(fetchedChildren);
+      if (!selectedChild && fetchedChildren.length > 0) {
+        setSelectedChild(fetchedChildren[0].id);
+      }
     });
     return () => {
-        unsubAcademic();
-        unsubscribe();
-    }
+      unsubAcademic();
+      unsubscribe();
+    };
   }, [schoolId, parentId]);
-
 
   React.useEffect(() => {
     if (!selectedChild || !schoolId || !selectedTerm) {
-        setGradeData(null);
-        setIsLoading(false);
-        return;
-    };
+      setGradeData(null);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
 
     const gradesQuery = query(
-        collection(firestore, 'schools', schoolId, 'grades'), 
-        where('studentId', '==', selectedChild),
-        where('status', '==', 'Approved')
+      collection(firestore, "schools", schoolId, "grades"),
+      where("studentId", "==", selectedChild),
+      where("status", "==", "Approved"),
     );
     const unsubGrades = onSnapshot(gradesQuery, async (gradesSnapshot) => {
-        
-        const gradesBySubject: Record<string, { scores: number[], teacher: string }> = {};
-        
-        for (const gradeDoc of gradesSnapshot.docs) {
-            const grade = gradeDoc.data();
-            const examSnap = await getDoc(doc(firestore, 'schools', schoolId, 'exams', grade.examId));
-            
-            if (examSnap.exists() && examSnap.data().term === selectedTerm) {
-                const score = parseInt(grade.grade, 10);
-                if (isNaN(score)) continue;
+      const gradesBySubject: Record<
+        string,
+        { scores: number[]; teacher: string }
+      > = {};
 
-                const subjectName = grade.subject || 'Unknown Subject';
-                if (!gradesBySubject[subjectName]) {
-                    gradesBySubject[subjectName] = { scores: [], teacher: grade.teacherName || 'N/A' };
-                }
-                gradesBySubject[subjectName].scores.push(score);
-            }
-        }
+      for (const gradeDoc of gradesSnapshot.docs) {
+        const grade = gradeDoc.data();
+        const examSnap = await getDoc(
+          doc(firestore, "schools", schoolId, "exams", grade.examId),
+        );
 
-        const subjects: SubjectData[] = Object.entries(gradesBySubject).map(([name, data], index) => {
-            const avg = data.scores.length > 0 ? Math.round(data.scores.reduce((a, b) => a + b, 0) / data.scores.length) : 0;
-            return {
-                id: `${index}`,
-                name: name,
-                average: avg,
-                grade: avg >= 80 ? 'A' : avg >= 65 ? 'B' : avg >= 50 ? 'C' : avg >= 40 ? 'D' : 'E',
-                comment: 'Good effort shown throughout the term. Keep up the hard work and focus on areas that need improvement.',
-                teacher: data.teacher,
+        if (examSnap.exists() && examSnap.data().term === selectedTerm) {
+          const score = parseInt(grade.grade, 10);
+          if (isNaN(score)) continue;
+
+          const subjectName = grade.subject || "Unknown Subject";
+          if (!gradesBySubject[subjectName]) {
+            gradesBySubject[subjectName] = {
+              scores: [],
+              teacher: grade.teacherName || "N/A",
             };
-        });
+          }
+          gradesBySubject[subjectName].scores.push(score);
+        }
+      }
 
-        const overallScores = subjects.map(s => s.average).filter(s => s > 0);
-        const overallAvg = overallScores.length > 0 ? Math.round(overallScores.reduce((a, b) => a + b, 0) / overallScores.length) : 0;
-        
-        let highest = 'N/A';
-        let lowest = 'N/A';
-        if (subjects.length > 0) {
-          subjects.sort((a, b) => b.average - a.average);
-          highest = subjects[0].name;
-          lowest = subjects[subjects.length - 1].name;
+      const subjects: SubjectData[] = Object.entries(gradesBySubject).map(
+        ([name, data], index) => {
+          const avg =
+            data.scores.length > 0
+              ? Math.round(
+                  data.scores.reduce((a, b) => a + b, 0) / data.scores.length,
+                )
+              : 0;
+          return {
+            id: `${index}`,
+            name: name,
+            average: avg,
+            grade:
+              avg >= 80
+                ? "A"
+                : avg >= 65
+                  ? "B"
+                  : avg >= 50
+                    ? "C"
+                    : avg >= 40
+                      ? "D"
+                      : "E",
+            comment:
+              "Good effort shown throughout the term. Keep up the hard work and focus on areas that need improvement.",
+            teacher: data.teacher,
+          };
+        },
+      );
+
+      const overallScores = subjects.map((s) => s.average).filter((s) => s > 0);
+      const overallAvg =
+        overallScores.length > 0
+          ? Math.round(
+              overallScores.reduce((a, b) => a + b, 0) / overallScores.length,
+            )
+          : 0;
+
+      let highest = "N/A";
+      let lowest = "N/A";
+      if (subjects.length > 0) {
+        subjects.sort((a, b) => b.average - a.average);
+        highest = subjects[0].name;
+        lowest = subjects[subjects.length - 1].name;
+      }
+
+      const childClassId = childrenData.find(
+        (c) => c.id === selectedChild,
+      )?.classId;
+      let rank = "N/A";
+      let classSize = 0;
+
+      if (childClassId) {
+        const allGradesInClassQuery = query(
+          collection(firestore, "schools", schoolId, "grades"),
+          where("classId", "==", childClassId),
+          where("status", "==", "Approved"),
+        );
+        const allGradesSnapshot = await getDocs(allGradesInClassQuery);
+        const studentTotals: Record<string, { total: number; count: number }> =
+          {};
+
+        for (const doc of allGradesSnapshot.docs) {
+          const data = doc.data();
+          const examSnap = await getDoc(doc.ref.parent.parent!);
+          if (examSnap.exists() && examSnap.data()?.term === selectedTerm) {
+            const score = parseInt(data.grade, 10);
+            if (!isNaN(score)) {
+              if (!studentTotals[data.studentId])
+                studentTotals[data.studentId] = { total: 0, count: 0 };
+              studentTotals[data.studentId].total += score;
+              studentTotals[data.studentId].count++;
+            }
+          }
         }
 
-        const childClassId = childrenData.find(c => c.id === selectedChild)?.classId;
-        let rank = 'N/A';
-        let classSize = 0;
+        const studentAverages = Object.entries(studentTotals).map(
+          ([studentId, data]) => ({
+            studentId,
+            average: data.count > 0 ? data.total / data.count : 0,
+          }),
+        );
 
-        if (childClassId) {
-            const allGradesInClassQuery = query(
-                collection(firestore, 'schools', schoolId, 'grades'), 
-                where('classId', '==', childClassId), 
-                where('status', '==', 'Approved'),
-            );
-             const allGradesSnapshot = await getDocs(allGradesInClassQuery);
-             const studentTotals: Record<string, {total: number, count: number}> = {};
-             
-             for(const doc of allGradesSnapshot.docs) {
-                 const data = doc.data();
-                 const examSnap = await getDoc(doc.ref.parent.parent!);
-                 if (examSnap.exists() && examSnap.data()?.term === selectedTerm) {
-                     const score = parseInt(data.grade, 10);
-                     if (!isNaN(score)) {
-                        if (!studentTotals[data.studentId]) studentTotals[data.studentId] = { total: 0, count: 0 };
-                         studentTotals[data.studentId].total += score;
-                         studentTotals[data.studentId].count++;
-                     }
-                 }
-             };
-
-             const studentAverages = Object.entries(studentTotals).map(([studentId, data]) => ({
-                 studentId,
-                 average: data.count > 0 ? data.total / data.count : 0,
-             }));
-
-             const sortedStudents = studentAverages.sort((a, b) => b.average - a.average);
-             classSize = sortedStudents.length;
-             const studentIndex = sortedStudents.findIndex(s => s.studentId === selectedChild);
-             if (studentIndex !== -1) {
-                 rank = `${studentIndex + 1}`;
-             }
+        const sortedStudents = studentAverages.sort(
+          (a, b) => b.average - a.average,
+        );
+        classSize = sortedStudents.length;
+        const studentIndex = sortedStudents.findIndex(
+          (s) => s.studentId === selectedChild,
+        );
+        if (studentIndex !== -1) {
+          rank = `${studentIndex + 1}`;
         }
+      }
 
-        setGradeData({
-            summary: {
-                overall: `${overallAvg}%`,
-                rank: rank,
-                classSize: classSize,
-                trend: 'up', // This is a placeholder
-                trendValue: '2%', // This is a placeholder
-                highest: highest,
-                lowest: lowest,
-            },
-            subjects: subjects
-        });
-        setIsLoading(false);
+      setGradeData({
+        summary: {
+          overall: `${overallAvg}%`,
+          rank: rank,
+          classSize: classSize,
+          trend: "up", // This is a placeholder
+          trendValue: "2%", // This is a placeholder
+          highest: highest,
+          lowest: lowest,
+        },
+        subjects: subjects,
+      });
+      setIsLoading(false);
     });
 
     return () => unsubGrades();
@@ -321,193 +407,278 @@ export default function ParentGradesPage() {
 
   const handleDownload = () => {
     toast({
-      title: 'Generating Report Card',
-      description: 'Your official report card is being prepared for download.',
+      title: "Generating Report Card",
+      description: "Your official report card is being prepared for download.",
     });
   };
-  
+
   if (!schoolId) {
-    return <div className="p-8">Error: School ID is missing.</div>
+    return <div className="p-8">Error: School ID is missing.</div>;
   }
 
   if (isLoading) {
-    return <div className="p-8 h-full flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary"/></div>
+    return (
+      <div className="p-8 h-full flex items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
   }
 
   if (!gradeData) {
-      return (
-        <div className="p-8 space-y-6">
-            <div className="mb-2 p-4 md:p-6 bg-card border rounded-lg">
-                <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
-                <p className="text-muted-foreground">View academic performance and report cards.</p>
-            </div>
-             <Card>
-                 <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="flex items-center gap-2"><User className="h-5 w-5 text-primary"/><Select value={selectedChild} onValueChange={setSelectedChild}><SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Select a child" /></SelectTrigger><SelectContent>{childrenData.map((child) => (<SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>))}</SelectContent></Select></div>
-                        <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2"><Select value={selectedTerm} onValueChange={setSelectedTerm}><SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Select Term" /></SelectTrigger><SelectContent>{academicTerms.map(term => (<SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>))}</SelectContent></Select></div>
-                    </div>
-                </CardHeader>
-             </Card>
-            <div className="text-center py-16 text-muted-foreground">No grades have been published for the selected term.</div>
+    return (
+      <div className="p-8 space-y-6">
+        <div className="mb-2 p-4 md:p-6 bg-card border rounded-lg">
+          <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+            <FileText className="h-8 w-8 text-primary" />
+            Grades &amp; Exams
+          </h1>
+          <p className="text-muted-foreground">
+            View academic performance and report cards.
+          </p>
         </div>
-      )
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                <Select value={selectedChild} onValueChange={setSelectedChild}>
+                  <SelectTrigger className="w-full md:w-[240px]">
+                    <SelectValue placeholder="Select a child" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {childrenData.map((child) => (
+                      <SelectItem key={child.id} value={child.id}>
+                        {child.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2">
+                <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+                  <SelectTrigger className="w-full md:w-auto">
+                    <SelectValue placeholder="Select Term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {academicTerms.map((term) => (
+                      <SelectItem key={term.value} value={term.value}>
+                        {term.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+        <div className="text-center py-16 text-muted-foreground">
+          No grades have been published for the selected term.
+        </div>
+      </div>
+    );
   }
 
-  const chartData = gradeData.subjects.map(s => ({ name: s.name.substring(0, 3).toUpperCase(), average: s.average }));
+  const chartData = gradeData.subjects.map((s) => ({
+    name: s.name.substring(0, 3).toUpperCase(),
+    average: s.average,
+  }));
 
   return (
     <>
-    <CommentDialog 
-        studentName={childrenData.find(c => c.id === selectedChild)?.name || ''}
+      <CommentDialog
+        studentName={
+          childrenData.find((c) => c.id === selectedChild)?.name || ""
+        }
         subject={selectedSubjectComment}
         open={!!selectedSubjectComment}
         onOpenChange={(open) => !open && setSelectedSubjectComment(null)}
-    />
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      <div className="mb-2 p-4 md:p-6 bg-card border rounded-lg">
-        <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
-          <FileText className="h-8 w-8 text-primary" />
-          Grades &amp; Exams
-        </h1>
-        <p className="text-muted-foreground">View academic performance and report cards.</p>
-      </div>
+      />
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="mb-2 p-4 md:p-6 bg-card border rounded-lg">
+          <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+            <FileText className="h-8 w-8 text-primary" />
+            Grades &amp; Exams
+          </h1>
+          <p className="text-muted-foreground">
+            View academic performance and report cards.
+          </p>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              <Select value={selectedChild} onValueChange={setSelectedChild}>
-                <SelectTrigger className="w-full md:w-[240px]">
-                  <SelectValue placeholder="Select a child" />
-                </SelectTrigger>
-                <SelectContent>
-                  {childrenData.map((child) => (
-                    <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2">
-                <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-                    <SelectTrigger className="w-full md:w-auto">
-                        <SelectValue placeholder="Select Term" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {academicTerms.map(term => (
-                            <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>
-                        ))}
-                    </SelectContent>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                <Select value={selectedChild} onValueChange={setSelectedChild}>
+                  <SelectTrigger className="w-full md:w-[240px]">
+                    <SelectValue placeholder="Select a child" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {childrenData.map((child) => (
+                      <SelectItem key={child.id} value={child.id}>
+                        {child.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
+              </div>
+              <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2">
+                <Select value={selectedTerm} onValueChange={setSelectedTerm}>
+                  <SelectTrigger className="w-full md:w-auto">
+                    <SelectValue placeholder="Select Term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {academicTerms.map((term) => (
+                      <SelectItem key={term.value} value={term.value}>
+                        {term.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
-        </CardHeader>
-      </Card>
-      
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+          </CardHeader>
+        </Card>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
             <CardHeader className="pb-2">
-                <CardDescription>Overall Average</CardDescription>
-                <CardTitle className="text-4xl">{gradeData.summary.overall}</CardTitle>
+              <CardDescription>Overall Average</CardDescription>
+              <CardTitle className="text-4xl">
+                {gradeData.summary.overall}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="text-xs text-muted-foreground flex items-center">
-                    {gradeData.summary.trend === 'up' ? <ArrowUp className="h-4 w-4 text-green-500"/> : <ArrowDown className="h-4 w-4 text-red-500"/>}
-                    {gradeData.summary.trendValue} vs last term
-                </div>
+              <div className="text-xs text-muted-foreground flex items-center">
+                {gradeData.summary.trend === "up" ? (
+                  <ArrowUp className="h-4 w-4 text-green-500" />
+                ) : (
+                  <ArrowDown className="h-4 w-4 text-red-500" />
+                )}
+                {gradeData.summary.trendValue} vs last term
+              </div>
             </CardContent>
-        </Card>
-        <Card>
+          </Card>
+          <Card>
             <CardHeader className="pb-2">
-                <CardDescription>Class Rank</CardDescription>
-                <CardTitle className="text-4xl">{gradeData.summary.rank}</CardTitle>
+              <CardDescription>Class Rank</CardDescription>
+              <CardTitle className="text-4xl">
+                {gradeData.summary.rank}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-                 <div className="text-xs text-muted-foreground">out of {gradeData.summary.classSize} students</div>
+              <div className="text-xs text-muted-foreground">
+                out of {gradeData.summary.classSize} students
+              </div>
             </CardContent>
-        </Card>
-        <Card>
+          </Card>
+          <Card>
             <CardHeader className="pb-2">
-                <CardDescription>Highest Score</CardDescription>
-                <CardTitle className="text-2xl">{gradeData.summary.highest}</CardTitle>
+              <CardDescription>Highest Score</CardDescription>
+              <CardTitle className="text-2xl">
+                {gradeData.summary.highest}
+              </CardTitle>
             </CardHeader>
-        </Card>
-        <Card>
+          </Card>
+          <Card>
             <CardHeader className="pb-2">
-                <CardDescription>Lowest Score</CardDescription>
-                <CardTitle className="text-2xl">{gradeData.summary.lowest}</CardTitle>
+              <CardDescription>Lowest Score</CardDescription>
+              <CardTitle className="text-2xl">
+                {gradeData.summary.lowest}
+              </CardTitle>
             </CardHeader>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart2 className="h-5 w-5 text-primary" />
+              Performance by Subject
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+              <BarChart data={chartData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                />
+                <YAxis />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="dot" />}
+                />
+                <Bar dataKey="average" fill="var(--color-average)" radius={8} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Detailed Grade Report</CardTitle>
+            <CardDescription>
+              A breakdown of scores for each subject in the current term.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="w-full overflow-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subject</TableHead>
+                    <TableHead className="text-center font-bold">
+                      Average
+                    </TableHead>
+                    <TableHead className="text-center font-bold">
+                      Grade
+                    </TableHead>
+                    <TableHead>Teacher's Comment</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {gradeData.subjects.map((subject) => (
+                    <TableRow key={subject.id}>
+                      <TableCell className="font-medium">
+                        {subject.name}
+                      </TableCell>
+                      <TableCell className="text-center font-bold">
+                        <Badge variant="secondary">{subject.average}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center font-bold">
+                        <Badge>{subject.grade}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate">{subject.comment}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            onClick={() => setSelectedSubjectComment(subject)}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={handleDownload}>
+              <FileDown className="mr-2 h-4 w-4" />
+              Download Official Report Card
+            </Button>
+          </CardFooter>
         </Card>
       </div>
-
-       <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5 text-primary"/>Performance by Subject</CardTitle>
-            </CardHeader>
-            <CardContent>
-                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                    <BarChart data={chartData}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                        <YAxis />
-                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                        <Bar dataKey="average" fill="var(--color-average)" radius={8} />
-                    </BarChart>
-                </ChartContainer>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Detailed Grade Report</CardTitle>
-                <CardDescription>A breakdown of scores for each subject in the current term.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="w-full overflow-auto rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Subject</TableHead>
-                                <TableHead className="text-center font-bold">Average</TableHead>
-                                <TableHead className="text-center font-bold">Grade</TableHead>
-                                <TableHead>Teacher's Comment</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {gradeData.subjects.map(subject => (
-                                <TableRow key={subject.id}>
-                                    <TableCell className="font-medium">{subject.name}</TableCell>
-                                    <TableCell className="text-center font-bold">
-                                        <Badge variant="secondary">{subject.average}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-center font-bold">
-                                         <Badge>{subject.grade}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground text-sm">
-                                        <div className="flex items-center justify-between">
-                                            <span className="truncate">{subject.comment}</span>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedSubjectComment(subject)}>
-                                                <MessageCircle className="h-4 w-4"/>
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-             <CardFooter>
-                 <Button onClick={handleDownload}>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Download Official Report Card
-                </Button>
-            </CardFooter>
-        </Card>
-    </div>
     </>
   );
 }
-
-  

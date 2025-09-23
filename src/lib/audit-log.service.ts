@@ -1,23 +1,29 @@
+"use server";
 
-'use server';
+import { firestore } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
-import { firestore } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-
-type ActionType = 'User Management' | 'Finance' | 'Academics' | 'Settings' | 'Security' | 'Health' | 'General';
+type ActionType =
+  | "User Management"
+  | "Finance"
+  | "Academics"
+  | "Settings"
+  | "Security"
+  | "Health"
+  | "General";
 
 type AuditLogPayload = {
-    schoolId: string;
-    action: string; // e.g., USER_LOGIN_SUCCESS, GRADE_UPDATED
-    actionType: ActionType;
-    user: {
-        id: string;
-        name: string;
-        role: string;
-    };
-    details?: string;
-    ipAddress?: string;
-    userAgent?: string;
+  schoolId: string;
+  action: string; // e.g., USER_LOGIN_SUCCESS, GRADE_UPDATED
+  actionType: ActionType;
+  user: {
+    id: string;
+    name: string;
+    role: string;
+  };
+  details?: string;
+  ipAddress?: string;
+  userAgent?: string;
 };
 
 /**
@@ -32,13 +38,17 @@ export async function logAuditEvent(payload: AuditLogPayload) {
     };
 
     // Log to school-specific audit trail
-    const schoolLogRef = collection(firestore, 'schools', payload.schoolId, 'audit_logs');
+    const schoolLogRef = collection(
+      firestore,
+      "schools",
+      payload.schoolId,
+      "audit_logs",
+    );
     await addDoc(schoolLogRef, logData);
 
     // Log to platform-wide audit trail
-    const platformLogRef = collection(firestore, 'platform_audit_logs');
+    const platformLogRef = collection(firestore, "platform_audit_logs");
     await addDoc(platformLogRef, logData);
-    
   } catch (error) {
     console.error("Failed to write audit event:", error);
     // In a real-world scenario, you might have more robust error handling,

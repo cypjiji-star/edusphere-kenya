@@ -1,13 +1,12 @@
+"use client";
 
-'use client';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { generatePathAction } from "./actions";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { generatePathAction } from './actions';
-
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -16,34 +15,51 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, Sparkles } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const learningPathSchema = z.object({
-  studentName: z.string().min(2, 'Student name is required.'),
-  subject: z.string().min(3, 'Subject is required.'),
-  gradeLevel: z.string().min(1, 'Grade level is required.'),
-  learningStandard: z.string().min(10, 'Learning standard must be at least 10 characters.'),
-  currentUnderstanding: z.string().min(20, 'Please provide more detail on current understanding (at least 20 characters).'),
+  studentName: z.string().min(2, "Student name is required."),
+  subject: z.string().min(3, "Subject is required."),
+  gradeLevel: z.string().min(1, "Grade level is required."),
+  learningStandard: z
+    .string()
+    .min(10, "Learning standard must be at least 10 characters."),
+  currentUnderstanding: z
+    .string()
+    .min(
+      20,
+      "Please provide more detail on current understanding (at least 20 characters).",
+    ),
 });
 
 type LearningPathFormValues = z.infer<typeof learningPathSchema>;
 
 const gradeLevels = [
-  'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8',
-  'Form 1', 'Form 2', 'Form 3', 'Form 4',
-  'University/College',
+  "Grade 1",
+  "Grade 2",
+  "Grade 3",
+  "Grade 4",
+  "Grade 5",
+  "Grade 6",
+  "Grade 7",
+  "Grade 8",
+  "Form 1",
+  "Form 2",
+  "Form 3",
+  "Form 4",
+  "University/College",
 ];
 
 export function LearningPathForm() {
@@ -54,11 +70,11 @@ export function LearningPathForm() {
   const form = useForm<LearningPathFormValues>({
     resolver: zodResolver(learningPathSchema),
     defaultValues: {
-      studentName: '',
-      subject: '',
-      gradeLevel: '',
-      learningStandard: '',
-      currentUnderstanding: '',
+      studentName: "",
+      subject: "",
+      gradeLevel: "",
+      learningStandard: "",
+      currentUnderstanding: "",
     },
   });
 
@@ -73,14 +89,14 @@ export function LearningPathForm() {
     if (result.success && result.data) {
       setLearningPath(result.data.learningPath);
       toast({
-        title: 'Success!',
-        description: 'Your personalized learning path has been generated.',
+        title: "Success!",
+        description: "Your personalized learning path has been generated.",
       });
     } else {
       toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: result.error || 'There was a problem with your request.',
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: result.error || "There was a problem with your request.",
       });
     }
   }
@@ -89,7 +105,9 @@ export function LearningPathForm() {
     <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline text-2xl">Student Details</CardTitle>
+          <CardTitle className="font-headline text-2xl">
+            Student Details
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -127,7 +145,10 @@ export function LearningPathForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade Level</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a grade" />
@@ -135,7 +156,9 @@ export function LearningPathForm() {
                         </FormControl>
                         <SelectContent>
                           {gradeLevels.map((level) => (
-                            <SelectItem key={level} value={level}>{level}</SelectItem>
+                            <SelectItem key={level} value={level}>
+                              {level}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -151,10 +174,14 @@ export function LearningPathForm() {
                   <FormItem>
                     <FormLabel>Learning Standard / Goal</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Understand and apply the Pythagorean theorem" {...field} />
+                      <Input
+                        placeholder="e.g., Understand and apply the Pythagorean theorem"
+                        {...field}
+                      />
                     </FormControl>
                     <FormDescription>
-                      What specific skill or standard should the student achieve?
+                      What specific skill or standard should the student
+                      achieve?
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -173,7 +200,7 @@ export function LearningPathForm() {
                         {...field}
                       />
                     </FormControl>
-                     <FormDescription>
+                    <FormDescription>
                       Be as detailed as possible for the best results.
                     </FormDescription>
                     <FormMessage />
@@ -187,7 +214,7 @@ export function LearningPathForm() {
                     Generating...
                   </>
                 ) : (
-                   <>
+                  <>
                     <Sparkles className="mr-2 h-4 w-4" />
                     Generate Path
                   </>
@@ -197,24 +224,30 @@ export function LearningPathForm() {
           </Form>
         </CardContent>
       </Card>
-      
+
       <div className="space-y-4">
         <Card className="min-h-[500px] lg:sticky lg:top-24 shadow-lg">
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">Generated Learning Path</CardTitle>
+            <CardTitle className="font-headline text-2xl">
+              Generated Learning Path
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading && (
               <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-16">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="font-semibold">Our AI is crafting the perfect plan...</p>
+                <p className="font-semibold">
+                  Our AI is crafting the perfect plan...
+                </p>
                 <p className="text-sm">This may take a moment.</p>
               </div>
             )}
             {!isLoading && !learningPath && (
               <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground pt-16">
-                 <Sparkles className="h-12 w-12 text-primary/50" />
-                <p className="font-semibold">Your generated path will appear here.</p>
+                <Sparkles className="h-12 w-12 text-primary/50" />
+                <p className="font-semibold">
+                  Your generated path will appear here.
+                </p>
                 <p className="text-sm">Fill out the form to get started.</p>
               </div>
             )}

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,14 +18,14 @@ export function PageLoader() {
 
   useEffect(() => {
     if (loading) {
-        // When loading is true, we set a timeout to hide the loader.
-        // This simulates the end of a page load.
-        const timer = setTimeout(() => {
-            setLoading(false);
-            setPreviousPathname(pathname);
-        }, 700); 
+      // When loading is true, we set a timeout to hide the loader.
+      // This simulates the end of a page load.
+      const timer = setTimeout(() => {
+        setLoading(false);
+        setPreviousPathname(pathname);
+      }, 700);
 
-        return () => clearTimeout(timer);
+      return () => clearTimeout(timer);
     }
   }, [loading, pathname]);
 

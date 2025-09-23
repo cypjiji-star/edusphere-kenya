@@ -1,21 +1,26 @@
+"use client";
 
-'use client';
-
-import * as React from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { MessageSquare, BadgeHelp } from 'lucide-react';
-import { AiChat } from '../ai/ai-chat';
-import { useAuth } from '@/context/auth-context';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { firestore } from '@/lib/firebase';
-import { Badge } from '../ui/badge';
+import * as React from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { MessageSquare, BadgeHelp } from "lucide-react";
+import { AiChat } from "../ai/ai-chat";
+import { useAuth } from "@/context/auth-context";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
+import { Badge } from "../ui/badge";
 
 export function FloatingSupportWidget() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get("schoolId");
   const [unreadCount, setUnreadCount] = React.useState(0);
 
   React.useEffect(() => {
@@ -23,7 +28,7 @@ export function FloatingSupportWidget() {
 
     const q = query(
       collection(firestore, `schools/${schoolId}/support-chats`),
-      where('userId', '==', user.uid)
+      where("userId", "==", user.uid),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -32,7 +37,7 @@ export function FloatingSupportWidget() {
         const messages = chatData.messages || [];
         // A simple unread logic: if the last message is not from the user, it's "unread".
         const lastMessage = messages[messages.length - 1];
-        if (lastMessage && lastMessage.role !== 'user') {
+        if (lastMessage && lastMessage.role !== "user") {
           setUnreadCount(1);
         } else {
           setUnreadCount(0);

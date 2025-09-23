@@ -1,6 +1,4 @@
-
-
-'use client';
+"use client";
 
 import {
   Card,
@@ -8,42 +6,45 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Calendar } from 'lucide-react';
-import { FullCalendar } from './full-calendar';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Bell } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
-
+} from "@/components/ui/card";
+import { Calendar } from "lucide-react";
+import { FullCalendar } from "./full-calendar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Bell } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 export default function CalendarPage() {
   const searchParams = useSearchParams();
-  const schoolId = searchParams.get('schoolId');
+  const schoolId = searchParams.get("schoolId");
 
   if (!schoolId) {
-    return <div className="p-8">Error: School ID is missing.</div>
+    return <div className="p-8">Error: School ID is missing.</div>;
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-       <div className="mb-6 p-4 md:p-6 bg-card border rounded-lg">
-          <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><Calendar className="h-8 w-8 text-primary"/>Events Calendar</h1>
-          <p className="text-muted-foreground">View school events, class schedules, and important dates.</p>
-       </div>
+      <div className="mb-6 p-4 md:p-6 bg-card border rounded-lg">
+        <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
+          <Calendar className="h-8 w-8 text-primary" />
+          Events Calendar
+        </h1>
+        <p className="text-muted-foreground">
+          View school events, class schedules, and important dates.
+        </p>
+      </div>
 
-        <Alert className="mb-6">
-            <AlertTitle>Exam Reminder</AlertTitle>
-            <AlertDescription>
-                The Form 4 Chemistry Practical exam is scheduled for today at 1:00 PM.
-            </AlertDescription>
-        </Alert>
+      <Alert className="mb-6">
+        <AlertTitle>Exam Reminder</AlertTitle>
+        <AlertDescription>
+          The Form 4 Chemistry Practical exam is scheduled for today at 1:00 PM.
+        </AlertDescription>
+      </Alert>
 
       <Card>
         <CardContent className="p-4">
-            <FullCalendar schoolId={schoolId} />
+          <FullCalendar schoolId={schoolId} />
         </CardContent>
       </Card>
     </div>
   );
 }
-

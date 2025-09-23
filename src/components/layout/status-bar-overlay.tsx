@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 
 /**
  * A component that renders a translucent overlay over the system status bar area
@@ -9,5 +9,5 @@ import { cn } from '@/lib/utils';
  * height of the device's status bar or notch.
  */
 export function StatusBarOverlay({ className }: { className?: string }) {
-  return <div className={cn('status-bar-glass', className)} />;
+  return <div className={cn("status-bar-glass", className)} />;
 }
