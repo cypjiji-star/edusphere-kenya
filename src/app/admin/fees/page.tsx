@@ -44,7 +44,6 @@ import {
   Edit2,
   Trash2,
   Shield,
-  ChevronsUpDown,
 } from 'lucide-react';
 import { firestore, auth } from '@/lib/firebase';
 import {
@@ -117,7 +116,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Combobox } from '@/components/ui/combobox';
 
 
 const formatCurrency = (amount: number): string => {
@@ -665,13 +664,12 @@ export default function FeesPage() {
 
   // State for manual payment dialog
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [selectedStudentForPayment, setSelectedStudentForPayment] = React.useState('');
+  const [selectedStudentForPayment, setSelectedStudentForPayment] = React.useState<string>('');
   const [paymentAmount, setPaymentAmount] = React.useState('');
   const [paymentMethod, setPaymentMethod] = React.useState('Cash');
   const [paymentDate, setPaymentDate] = React.useState<Date | undefined>(new Date());
   const [paymentNotes, setPaymentNotes] = React.useState('');
   const [isSavingPayment, setIsSavingPayment] = React.useState(false);
-  const [isComboboxOpen, setIsComboboxOpen] = React.useState(false);
   
     // State for new invoice dialog
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = React.useState(false);
@@ -1478,36 +1476,13 @@ export default function FeesPage() {
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label htmlFor="payment-student">Student</Label>
-                            <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" role="combobox" aria-expanded={isComboboxOpen} className="w-full justify-between">
-                                        {selectedStudentForPayment ? allStudents.find(s => s.id === selectedStudentForPayment)?.name : "Select a student..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command>
-                                        <CommandInput placeholder="Search student..." />
-                                        <CommandEmpty>No student found.</CommandEmpty>
-                                        <CommandGroup>
-                                          <CommandList>
-                                            {allStudents.map((s) => (
-                                                <CommandItem
-                                                    key={s.id}
-                                                    value={`${s.name} ${s.admissionNo}`}
-                                                    onSelect={() => {
-                                                        setSelectedStudentForPayment(s.id);
-                                                        setIsComboboxOpen(false);
-                                                    }}
-                                                >
-                                                    {s.name} ({s.class})
-                                                </CommandItem>
-                                            ))}
-                                          </CommandList>
-                                        </CommandGroup>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                            <Combobox
+                                options={allStudents.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
+                                value={selectedStudentForPayment}
+                                onValueChange={setSelectedStudentForPayment}
+                                placeholder="Select a student..."
+                                emptyMessage="No students found."
+                            />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
@@ -1610,14 +1585,13 @@ export default function FeesPage() {
                         <div className="space-y-4 py-4">
                             <div className="space-y-2">
                                 <Label htmlFor="invoice-student">Student</Label>
-                                <Select value={newInvoiceStudentId} onValueChange={setNewInvoiceStudentId}>
-                                    <SelectTrigger id="invoice-student"><SelectValue placeholder="Select a student..." /></SelectTrigger>
-                                    <SelectContent>
-                                    {allStudents.map((s) => (
-                                        <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={allStudents.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
+                                    value={newInvoiceStudentId}
+                                    onValueChange={setNewInvoiceStudentId}
+                                    placeholder="Select a student..."
+                                    emptyMessage="No students found."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="invoice-desc">Description</Label>
