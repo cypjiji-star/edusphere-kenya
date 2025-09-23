@@ -74,7 +74,9 @@ export default function RootLayout({
         >
           <AuthProvider>
             <SplashScreen />
-            <ClientPageLoader />
+            <Suspense fallback={null}>
+              <ClientPageLoader />
+            </Suspense>
             <Suspense>{children}</Suspense>
             <Toaster />
           </AuthProvider>

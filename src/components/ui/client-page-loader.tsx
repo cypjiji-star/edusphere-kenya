@@ -1,14 +1,19 @@
+// components/ui/page-loader.tsx
 "use client";
 
-import dynamic from "next/dynamic";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
-const PageLoader = dynamic(
-  () => import("@/components/ui/page-loader").then((mod) => mod.PageLoader),
-  {
-    ssr: false,
-  },
-);
+function LoaderCore() {
+  const searchParams = useSearchParams(); // ← hook lives here
+  /* your logic */
+  return null;
+}
 
 export function ClientPageLoader() {
-  return <PageLoader />;
+  return (
+    <Suspense fallback={null}>
+      <LoaderCore />
+    </Suspense>
+  );
 }
