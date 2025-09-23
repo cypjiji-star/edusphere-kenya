@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -13,21 +14,44 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer, Users, Loader2 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { User, Book, Clock, History, RotateCw, PlusCircle, HelpCircle, CheckCircle, Printer, Users, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { firestore } from '@/lib/firebase';
 import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, updateDoc, where, Timestamp, getDocs, runTransaction, deleteDoc, getDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth } from '@/context/auth-context';
+import { Combobox } from '@/components/ui/combobox';
 
 
 type BorrowedItem = {
@@ -465,40 +489,33 @@ export default function MyLibraryPage() {
                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
                             <div className="space-y-2">
                                 <Label>Select Class</Label>
-                                <Select value={selectedClassForAssignment} onValueChange={setSelectedClassForAssignment}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a class..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {teacherClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={teacherClasses.map(c => ({ value: c.id, label: c.name }))}
+                                    value={selectedClassForAssignment}
+                                    onValueChange={setSelectedClassForAssignment}
+                                    placeholder="Select a class..."
+                                    emptyMessage="No classes found."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label>Select Student</Label>
-                                <Select value={selectedStudentForAssignment} onValueChange={setSelectedStudentForAssignment} disabled={filteredStudentsForAssignment.length === 0}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a student..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {filteredStudentsForAssignment.map(student => (
-                                            <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={filteredStudentsForAssignment.map(student => ({ value: student.id, label: student.name }))}
+                                    value={selectedStudentForAssignment}
+                                    onValueChange={setSelectedStudentForAssignment}
+                                    placeholder="Select a student..."
+                                    emptyMessage="No students in this class."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label>Select Book</Label>
-                                <Select value={selectedBookForAssignment} onValueChange={setSelectedBookForAssignment}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a borrowed book..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {borrowedItems.map(item => (
-                                            <SelectItem key={item.id} value={item.id} disabled={item.quantity === 0}>{item.title} ({item.quantity} available)</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={borrowedItems.map(item => ({ value: item.id, label: `${item.title} (${item.quantity} available)` }))}
+                                    value={selectedBookForAssignment}
+                                    onValueChange={setSelectedBookForAssignment}
+                                    placeholder="Select a borrowed book..."
+                                    emptyMessage="No borrowed books."
+                                />
                             </div>
                             <Button onClick={handleAssignBook} className="self-end" disabled={!selectedBookForAssignment || !selectedStudentForAssignment}>
                                 <Users className="mr-2 h-4 w-4" />
@@ -667,3 +684,4 @@ export default function MyLibraryPage() {
 }
 
     
+
