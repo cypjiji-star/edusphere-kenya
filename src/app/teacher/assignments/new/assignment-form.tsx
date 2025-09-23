@@ -48,7 +48,6 @@ export const assignmentSchema = z.object({
   instructions: z
     .string()
     .min(20, "Instructions must be at least 20 characters."),
-  // attachment: z.instanceof(File).optional(),
 });
 
 export type AssignmentFormValues = z.infer<typeof assignmentSchema>;
