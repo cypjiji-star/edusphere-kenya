@@ -83,8 +83,8 @@ type MediaHighlight = {
 };
 
 
-export default function TeamDetailsPage({ params }: { params: { teamId: string } }) {
-  const { teamId } = params;
+export default function TeamDetailsPage({ params }: { params: Promise<{ teamId: string }> }) {
+  const { teamId } = React.use(params);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get('schoolId');
