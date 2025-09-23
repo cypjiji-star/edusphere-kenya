@@ -97,6 +97,12 @@ const navGroups = [
         badgeKey: "ungradedAssignments",
       },
       {
+        href: "/teacher/timetable",
+        label: "Timetable",
+        icon: Calendar,
+        badgeKey: null,
+      },
+      {
         href: "/teacher/payments",
         label: "Class Funds",
         icon: CircleDollarSign,

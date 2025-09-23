@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
 import { firestore } from "@/lib/firebase";
-import { collection, query, onSnapshot } from "firebase/firestore";
+import { collection, query, onSnapshot, doc } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
 
 type Lesson = {
@@ -27,7 +27,6 @@ type Lesson = {
   room: string;
 };
 type TimetableData = Record<string, Record<string, Lesson>>;
-type AllTimetables = Record<string, TimetableData>;
 type Period = { id: number; time: string; isBreak?: boolean; title?: string };
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
