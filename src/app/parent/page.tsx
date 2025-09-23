@@ -21,6 +21,7 @@ import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { NextEventWidget } from './next-event-widget';
 
 // Types
 type Child = {
@@ -510,18 +511,7 @@ export default function ParentDashboard() {
                     </CardFooter>
                 </Card>
                 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground"/>
-                            Next Event
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-lg font-bold">PTA Meeting</div>
-                        <p className="text-xs text-muted-foreground">July 25, 2024</p>
-                    </CardContent>
-                </Card>
+                <NextEventWidget schoolId={schoolId} />
             </div>
 
             {/* Main content grid */}
