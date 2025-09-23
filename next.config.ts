@@ -127,6 +127,7 @@ const nextConfig: NextConfig = {
 
   // Transpile specific packages to fix module format errors
   transpilePackages: ["jspdf", "jspdf-autotable"],
+  output: 'export'
 };
 
 export default withPWA(nextConfig);
