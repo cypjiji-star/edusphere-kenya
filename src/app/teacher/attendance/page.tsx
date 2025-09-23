@@ -529,7 +529,9 @@ export default function AttendancePage() {
       where("classId", "in", classIds),
     );
     const unsub = onSnapshot(studentsQuery, (snapshot) => {
-      setAllTeacherStudents(snapshot.docs.map((doc) => doc.data() as Student));
+      setAllTeacherStudents(
+        snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Student),
+      );
     });
 
     const allAttendanceQuery = query(
