@@ -668,15 +668,41 @@ export default function UserManagementListPage() {
                     placeholder="Leave blank to keep current password"
                   />
                 </div>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => setUserToDelete(editingUser)}
-                  className="w-full sm:w-auto"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete User Account
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="w-full sm:w-auto"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete User Account
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the user{" "}
+                        <span className="font-bold">{editingUser?.name}</span>.
+                        This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          setUserToDelete(editingUser);
+                          setEditingUser(null);
+                        }}
+                      >
+                        Yes, Delete User
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
             <DialogFooter>
@@ -819,7 +845,7 @@ export default function UserManagementListPage() {
                     {newUserRole === "Teacher" && (
                       <div className="space-y-2">
                         <Label>Assign Classes</Label>
-                        <MultiSelect
+                        {/* <MultiSelect
                           options={classes.map((c) => ({
                             value: c.id,
                             label: c.name,
@@ -827,7 +853,7 @@ export default function UserManagementListPage() {
                           selected={newUserClasses}
                           onChange={setNewUserClasses}
                           placeholder="Select classes..."
-                        />
+                        /> */}
                       </div>
                     )}
                   </div>

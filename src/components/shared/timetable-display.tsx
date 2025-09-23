@@ -615,6 +615,8 @@ export function TimetableDisplay({
       ? allClasses.find((c) => c.id === selectedItem)?.name || selectedItem
       : selectedItem;
 
+  const isTeacherView = user?.role === 'Teacher';
+
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -861,7 +863,7 @@ export function TimetableDisplay({
                                         </p>
                                       )}
                                     </div>
-                                    {view === "class" && (
+                                    {view === "class" && !isTeacherView && (
                                       <div className="text-right">
                                         <Dialog>
                                           <DialogTrigger asChild>
@@ -964,7 +966,8 @@ export function TimetableDisplay({
                 </div>
               )}
             </CardContent>
-            {view === 'class' && <CardFooter className="flex justify-end gap-2">
+            {view === 'class' && !isTeacherView && (
+              <CardFooter className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setTimetable({})}>
                 Clear Timetable
               </Button>
@@ -998,10 +1001,10 @@ export function TimetableDisplay({
                 <Save className="mr-2 h-4 w-4" />
                 Save Timetable
               </Button>
-            </CardFooter>}
+            </CardFooter>)}
           </Card>
         </div>
-        {view === 'class' && <div className="lg:col-span-1">
+        {view === 'class' && !isTeacherView && <div className="lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle>Available Subjects</CardTitle>

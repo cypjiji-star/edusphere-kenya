@@ -143,6 +143,7 @@ import { logAuditEvent } from "@/lib/audit-log.service";
 import { useAuth } from "@/context/auth-context";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Combobox } from "@/components/ui/combobox";
+import { NiceError } from "@/components/ui/nice-error";
 
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat("en-KE", {
@@ -1043,8 +1044,9 @@ export default function FeesPage() {
     if (searchTerm) {
       students = students.filter(
         (s) =>
-          s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          s.admissionNo?.toLowerCase().includes(searchTerm.toLowerCase()),
+          (s.name && s.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (s.admissionNo &&
+            s.admissionNo.toLowerCase().includes(searchTerm.toLowerCase())),
       );
     }
     if (classFilter !== "All Classes") {
@@ -1778,15 +1780,7 @@ export default function FeesPage() {
   }
 
   if (!schoolId) {
-    return (
-      <div className="p-8">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>School ID is missing from URL.</AlertDescription>
-        </Alert>
-      </div>
-    );
+    return <NiceError title="School ID Missing" description="The school identifier is missing from the URL. Please access this page through your school's portal."/>
   }
 
   return (
@@ -2299,7 +2293,7 @@ export default function FeesPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="w-full whitespace-nowrap rounded-lg">
+                    <ScrollBar>
                       <ChartContainer
                         config={collectionTrendConfig}
                         className="h-[250px] min-w-[400px] w-full"
@@ -2328,8 +2322,7 @@ export default function FeesPage() {
                           />
                         </BarChart>
                       </ChartContainer>
-                      <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
+                    </ScrollBar>
                   </CardContent>
                 </Card>
               </div>
@@ -2354,27 +2347,19 @@ export default function FeesPage() {
                       />
                     </div>
                     <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                      <Select
+                      <Combobox
+                        options={[
+                          { value: "All Classes", label: "All Classes" },
+                          ...classes.map((c) => ({
+                            value: c.id,
+                            label: c.name,
+                          })),
+                        ]}
                         value={classFilter}
                         onValueChange={setClassFilter}
-                      >
-                        <SelectTrigger
-                          className="w-full md:w-[180px]"
-                          aria-label="Select class filter"
-                        >
-                          <SelectValue placeholder="All Classes" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="All Classes">
-                            All Classes
-                          </SelectItem>
-                          {classes.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="All Classes"
+                        className="w-full md:w-[180px]"
+                      />
                       <Select
                         value={statusFilter}
                         onValueChange={(v: string) => setStatusFilter(v)}

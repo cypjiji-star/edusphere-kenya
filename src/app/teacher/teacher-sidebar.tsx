@@ -325,6 +325,7 @@ export function TeacherSidebar() {
               className="w-full justify-start gap-2 p-2 h-auto"
             >
               <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.photoURL || ''} alt={teacherName} />
                 <AvatarFallback>{teacherName.charAt(0) || "T"}</AvatarFallback>
               </Avatar>
               <div className="text-left">
