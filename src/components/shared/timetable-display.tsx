@@ -475,17 +475,7 @@ export function TimetableDisplay({
         `schools/${schoolId}/timetables`,
         selectedItem,
       );
-      // Important: Use the local timetable state to update the global state first
-      const updatedAllTimetables = {
-        ...allTimetables,
-        [selectedItem]: timetable,
-      };
-      // Save the entire updated global state
-      await setDoc(timetableRef, updatedAllTimetables[selectedItem], {
-        merge: true,
-      });
-      // Then set the new global state locally
-      setAllTimetables(updatedAllTimetables);
+      await setDoc(timetableRef, timetable, { merge: true });
       toast({
         title: "Timetable Saved",
         description: `The timetable for the selected view has been saved.`,
@@ -877,7 +867,8 @@ export function TimetableDisplay({
                                                   Edit Lesson
                                                 </DialogTitle>
                                                 <DialogDescription>
-                                                  Change the room for this lesson.
+                                                  Change the room for this
+                                                  lesson.
                                                 </DialogDescription>
                                               </DialogHeader>
                                               <div className="py-4">
@@ -963,41 +954,12 @@ export function TimetableDisplay({
               )}
             </CardContent>
             {view === "class" && user?.role === "admin" && (
-              <CardFooter className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setTimetable({})}>
-                  Clear Timetable
-                </Button>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="secondary">
-                      <Share className="mr-2 h-4 w-4" />
-                      Publish
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Confirm Publish</DialogTitle>
-                      <DialogDescription>
-                        Are you sure you want to publish this timetable? This
-                        will make it visible to all teachers and students in
-                        this class.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                      </DialogClose>
-                      <DialogClose asChild>
-                        <Button onClick={handlePublish}>Yes, Publish</Button>
-                      </DialogClose>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <Button onClick={handleSave}>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Timetable
-                </Button>
-              </CardFooter>
+               <CardFooter className="flex justify-end gap-2">
+                 <Button onClick={handleSave}>
+                   <Save className="mr-2 h-4 w-4" />
+                   Save Timetable
+                 </Button>
+               </CardFooter>
             )}
           </Card>
         </div>
