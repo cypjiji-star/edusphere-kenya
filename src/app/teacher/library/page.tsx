@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -51,8 +52,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ResourceDetailsDialog } from "./resource-details-dialog";
-import type { Resource, ResourceType } from "./types";
+import { ResourceDetailsDialog } from "@/components/teacher/library/resource-details-dialog";
+import type { Resource, ResourceType } from "@/components/teacher/library/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -473,3 +474,5 @@ export default function LibraryPage() {
     </div>
   );
 }
+
+      
