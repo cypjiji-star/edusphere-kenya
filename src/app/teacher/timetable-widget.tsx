@@ -109,11 +109,13 @@ export function TimetableWidget() {
               if (daySchedule) {
                 const lesson = daySchedule[period.time];
                 if (lesson && lesson.subject.teacher === teacherName) {
+                  const classDoc = doc.data()
+                  const className = classDoc.name || 'Class'
                   lessonForPeriod = {
                     startTime,
                     endTime,
                     title: lesson.subject.name,
-                    location: lesson.room,
+                    location: `${className} - ${lesson.room}` ,
                   };
                 }
               }
@@ -212,8 +214,8 @@ export function TimetableWidget() {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-          <Link href={`/teacher/calendar?schoolId=${schoolId}`}>
-            View Full Calendar
+          <Link href={`/teacher/timetable?schoolId=${schoolId}`}>
+            View Full Timetable
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
