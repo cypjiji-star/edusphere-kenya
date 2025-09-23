@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -44,15 +45,6 @@ import {
   query,
   Timestamp,
 } from "firebase/firestore";
-
-type VersionHistoryItem = {
-  id: string;
-  version: number;
-  date: Timestamp;
-  author: string;
-  summary: string;
-  data: any;
-};
 
 export default function NewAssignmentPage() {
   const searchParams = useSearchParams();
