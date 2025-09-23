@@ -475,26 +475,24 @@ export default function TeacherHealthPage() {
                                                     render={({ field }) => (
                                                         <FormItem className="space-y-3">
                                                             <FormLabel>Urgency Level</FormLabel>
-                                                            <RadioGroup
-                                                              onValueChange={field.onChange}
-                                                              defaultValue={field.value}
-                                                              className="flex flex-wrap gap-x-4 gap-y-2"
-                                                            >
-                                                            {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                                <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                                 <FormControl>
-                                                                    <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Select urgency" />
+                                                                    </SelectTrigger>
                                                                 </FormControl>
-                                                                <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
-                                                                    <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                                </Label>
-                                                                </FormItem>
-                                                            ))}
-                                                            </RadioGroup>
+                                                                <SelectContent>
+                                                                    {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                                        <SelectItem key={level} value={level}>
+                                                                            <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
-                                                    />
+                                                />
                                             </div>
                                             <div className="space-y-6">
                                                 <FormField 
