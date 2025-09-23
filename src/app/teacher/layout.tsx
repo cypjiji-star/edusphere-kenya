@@ -31,9 +31,6 @@ export default function TeacherLayout({
           </header>
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
             <Suspense>{children}</Suspense>
-            <Suspense>
-              <FloatingSupportWidget />
-            </Suspense>
           </main>
         </SidebarInset>
       </SidebarProvider>

@@ -30,9 +30,6 @@ export default function ParentLayout({
             </div>
           </header>
           <Suspense>{children}</Suspense>
-          <Suspense>
-            <FloatingSupportWidget />
-          </Suspense>
         </SidebarInset>
       </SidebarProvider>
     </AuthCheck>
