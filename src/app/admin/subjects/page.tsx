@@ -109,7 +109,6 @@ type ClassAssignment = {
     [classId: string]: { subject: string; teacher: string | null }[];
 };
 
-const mockDepartments = ['Sciences', 'Mathematics', 'Languages', 'Humanities', 'Technical Subjects', 'Creative Arts'];
 
 function ManageClassSubjectsDialog({ schoolClass, allSubjects, schoolId, classAssignments, setClassAssignments }: { schoolClass: SchoolClass, allSubjects: Subject[], schoolId: string, classAssignments: ClassAssignment, setClassAssignments: React.Dispatch<React.SetStateAction<ClassAssignment>> }) {
     const { toast } = useToast();
@@ -233,7 +232,7 @@ function AssignTeacherDialog({ subject, teachers, open, onOpenChange, onSave }: 
     );
 }
 
-function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDelete, teacherOptions }: { subject: Subject | null, teachers: Teacher[], open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Subject>) => void, onDelete: (id: string, name: string) => void, teacherOptions: {value: string; label: string;}[] }) {
+function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDelete, teacherOptions, departments }: { subject: Subject | null, teachers: Teacher[], open: boolean, onOpenChange: (open: boolean) => void, onSave: (id: string, data: Partial<Subject>) => void, onDelete: (id: string, name: string) => void, teacherOptions: {value: string; label: string;}[], departments: string[] }) {
     const [name, setName] = React.useState('');
     const [code, setCode] = React.useState('');
     const [department, setDepartment] = React.useState('');
@@ -285,7 +284,7 @@ function EditSubjectDialog({ subject, teachers, open, onOpenChange, onSave, onDe
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {mockDepartments.map(dept => (
+                                {departments.map(dept => (
                                     <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -362,6 +361,8 @@ export default function ClassesAndSubjectsPage() {
     const [selectedAssignmentClass, setSelectedAssignmentClass] = React.useState<string>('');
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
+    
+    const [departments, setDepartments] = React.useState<string[]>([]);
 
 
     React.useEffect(() => {
@@ -376,7 +377,10 @@ export default function ClassesAndSubjectsPage() {
             setIsLoading(false);
         });
         const unsubSubjects = onSnapshot(collection(firestore, 'schools', schoolId, 'subjects'), (snapshot) => {
-            setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
+            const fetchedSubjects = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Subject));
+            setSubjects(fetchedSubjects);
+            const uniqueDepartments = [...new Set(fetchedSubjects.map(s => s.department).filter(Boolean))];
+            setDepartments(uniqueDepartments);
         });
         const unsubTeachers = onSnapshot(query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Teacher')), (snapshot) => {
             setTeachers(snapshot.docs.map(d => ({ id: d.id, name: d.data().name, avatarUrl: d.data().avatarUrl } as Teacher)));
@@ -994,7 +998,7 @@ export default function ClassesAndSubjectsPage() {
                                                     <SelectValue placeholder="Select a department" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {mockDepartments.map(dept => (
+                                                    {departments.map(dept => (
                                                         <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -1242,6 +1246,7 @@ export default function ClassesAndSubjectsPage() {
             onSave={handleUpdateSubject}
             onDelete={handleDelete}
             teacherOptions={teacherOptions}
+            departments={departments}
         />
         <AssignTeacherDialog
             subject={assigningTeacherSubject}
