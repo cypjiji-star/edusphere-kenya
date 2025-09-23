@@ -53,7 +53,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ResourceDetailsDialog } from "@/components/teacher/library/resource-details-dialog";
-import type { Resource, ResourceType } from "@/components/teacher/library/types";
+import type { Resource, ResourceType } from "./types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -474,5 +474,3 @@ export default function LibraryPage() {
     </div>
   );
 }
-
-      
