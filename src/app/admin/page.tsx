@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -66,6 +67,8 @@ const activityCategoryLinks: Record<string, string> = {
   Academics: "/admin/lesson-plans",
   Comms: "/admin/announcements",
   Security: "/admin/logs",
+  Finance: "/admin/fees",
+  General: "/admin",
 };
 
 const activityIconMap: Record<string, React.ElementType> = {
@@ -76,6 +79,8 @@ const activityIconMap: Record<string, React.ElementType> = {
   Academics: BookOpen,
   Comms: Megaphone,
   Security: ShieldAlert,
+  Finance: CircleDollarSign,
+  General: LayoutDashboard,
 };
 
 type RecentActivity = {
@@ -130,6 +135,7 @@ export default function AdminDashboard() {
     }
 
     const unsubscribers: (() => void)[] = [];
+    setIsLoading(true);
 
     const schoolRef = doc(firestore, "schools", schoolId);
     unsubscribers.push(
@@ -164,29 +170,35 @@ export default function AdminDashboard() {
         });
         const balance = totalBilled - totalPaid;
         setStats((prev) => ({ ...prev, overallFeeBalance: balance }));
-      }),
-    );
 
-    const today = new Date();
-    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-    const attendanceQuery = query(
-      collection(firestore, `schools/${schoolId}/attendance`),
-      where("date", ">=", Timestamp.fromDate(startOfToday)),
-    );
-
-    unsubscribers.push(
-      onSnapshot(attendanceQuery, (attSnapshot) => {
-        if (stats.totalStudents === 0) {
+        // We fetch attendance here to ensure totalStudents is up-to-date
+        if (studentCount > 0) {
+          const today = new Date();
+          const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+          const attendanceQuery = query(
+            collection(firestore, `schools/${schoolId}/attendance`),
+            where("date", ">=", Timestamp.fromDate(startOfToday)),
+          );
+          const unsubAttendance = onSnapshot(
+            attendanceQuery,
+            (attSnapshot) => {
+              const presentCount = attSnapshot.docs.filter((r) =>
+                ["Present", "Late", "present", "late"].includes(
+                  r.data().status,
+                ),
+              ).length;
+              setStats((prev) => ({
+                ...prev,
+                attendanceRate: Math.round(
+                  (presentCount / studentCount) * 100,
+                ),
+              }));
+            },
+          );
+          unsubscribers.push(unsubAttendance);
+        } else {
           setStats((prev) => ({ ...prev, attendanceRate: 100 }));
-          return;
         }
-        const presentCount = attSnapshot.docs.filter((r) =>
-          ["Present", "Late", "present", "late"].includes(r.data().status),
-        ).length;
-        setStats((prev) => ({
-          ...prev,
-          attendanceRate: Math.round((presentCount / stats.totalStudents) * 100),
-        }));
       }),
     );
 
@@ -199,17 +211,8 @@ export default function AdminDashboard() {
       onSnapshot(notificationsQuery, (snapshot) => {
         const fetchedActivities = snapshot.docs.map((doc) => {
           const data = doc.data();
-          let category;
-          if (data.href) {
-            category =
-              data.href
-                .split("/")[2]
-                ?.replace("-", " ")
-                .replace(/\b\w/g, (l: string) => l.toUpperCase())
-                .split(" ")[0] || "General";
-          } else {
-            category = data.category || "General";
-          }
+          const category = data.category || "General";
+          const href = activityCategoryLinks[category] || "/admin";
 
           return {
             id: doc.id,
@@ -217,7 +220,7 @@ export default function AdminDashboard() {
             title: data.description,
             time: formatTimeAgo(data.createdAt),
             category: category,
-            href: data.href || "#",
+            href: href,
           };
         });
         setActivities(fetchedActivities);
@@ -228,7 +231,7 @@ export default function AdminDashboard() {
     return () => {
       unsubscribers.forEach((unsub) => unsub());
     };
-  }, [schoolId, stats.totalStudents]);
+  }, [schoolId]);
 
   const overviewStats = [
     {
