@@ -474,7 +474,7 @@ export function TimetableBuilder({
       }));
       toast({
         title: "Timetable Saved",
-        description: `The timetable for the selected view has been saved.`,
+        description: `The timetable for the selected class has been saved.`,
       });
     } catch (e) {
       console.error(e);
