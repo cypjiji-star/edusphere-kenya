@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -82,7 +83,14 @@ const navGroups = [
   {
     title: "Academics",
     items: [
-      { href: "/admin/attendance", label: "Attendance", icon: ClipboardCheck },
+      {
+        href: "/admin/attendance",
+        label: "Attendance",
+        icon: ClipboardCheck,
+        collection: "leave-applications",
+        field: "status",
+        value: "Pending",
+      },
       { href: "/admin/grades", label: "Grades & Exams", icon: FileText },
       { href: "/admin/timetable", label: "Timetable", icon: Calendar },
       { href: "/admin/subjects", label: "Classes & Subjects", icon: Shapes },
@@ -130,6 +138,9 @@ const navGroups = [
         href: "/admin/messaging",
         label: "Direct Messaging",
         icon: MessageCircle,
+        collection: "support-chats",
+        field: "isEscalated",
+        value: true,
       },
       { href: "/admin/calendar", label: "Events Calendar", icon: Calendar },
     ],
@@ -138,7 +149,14 @@ const navGroups = [
     title: "Finance",
     items: [
       { href: "/admin/fees", label: "Fees & Payments", icon: CircleDollarSign },
-      { href: "/admin/expenses", label: "Expenses", icon: Receipt },
+      {
+        href: "/admin/expenses",
+        label: "Expenses",
+        icon: Receipt,
+        collection: "expenses",
+        field: "status",
+        value: "Pending Approval",
+      },
     ],
   },
   {

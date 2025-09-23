@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -226,15 +227,10 @@ export function TeacherSidebar() {
       let ungradedCount = 0;
       const promises = snapshot.docs.map(async (assignmentDoc) => {
         const assignmentData = assignmentDoc.data();
-        const submissionsQuery = query(
-          collection(
-            firestore,
-            `schools/${schoolId}/assignments/${assignmentDoc.id}/submissions`,
-          ),
-          where("status", "==", "Handed In"),
-        );
-        const submissionsSnapshot = await getDocs(submissionsQuery);
-        return submissionsSnapshot.size;
+        if (assignmentData.submissions < assignmentData.totalStudents) {
+          return 1;
+        }
+        return 0;
       });
 
       Promise.all(promises).then((counts) => {
