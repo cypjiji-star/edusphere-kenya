@@ -12,7 +12,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { app, firestore } from "@/lib/firebase";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { SplashScreen } from "@/components/layout/splash-screen";
 import { ClientPageLoader } from "@/components/ui/client-page-loader";
 
@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = React.useState(true);
   const [clientReady, setClientReady] = React.useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     // This effect runs only once on the client after initial mount.
@@ -69,14 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setRole("developer");
             return;
           }
-
-          // Role determination for other users now happens inside layouts
-          // that have access to schoolId. For now, we can set a general
-          // authenticated state and let layouts refine the role.
-          const schoolId =
-            typeof window !== "undefined"
-              ? window.sessionStorage.getItem("schoolId")
-              : null;
+          
+          const schoolId = searchParams.get("schoolId") || (typeof window !== 'undefined' ? window.sessionStorage.getItem("schoolId") : null);
 
           if (schoolId) {
             const userDocRef = doc(
@@ -88,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             );
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
-              setRole(userDocSnap.data().role as AllowedRole);
+              setRole(userDocSnap.data().role.toLowerCase() as AllowedRole);
             } else {
               setRole("unknown");
             }
@@ -104,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return () => unsubscribe();
     });
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   return (
     <AuthContext.Provider value={{ user, role, loading, clientReady }}>

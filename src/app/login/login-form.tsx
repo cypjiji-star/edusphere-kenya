@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,11 +23,12 @@ import { logAuditEvent } from "@/lib/audit-log.service";
 export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
 
   const [role, setRole] = React.useState("admin");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [schoolId, setSchoolId] = React.useState("");
+  const [schoolId, setSchoolId] = React.useState(searchParams.get("schoolId") || "");
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {

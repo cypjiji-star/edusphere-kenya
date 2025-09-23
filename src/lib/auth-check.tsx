@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, AuthContextType, AllowedRole } from "@/context/auth-context";
@@ -18,6 +18,7 @@ function AuthChecker({
     useAuth() as AuthContextType;
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (
@@ -54,6 +55,35 @@ function AuthChecker({
 
   // Case-insensitive role check
   const hasPermission = role.toLowerCase() === requiredRole.toLowerCase();
+
+  // For non-developer roles, also check if schoolId is present
+  if (
+    requiredRole !== "developer" &&
+    !pathname.startsWith("/developer") &&
+    !searchParams.has("schoolId")
+  ) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center p-8 text-center">
+        <h1 className="text-2xl font-bold text-destructive">
+          School ID Missing
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          A school ID is required to access this page. Please log in again.
+        </p>
+        <Button
+          onClick={() =>
+            getAuth()
+              .signOut()
+              .then(() => router.push("/login"))
+          }
+          variant="outline"
+          className="mt-4"
+        >
+          Logout and Sign In Again
+        </Button>
+      </div>
+    );
+  }
 
   if (role !== "unknown" && !hasPermission) {
     return (
