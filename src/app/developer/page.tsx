@@ -45,21 +45,6 @@ type School = {
   plan: 'Premium Tier' | 'Standard Tier';
 };
 
-const defaultSubjects = [
-    { name: 'Mathematics', code: '121', department: 'Mathematics' },
-    { name: 'English', code: '101', department: 'Languages' },
-    { name: 'Kiswahili', code: '102', department: 'Languages' },
-    { name: 'Chemistry', code: '233', department: 'Sciences' },
-    { name: 'Biology', code: '231', department: 'Sciences' },
-    { name: 'Physics', code: '232', department: 'Sciences' },
-    { name: 'History & Government', code: '311', department: 'Humanities' },
-    { name: 'Geography', code: '312', department: 'Humanities' },
-    { name: 'CRE', code: '313', department: 'Humanities' },
-    { name: 'Computer Studies', code: '451', department: 'Technical Subjects' },
-    { name: 'Business Studies', code: '565', department: 'Technical Subjects' },
-];
-
-
 export default function DeveloperDashboard() {
   const [schools, setSchools] = React.useState<School[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -123,29 +108,6 @@ export default function DeveloperDashboard() {
         Object.entries(initialRolePermissions).forEach(([roleName, roleData]) => {
             const roleRef = doc(firestore, 'schools', schoolCode, 'roles', roleName);
             batch.set(roleRef, { permissions: roleData.permissions, isCore: roleData.isCore, userCount: roleName === 'Admin' ? 1 : 0 });
-        });
-        
-        // Seed default subjects
-        defaultSubjects.forEach(subject => {
-            const subjectRef = doc(collection(firestore, 'schools', schoolCode, 'subjects'));
-            batch.set(subjectRef, { ...subject, createdAt: serverTimestamp() });
-        });
-
-        // Seed default library resources
-        defaultSubjects.slice(0, 5).forEach(subject => {
-            const resourceRef = doc(collection(firestore, 'schools', schoolCode, 'library-resources'));
-            batch.set(resourceRef, {
-                title: `${subject.name} Form 1 Textbook`,
-                author: 'KICD',
-                type: 'Textbook',
-                subject: subject.name,
-                grade: 'Form 1',
-                description: `Official textbook for the ${subject.name} curriculum.`,
-                totalCopies: 50,
-                availableCopies: 50,
-                status: 'Available',
-                createdAt: serverTimestamp(),
-            });
         });
 
         // Seed default timetable periods
