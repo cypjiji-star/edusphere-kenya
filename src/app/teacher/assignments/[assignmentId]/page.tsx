@@ -1,5 +1,8 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+export const dynamicParams = false;
+
 import * as React from "react";
 import Link from "next/link";
 import {
@@ -63,8 +66,6 @@ import {
 } from "firebase/firestore";
 import type { DocumentData } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
-
-export const dynamicParams = false;
 
 const getStatusBadge = (status: Submission["status"]) => {
   switch (status) {
@@ -510,4 +511,3 @@ export default function AssignmentSubmissionsPage({
     </div>
   );
 }
-    
