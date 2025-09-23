@@ -118,9 +118,9 @@ type MediaHighlight = {
 export default function TeamDetailsPage({
   params,
 }: {
-  params: Promise<{ teamId: string }>;
+  params: { teamId: string };
 }) {
-  const { teamId } = React.use(params);
+  const { teamId } = params;
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get("schoolId");
