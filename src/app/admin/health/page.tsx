@@ -94,6 +94,7 @@ type Incident = {
   location?: string;
   attachmentUrl?: string;
   attachmentName?: string;
+  urgency?: IncidentFormValues['urgency'];
 };
 
 type TeacherStudent = { id: string; name: string; class: string; allergies?: string; medicalConditions?: string; };
@@ -530,29 +531,27 @@ export default function AdminHealthPage() {
                                                 </div>
                                                 <FormField control={form.control} name="location" render={({ field }) => ( <FormItem> <FormLabel>Location</FormLabel> <FormControl> <Input placeholder="e.g., Science Lab, Playground" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                                                 <FormField
-                                                    control={form.control}
-                                                    name="urgency"
-                                                    render={({ field }) => (
+                                                  control={form.control}
+                                                  name="urgency"
+                                                  render={({ field }) => (
                                                     <FormItem>
                                                       <FormLabel>Urgency Level</FormLabel>
-                                                        <FormControl>
-                                                            <RadioGroup
-                                                                onValueChange={field.onChange}
-                                                                defaultValue={field.value}
-                                                                className="flex space-x-4"
-                                                            >
-                                                                {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                                <FormItem key={level} className="flex items-center space-x-2 space-y-0">
-                                                                    <FormControl>
-                                                                    <RadioGroupItem value={level} id={`urgency-admin-${level}`} />
-                                                                    </FormControl>
-                                                                    <Label htmlFor={`urgency-admin-${level}`} className="font-normal">
-                                                                    <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                                    </Label>
-                                                                </FormItem>
-                                                                ))}
-                                                            </RadioGroup>
-                                                        </FormControl>
+                                                      <FormControl>
+                                                        <RadioGroup
+                                                          onValueChange={field.onChange}
+                                                          defaultValue={field.value}
+                                                          className="flex space-x-4"
+                                                        >
+                                                          {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                            <div key={level} className="flex items-center space-x-2">
+                                                              <RadioGroupItem value={level} id={`urgency-admin-${level}`} />
+                                                              <Label htmlFor={`urgency-admin-${level}`} className="font-normal">
+                                                                <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                              </Label>
+                                                            </div>
+                                                          ))}
+                                                        </RadioGroup>
+                                                      </FormControl>
                                                       <FormMessage />
                                                     </FormItem>
                                                   )}
@@ -721,5 +720,7 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
+
+    
 
     

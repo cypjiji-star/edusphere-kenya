@@ -74,6 +74,8 @@ type Incident = {
   status: 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
   actionsTaken?: string;
   followUpNeeded?: string;
+  studentName: string;
+  urgency?: IncidentFormValues['urgency'];
 };
 
 type Medication = {
@@ -383,6 +385,7 @@ export default function TeacherHealthPage() {
                                                           ))} 
                                                         </SelectContent> 
                                                       </Select> 
+                                                      <FormDescription>Multi-student selection coming soon.</FormDescription> 
                                                       <FormMessage /> 
                                                     </FormItem> 
                                                   )}
@@ -464,33 +467,31 @@ export default function TeacherHealthPage() {
                                                   )}
                                                 />
                                                 <FormField
-                                                    control={form.control}
-                                                    name="urgency"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                        <FormLabel>Urgency Level</FormLabel>
-                                                        <FormControl>
-                                                            <RadioGroup
-                                                            onValueChange={field.onChange}
-                                                            defaultValue={field.value}
-                                                            className="flex space-x-4"
-                                                            >
-                                                            {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                                <FormItem key={level} className="flex items-center space-x-2 space-y-0">
-                                                                <FormControl>
-                                                                    <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
-                                                                </FormControl>
-                                                                <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
-                                                                    <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                                </Label>
-                                                                </FormItem>
-                                                            ))}
-                                                            </RadioGroup>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                    />
+                                                  control={form.control}
+                                                  name="urgency"
+                                                  render={({ field }) => (
+                                                    <FormItem>
+                                                      <FormLabel>Urgency Level</FormLabel>
+                                                      <FormControl>
+                                                        <RadioGroup
+                                                          onValueChange={field.onChange}
+                                                          defaultValue={field.value}
+                                                          className="flex space-x-4"
+                                                        >
+                                                          {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                            <div key={level} className="flex items-center space-x-2">
+                                                              <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
+                                                              <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
+                                                                <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                              </Label>
+                                                            </div>
+                                                          ))}
+                                                        </RadioGroup>
+                                                      </FormControl>
+                                                      <FormMessage />
+                                                    </FormItem>
+                                                  )}
+                                                />
                                             </div>
                                             <div className="space-y-6">
                                                 <FormField 
@@ -710,18 +711,8 @@ export default function TeacherHealthPage() {
                           <div>
                             <h4 className="font-semibold mb-2">Status</h4>
                             <p>{getStatusBadge(selectedIncident.status)}</p>
+                            <p className="text-xs text-muted-foreground mt-1">This is the current status as determined by the administration.</p>
                           </div>
-                          {selectedIncident.urgency && (
-                            <>
-                              <Separator/>
-                              <div>
-                                <h4 className="font-semibold mb-2">Urgency</h4>
-                                <Badge className={cn(getUrgencyBadge(selectedIncident.urgency))}>
-                                  {selectedIncident.urgency}
-                                </Badge>
-                              </div>
-                            </>
-                          )}
                         </div>
                         <DialogFooter>
                           <DialogClose asChild>
@@ -734,3 +725,7 @@ export default function TeacherHealthPage() {
         </Dialog>
     );
 }
+
+    
+
+    
