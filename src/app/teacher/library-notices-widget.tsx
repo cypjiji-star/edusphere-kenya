@@ -55,7 +55,7 @@ export function LibraryNoticesWidget() {
         firestore,
         "schools",
         schoolId,
-        "teachers",
+        "users",
         teacherId,
         "borrowed-items",
       ),
