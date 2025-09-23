@@ -107,11 +107,11 @@ const getCurrentTerm = (): string => {
   const year = today.getFullYear();
 
   if (month >= 0 && month <= 3) { // Jan - Apr
-    return `term1-${year}`;
+    return `Term 1, ${year}`;
   } else if (month >= 4 && month <= 7) { // May - Aug
-    return `term2-${year}`;
+    return `Term 2, ${year}`;
   } else { // Sep - Dec
-    return `term3-${year}`;
+    return `Term 3, ${year}`;
   }
 };
 
@@ -183,9 +183,9 @@ export default function ParentGradesPage() {
             const yearsData = docSnap.data().years || [];
             const terms: {value: string, label: string}[] = [];
             yearsData.forEach((yearData: any) => {
-                terms.push({ value: `term1-${yearData.year}`, label: `Term 1, ${yearData.year}`});
-                terms.push({ value: `term2-${yearData.year}`, label: `Term 2, ${yearData.year}`});
-                terms.push({ value: `term3-${yearData.year}`, label: `Term 3, ${yearData.year}`});
+                terms.push({ value: `Term 1, ${yearData.year}`, label: `Term 1, ${yearData.year}`});
+                terms.push({ value: `Term 2, ${yearData.year}`, label: `Term 2, ${yearData.year}`});
+                terms.push({ value: `Term 3, ${yearData.year}`, label: `Term 3, ${yearData.year}`});
             });
             setAcademicTerms(terms);
         }
@@ -205,43 +205,38 @@ export default function ParentGradesPage() {
     }
   }, [schoolId, parentId]);
 
-  const getTermDates = (term: string) => {
-    const [termName, yearStr] = term.split('-');
-    const year = parseInt(yearStr, 10);
-    switch(termName) {
-        case 'term1': return { start: new Date(year, 0, 1), end: new Date(year, 3, 30) };
-        case 'term2': return { start: new Date(year, 4, 1), end: new Date(year, 7, 31) };
-        case 'term3': return { start: new Date(year, 8, 1), end: new Date(year, 11, 31) };
-        default: return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
-    }
-  };
 
   React.useEffect(() => {
-    if (!selectedChild || !schoolId) return;
+    if (!selectedChild || !schoolId || !selectedTerm) {
+        setGradeData(null);
+        setIsLoading(false);
+        return;
+    };
     setIsLoading(true);
-
-    const { start, end } = getTermDates(selectedTerm);
 
     const gradesQuery = query(
         collection(firestore, 'schools', schoolId, 'grades'), 
         where('studentId', '==', selectedChild),
-        where('status', '==', 'Approved'),
-        where('date', '>=', Timestamp.fromDate(start)),
-        where('date', '<=', Timestamp.fromDate(end)),
+        where('status', '==', 'Approved')
     );
     const unsubGrades = onSnapshot(gradesQuery, async (gradesSnapshot) => {
+        
         const gradesBySubject: Record<string, { scores: number[], teacher: string }> = {};
         
         for (const gradeDoc of gradesSnapshot.docs) {
             const grade = gradeDoc.data();
-            const score = parseInt(grade.grade, 10);
-            if (isNaN(score)) continue;
+            const examSnap = await getDoc(doc(firestore, 'schools', schoolId, 'exams', grade.examId));
+            
+            if (examSnap.exists() && examSnap.data().term === selectedTerm) {
+                const score = parseInt(grade.grade, 10);
+                if (isNaN(score)) continue;
 
-            const subjectName = grade.subject || 'Unknown Subject';
-            if (!gradesBySubject[subjectName]) {
-                gradesBySubject[subjectName] = { scores: [], teacher: grade.teacherName || 'N/A' };
+                const subjectName = grade.subject || 'Unknown Subject';
+                if (!gradesBySubject[subjectName]) {
+                    gradesBySubject[subjectName] = { scores: [], teacher: grade.teacherName || 'N/A' };
+                }
+                gradesBySubject[subjectName].scores.push(score);
             }
-            gradesBySubject[subjectName].scores.push(score);
         }
 
         const subjects: SubjectData[] = Object.entries(gradesBySubject).map(([name, data], index) => {
@@ -272,24 +267,26 @@ export default function ParentGradesPage() {
         let classSize = 0;
 
         if (childClassId) {
-             const allGradesInClassQuery = query(
+            const allGradesInClassQuery = query(
                 collection(firestore, 'schools', schoolId, 'grades'), 
                 where('classId', '==', childClassId), 
                 where('status', '==', 'Approved'),
-                where('date', '>=', Timestamp.fromDate(start)),
-                where('date', '<=', Timestamp.fromDate(end))
             );
              const allGradesSnapshot = await getDocs(allGradesInClassQuery);
              const studentTotals: Record<string, {total: number, count: number}> = {};
-             allGradesSnapshot.forEach(doc => {
+             
+             for(const doc of allGradesSnapshot.docs) {
                  const data = doc.data();
-                 const score = parseInt(data.grade, 10);
-                 if (!isNaN(score)) {
-                    if (!studentTotals[data.studentId]) studentTotals[data.studentId] = { total: 0, count: 0 };
-                     studentTotals[data.studentId].total += score;
-                     studentTotals[data.studentId].count++;
+                 const examSnap = await getDoc(doc.ref.parent.parent!);
+                 if (examSnap.exists() && examSnap.data()?.term === selectedTerm) {
+                     const score = parseInt(data.grade, 10);
+                     if (!isNaN(score)) {
+                        if (!studentTotals[data.studentId]) studentTotals[data.studentId] = { total: 0, count: 0 };
+                         studentTotals[data.studentId].total += score;
+                         studentTotals[data.studentId].count++;
+                     }
                  }
-             });
+             };
 
              const studentAverages = Object.entries(studentTotals).map(([studentId, data]) => ({
                  studentId,
@@ -333,8 +330,28 @@ export default function ParentGradesPage() {
     return <div className="p-8">Error: School ID is missing.</div>
   }
 
-  if (isLoading || !gradeData) {
+  if (isLoading) {
     return <div className="p-8 h-full flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary"/></div>
+  }
+
+  if (!gradeData) {
+      return (
+        <div className="p-8 space-y-6">
+            <div className="mb-2 p-4 md:p-6 bg-card border rounded-lg">
+                <h1 className="font-headline text-3xl font-bold flex items-center gap-2"><FileText className="h-8 w-8 text-primary"/>Grades &amp; Exams</h1>
+                <p className="text-muted-foreground">View academic performance and report cards.</p>
+            </div>
+             <Card>
+                 <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-center gap-2"><User className="h-5 w-5 text-primary"/><Select value={selectedChild} onValueChange={setSelectedChild}><SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Select a child" /></SelectTrigger><SelectContent>{childrenData.map((child) => (<SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>))}</SelectContent></Select></div>
+                        <div className="flex w-full flex-col sm:flex-row md:w-auto items-center gap-2"><Select value={selectedTerm} onValueChange={setSelectedTerm}><SelectTrigger className="w-full md:w-auto"><SelectValue placeholder="Select Term" /></SelectTrigger><SelectContent>{academicTerms.map(term => (<SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>))}</SelectContent></Select></div>
+                    </div>
+                </CardHeader>
+             </Card>
+            <div className="text-center py-16 text-muted-foreground">No grades have been published for the selected term.</div>
+        </div>
+      )
   }
 
   const chartData = gradeData.subjects.map(s => ({ name: s.name.substring(0, 3).toUpperCase(), average: s.average }));
@@ -492,3 +509,5 @@ export default function ParentGradesPage() {
     </>
   );
 }
+
+  
