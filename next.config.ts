@@ -1,3 +1,4 @@
+
 import type { NextConfig } from "next";
 
 const withPWA = require("@ducanh2912/next-pwa").default({
@@ -23,8 +24,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
     name: "EduSphere Kenya",
     short_name: "EduSphere",
     description: "Empowering Kenya's Future, One School at a Time.",
-    background_color: "#0B0F19",
-    theme_color: "#0B0F19",
+    background_color: "#0A0A0B",
+    theme_color: "#0A0A0B",
     display: "standalone",
     orientation: "portrait",
     start_url: "/",
