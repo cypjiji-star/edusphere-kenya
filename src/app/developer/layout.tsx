@@ -31,7 +31,7 @@ export default function DeveloperLayout({
             <header className="sticky top-0 z-10 flex h-14 items-center justify-end gap-4 border-b bg-background/80 px-6 backdrop-blur-sm md:hidden">
               <SidebarTrigger />
             </header>
-            {children}
+            <Suspense>{children}</Suspense>
           </main>
         </SidebarInset>
       </SidebarProvider>

@@ -77,7 +77,7 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <ClientPageLoader />
             </Suspense>
-            <Suspense>{children}</Suspense>
+            {children}
             <Toaster />
           </AuthProvider>
         </ThemeProvider>

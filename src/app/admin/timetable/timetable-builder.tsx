@@ -84,6 +84,7 @@ import {
   addDoc,
   getDocs,
 } from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
 
 type DraggableSubjectType = {
   name: string;
@@ -187,7 +188,9 @@ function DroppableCell({
   );
 }
 
-export function TimetableBuilder({ schoolId }: { schoolId: string }) {
+export function TimetableBuilder() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get("schoolId");
   const [view, setView] = React.useState("Class View");
   const [selectedItem, setSelectedItem] = React.useState<string | undefined>();
   const [timetable, setTimetable] = React.useState<TimetableData>({});
@@ -226,7 +229,7 @@ export function TimetableBuilder({ schoolId }: { schoolId: string }) {
           name: `${doc.data().name} ${doc.data().stream || ""}`.trim(),
         }));
         setAllClasses(classesData);
-        if (view === "Class View" && !selectedItem && classesData.length > 0) {
+        if (!selectedItem && classesData.length > 0) {
           setSelectedItem(classesData[0].id);
         }
       },
@@ -287,7 +290,7 @@ export function TimetableBuilder({ schoolId }: { schoolId: string }) {
       unsubSubjects();
       unsubTimetables();
     };
-  }, [schoolId, selectedItem, view]);
+  }, [schoolId]);
 
   React.useEffect(() => {
     if (!selectedItem) return;

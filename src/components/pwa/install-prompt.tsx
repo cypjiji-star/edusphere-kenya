@@ -32,7 +32,7 @@ export function InstallPrompt() {
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       // Store the event so it can be triggered later.
-      setInstallPromptEvent(event as BeforeInstallPromptEvent);
+      setInstallPromptEvent(event as BeforeInstallPwaEvent);
       // Show the install prompt after a short delay
       setTimeout(() => setIsSheetOpen(true), 3000);
     };

@@ -540,7 +540,10 @@ export default function AuditLogsPage() {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" className="w-full md:w-auto">
+                      <Button
+                        variant="secondary"
+                        className="w-full md:w-auto"
+                      >
                         Export
                         <ChevronDown className="ml-2 h-4 w-4" />
                       </Button>
@@ -815,4 +818,3 @@ export default function AuditLogsPage() {
     </Dialog>
   );
 }
-    

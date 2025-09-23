@@ -62,7 +62,7 @@ const FinanceSnapshot = dynamic(
           <Skeleton className="h-4 w-64" />
         </CardHeader>
         <CardContent className="h-[250px]">
-          <Loader2 className="h-8 w-8 animate-spin" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </CardContent>
       </Card>
     ),

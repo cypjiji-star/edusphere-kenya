@@ -86,7 +86,9 @@ function LoginPageContent() {
               <TabsContent value="school">
                 <Card className="shadow-none border-none bg-transparent">
                   <CardContent className="p-0 pt-6">
-                    <LoginForm />
+                    <Suspense>
+                      <LoginForm />
+                    </Suspense>
                   </CardContent>
                 </Card>
               </TabsContent>
