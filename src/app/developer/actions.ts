@@ -211,16 +211,9 @@ export async function deleteUserAction(userId: string, schoolId: string) {
       // If user is not in Auth, proceed to delete from Firestore.
     }
 
-    // Delete from Firestore. Check both collections.
+    // Delete from Firestore.
     const userDocRef = doc(firestore, `schools/${schoolId}/users`, userId);
-    const adminDocRef = doc(firestore, `schools/${schoolId}/admins`, userId);
-
-    const userDoc = await getDoc(userDocRef);
-    if (userDoc.exists()) {
-      await deleteDoc(userDocRef);
-    } else {
-      await deleteDoc(adminDocRef);
-    }
+    await deleteDoc(userDocRef);
 
     return { success: true, message: "User deleted successfully." };
   } catch (error: any) {
