@@ -27,31 +27,28 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { FileText, Loader2, Save } from 'lucide-react';
+import { FileText, Loader2, CalendarIcon, PlusCircle, Archive, ArchiveRestore, Send } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, getDocs, Timestamp, orderBy, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
-import { useToast } from '@/hooks/use-toast';
-import { saveGradesAction } from './actions';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { light } from '@/lib/haptic';
+import { format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { createExamAction, publishGradesAction } from './actions';
 
 type Student = {
     id: string;
     name: string;
     avatarUrl: string;
-    grades?: Record<string, { grade: string, status: string }>; 
+    grades: Record<string, string>; // { [subjectName]: grade }
     average?: number;
     rank?: number;
-};
-
-type Subject = {
-    id: string;
-    name: string;
 };
 
 type TeacherClass = {
@@ -59,62 +56,84 @@ type TeacherClass = {
   name: string;
 };
 
-type Exam = {
-    id: string;
-    title: string;
-    date: Timestamp;
-};
-
 type GradeRecord = {
     studentId: string;
     subject: string;
     grade: string;
     examId: string;
-    status: string;
 }
 
-export default function TeacherGradesPage() {
+type Exam = {
+    id: string;
+    title: string;
+    term: string;
+    date: Timestamp;
+    status: 'Open' | 'Closed';
+}
+
+const getCurrentTerm = (): string => {
+  const today = new Date();
+  const month = today.getMonth(); // 0-11
+  const year = today.getFullYear();
+
+  if (month >= 0 && month <= 3) { // Jan - Apr
+    return `Term 1, ${year}`;
+  } else if (month >= 4 && month <= 7) { // May - Aug
+    return `Term 2, ${year}`;
+  } else { // Sep - Dec
+    return `Term 3, ${year}`;
+  }
+};
+
+
+export default function AdminGradesPage() {
     const searchParams = useSearchParams();
     const schoolId = searchParams.get('schoolId');
-    const { user } = useAuth();
     const { toast } = useToast();
 
     const [allClasses, setAllClasses] = React.useState<TeacherClass[]>([]);
-    const [allSubjects, setAllSubjects] = React.useState<Subject[]>([]);
-    const [studentsInClass, setStudentsInClass] = React.useState<Student[]>([]);
-    const [grades, setGrades] = React.useState<Record<string, string>>({});
-    const [openExams, setOpenExams] = React.useState<Exam[]>([]);
-    
-    // State for grade entry
-    const [entryExamId, setEntryExamId] = React.useState<string>('');
-    const [entryClassId, setEntryClassId] = React.useState<string>('');
-    const [entrySubject, setEntrySubject] = React.useState<string>('');
-    
-    // State for rankings view
-    const [rankingExamId, setRankingExamId] = React.useState<string>('');
-    const [rankingClassId, setRankingClassId] = React.useState<string>('');
+    const [allSubjects, setAllSubjects] = React.useState<string[]>([]);
     const [rankedStudents, setRankedStudents] = React.useState<Student[]>([]);
     const [rankingSubjects, setRankingSubjects] = React.useState<string[]>([]);
+    const [openExams, setOpenExams] = React.useState<Exam[]>([]);
+    const [archivedExams, setArchivedExams] = React.useState<Exam[]>([]);
+    const [academicTerms, setAcademicTerms] = React.useState<{value: string, label: string}[]>([]);
+    
+    const [rankingExamId, setRankingExamId] = React.useState<string>('');
+    const [rankingClassId, setRankingClassId] = React.useState<string>('');
     
     const [isLoading, setIsLoading] = React.useState({
         classes: true,
         subjects: true,
-        students: false,
-        exams: true,
         rankings: false,
+        exams: true,
     });
-    const [isSaving, setIsSaving] = React.useState(false);
+    
+    // Form state for creating exams
+    const [examDate, setExamDate] = React.useState<Date | undefined>(new Date());
+    const [examTerm, setExamTerm] = React.useState<string>(getCurrentTerm());
+    const [isCreatingExam, setIsCreatingExam] = React.useState(false);
+    const formRef = React.useRef<HTMLFormElement>(null);
 
+
+    // Fetch all classes and subjects
     React.useEffect(() => {
-        if (!schoolId || !user) return;
+        if (!schoolId) return;
 
-        const examsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('status', '==', 'Open'));
-        const unsubExams = onSnapshot(examsQuery, (snapshot) => {
-            setOpenExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
-            setIsLoading(prev => ({ ...prev, exams: false }));
+        const unsubAcademic = onSnapshot(doc(firestore, 'schools', schoolId, 'settings', 'academic'), (docSnap) => {
+            if (docSnap.exists()) {
+                const yearsData = docSnap.data().years || [];
+                const terms: {value: string, label: string}[] = [];
+                yearsData.forEach((yearData: any) => {
+                    terms.push({ value: `Term 1, ${yearData.year}`, label: `Term 1, ${yearData.year}`});
+                    terms.push({ value: `Term 2, ${yearData.year}`, label: `Term 2, ${yearData.year}`});
+                    terms.push({ value: `Term 3, ${yearData.year}`, label: `Term 3, ${yearData.year}`});
+                });
+                setAcademicTerms(terms);
+            }
         });
 
-        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`), where('teacherId', '==', user.uid));
+        const classesQuery = query(collection(firestore, `schools/${schoolId}/classes`));
         const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
             const classesData = snapshot.docs.map(doc => ({ id: doc.id, name: `${doc.data().name} ${doc.data().stream || ''}`.trim() }));
             setAllClasses(classesData);
@@ -123,46 +142,31 @@ export default function TeacherGradesPage() {
 
         const subjectsQuery = query(collection(firestore, `schools/${schoolId}/subjects`));
         const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
-            const subjectsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+            const subjectsData = snapshot.docs.map(doc => doc.data().name);
             setAllSubjects(subjectsData);
             setIsLoading(prev => ({ ...prev, subjects: false }));
         });
 
-        return () => {
-            unsubExams();
-            unsubClasses();
-            unsubSubjects();
-        };
-    }, [schoolId, user]);
-
-    // Fetch students for grade entry
-    React.useEffect(() => {
-        if (!entryClassId || !schoolId) {
-            setStudentsInClass([]);
-            return;
-        }
-
-        setIsLoading(prev => ({ ...prev, students: true }));
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', entryClassId), orderBy('name'));
-        const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
-            const studentsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                name: doc.data().name,
-                avatarUrl: doc.data().avatarUrl || `https://picsum.photos/seed/${doc.id}/100`,
-            } as Student));
-            setStudentsInClass(studentsData);
-            setGrades({}); 
-            setIsLoading(prev => ({ ...prev, students: false }));
+        const openExamsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('status', '==', 'Open'), orderBy('date', 'desc'));
+        const unsubOpenExams = onSnapshot(openExamsQuery, (snapshot) => {
+            setOpenExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+            setIsLoading(prev => ({ ...prev, exams: false }));
         });
 
-        return () => unsubscribe();
-    }, [entryClassId, schoolId]);
+        const archivedExamsQuery = query(collection(firestore, `schools/${schoolId}/exams`), where('status', '==', 'Closed'), orderBy('date', 'desc'));
+        const unsubArchivedExams = onSnapshot(archivedExamsQuery, (snapshot) => {
+            setArchivedExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Exam)));
+        });
 
-    // Effect to reset grades when context changes
-    React.useEffect(() => {
-        setGrades({});
-    }, [entryClassId, entrySubject, entryExamId]);
-    
+        return () => {
+            unsubAcademic();
+            unsubClasses();
+            unsubSubjects();
+            unsubOpenExams();
+            unsubArchivedExams();
+        };
+    }, [schoolId]);
+
     // Fetch and compute rankings
     React.useEffect(() => {
         if (!rankingClassId || !schoolId || !rankingExamId) {
@@ -171,7 +175,8 @@ export default function TeacherGradesPage() {
         }
         
         setIsLoading(prev => ({ ...prev, rankings: true }));
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', rankingClassId), orderBy('name'));
+        
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('classId', '==', rankingClassId), where('role', '==', 'Student'), orderBy('name'));
         const unsubStudents = onSnapshot(studentsQuery, (studentsSnapshot) => {
             const studentList: Student[] = studentsSnapshot.docs.map(doc => ({
                 id: doc.id,
@@ -189,15 +194,15 @@ export default function TeacherGradesPage() {
                      const subjectsInView = new Set<string>();
                      
                      const studentsWithGradesData = studentList.map(student => {
-                        const studentGrades: Record<string, { grade: string, status: string }> = {};
+                        const studentGrades: Record<string, string> = {};
                          gradesData.forEach(grade => {
                              if (grade.studentId === student.id) {
-                                 studentGrades[grade.subject] = { grade: grade.grade, status: grade.status };
+                                 studentGrades[grade.subject] = grade.grade;
                                  subjectsInView.add(grade.subject);
                              }
                          });
 
-                        const numericGrades = Object.values(studentGrades).map(g => parseInt(g.grade, 10)).filter(g => !isNaN(g));
+                        const numericGrades = Object.values(studentGrades).map(g => parseInt(g, 10)).filter(g => !isNaN(g));
                         const average = numericGrades.length > 0 ? Math.round(numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length) : 0;
                          
                          return { ...student, grades: studentGrades, average };
@@ -225,171 +230,103 @@ export default function TeacherGradesPage() {
 
         return () => unsubStudents();
     }, [rankingClassId, schoolId, rankingExamId]);
-
-
-    const handleGradeChange = (studentId: string, grade: string) => {
-        setGrades(prev => ({ ...prev, [studentId]: grade }));
-    };
-
-    const handleSaveGrades = async () => {
-        if (!entryClassId || !entrySubject || Object.keys(grades).length === 0 || !user || !entryExamId) {
-            toast({ title: 'Missing Information', description: 'Please select an exam, class, subject, and enter at least one grade.', variant: 'destructive' });
-            return;
-        }
-        setIsSaving(true);
-        
-        const gradeDataForAction = Object.entries(grades).reduce((acc, [studentId, grade]) => {
-          const student = studentsInClass.find(s => s.id === studentId);
-          if (student) {
-            acc[studentId] = { grade, studentName: student.name };
-          }
-          return acc;
-        }, {} as { [studentId: string]: { grade: string; studentName: string } });
-
-        const result = await saveGradesAction(schoolId!, entryClassId, entrySubject, entryExamId, gradeDataForAction, { id: user.uid, name: user.displayName || 'Teacher' });
-
+    
+    async function handleCreateExam(formData: FormData) {
+        setIsCreatingExam(true);
+        const result = await createExamAction(schoolId!, formData);
         if (result.success) {
-            toast({ title: 'Grades Saved', description: result.message });
-            setGrades({});
+            toast({
+                title: "Exam Created",
+                description: result.message,
+            });
+            formRef.current?.reset();
+            setExamDate(new Date());
         } else {
-            toast({ title: 'Error', description: result.message, variant: 'destructive' });
+            toast({
+                title: "Error",
+                description: result.message,
+                variant: "destructive",
+            });
         }
-        setIsSaving(false);
-    };
+        setIsCreatingExam(false);
+    }
+    
+    const handleExamStatusChange = async (examId: string, status: 'Open' | 'Closed') => {
+        if (!schoolId) return;
+        const examRef = doc(firestore, 'schools', schoolId, 'exams', examId);
+        try {
+            await updateDoc(examRef, { status });
+            toast({
+                title: `Exam ${status}`,
+                description: `The exam has been moved to ${status === 'Closed' ? 'archives' : 'active list'}.`
+            });
+        } catch(e) {
+            toast({ title: 'Error updating exam status.', variant: 'destructive'});
+        }
+    }
+    
+    const handlePublish = async (examId: string) => {
+        if (!schoolId) return;
+        const result = await publishGradesAction(schoolId, examId);
+        if(result.success) {
+            toast({
+                title: 'Results Published',
+                description: result.message,
+            });
+        } else {
+            toast({
+                title: 'Error',
+                description: result.message,
+                variant: 'destructive',
+            });
+        }
+    }
 
-    const isGradeEntryReady = entryClassId && entrySubject && entryExamId;
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="mb-6">
                 <h1 className="font-headline text-3xl font-bold flex items-center gap-2">
                     <FileText className="h-8 w-8 text-primary" />
-                    Grade Entry
+                    Grades & Exams
                 </h1>
-                <p className="text-muted-foreground">Select an exam, class, and subject to enter student results.</p>
+                <p className="text-muted-foreground">Review student performance and manage examination periods.</p>
             </div>
-            
-            <Tabs defaultValue="entry">
-                 <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="entry">Grade Entry</TabsTrigger>
+
+            <Tabs defaultValue="rankings">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="rankings">Class Rankings</TabsTrigger>
+                    <TabsTrigger value="exams">Manage Exams</TabsTrigger>
+                    <TabsTrigger value="archives">Exam Archives</TabsTrigger>
                 </TabsList>
-                <TabsContent value="entry" className="mt-4">
-                    <Card>
-                        <CardHeader>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="space-y-2">
-                                    <Label>1. Select Exam</Label>
-                                    <Select value={entryExamId} onValueChange={setEntryExamId} disabled={isLoading.exams}>
-                                        <SelectTrigger><SelectValue placeholder="Select an active exam..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>2. Select Class</Label>
-                                    <Select value={entryClassId} onValueChange={setEntryClassId} disabled={!entryExamId || isLoading.classes}>
-                                        <SelectTrigger><SelectValue placeholder="Select a class..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>3. Select Subject</Label>
-                                    <Select value={entrySubject} onValueChange={setEntrySubject} disabled={!entryClassId || isLoading.subjects}>
-                                        <SelectTrigger><SelectValue placeholder="Select a subject..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {allSubjects.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {isLoading.students ? (
-                                <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
-                            ) : (
-                                <div className="w-full overflow-auto rounded-lg border">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Student Name</TableHead>
-                                                <TableHead className="w-[150px]">Grade / Score</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {studentsInClass.length > 0 ? (
-                                                studentsInClass.map((student) => (
-                                                    <TableRow key={student.id}>
-                                                        <TableCell>
-                                                            <div className="flex items-center gap-3">
-                                                                <Avatar className="h-9 w-9">
-                                                                    <AvatarImage src={student.avatarUrl} alt={student.name} />
-                                                                    <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
-                                                                </Avatar>
-                                                                <span className="font-medium">{student.name}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Input
-                                                                placeholder="Enter grade"
-                                                                disabled={!isGradeEntryReady}
-                                                                value={grades[student.id] || ''}
-                                                                onChange={(e) => handleGradeChange(student.id, e.target.value)}
-                                                            />
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                                                        {!entryExamId ? 'Select an exam to begin.' : !entryClassId ? 'Select a class to view students.' : 'No students found in this class.'}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
-                        </CardContent>
-                        {isGradeEntryReady && studentsInClass.length > 0 && (
-                            <CardFooter className="justify-end">
-                                <Button onClick={() => {light(); handleSaveGrades()}} disabled={isSaving}>
-                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                    Save Grades
-                                </Button>
-                            </CardFooter>
-                        )}
-                    </Card>
-                </TabsContent>
                 <TabsContent value="rankings" className="mt-4">
                     <Card>
                         <CardHeader>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Select an Exam to View Rankings</Label>
-                                    <Select value={rankingExamId} onValueChange={setRankingExamId} disabled={isLoading.exams}>
-                                        <SelectTrigger><SelectValue placeholder="Select an exam..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Select a Class</Label>
-                                    <Select value={rankingClassId} onValueChange={setRankingClassId} disabled={!rankingExamId || isLoading.classes}>
-                                        <SelectTrigger><SelectValue placeholder="Select a class..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Select an Exam to View Rankings</Label>
+                                        <Select value={rankingExamId} onValueChange={setRankingExamId} disabled={isLoading.exams}>
+                                            <SelectTrigger><SelectValue placeholder="Select an exam..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Select a Class</Label>
+                                        <Select value={rankingClassId} onValueChange={setRankingClassId} disabled={!rankingExamId || isLoading.classes}>
+                                            <SelectTrigger><SelectValue placeholder="Select a class..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             </div>
                         </CardHeader>
                         <CardContent>
-                             {isLoading.rankings ? (
+                            {isLoading.rankings ? (
                                 <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
                             ) : (
                                 <>
@@ -418,7 +355,6 @@ export default function TeacherGradesPage() {
                                                         <TableCell className="font-medium">
                                                             <div className="flex items-center gap-2">
                                                                 <Avatar className="h-9 w-9">
-                                                                    <AvatarImage src={student.avatarUrl} alt={student.name} />
                                                                     <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
                                                                 </Avatar>
                                                                 {student.name}
@@ -426,7 +362,7 @@ export default function TeacherGradesPage() {
                                                         </TableCell>
                                                         {rankingSubjects.map(subject => (
                                                             <TableCell key={subject} className="text-center font-semibold">
-                                                                {student.grades?.[subject]?.grade || '—'}
+                                                                {student.grades?.[subject] || '—'}
                                                             </TableCell>
                                                         ))}
                                                         <TableCell className="text-right font-extrabold text-primary">{student.average?.toFixed(1)}%</TableCell>
@@ -448,9 +384,114 @@ export default function TeacherGradesPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                <TabsContent value="exams" className="mt-4">
+                     <div className="grid gap-6 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Create New Exam</CardTitle>
+                                <CardDescription>Define a new examination period for the school.</CardDescription>
+                            </CardHeader>
+                             <form ref={formRef} action={handleCreateExam}>
+                                <CardContent className="space-y-4">
+                                     <div className="space-y-2">
+                                        <Label htmlFor="exam-title">Exam Title</Label>
+                                        <Input id="exam-title" name="title" placeholder="e.g., End of Term 2 Exams" required/>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="exam-term">Academic Term</Label>
+                                        <Select name="term" value={examTerm} onValueChange={setExamTerm}>
+                                            <SelectTrigger id="exam-term"><SelectValue/></SelectTrigger>
+                                            <SelectContent>
+                                                {academicTerms.map(term => <SelectItem key={term.value} value={term.label}>{term.label}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Date</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !examDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {examDate ? format(examDate, "PPP") : <span>Pick a date</span>}
+                                            </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={examDate} onSelect={setExamDate} initialFocus/></PopoverContent>
+                                        </Popover>
+                                        <Input type="hidden" name="date" value={examDate?.toISOString()} />
+                                    </div>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button type="submit" disabled={isCreatingExam}>
+                                        {isCreatingExam && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                        <PlusCircle className="mr-2 h-4 w-4"/>
+                                        Create Exam
+                                    </Button>
+                                </CardFooter>
+                             </form>
+                        </Card>
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>Active Exams</CardTitle>
+                                <CardDescription>A log of all open examination periods.</CardDescription>
+                             </CardHeader>
+                             <CardContent>
+                                {isLoading.exams ? <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div> :
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {openExams.map(exam => (
+                                                <TableRow key={exam.id}>
+                                                    <TableCell className="font-medium">{exam.title}</TableCell>
+                                                    <TableCell>{exam.date.toDate().toLocaleDateString()}</TableCell>
+                                                    <TableCell className="text-right space-x-1">
+                                                         <Button variant="secondary" size="sm" onClick={() => handlePublish(exam.id)}>
+                                                            <Send className="mr-2 h-4 w-4" /> Publish
+                                                        </Button>
+                                                        <Button variant="outline" size="sm" onClick={() => handleExamStatusChange(exam.id, 'Closed')}>
+                                                            <Archive className="mr-2 h-4 w-4" /> Close
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            {openExams.length === 0 && <TableRow><TableCell colSpan={3} className="text-center h-24">No open exams.</TableCell></TableRow>}
+                                        </TableBody>
+                                    </Table>
+                                }
+                             </CardContent>
+                        </Card>
+                     </div>
+                </TabsContent>
+                 <TabsContent value="archives" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Archived Exams</CardTitle>
+                            <CardDescription>A historical record of all closed examination periods.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoading.exams ? <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div> :
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Term</TableHead><TableHead>Date</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {archivedExams.map(exam => (
+                                            <TableRow key={exam.id}>
+                                                <TableCell className="font-medium">{exam.title}</TableCell>
+                                                <TableCell>{exam.term}</TableCell>
+                                                <TableCell>{exam.date.toDate().toLocaleDateString()}</TableCell>
+                                                 <TableCell>
+                                                    <Button variant="ghost" size="sm" onClick={() => handleExamStatusChange(exam.id, 'Open')}>
+                                                        <ArchiveRestore className="mr-2 h-4 w-4" /> Re-open
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {archivedExams.length === 0 && <TableRow><TableCell colSpan={4} className="text-center h-24">No archived exams.</TableCell></TableRow>}
+                                    </TableBody>
+                                </Table>
+                            }
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </div>
     );
 }
-
-    
