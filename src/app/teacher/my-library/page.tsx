@@ -617,9 +617,7 @@ export default function MyLibraryPage() {
                 <div className="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
                   <div className="text-center">
                     <Book className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">
-                      No Borrowed Items
-                    </h3>
+                    <h3 className="mt-4 text-lg font-semibold">No Borrowed Items</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       You have not borrowed any items from the library.
                     </p>

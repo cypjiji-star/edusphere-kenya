@@ -141,7 +141,8 @@ export default function AssignmentSubmissionsPage({
 
         // Fetch students and then listen for submissions
         const studentsQuery = query(
-          collection(firestore, `schools/${schoolId}/students`),
+          collection(firestore, `schools/${schoolId}/users`),
+          where("role", "==", "Student"),
           where("classId", "==", assignmentData.classId),
         );
         onSnapshot(studentsQuery, (studentsSnap) => {
