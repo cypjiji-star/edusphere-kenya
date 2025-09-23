@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -305,7 +304,7 @@ export default function MyLibraryPage() {
       );
       setSelectedStudentForAssignment(""); // Reset student selection
     } else {
-      setFilteredStudentsForAssignment([]);
+      setFilteredStudentsForAssignment(allTeacherStudents);
     }
   }, [selectedClassForAssignment, allTeacherStudents]);
 
