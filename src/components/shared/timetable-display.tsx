@@ -476,6 +476,11 @@ export function TimetableDisplay({
         selectedItem,
       );
       await setDoc(timetableRef, timetable, { merge: true });
+      // Update local state for all timetables to ensure clash detection is up-to-date
+      setAllTimetables((prev) => ({
+        ...prev,
+        [selectedItem]: timetable,
+      }));
       toast({
         title: "Timetable Saved",
         description: `The timetable for the selected view has been saved.`,
