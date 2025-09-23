@@ -839,7 +839,9 @@ export default function FeesPage() {
     let students = allStudents;
     if (searchTerm) {
       students = students.filter(
-        (s) => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.admissionNo?.toLowerCase().includes(searchTerm.toLowerCase())
+        (s) =>
+          (s.name && s.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (s.admissionNo && s.admissionNo.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
     if (classFilter !== 'All Classes') {
@@ -2018,3 +2020,4 @@ export default function FeesPage() {
     </>
   );
 }
+
