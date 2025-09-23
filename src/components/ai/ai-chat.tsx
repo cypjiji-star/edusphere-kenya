@@ -214,7 +214,8 @@ export function AiChat() {
     sendMessage("I need to talk to an admin.");
   };
 
-  const canReply = !isEscalated || hasAdminReplied;
+  // Admins can always reply. Parents/Teachers can reply unless they have escalated and are waiting for an admin.
+  const canReply = role === "admin" || !isEscalated || hasAdminReplied;
 
   return (
     <div className="flex flex-col h-full">
@@ -230,10 +231,10 @@ export function AiChat() {
                 key={index}
                 className={cn(
                   "flex items-end gap-2",
-                  isUser ? "justify-end" : "justify-start",
+                  isUser || isAdmin ? "justify-end" : "justify-start",
                 )}
               >
-                {!isUser && (
+                {!isUser && !isAdmin && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
                       {isAdmin ? "A" : <Sparkles />}
@@ -245,15 +246,17 @@ export function AiChat() {
                     "max-w-[80%] rounded-lg p-3 text-sm shadow-md",
                     isUser
                       ? "bg-primary text-primary-foreground rounded-br-none"
-                      : "bg-muted rounded-bl-none",
+                      : isAdmin
+                        ? "bg-blue-600 text-white rounded-br-none"
+                        : "bg-muted rounded-bl-none",
                   )}
                 >
                   <p>{message.content}</p>
                 </div>
-                {isUser && (
+                {(isUser || isAdmin) && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
-                      <User />
+                      {isAdmin ? "A" : <User />}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -309,7 +312,7 @@ export function AiChat() {
           </div>
         )}
 
-        {!hasAdminReplied && (
+        {role !== 'admin' && !hasAdminReplied && (
           <Button
             variant="outline"
             className="w-full"
