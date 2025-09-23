@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -37,6 +38,7 @@ import { Label } from '@/components/ui/label';
 import { firestore, auth } from '@/lib/firebase';
 import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where, writeBatch, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
+import { Combobox } from '@/components/ui/combobox';
 
 
 export const lessonPlanSchema = z.object({
@@ -294,18 +296,12 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subject</FormLabel>
-                      <FormControl>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a subject" />
-                            </SelectTrigger>
-                          <SelectContent>
-                            {subjects.map((subject) => (
-                              <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
+                        <Combobox
+                            options={subjects.map(s => ({ value: s, label: s }))}
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Select a subject"
+                        />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -316,18 +312,12 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade / Form</FormLabel>
-                      <FormControl>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a grade" />
-                            </SelectTrigger>
-                          <SelectContent>
-                            {grades.map((grade) => (
-                              <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
+                       <Combobox
+                            options={grades.map(g => ({ value: g, label: g }))}
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Select a grade"
+                        />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -486,3 +476,5 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
     </Form>
   );
 }
+
+    
