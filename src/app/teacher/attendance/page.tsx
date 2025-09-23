@@ -504,8 +504,9 @@ export default function AttendancePage() {
         setTeacherClasses(classesData);
         if (!activeClassId && classesData.length > 0) {
           setActiveClassId(classesData[0].id);
+        } else if (classesData.length === 0) {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       },
       (error) => {
         console.error("Error fetching teacher classes:", error);
@@ -513,7 +514,7 @@ export default function AttendancePage() {
       },
     );
     return () => unsub();
-  }, [user, schoolId, activeClassId]);
+  }, [user, schoolId]);
 
   // Fetch all students for all of the teacher's classes for analytics tab
   useEffect(() => {
@@ -615,10 +616,10 @@ export default function AttendancePage() {
   }, [schoolId, activeClassId, selectedDate, toast]);
 
   useEffect(() => {
-    if (activeTab === "student-attendance") {
+    if (activeClassId && activeTab === "student-attendance") {
       fetchAttendanceData();
     }
-  }, [fetchAttendanceData, selectedDate, activeTab]);
+  }, [activeClassId, selectedDate, activeTab, fetchAttendanceData]);
 
   const handleAttendanceChange = (
     studentId: string,
