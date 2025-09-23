@@ -46,12 +46,13 @@ import {
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { MyAttendanceWidget } from "./my-attendance-widget";
-import { DashboardCharts } from "./dashboard-charts";
 import { TimetableWidget } from "./timetable-widget";
 import { AbsentStudentsWidget } from "./absent-students-widget";
 import { MessagesWidget } from "./messages-widget";
 import { LibraryNoticesWidget } from "./library-notices-widget";
 import { PendingTasksWidget } from "./pending-tasks-widget";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Types
 type Child = {
@@ -88,42 +89,18 @@ type UpcomingEvent = {
   type: EventType;
 };
 
-const eventTypeColors: Record<EventType, string> = {
-  Meeting: "bg-purple-500",
-  Exam: "bg-red-600",
-  Holiday: "bg-green-600",
-  Event: "bg-blue-500",
-  Sports: "bg-orange-500",
-  Trip: "bg-pink-500",
-};
-
-// Utility functions
-const getFeeStatusBadge = (status: "Paid" | "Partial" | "Overdue") => {
-  switch (status) {
-    case "Paid":
-      return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
-    case "Partial":
-      return (
-        <Badge className="bg-blue-500 hover:bg-blue-500">Partial Payment</Badge>
-      );
-    case "Overdue":
-      return <Badge variant="destructive">Overdue</Badge>;
-  }
-};
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    minimumFractionDigits: 0,
-  }).format(amount);
-};
-
-const getAttendanceColor = (attendance: number) => {
-  if (attendance >= 90) return "text-green-600";
-  if (attendance >= 70) return "text-orange-500";
-  return "text-red-600";
-};
+const DashboardCharts = dynamic(
+  () => import("./dashboard-charts").then((mod) => mod.DashboardCharts),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid gap-6 md:grid-cols-2">
+        <Skeleton className="h-[250px] w-full" />
+        <Skeleton className="h-[250px] w-full" />
+      </div>
+    ),
+  },
+);
 
 // Error Boundary Component
 const ErrorMessage = ({
@@ -255,113 +232,6 @@ function AnnouncementsWidget({
         <Button asChild variant="outline" size="sm" className="w-full">
           <Link href={`/parent/announcements?schoolId=${schoolId}`}>
             View All Announcements
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-}
-
-function CalendarWidget({ schoolId }: { schoolId: string }) {
-  const [upcomingEvents, setUpcomingEvents] = React.useState<UpcomingEvent[]>(
-    [],
-  );
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!schoolId) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const q = query(
-        collection(firestore, `schools/${schoolId}/calendar-events`),
-        where("date", ">=", Timestamp.now()),
-        orderBy("date", "asc"),
-        limit(4),
-      );
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const fetchedEvents = snapshot.docs.map((doc) => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              ...data,
-              date: (data.date as Timestamp).toDate(),
-            } as UpcomingEvent;
-          });
-          setUpcomingEvents(fetchedEvents);
-          setLoading(false);
-        },
-        (error) => {
-          console.error("Error fetching events:", error);
-          setError("Failed to load calendar events");
-          setLoading(false);
-        },
-      );
-
-      return () => unsubscribe();
-    } catch (error) {
-      setError("Error setting up calendar listener");
-      setLoading(false);
-    }
-  }, [schoolId]);
-
-  if (loading) return <LoadingSpinner message="Loading events..." />;
-  if (error) return <ErrorMessage message={error} />;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline text-lg flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-primary" />
-          Upcoming Events
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {upcomingEvents.map((event, index) => (
-            <div key={event.id}>
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col items-center justify-center w-14 text-center bg-muted/50 rounded-md p-2">
-                  <span className="text-sm font-bold uppercase text-primary">
-                    {event.date.toLocaleDateString("en-US", { month: "short" })}
-                  </span>
-                  <span className="text-xl font-bold">
-                    {event.date.getDate()}
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-sm">{event.title}</p>
-                  <Badge
-                    className={`mt-1 text-white ${eventTypeColors[event.type]}`}
-                  >
-                    {event.type}
-                  </Badge>
-                </div>
-              </div>
-              {index < upcomingEvents.length - 1 && (
-                <Separator className="mt-4" />
-              )}
-            </div>
-          ))}
-          {upcomingEvents.length === 0 && (
-            <div className="text-center text-muted-foreground py-8">
-              <p>No upcoming events scheduled.</p>
-            </div>
-          )}
-        </div>
-      </CardContent>
-      <CardFooter>
-        <Button asChild variant="outline" size="sm" className="w-full">
-          <Link href={`/teacher/calendar?schoolId=${schoolId}`}>
-            View Full Calendar
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>

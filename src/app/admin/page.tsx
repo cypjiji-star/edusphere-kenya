@@ -33,8 +33,6 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { FinanceSnapshot } from "./admin-charts";
-import { CalendarWidget } from "./calendar-widget";
 import { firestore } from "@/lib/firebase";
 import {
   collection,
@@ -44,13 +42,49 @@ import {
   limit,
   orderBy,
   Timestamp,
-  getDoc,
   doc,
   getDocs,
 } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
 import { SecurityAlertsWidget } from "./security-alerts-widget";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const FinanceSnapshot = dynamic(
+  () => import("./admin-charts").then((mod) => mod.FinanceSnapshot),
+  {
+    ssr: false,
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+        <CardContent className="h-[250px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </CardContent>
+      </Card>
+    ),
+  },
+);
+
+const CalendarWidget = dynamic(
+  () => import("./calendar-widget").then((mod) => mod.CalendarWidget),
+  {
+    ssr: false,
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-40" />
+        </CardHeader>
+        <CardContent className="h-[200px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </CardContent>
+      </Card>
+    ),
+  },
+);
 
 const overviewLinks: Record<string, string> = {
   "Total Students": "/admin/students",
@@ -355,10 +389,14 @@ export default function AdminDashboard() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-1 space-y-8">
-          <SecurityAlertsWidget schoolId={schoolId} />
+          <React.Suspense fallback={<Skeleton className="h-[400px]" />}>
+            <SecurityAlertsWidget schoolId={schoolId} />
+          </React.Suspense>
         </div>
         <div className="lg:col-span-2 space-y-8 overflow-auto">
-          <FinanceSnapshot />
+          <React.Suspense fallback={<Skeleton className="h-[400px]" />}>
+            <FinanceSnapshot />
+          </React.Suspense>
         </div>
         <div className="lg:col-span-3">
           <Card>
@@ -416,7 +454,9 @@ export default function AdminDashboard() {
           </Card>
         </div>
         <div className="lg:col-span-3">
-          <CalendarWidget />
+          <React.Suspense fallback={<Skeleton className="h-[400px]" />}>
+            <CalendarWidget />
+          </React.Suspense>
         </div>
       </div>
     </div>

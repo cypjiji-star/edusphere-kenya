@@ -7,6 +7,19 @@ import Script from "next/script";
 import { ThemeProvider } from "@/context/theme-provider";
 import { StatusBarOverlay } from "@/components/layout/status-bar-overlay";
 import { MetaTheme } from "@/components/meta-theme";
+import { Playfair_Display, PT_Sans } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const fontHeadline = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-headline",
+});
+
+const fontBody = PT_Sans({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-body",
+});
 
 export const metadata: Metadata = {
   title: "EduSphere Kenya",
@@ -44,7 +57,13 @@ export default function RootLayout({
       <head>
         <MetaTheme color="#0b0f19" />
       </head>
-      <body>
+      <body
+        className={cn(
+          "font-body antialiased",
+          fontHeadline.variable,
+          fontBody.variable,
+        )}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
