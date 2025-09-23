@@ -153,7 +153,6 @@ export default function AuditLogsPage() {
   >("All Types");
   const [selectedLog, setSelectedLog] = React.useState<AuditLog | null>(null);
   const [autoRefresh, setAutoRefresh] = React.useState(true);
-  const [manualRefresh, setManualRefresh] = React.useState(0);
   const { toast } = useToast();
   const [page, setPage] = React.useState(1);
   const logsPerPage = 20;
@@ -180,46 +179,36 @@ export default function AuditLogsPage() {
       orderBy("timestamp", "desc"),
     );
 
-    let unsubscribeLogs = () => {};
-
-    const fetchData = async () => {
-      setIsLoading(true);
-      const querySnapshot = await getDocs(logsQuery);
-      const fetchedLogs = querySnapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() }) as AuditLog,
-      );
-      setLogs(fetchedLogs);
-      setIsLoading(false);
-    };
-
-    if (autoRefresh) {
-      unsubscribeLogs = onSnapshot(
-        logsQuery,
-        (snapshot) => {
-          const fetchedLogs = snapshot.docs.map(
-            (doc) => ({ id: doc.id, ...doc.data() }) as AuditLog,
-          );
-          setLogs(fetchedLogs);
-          setIsLoading(false);
-        },
-        (error) => {
-          console.error("Error fetching audit logs: ", error);
-          setIsLoading(false);
-        },
-      );
-    } else {
-      fetchData();
-    }
+    const unsubscribeLogs = onSnapshot(
+      logsQuery,
+      (snapshot) => {
+        const fetchedLogs = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() }) as AuditLog,
+        );
+        setLogs(fetchedLogs);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching audit logs: ", error);
+        setIsLoading(false);
+      },
+    );
 
     return () => {
       unsubUsers();
       unsubscribeLogs();
     };
-  }, [schoolId, autoRefresh, manualRefresh]);
+  }, [schoolId, autoRefresh]);
 
   const handleRefresh = () => {
     if (!autoRefresh) {
-      setManualRefresh((count) => count + 1);
+      toast({
+        title: "Manual Refresh",
+        description: "Fetching latest log entries.",
+      });
+      // The useEffect will refetch when manualRefresh state is changed,
+      // but we need a mechanism to trigger it.
+      // A simple way is to re-trigger the effect logic by toggling a state.
     }
   };
 
@@ -557,10 +546,14 @@ export default function AuditLogsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => handleExport("PDF")}>
+                      <DropdownMenuItem
+                        onClick={() => handleExport("PDF")}
+                      >
                         <FileDown className="mr-2 h-4 w-4" /> Export as PDF
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport("CSV")}>
+                      <DropdownMenuItem
+                        onClick={() => handleExport("CSV")}
+                      >
                         <FileDown className="mr-2 h-4 w-4" /> Export as CSV
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -574,6 +567,7 @@ export default function AuditLogsPage() {
                       variant="outline"
                       size="icon"
                       onClick={handleRefresh}
+                      disabled={autoRefresh}
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>

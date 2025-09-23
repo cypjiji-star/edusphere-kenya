@@ -167,35 +167,28 @@ export default function AdminDashboard() {
       }),
     );
 
-    const fetchAttendanceRate = async () => {
-      const studentDocs = await getDocs(
-        query(
-          collection(firestore, `schools/${schoolId}/users`),
-          where("role", "==", "Student"),
-        ),
-      );
-      const studentCount = studentDocs.size;
-      if (studentCount === 0) {
-        setStats((prev) => ({ ...prev, attendanceRate: 100 }));
-        return;
-      }
+    const today = new Date();
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+    const attendanceQuery = query(
+      collection(firestore, `schools/${schoolId}/attendance`),
+      where("date", ">=", Timestamp.fromDate(startOfToday)),
+    );
 
-      const today = new Date();
-      const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-      const attendanceQuery = query(
-        collection(firestore, `schools/${schoolId}/attendance`),
-        where("date", ">=", Timestamp.fromDate(startOfToday)),
-      );
-      const attSnapshot = await getDocs(attendanceQuery);
-      const presentCount = attSnapshot.docs.filter((r) =>
-        ["Present", "Late", "present", "late"].includes(r.data().status),
-      ).length;
-      setStats((prev) => ({
-        ...prev,
-        attendanceRate: Math.round((presentCount / studentCount) * 100),
-      }));
-    };
-    fetchAttendanceRate();
+    unsubscribers.push(
+      onSnapshot(attendanceQuery, (attSnapshot) => {
+        if (stats.totalStudents === 0) {
+          setStats((prev) => ({ ...prev, attendanceRate: 100 }));
+          return;
+        }
+        const presentCount = attSnapshot.docs.filter((r) =>
+          ["Present", "Late", "present", "late"].includes(r.data().status),
+        ).length;
+        setStats((prev) => ({
+          ...prev,
+          attendanceRate: Math.round((presentCount / stats.totalStudents) * 100),
+        }));
+      }),
+    );
 
     const notificationsQuery = query(
       collection(firestore, `schools/${schoolId}/notifications`),
@@ -235,7 +228,7 @@ export default function AdminDashboard() {
     return () => {
       unsubscribers.forEach((unsub) => unsub());
     };
-  }, [schoolId]);
+  }, [schoolId, stats.totalStudents]);
 
   const overviewStats = [
     {
