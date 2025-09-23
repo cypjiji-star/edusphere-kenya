@@ -12,7 +12,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { app, firestore } from "@/lib/firebase";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { SplashScreen } from "@/components/layout/splash-screen";
 import { ClientPageLoader } from "@/components/ui/client-page-loader";
 
@@ -28,7 +28,6 @@ export interface AuthContextType {
   role: AllowedRole;
   loading: boolean;
   clientReady: boolean;
-  schoolId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,8 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = React.useState(true);
   const [clientReady, setClientReady] = React.useState(false);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const schoolId = searchParams.get("schoolId");
 
   useEffect(() => {
     // This effect runs only once on the client after initial mount.
@@ -70,25 +67,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           );
           if (devDoc.exists()) {
             setRole("developer");
-            setLoading(false);
             return;
           }
 
-          if (schoolId && typeof window !== "undefined") {
-            window.sessionStorage.setItem("schoolId", schoolId);
-          }
-
-          const resolvedSchoolId =
-            schoolId ||
-            (typeof window !== "undefined"
+          // Role determination for other users now happens inside layouts
+          // that have access to schoolId. For now, we can set a general
+          // authenticated state and let layouts refine the role.
+          const schoolId =
+            typeof window !== "undefined"
               ? window.sessionStorage.getItem("schoolId")
-              : null);
+              : null;
 
-          if (resolvedSchoolId) {
+          if (schoolId) {
             const userDocRef = doc(
               firestore,
               "schools",
-              resolvedSchoolId,
+              schoolId,
               "users",
               authUser.uid,
             );
@@ -98,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
               setRole("unknown");
             }
-          } else if (pathname !== "/login" && pathname !== "/") {
+          } else {
             setRole("unknown");
           }
         } catch (err) {
@@ -110,12 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return () => unsubscribe();
     });
-  }, [pathname, schoolId]);
+  }, [pathname]);
 
   return (
-    <AuthContext.Provider
-      value={{ user, role, loading, clientReady, schoolId }}
-    >
+    <AuthContext.Provider value={{ user, role, loading, clientReady }}>
       <SplashScreen />
       <ClientPageLoader />
       {children}

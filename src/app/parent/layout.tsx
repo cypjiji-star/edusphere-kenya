@@ -28,7 +28,7 @@ export default function ParentLayout({
               <SidebarTrigger />
             </div>
           </header>
-          <Suspense>{children}</Suspense>
+          {children}
           <FloatingSupportWidget />
         </SidebarInset>
       </SidebarProvider>

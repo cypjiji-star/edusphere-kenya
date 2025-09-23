@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, AuthContextType, AllowedRole } from "@/context/auth-context";
@@ -14,7 +14,7 @@ function AuthChecker({
   children: ReactNode;
   requiredRole: AllowedRole;
 }) {
-  const { user, role, loading, clientReady, schoolId } =
+  const { user, role, loading, clientReady } =
     useAuth() as AuthContextType;
   const router = useRouter();
   const pathname = usePathname();
@@ -44,6 +44,7 @@ function AuthChecker({
     if (
       pathname === "/login" ||
       pathname === "/" ||
+      pathname.startsWith("/developer-contact") ||
       pathname.startsWith("/developer/create-dev-account")
     ) {
       return <>{children}</>;
@@ -55,11 +56,6 @@ function AuthChecker({
   const hasPermission = role.toLowerCase() === requiredRole.toLowerCase();
 
   if (role !== "unknown" && !hasPermission) {
-    // Special case: Developers can access admin pages.
-    if (role === "developer" && requiredRole === "admin" && schoolId) {
-      return <>{children}</>;
-    }
-
     return (
       <div className="flex h-screen flex-col items-center justify-center p-8 text-center">
         <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>

@@ -29,7 +29,7 @@ export default function TeacherLayout({
                 <SidebarTrigger />
               </div>
             </header>
-            <Suspense>{children}</Suspense>
+            {children}
             <FloatingSupportWidget />
           </main>
         </SidebarInset>
