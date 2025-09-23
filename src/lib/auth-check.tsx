@@ -12,6 +12,7 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
   const { user, role, loading, clientReady } = useAuth() as AuthContextType;
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!loading && clientReady && !user && pathname !== '/login' && pathname !== '/' && !pathname.startsWith('/developer/create-dev-account')) {
@@ -39,7 +40,8 @@ function AuthChecker({ children, requiredRole }: { children: ReactNode; required
 
   if (role !== 'unknown' && !hasPermission) {
     // Special case: Developers can access admin pages.
-    if (role === 'developer' && requiredRole === 'admin') {
+    const schoolId = searchParams.get('schoolId');
+    if (role === 'developer' && requiredRole === 'admin' && schoolId) {
       return <>{children}</>;
     }
     
