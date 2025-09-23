@@ -95,6 +95,7 @@ type Incident = {
   attachmentUrl?: string;
   attachmentName?: string;
   urgency?: IncidentFormValues['urgency'];
+  incidentTime?: string;
 };
 
 type TeacherStudent = { id: string; name: string; class: string; allergies?: string; medicalConditions?: string; };
@@ -304,6 +305,8 @@ export default function AdminHealthPage() {
                 studentAvatar: `https://picsum.photos/seed/${values.studentId}/100`,
                 class: student?.class || 'Unknown',
                 date: Timestamp.fromDate(values.incidentDate),
+                incidentTime: values.incidentTime,
+                urgency: values.urgency,
                 reportedBy: user.displayName || 'Admin',
                 reportedById: user.uid,
                 status: 'Reported',
@@ -531,29 +534,31 @@ export default function AdminHealthPage() {
                                                 </div>
                                                 <FormField control={form.control} name="location" render={({ field }) => ( <FormItem> <FormLabel>Location</FormLabel> <FormControl> <Input placeholder="e.g., Science Lab, Playground" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                                                 <FormField
-                                                  control={form.control}
-                                                  name="urgency"
-                                                  render={({ field }) => (
-                                                    <FormItem className="space-y-3">
-                                                      <FormLabel>Urgency Level</FormLabel>
-                                                      <RadioGroup
-                                                        onValueChange={field.onChange}
-                                                        defaultValue={field.value}
-                                                        className="flex space-x-4"
-                                                      >
-                                                        {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                          <FormItem key={level} className="flex items-center space-x-2 space-y-0">
-                                                            <RadioGroupItem value={level} id={`urgency-admin-${level}`} />
-                                                            <Label htmlFor={`urgency-admin-${level}`} className="font-normal">
-                                                              <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                            </Label>
-                                                          </FormItem>
-                                                        ))}
-                                                      </RadioGroup>
-                                                      <FormMessage />
-                                                    </FormItem>
-                                                  )}
-                                                />
+                                                    control={form.control}
+                                                    name="urgency"
+                                                    render={({ field }) => (
+                                                        <FormItem className="space-y-3">
+                                                            <FormLabel>Urgency Level</FormLabel>
+                                                            <RadioGroup
+                                                              onValueChange={field.onChange}
+                                                              defaultValue={field.value}
+                                                              className="flex flex-wrap gap-x-4 gap-y-2"
+                                                            >
+                                                            {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                                <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                                <FormControl>
+                                                                    <RadioGroupItem value={level} id={`urgency-admin-${level}`} />
+                                                                </FormControl>
+                                                                <Label htmlFor={`urgency-admin-${level}`} className="font-normal">
+                                                                    <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                                </Label>
+                                                                </FormItem>
+                                                            ))}
+                                                            </RadioGroup>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                    />
                                             </div>
                                             <div className="space-y-6">
                                                 <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Detailed Description</FormLabel> <FormControl> <Textarea placeholder="Describe the condition, diagnosis, or incident..." className="min-h-[120px]" {...field}/> </FormControl> <FormMessage /> </FormItem> )}/>
@@ -718,9 +723,3 @@ export default function AdminHealthPage() {
         </Dialog>
     );
 }
-
-    
-
-    
-
-    

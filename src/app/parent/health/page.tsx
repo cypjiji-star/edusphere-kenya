@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -75,6 +74,9 @@ type Incident = {
   status: 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
   actionsTaken?: string;
   followUpNeeded?: string;
+  studentName: string;
+  urgency?: 'Low' | 'Medium' | 'High' | 'Critical';
+  incidentTime?: string;
 };
 
 type Medication = {
@@ -210,6 +212,18 @@ export default function ParentHealthPage() {
             <Loader2 className="h-10 w-10 animate-spin text-primary"/>
         </div>
       )
+    }
+    
+    const getUrgencyBadge = (urgency?: 'Low' | 'Medium' | 'High' | 'Critical') => {
+        if (!urgency) return null;
+        const baseClasses = "text-white";
+        switch (urgency) {
+            case 'Critical': return <Badge className={cn(baseClasses, "bg-red-700 hover:bg-red-800")}>Critical</Badge>;
+            case 'High': return <Badge variant="destructive">High</Badge>;
+            case 'Medium': return <Badge className={cn(baseClasses, "bg-yellow-500 hover:bg-yellow-600")}>Medium</Badge>;
+            case 'Low': return <Badge className={cn(baseClasses, "bg-blue-500 hover:bg-blue-600")}>Low</Badge>;
+            default: return null;
+        }
     }
 
     if (!schoolId) {
@@ -454,14 +468,17 @@ export default function ParentHealthPage() {
             {selectedIncident && (
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>Incident Details</DialogTitle>
+                        <div className="flex justify-between items-start">
+                            <DialogTitle>Incident Details</DialogTitle>
+                            {selectedIncident.urgency && getUrgencyBadge(selectedIncident.urgency)}
+                        </div>
                         <DialogDescription>A detailed summary of the incident reported on {selectedIncident.date.toDate().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-6">
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p className="font-medium text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4"/>Time</p>
-                                <p>{selectedIncident.time || 'Not specified'}</p>
+                                <p>{selectedIncident.incidentTime || 'Not specified'}</p>
                             </div>
                             <div>
                                 <p className="font-medium text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>Location</p>
