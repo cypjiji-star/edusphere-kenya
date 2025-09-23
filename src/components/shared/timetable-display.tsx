@@ -475,7 +475,17 @@ export function TimetableDisplay({
         `schools/${schoolId}/timetables`,
         selectedItem,
       );
-      await setDoc(timetableRef, timetable, { merge: true });
+      // Important: Use the local timetable state to update the global state first
+      const updatedAllTimetables = {
+        ...allTimetables,
+        [selectedItem]: timetable,
+      };
+      // Save the entire updated global state
+      await setDoc(timetableRef, updatedAllTimetables[selectedItem], {
+        merge: true,
+      });
+      // Then set the new global state locally
+      setAllTimetables(updatedAllTimetables);
       toast({
         title: "Timetable Saved",
         description: `The timetable for the selected view has been saved.`,
@@ -867,8 +877,7 @@ export function TimetableDisplay({
                                                   Edit Lesson
                                                 </DialogTitle>
                                                 <DialogDescription>
-                                                  Change the room for this
-                                                  lesson.
+                                                  Change the room for this lesson.
                                                 </DialogDescription>
                                               </DialogHeader>
                                               <div className="py-4">
@@ -955,6 +964,35 @@ export function TimetableDisplay({
             </CardContent>
             {view === "class" && user?.role === "admin" && (
               <CardFooter className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setTimetable({})}>
+                  Clear Timetable
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="secondary">
+                      <Share className="mr-2 h-4 w-4" />
+                      Publish
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Confirm Publish</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to publish this timetable? This
+                        will make it visible to all teachers and students in
+                        this class.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <DialogClose asChild>
+                        <Button onClick={handlePublish}>Yes, Publish</Button>
+                      </DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 <Button onClick={handleSave}>
                   <Save className="mr-2 h-4 w-4" />
                   Save Timetable
@@ -963,82 +1001,84 @@ export function TimetableDisplay({
             )}
           </Card>
         </div>
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Subjects</CardTitle>
-              <CardDescription>Drag these to the timetable.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {subjects.map((subject) => (
-                <DraggableSubject key={subject.name} subject={subject} />
-              ))}
-              <Separator />
-              <Dialog
-                open={isAddSubjectOpen}
-                onOpenChange={setIsAddSubjectOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button variant="secondary" className="w-full">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add New Subject
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Subject</DialogTitle>
-                    <DialogDescription>
-                      Define a new subject that can be added to the timetable.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="new-subject-name">Subject Name</Label>
-                      <Input
-                        id="new-subject-name"
-                        value={newSubjectName}
-                        onChange={(e) => setNewSubjectName(e.target.value)}
-                        placeholder="e.g., Computer Science"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="new-subject-code">Subject Code</Label>
-                      <Input
-                        id="new-subject-code"
-                        value={newSubjectCode}
-                        onChange={(e) => setNewSubjectCode(e.target.value)}
-                        placeholder="e.g., 451"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="new-subject-dept">Department</Label>
-                      <Select
-                        onValueChange={setNewSubjectDept}
-                        value={newSubjectDept}
-                      >
-                        <SelectTrigger id="new-subject-dept">
-                          <SelectValue placeholder="Select a department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {mockDepartments.map((dept) => (
-                            <SelectItem key={dept} value={dept}>
-                              {dept}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" onClick={handleAddNewSubject}>
-                      Save Subject
+        {view === "class" && user?.role === "admin" && (
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Available Subjects</CardTitle>
+                <CardDescription>Drag these to the timetable.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {subjects.map((subject) => (
+                  <DraggableSubject key={subject.name} subject={subject} />
+                ))}
+                <Separator />
+                <Dialog
+                  open={isAddSubjectOpen}
+                  onOpenChange={setIsAddSubjectOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button variant="secondary" className="w-full">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add New Subject
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
-        </div>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Add New Subject</DialogTitle>
+                      <DialogDescription>
+                        Define a new subject that can be added to the timetable.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-subject-name">Subject Name</Label>
+                        <Input
+                          id="new-subject-name"
+                          value={newSubjectName}
+                          onChange={(e) => setNewSubjectName(e.target.value)}
+                          placeholder="e.g., Computer Science"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-subject-code">Subject Code</Label>
+                        <Input
+                          id="new-subject-code"
+                          value={newSubjectCode}
+                          onChange={(e) => setNewSubjectCode(e.target.value)}
+                          placeholder="e.g., 451"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-subject-dept">Department</Label>
+                        <Select
+                          onValueChange={setNewSubjectDept}
+                          value={newSubjectDept}
+                        >
+                          <SelectTrigger id="new-subject-dept">
+                            <SelectValue placeholder="Select a department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {mockDepartments.map((dept) => (
+                              <SelectItem key={dept} value={dept}>
+                                {dept}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" onClick={handleAddNewSubject}>
+                        Save Subject
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </DndContext>
   );
