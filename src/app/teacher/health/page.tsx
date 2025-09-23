@@ -186,7 +186,7 @@ export default function TeacherHealthPage() {
         try {
           setIsLoading(prev => ({...prev, students: true}));
           const classIds = teacherClasses.map(c => c.id);
-          const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', 'in', classIds));
+          const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', 'in', classIds));
           const unsubscribe = onSnapshot(studentsQuery, 
             (snapshot) => {
                 const studentsData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, class: doc.data().class }));
@@ -294,7 +294,7 @@ export default function TeacherHealthPage() {
             });
             
             // Notify Parent
-            const studentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'students', values.studentId));
+            const studentDoc = await getDoc(doc(firestore, 'schools', schoolId, 'users', values.studentId));
             const parentId = studentDoc.data()?.parentId;
             if (parentId) {
                  await addDoc(collection(firestore, `schools/${schoolId}/notifications`), {
@@ -460,22 +460,24 @@ export default function TeacherHealthPage() {
                                                   render={({ field }) => (
                                                     <FormItem>
                                                       <FormLabel>Urgency Level</FormLabel>
-                                                      <RadioGroup
-                                                        onValueChange={field.onChange}
-                                                        defaultValue={field.value}
-                                                        className="flex space-x-4"
-                                                      >
-                                                        {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                          <FormItem key={level} className="flex items-center space-x-2 space-y-0">
-                                                            <FormControl>
-                                                              <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
-                                                            </FormControl>
-                                                            <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
-                                                              <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                            </Label>
-                                                          </FormItem>
-                                                        ))}
-                                                      </RadioGroup>
+                                                      <FormControl>
+                                                        <RadioGroup
+                                                          onValueChange={field.onChange}
+                                                          defaultValue={field.value}
+                                                          className="flex space-x-4"
+                                                        >
+                                                          {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                            <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                              <FormControl>
+                                                                <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
+                                                              </FormControl>
+                                                              <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
+                                                                <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                              </Label>
+                                                            </FormItem>
+                                                          ))}
+                                                        </RadioGroup>
+                                                      </FormControl>
                                                       <FormMessage />
                                                     </FormItem>
                                                   )}
