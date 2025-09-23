@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth, AuthContextType, AllowedRole } from "@/context/auth-context";
 import { getAuth } from "firebase/auth";
+import { NiceError } from "@/components/ui/nice-error";
 
 function AuthChecker({
   children,
@@ -63,48 +64,29 @@ function AuthChecker({
     !searchParams.has("schoolId")
   ) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center p-8 text-center">
-        <h1 className="text-2xl font-bold text-destructive">
-          School ID Missing
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          A school ID is required to access this page. Please log in again.
-        </p>
-        <Button
-          onClick={() =>
-            getAuth()
-              .signOut()
-              .then(() => router.push("/login"))
-          }
-          variant="outline"
-          className="mt-4"
-        >
-          Logout and Sign In Again
-        </Button>
-      </div>
+      <NiceError
+        title="School ID Missing"
+        description="A school ID is required to access this page. Please log in again through your school's portal."
+        onDismiss={() =>
+          getAuth()
+            .signOut()
+            .then(() => router.push("/login"))
+        }
+      />
     );
   }
 
   if (role !== "unknown" && !hasPermission) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center p-8 text-center">
-        <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
-        <p className="mt-2 text-muted-foreground">
-          Your role is "{role}", but this page requires the "{requiredRole}"
-          role.
-        </p>
-        <Button
-          onClick={() =>
-            getAuth()
-              .signOut()
-              .then(() => router.push("/login"))
-          }
-          variant="outline"
-          className="mt-4"
-        >
-          Logout and Sign In Again
-        </Button>
-      </div>
+      <NiceError
+        title="Access Denied"
+        description={`Your role is "${role}", but this page requires the "${requiredRole}" role.`}
+        onDismiss={() =>
+          getAuth()
+            .signOut()
+            .then(() => router.push("/login"))
+        }
+      />
     );
   }
 

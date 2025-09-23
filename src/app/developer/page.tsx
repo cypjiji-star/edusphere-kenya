@@ -51,6 +51,7 @@ import { initialRolePermissions } from "@/app/admin/permissions/roles-data";
 import { defaultPeriods } from "@/app/admin/timetable/timetable-data";
 import { createUserAction } from "./actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { NiceError } from "@/components/ui/nice-error";
 
 type School = {
   id: string;
@@ -75,13 +76,20 @@ export default function DeveloperDashboard() {
   React.useEffect(() => {
     setIsLoading(true);
     const q = collection(firestore, "schools");
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const schoolsData = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() }) as School,
-      );
-      setSchools(schoolsData);
-      setIsLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const schoolsData = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() }) as School,
+        );
+        setSchools(schoolsData);
+        setIsLoading(false);
+      },
+      (error) => {
+        setErrorMessage("Failed to load school data. Please try again.");
+        setIsLoading(false);
+      },
+    );
     return () => unsubscribe();
   }, []);
 
@@ -196,6 +204,16 @@ export default function DeveloperDashboard() {
     }
   };
 
+  if (errorMessage) {
+    return (
+      <NiceError
+        title="Data Loading Error"
+        description={errorMessage}
+        onDismiss={() => window.location.reload()}
+      />
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
@@ -278,18 +296,6 @@ export default function DeveloperDashboard() {
           </Dialog>
         </div>
       </div>
-
-      {errorMessage && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Configuration Error</AlertTitle>
-          <AlertDescription>
-            {errorMessage} Go to your project's .env file and add the required
-            credentials. You can generate a new private key from your Firebase
-            project settings under "Service accounts".
-          </AlertDescription>
-        </Alert>
-      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center h-64">

@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -121,6 +120,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Combobox } from "@/components/ui/combobox";
+import { NiceError } from "@/components/ui/nice-error";
 
 // Define both lowercase and title case status types
 type AttendanceStatus = "Present" | "Absent" | "Late" | "CheckedOut";
@@ -958,7 +958,12 @@ export default function AdminAttendancePage() {
   );
 
   if (!schoolId) {
-    return <div className="p-8">Error: School ID is missing from URL.</div>;
+    return (
+      <NiceError
+        title="School ID Missing"
+        description="The school identifier is missing from the URL. Please access this page through your school's portal."
+      />
+    );
   }
 
   return (
@@ -1955,5 +1960,3 @@ export default function AdminAttendancePage() {
     </div>
   );
 }
-
-      
