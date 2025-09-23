@@ -356,7 +356,9 @@ export default function ParentGradesPage() {
 
         for (const doc of allGradesSnapshot.docs) {
           const data = doc.data();
-          const examSnap = await getDoc(doc.ref.parent.parent!);
+          const examSnap = await getDoc(
+            doc(firestore, "schools", schoolId, "exams", data.examId),
+          );
           if (examSnap.exists() && examSnap.data()?.term === selectedTerm) {
             const score = parseInt(data.grade, 10);
             if (!isNaN(score)) {
