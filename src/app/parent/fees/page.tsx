@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -113,7 +111,6 @@ export default function ParentFeesPage() {
     const [selectedChild, setSelectedChild] = React.useState<string | undefined>();
     const [feeSummary, setFeeSummary] = React.useState<FeeSummary | null>(null);
     const [ledger, setLedger] = React.useState<Transaction[]>([]);
-    const [classFundPayments, setClassFundPayments] = React.useState<Transaction[]>([]);
     const [paymentHistory, setPaymentHistory] = React.useState<PaymentHistory[]>([]);
     const [clientReady, setClientReady] = React.useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
@@ -170,7 +167,7 @@ export default function ParentFeesPage() {
             setLedger(fetchedLedger);
             
             const fetchedHistory = fetchedLedger
-                .filter(t => t.type === 'Payment' && !t.description.startsWith('Class Funds'))
+                .filter(t => t.type === 'Payment')
                 .map(t => ({
                     id: t.id,
                     term: 'Term 2, 2024',
@@ -181,17 +178,9 @@ export default function ParentFeesPage() {
             setPaymentHistory(fetchedHistory);
         });
 
-        // Listener for class fund payments from the school-wide log
-        const classFundsQuery = query(collection(firestore, `schools/${schoolId}/transactions`), where('studentId', '==', selectedChild), where('method', '==', 'Class Collection'), orderBy('date', 'desc'));
-        const unsubClassFunds = onSnapshot(classFundsQuery, (snapshot) => {
-            const fetchedPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
-            setClassFundPayments(fetchedPayments);
-        });
-
         return () => {
             unsubStudent();
             unsubTransactions();
-            unsubClassFunds();
         }
 
     }, [selectedChild, schoolId]);
@@ -254,9 +243,8 @@ export default function ParentFeesPage() {
             )}
 
             <Tabs defaultValue="statement">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="statement">Current Term Statement</TabsTrigger>
-                    <TabsTrigger value="class_funds">Class Funds</TabsTrigger>
                     <TabsTrigger value="history">Overall Payment History</TabsTrigger>
                 </TabsList>
                 <TabsContent value="statement" className="mt-6">
@@ -292,41 +280,6 @@ export default function ParentFeesPage() {
                         </Card>
                     </div>
                 </TabsContent>
-                <TabsContent value="class_funds" className="mt-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Class Fund Contributions</CardTitle>
-                            <CardDescription>A log of miscellaneous payments collected by the class teacher.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="w-full overflow-auto rounded-lg border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Description</TableHead>
-                                            <TableHead>Recorded By</TableHead>
-                                            <TableHead className="text-right">Amount (KES)</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {classFundPayments.map(payment => (
-                                            <TableRow key={payment.id}>
-                                                <TableCell>{payment.date.toDate().toLocaleDateString('en-GB')}</TableCell>
-                                                <TableCell className="font-medium">{payment.description}</TableCell>
-                                                <TableCell className="text-muted-foreground">{payment.recordedBy}</TableCell>
-                                                <TableCell className="text-right font-semibold">{formatCurrency(payment.amount)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                        {classFundPayments.length === 0 && (
-                                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No class fund payments recorded for this student.</TableCell></TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
                 <TabsContent value="history" className="mt-6">
                      <Card>
                         <CardHeader><CardTitle>Overall Payment History</CardTitle><CardDescription>A record of all payments made for {childrenData.find(c => c.id === selectedChild)?.name}.</CardDescription></CardHeader>
@@ -340,5 +293,3 @@ export default function ParentFeesPage() {
         </div>
     );
 }
-
-    
