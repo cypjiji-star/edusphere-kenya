@@ -1,22 +1,21 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, ReactNode, Suspense } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  Suspense,
+} from "react";
 import { onAuthStateChanged, User, Auth } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  collection,
-  getDocs,
-  query,
-  where,
-  limit,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { app, firestore } from "@/lib/firebase";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { NiceError } from "@/components/ui/nice-error";
+import { useRouter } from "next/navigation";
 
 export type AllowedRole =
   | "developer"
@@ -34,131 +33,143 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Lazy-load Firebase Auth
+/* ---------- lazy-loaded Firebase Auth instance ---------- */
 let auth: Auth;
 
-function AuthProviderInner({ children }: { children: ReactNode }) {
-  const [user, setUser] = React.useState<User | null>(null);
-  const [role, setRole] = React.useState<AllowedRole>("unknown");
-  const [loading, setLoading] = React.useState(true);
-  const [clientReady, setClientReady] = React.useState(false);
-  const pathname = usePathname();
+/* ---------- tiny component that *actually* touches the URL ---------- */
+function SchoolIdHandler({
+  setSchoolId,
+}: {
+  setSchoolId: (id: string | null) => void;
+}) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   useEffect(() => {
-    // This effect runs only once on the client after initial mount.
+    if (pathname === "/404" || pathname === "/_not-found") {
+      setSchoolId(null);
+      return;
+    }
+    let schoolId = searchParams?.get("schoolId");
+    if (schoolId) {
+      window.sessionStorage.setItem("schoolId", schoolId);
+    } else {
+      schoolId = window.sessionStorage.getItem("schoolId");
+    }
+    setSchoolId(schoolId);
+  }, [searchParams, pathname, setSchoolId]);
+
+  return null;
+}
+
+/* ---------- real provider logic ---------- */
+function AuthProviderInner({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<AllowedRole>("unknown");
+  const [loading, setLoading] = useState(true);
+  const [clientReady, setClientReady] = useState(false);
+  const [schoolId, setSchoolId] = useState<string | null>(null);
+  const pathname = usePathname();
+
+  useEffect(() => {
     setClientReady(true);
   }, []);
 
   useEffect(() => {
-    // Dynamically import Firebase Auth on the client
-    import("firebase/auth").then((firebaseAuth) => {
-      auth = firebaseAuth.getAuth(app);
-
-      const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+    import("firebase/auth").then((mod) => {
+      auth = mod.getAuth(app);
+      const unsub = onAuthStateChanged(auth, async (authUser) => {
         setUser(authUser);
         if (!authUser) {
           setRole("unknown");
           setLoading(false);
           return;
         }
-
-        // Don't set loading to true here, let the splash screen show from the initial state
         try {
-          const devDoc = await getDoc(
+          // developer override
+          const devSnap = await getDoc(
             doc(firestore, "developers", authUser.uid),
           );
-          if (devDoc.exists()) {
+          if (devSnap.exists()) {
             setRole("developer");
             return;
           }
-          
-          let schoolId = searchParams.get("schoolId");
-          if (schoolId) {
-            if (typeof window !== "undefined") {
-              window.sessionStorage.setItem("schoolId", schoolId);
-            }
-          } else {
-             if (typeof window !== "undefined") {
-                schoolId = window.sessionStorage.getItem("schoolId");
-             }
-          }
 
-
+          // school-scoped role
           if (schoolId) {
-            const userDocRef = doc(
-              firestore,
-              "schools",
-              schoolId,
-              "users",
-              authUser.uid,
+            const userSnap = await getDoc(
+              doc(firestore, "schools", schoolId, "users", authUser.uid),
             );
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists()) {
-              setRole(userDocSnap.data().role.toLowerCase() as AllowedRole);
-            } else {
-              setRole("unknown");
-            }
+            setRole(
+              userSnap.exists()
+                ? (userSnap.data()?.role?.toLowerCase() as AllowedRole)
+                : "unknown",
+            );
           } else {
             setRole("unknown");
           }
-        } catch (err) {
-          console.error("Error fetching user role:", err);
+        } catch (e) {
+          console.error(e);
           setRole("unknown");
         } finally {
-          // Add a small delay to ensure the splash screen animation completes smoothly
-          setTimeout(() => setLoading(false), 500);
+          setTimeout(() => setLoading(false), 500); // splash animation
         }
       });
-      return () => unsubscribe();
+      return () => unsub();
     });
-  }, [pathname, searchParams]);
+  }, [schoolId]);
 
   return (
     <AuthContext.Provider value={{ user, role, loading, clientReady }}>
+      {/* boundary keeps useSearchParams away from static render */}
+      <Suspense fallback={null}>
+        <SchoolIdHandler setSchoolId={setSchoolId} />
+      </Suspense>
       {children}
     </AuthContext.Provider>
   );
 }
 
+/* ---------- public provider ---------- */
 export function AuthProvider({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>}>
-        <AuthProviderInner>{children}</AuthProviderInner>
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-full items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <AuthProviderInner>{children}</AuthProviderInner>
     </Suspense>
-  )
+  );
 }
 
+/* ---------- helper hook ---------- */
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }
 
-function AuthChecker({
+/* ---------- role-gate component ---------- */
+export function AuthCheck({
   children,
   requiredRole,
 }: {
   children: ReactNode;
   requiredRole: AllowedRole;
 }) {
-  const { user, role, loading, clientReady } =
-    useAuth() as AuthContextType;
+  const { user, role, loading, clientReady } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (
       !loading &&
       clientReady &&
       !user &&
-      pathname !== "/login" &&
-      pathname !== "/" &&
-      !pathname.startsWith("/developer-contact") &&
-      !pathname.startsWith("/developer/create-dev-account")
+      !["/login", "/", "/developer-contact", "/developer/create-dev-account"].includes(pathname)
     ) {
       router.push("/login");
     }
@@ -173,67 +184,20 @@ function AuthChecker({
   }
 
   if (!user) {
-    if (
-      pathname === "/login" ||
-      pathname === "/" ||
-      pathname.startsWith("/developer-contact") ||
-      pathname.startsWith("/developer/create-dev-account")
-    ) {
-      return <>{children}</>;
-    }
-    return null;
+    const allow = ["/login", "/", "/developer-contact", "/developer/create-dev-account"];
+    return allow.includes(pathname) ? <>{children}</> : null;
   }
 
-  // Case-insensitive role check
-  const hasPermission = role.toLowerCase() === requiredRole.toLowerCase();
-
-  // For non-developer roles, also check if schoolId is present
-  if (
-    requiredRole !== "developer" &&
-    !pathname.startsWith("/developer") &&
-    !searchParams.has("schoolId")
-  ) {
-    return (
-      <NiceError
-        title="School ID Missing"
-        description="A school ID is required to access this page. Please log in again through your school's portal."
-        onDismiss={() =>
-          getAuth()
-            .signOut()
-            .then(() => router.push("/login"))
-        }
-      />
-    );
-  }
-
-  if (role !== "unknown" && !hasPermission) {
+  const has = role.toLowerCase() === requiredRole.toLowerCase();
+  if (role !== "unknown" && !has) {
     return (
       <NiceError
         title="Access Denied"
-        description={`Your role is "${role}", but this page requires the "${requiredRole}" role.`}
-        onDismiss={() =>
-          getAuth()
-            .signOut()
-            .then(() => router.push("/login"))
-        }
+        description={`Your role is "${role}", but this page requires "${requiredRole}".`}
+        onDismiss={() => getAuth().signOut().then(() => router.push("/login"))}
       />
     );
   }
 
   return <>{children}</>;
-}
-
-export function AuthCheck({
-  children,
-  requiredRole,
-}: {
-  children: ReactNode;
-  requiredRole: AllowedRole;
-}) {
-  const validRoles = ["developer", "admin", "teacher", "parent"];
-  const normalizedRole = validRoles.includes(requiredRole.toLowerCase())
-    ? (requiredRole.toLowerCase() as AllowedRole)
-    : "unknown";
-
-  return <AuthChecker requiredRole={normalizedRole}>{children}</AuthChecker>;
 }

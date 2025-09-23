@@ -1,4 +1,6 @@
 
+"use client";
+
 import {
   SidebarProvider,
   Sidebar,
@@ -8,7 +10,6 @@ import {
 import { TeacherSidebar } from "./teacher-sidebar";
 import { Suspense } from "react";
 import { AuthCheck } from "@/lib/auth-check";
-import { FloatingSupportWidget } from "@/components/layout/support-widget-client";
 
 export default function TeacherLayout({
   children,
