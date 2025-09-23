@@ -233,7 +233,7 @@ export function TimetableDisplay({
           name: `${doc.data().name} ${doc.data().stream || ""}`.trim(),
         }));
         setAllClasses(classesData);
-        if (view === 'class' && !selectedItem && classesData.length > 0) {
+        if (view === "class" && !selectedItem && classesData.length > 0) {
           setSelectedItem(classesData[0].id);
         }
       },
@@ -247,15 +247,15 @@ export function TimetableDisplay({
       (snapshot) => {
         const teacherNames = snapshot.docs.map((doc) => doc.data().name);
         setAllTeachers(teacherNames);
-        if(view === 'teacher' && !selectedItem && user) {
-            setSelectedItem(user.displayName || teacherNames[0]);
+        if (view === "teacher" && !selectedItem && user) {
+          setSelectedItem(user.displayName || teacherNames[0]);
         }
       },
     );
-    
+
     setAllRooms(["Science Lab", "Room 12A", "Room 10B", "Staff Room"]);
-    if(view === 'room' && !selectedItem){
-        setSelectedItem("Science Lab");
+    if (view === "room" && !selectedItem) {
+      setSelectedItem("Science Lab");
     }
 
     const unsubPeriods = onSnapshot(
@@ -323,10 +323,7 @@ export function TimetableDisplay({
             const lesson = classTimetable[day][periodTime];
             if (!lesson || !lesson.subject) return;
             let match = false;
-            if (
-              view === "teacher" &&
-              lesson.subject.teacher === selectedItem
-            ) {
+            if (view === "teacher" && lesson.subject.teacher === selectedItem) {
               match = true;
             } else if (view === "room" && lesson.room === selectedItem) {
               match = true;
@@ -863,7 +860,7 @@ export function TimetableDisplay({
                                         </p>
                                       )}
                                     </div>
-                                    {view === "class" && !isTeacherView && (
+                                    {view === "class" && user?.role === 'Admin' && (
                                       <div className="text-right">
                                         <Dialog>
                                           <DialogTrigger asChild>
@@ -966,7 +963,7 @@ export function TimetableDisplay({
                 </div>
               )}
             </CardContent>
-            {view === 'class' && !isTeacherView && (
+            {view === 'class' && user?.role === 'Admin' && (
               <CardFooter className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setTimetable({})}>
                 Clear Timetable
@@ -1004,7 +1001,7 @@ export function TimetableDisplay({
             </CardFooter>)}
           </Card>
         </div>
-        {view === 'class' && !isTeacherView && <div className="lg:col-span-1">
+        {view === 'class' && user?.role === 'Admin' && <div className="lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle>Available Subjects</CardTitle>

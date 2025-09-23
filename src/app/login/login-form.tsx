@@ -62,7 +62,7 @@ export function LoginForm() {
         userDocSnap.data().role?.toLowerCase() === role.toLowerCase()
       ) {
         if (typeof window !== "undefined") {
-          sessionStorage.setItem("schoolId", schoolId);
+          window.sessionStorage.setItem("schoolId", schoolId);
         }
         await updateDoc(userDocRef, { lastLogin: serverTimestamp() }).catch(
           () => {},

@@ -206,37 +206,29 @@ export function TeacherSidebar() {
     }
   }, [user]);
 
-
   React.useEffect(() => {
     if (!schoolId || !user) return;
 
     const teacherId = user.uid;
 
-    // Ungraded assignments count
     const assignmentsQuery = query(
       collection(firestore, `schools/${schoolId}/assignments`),
       where("teacherId", "==", teacherId),
     );
     const unsubscribeAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
       let ungradedCount = 0;
-      const promises = snapshot.docs.map(async (assignmentDoc) => {
-        const assignmentData = assignmentDoc.data();
-        if (assignmentData.submissions < assignmentData.totalStudents) {
-          return 1;
+      snapshot.forEach((doc) => {
+        const assignment = doc.data();
+        if (assignment.submissions < assignment.totalStudents) {
+          ungradedCount++;
         }
-        return 0;
       });
-
-      Promise.all(promises).then((counts) => {
-        ungradedCount = counts.reduce((a, b) => a + b, 0);
-        setDynamicBadges((prev) => ({
-          ...prev,
-          ungradedAssignments: ungradedCount,
-        }));
-      });
+      setDynamicBadges((prev) => ({
+        ...prev,
+        ungradedAssignments: ungradedCount,
+      }));
     });
 
-    // Cleanup listeners on component unmount
     return () => {
       unsubscribeAssignments();
     };
@@ -338,9 +330,7 @@ export function TeacherSidebar() {
           <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {teacherName}
-                </p>
+                <p className="text-sm font-medium leading-none">{teacherName}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {teacherEmail}
                 </p>
