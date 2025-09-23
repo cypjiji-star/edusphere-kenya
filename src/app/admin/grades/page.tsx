@@ -176,7 +176,7 @@ export default function AdminGradesPage() {
         
         setIsLoading(prev => ({ ...prev, rankings: true }));
         
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/students`), where('classId', '==', rankingClassId), orderBy('name'));
+        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', '==', rankingClassId), orderBy('name'));
         const unsubStudents = onSnapshot(studentsQuery, (studentsSnapshot) => {
             const studentList: Student[] = studentsSnapshot.docs.map(doc => ({
                 id: doc.id,
@@ -187,7 +187,12 @@ export default function AdminGradesPage() {
             
             if (studentList.length > 0) {
                  const studentIds = studentList.map(s => s.id);
-                 const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('studentId', 'in', studentIds), where('examId', '==', rankingExamId));
+                 const gradesQuery = query(
+                    collection(firestore, `schools/${schoolId}/grades`), 
+                    where('studentId', 'in', studentIds), 
+                    where('examId', '==', rankingExamId),
+                    where('status', 'in', ['Approved', 'Pending Approval'])
+                );
                  
                  const unsubGrades = onSnapshot(gradesQuery, (gradesSnapshot) => {
                      const gradesData: GradeRecord[] = gradesSnapshot.docs.map(d => d.data() as GradeRecord);
@@ -495,4 +500,3 @@ export default function AdminGradesPage() {
         </div>
     );
 }
-
