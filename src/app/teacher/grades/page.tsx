@@ -43,7 +43,7 @@ type Student = {
     id: string;
     name: string;
     avatarUrl: string;
-    grades?: Record<string, string>; // Optional for grade entry list
+    grades?: Record<string, string>; // { [subjectName]: grade }
     average?: number;
     rank?: number;
 };
@@ -450,3 +450,5 @@ export default function TeacherGradesPage() {
         </div>
     );
 }
+
+    
