@@ -70,7 +70,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { firestore } from "@/lib/firebase";
 import {
@@ -84,7 +83,6 @@ import {
   addDoc,
   getDocs,
 } from "firebase/firestore";
-import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 
 type DraggableSubjectType = {
@@ -189,7 +187,7 @@ function DroppableCell({
   );
 }
 
-export function TimetableDisplay({
+export function TimetableBuilder({
   view: initialView,
   schoolId,
 }: {
@@ -247,18 +245,10 @@ export function TimetableDisplay({
         where("role", "==", "Teacher"),
       ),
       (snapshot) => {
-        const teacherNames = snapshot.docs.map((doc) => doc.data().name);
-        setAllTeachers(teacherNames);
-        if (view === "teacher" && user && !selectedItem) {
-          setSelectedItem(user.displayName || teacherNames[0]);
-        }
+        setAllTeachers(snapshot.docs.map((doc) => doc.data().name));
       },
     );
-
     setAllRooms(["Science Lab", "Room 12A", "Room 10B", "Staff Room"]);
-    if (view === "room" && !selectedItem) {
-      setSelectedItem("Science Lab");
-    }
 
     const unsubPeriods = onSnapshot(
       doc(firestore, `schools/${schoolId}/timetableSettings`, "periods"),
@@ -276,7 +266,7 @@ export function TimetableDisplay({
           const data = doc.data();
           return {
             name: data.name,
-            teacher: data.teachers?.[0] || "Unassigned",
+            teacher: (data.teachers && data.teachers[0]) || "Unassigned",
             color: getColorForSubject(data.name),
           };
         });
@@ -304,7 +294,7 @@ export function TimetableDisplay({
       unsubSubjects();
       unsubTimetables();
     };
-  }, [schoolId, view, user]);
+  }, [schoolId, view, selectedItem]);
 
   React.useEffect(() => {
     if (!selectedItem) return;
@@ -476,17 +466,12 @@ export function TimetableDisplay({
         `schools/${schoolId}/timetables`,
         selectedItem,
       );
-      // Important: Use the local timetable state to update the global state first
-      const updatedAllTimetables = {
-        ...allTimetables,
+      await setDoc(timetableRef, timetable, { merge: true });
+      // Update local state for all timetables to ensure clash detection is up-to-date
+      setAllTimetables((prev) => ({
+        ...prev,
         [selectedItem]: timetable,
-      };
-      // Save the entire updated global state
-      await setDoc(timetableRef, updatedAllTimetables[selectedItem], {
-        merge: true,
-      });
-      // Then set the new global state locally
-      setAllTimetables(updatedAllTimetables);
+      }));
       toast({
         title: "Timetable Saved",
         description: `The timetable for the selected view has been saved.`,
@@ -623,7 +608,7 @@ export function TimetableDisplay({
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <CardTitle>Timetable for {selectedName}</CardTitle>
-                  {view === "class" && user?.role === "admin" && (
+                  {view === "class" && user?.role === "Admin" && (
                     <CardDescription>
                       Drag subjects from the right panel and drop them into time
                       slots.
@@ -662,7 +647,7 @@ export function TimetableDisplay({
                     </SelectContent>
                   </Select>
                   {renderFilterDropdown()}
-                  {user?.role === "admin" && (
+                  {user?.role === "Admin" && (
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="outline" className="w-full sm:w-auto">
@@ -860,7 +845,7 @@ export function TimetableDisplay({
                                       )}
                                     </div>
                                     {view === "class" &&
-                                      user?.role === "admin" && (
+                                      user?.role === "Admin" && (
                                         <div className="text-right">
                                           <Dialog>
                                             <DialogTrigger asChild>
@@ -878,7 +863,8 @@ export function TimetableDisplay({
                                                   Edit Lesson
                                                 </DialogTitle>
                                                 <DialogDescription>
-                                                  Change the room for this lesson.
+                                                  Change the room for this
+                                                  lesson.
                                                 </DialogDescription>
                                               </DialogHeader>
                                               <div className="py-4">
@@ -963,7 +949,7 @@ export function TimetableDisplay({
                 </div>
               )}
             </CardContent>
-            {view === "class" && user?.role === "admin" && (
+            {view === "class" && user?.role === "Admin" && (
               <CardFooter className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setTimetable({})}>
                   Clear Timetable
@@ -1082,5 +1068,3 @@ export function TimetableDisplay({
     </DndContext>
   );
 }
-
-    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -8,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Calendar, PlusCircle } from "lucide-react";
-import { TimetableDisplay } from "@/components/shared/timetable-display";
+import { TimetableBuilder } from "./timetable-builder";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -95,61 +96,9 @@ export default function TimetablePage() {
             Create and manage school-wide class and teacher timetables.
           </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <PlusCircle className="mr-2" />
-              Create New Timetable
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Timetable</DialogTitle>
-              <DialogDescription>
-                Define a new timetable for a specific academic year.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="timetable-name">Timetable Name</Label>
-                <Input
-                  id="timetable-name"
-                  placeholder="e.g., 2024 Master Timetable"
-                  value={timetableName}
-                  onChange={(e) => setTimetableName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="academic-year">Academic Year</Label>
-                <Select value={academicYear} onValueChange={setAcademicYear}>
-                  <SelectTrigger id="academic-year">
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {academicYears.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <DialogClose asChild>
-                <Button onClick={handleCreateTimetable}>
-                  Create Timetable
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      <TimetableDisplay view="class" schoolId={schoolId!} />
+      <TimetableBuilder view="class" schoolId={schoolId!} />
     </div>
   );
 }

@@ -1,5 +1,7 @@
+
 "use client";
 
+import * as React from "react";
 import {
   Card,
   CardContent,
@@ -8,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Calendar } from "lucide-react";
-import { TimetableDisplay } from "@/components/shared/timetable-display";
+import { TeacherTimetable } from "./teacher-timetable";
 import { useSearchParams } from "next/navigation";
 
 export default function TimetablePage() {
@@ -31,7 +33,7 @@ export default function TimetablePage() {
         </p>
       </div>
 
-      <TimetableDisplay view="teacher" schoolId={schoolId} />
+      <TeacherTimetable schoolId={schoolId} />
     </div>
   );
 }
