@@ -105,34 +105,21 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
     const classesQuery = query(collection(firestore, 'schools', schoolId, 'classes'), where('teacherId', '==', user.uid));
     const classesUnsub = onSnapshot(classesQuery, async (snapshot) => {
         const gradeData = new Set<string>();
-        const classIds = snapshot.docs.map(doc => {
+        snapshot.docs.forEach(doc => {
             gradeData.add(doc.data().name);
-            return doc.id;
         });
         setGrades(Array.from(gradeData));
-        
-        if (classIds.length > 0) {
-            // Fetch subjects taught in those classes
-            const subjectNames = new Set<string>();
-            for (const classId of classIds) {
-                const assignmentsDoc = await getDoc(doc(firestore, `schools/${schoolId}/class-assignments`, classId));
-                if (assignmentsDoc.exists()) {
-                    const assignments = assignmentsDoc.data().assignments || [];
-                    assignments.forEach((assignment: { subject: string; teacher: string | null; }) => {
-                        if (assignment.teacher === user.displayName) {
-                            subjectNames.add(assignment.subject);
-                        }
-                    });
-                }
-            }
-            setSubjects(Array.from(subjectNames));
-        } else {
-            setSubjects([]);
-        }
+    });
+
+    const subjectsQuery = query(collection(firestore, 'schools', schoolId, 'subjects'), where('teachers', 'array-contains', user.displayName));
+    const unsubSubjects = onSnapshot(subjectsQuery, (snapshot) => {
+        const subjectNames = snapshot.docs.map(doc => doc.data().name);
+        setSubjects(subjectNames);
     });
 
     return () => {
         classesUnsub();
+        unsubSubjects();
     }
   }, [schoolId, user]);
 
