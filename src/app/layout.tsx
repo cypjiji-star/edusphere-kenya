@@ -9,6 +9,8 @@ import { StatusBarOverlay } from "@/components/layout/status-bar-overlay";
 import { MetaTheme } from "@/components/meta-theme";
 import { Playfair_Display, PT_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { SplashScreen } from "@/components/layout/splash-screen";
+import { ClientPageLoader } from "@/components/ui/client-page-loader";
 
 const fontHeadline = Playfair_Display({
   subsets: ["latin"],
@@ -71,10 +73,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <Suspense>
-              <StatusBarOverlay />
-              {children}
-            </Suspense>
+            <SplashScreen />
+            <ClientPageLoader />
+            <Suspense>{children}</Suspense>
             <Toaster />
           </AuthProvider>
         </ThemeProvider>

@@ -1,29 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/auth-context";
 import { AppLogo } from "../ui/app-logo";
 
 export function SplashScreen() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 2500); // Show splash screen for 2.5 seconds
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!isClient) {
-    return null;
-  }
+  const { loading } = useAuth();
 
   return (
     <AnimatePresence>
-      {isLoading && (
+      {loading && (
         <motion.div
           key="splash-screen"
           className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-background"

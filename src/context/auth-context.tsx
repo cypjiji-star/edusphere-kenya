@@ -13,8 +13,6 @@ import {
 } from "firebase/firestore";
 import { app, firestore } from "@/lib/firebase";
 import { usePathname, useSearchParams } from "next/navigation";
-import { SplashScreen } from "@/components/layout/splash-screen";
-import { ClientPageLoader } from "@/components/ui/client-page-loader";
 
 export type AllowedRole =
   | "developer"
@@ -61,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        setLoading(true);
+        // Don't set loading to true here, let the splash screen show from the initial state
         try {
           const devDoc = await getDoc(
             doc(firestore, "developers", authUser.uid),
@@ -94,7 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("Error fetching user role:", err);
           setRole("unknown");
         } finally {
-          setLoading(false);
+          // Add a small delay to ensure the splash screen animation completes smoothly
+          setTimeout(() => setLoading(false), 500);
         }
       });
       return () => unsubscribe();
@@ -103,8 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, role, loading, clientReady }}>
-      <SplashScreen />
-      <ClientPageLoader />
       {children}
     </AuthContext.Provider>
   );
