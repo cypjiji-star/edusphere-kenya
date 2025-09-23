@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -41,6 +40,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { createExamAction, publishGradesAction } from './actions';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type Student = {
     id: string;
@@ -93,14 +93,13 @@ export default function AdminGradesPage() {
 
     const [allClasses, setAllClasses] = React.useState<TeacherClass[]>([]);
     const [allSubjects, setAllSubjects] = React.useState<string[]>([]);
-    const [rankedStudents, setRankedStudents] = React.useState<Student[]>([]);
+    const [rankedStudentsByClass, setRankedStudentsByClass] = React.useState<Record<string, Student[]>>({});
     const [rankingSubjects, setRankingSubjects] = React.useState<string[]>([]);
     const [openExams, setOpenExams] = React.useState<Exam[]>([]);
     const [archivedExams, setArchivedExams] = React.useState<Exam[]>([]);
     const [academicTerms, setAcademicTerms] = React.useState<{value: string, label: string}[]>([]);
     
     const [rankingExamId, setRankingExamId] = React.useState<string>('');
-    const [rankingClassId, setRankingClassId] = React.useState<string>('');
     
     const [isLoading, setIsLoading] = React.useState({
         classes: true,
@@ -167,74 +166,71 @@ export default function AdminGradesPage() {
         };
     }, [schoolId]);
 
-    // Fetch and compute rankings
+    // Fetch and compute rankings for all classes for the selected exam
     React.useEffect(() => {
-        if (!rankingClassId || !schoolId || !rankingExamId) {
-            setRankedStudents([]);
+        if (!rankingExamId || !schoolId || allClasses.length === 0) {
+            setRankedStudentsByClass({});
             return;
         }
-        
+
         setIsLoading(prev => ({ ...prev, rankings: true }));
-        
-        const studentsQuery = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', '==', rankingClassId), orderBy('name'));
-        const unsubStudents = onSnapshot(studentsQuery, (studentsSnapshot) => {
-            const studentList: Student[] = studentsSnapshot.docs.map(doc => ({
-                id: doc.id,
-                name: doc.data().name,
-                avatarUrl: doc.data().avatarUrl || `https://picsum.photos/seed/${doc.id}/100`,
-                grades: {},
-            }));
-            
-            if (studentList.length > 0) {
-                 const studentIds = studentList.map(s => s.id);
-                 const gradesQuery = query(
-                    collection(firestore, `schools/${schoolId}/grades`), 
-                    where('studentId', 'in', studentIds), 
-                    where('examId', '==', rankingExamId),
-                    where('status', 'in', ['Approved', 'Pending Approval'])
-                );
-                 
-                 const unsubGrades = onSnapshot(gradesQuery, (gradesSnapshot) => {
-                     const gradesData: GradeRecord[] = gradesSnapshot.docs.map(d => d.data() as GradeRecord);
-                     const subjectsInView = new Set<string>();
-                     
-                     const studentsWithGradesData = studentList.map(student => {
-                        const studentGrades: Record<string, string> = {};
-                         gradesData.forEach(grade => {
-                             if (grade.studentId === student.id) {
-                                 studentGrades[grade.subject] = grade.grade;
-                                 subjectsInView.add(grade.subject);
-                             }
-                         });
 
-                        const numericGrades = Object.values(studentGrades).map(g => parseInt(g, 10)).filter(g => !isNaN(g));
-                        const average = numericGrades.length > 0 ? Math.round(numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length) : 0;
-                         
-                         return { ...student, grades: studentGrades, average };
-                     });
-
-                    studentsWithGradesData.sort((a, b) => (b.average || 0) - (a.average || 0));
-                    
-                    const finalRankedList = studentsWithGradesData.map((student, index) => ({
-                        ...student,
-                        rank: index + 1
-                    }));
-
-                    setRankedStudents(finalRankedList);
-                    setRankingSubjects(Array.from(subjectsInView).sort());
-                 });
-                 
-                 setIsLoading(prev => ({ ...prev, rankings: false }));
-                 return () => unsubGrades();
-            } else {
-                setRankedStudents([]);
-                setRankingSubjects([]);
-                setIsLoading(prev => ({ ...prev, rankings: false }));
+        const fetchAllRankings = async () => {
+            const studentsByClass: Record<string, Student[]> = {};
+            for (const c of allClasses) {
+                const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('classId', '==', c.id));
+                const studentSnap = await getDocs(q);
+                studentsByClass[c.id] = studentSnap.docs.map(d => ({
+                    id: d.id,
+                    name: d.data().name,
+                    avatarUrl: d.data().avatarUrl || `https://picsum.photos/seed/${d.id}/100`,
+                    grades: {},
+                }));
             }
-        });
+            
+            const gradesQuery = query(collection(firestore, `schools/${schoolId}/grades`), where('examId', '==', rankingExamId), where('status', 'in', ['Approved', 'Pending Approval']));
+            const gradesSnapshot = await getDocs(gradesQuery);
+            const gradesData: GradeRecord[] = gradesSnapshot.docs.map(d => d.data() as GradeRecord);
+            const allSubjectsInView = new Set<string>();
 
-        return () => unsubStudents();
-    }, [rankingClassId, schoolId, rankingExamId]);
+            const newRankedData: Record<string, Student[]> = {};
+
+            for (const classId in studentsByClass) {
+                const studentsInClass = studentsByClass[classId];
+                if(studentsInClass.length === 0) {
+                    newRankedData[classId] = [];
+                    continue;
+                }
+                
+                const studentsWithGrades = studentsInClass.map(student => {
+                    const studentGrades: Record<string, string> = {};
+                    gradesData.forEach(grade => {
+                        if (grade.studentId === student.id) {
+                            studentGrades[grade.subject] = grade.grade;
+                            allSubjectsInView.add(grade.subject);
+                        }
+                    });
+                    const numericGrades = Object.values(studentGrades).map(g => parseInt(g, 10)).filter(g => !isNaN(g));
+                    const average = numericGrades.length > 0 ? Math.round(numericGrades.reduce((a, b) => a + b, 0) / numericGrades.length) : 0;
+                    return { ...student, grades: studentGrades, average };
+                });
+
+                studentsWithGrades.sort((a, b) => (b.average || 0) - (a.average || 0));
+                
+                newRankedData[classId] = studentsWithGrades.map((student, index) => ({
+                    ...student,
+                    rank: index + 1
+                }));
+            }
+
+            setRankedStudentsByClass(newRankedData);
+            setRankingSubjects(Array.from(allSubjectsInView).sort());
+            setIsLoading(prev => ({ ...prev, rankings: false }));
+        };
+
+        fetchAllRankings();
+
+    }, [rankingExamId, schoolId, allClasses]);
     
     async function handleCreateExam(formData: FormData) {
         setIsCreatingExam(true);
@@ -307,84 +303,73 @@ export default function AdminGradesPage() {
                 <TabsContent value="rankings" className="mt-4">
                     <Card>
                         <CardHeader>
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Select an Exam to View Rankings</Label>
-                                        <Select value={rankingExamId} onValueChange={setRankingExamId} disabled={isLoading.exams}>
-                                            <SelectTrigger><SelectValue placeholder="Select an exam..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Select a Class</Label>
-                                        <Select value={rankingClassId} onValueChange={setRankingClassId} disabled={!rankingExamId || isLoading.classes}>
-                                            <SelectTrigger><SelectValue placeholder="Select a class..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
+                            <div className="space-y-2">
+                                <Label>Select an Exam to View Rankings</Label>
+                                <Select value={rankingExamId} onValueChange={setRankingExamId} disabled={isLoading.exams}>
+                                    <SelectTrigger className="w-full md:w-72"><SelectValue placeholder="Select an exam..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </CardHeader>
                         <CardContent>
                             {isLoading.rankings ? (
                                 <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
-                            ) : (
-                                <>
-                                {!rankingExamId ? (
+                            ) : !rankingExamId ? (
                                      <div className="text-center py-16 text-muted-foreground">Please select an active exam to view class rankings.</div>
-                                ) : !rankingClassId ? (
-                                    <div className="text-center py-16 text-muted-foreground">Please select a class to view its results for the chosen exam.</div>
-                                ) : (
-                                <div className="w-full overflow-auto rounded-lg border">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Rank</TableHead>
-                                                <TableHead>Student</TableHead>
-                                                {rankingSubjects.map(subject => (
-                                                    <TableHead key={subject} className="text-center">{subject}</TableHead>
-                                                ))}
-                                                <TableHead className="text-right font-bold">Average</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {rankedStudents.length > 0 ? (
-                                                rankedStudents.map((student) => (
-                                                    <TableRow key={student.id}>
-                                                        <TableCell className="font-bold text-lg text-center">{student.rank}</TableCell>
-                                                        <TableCell className="font-medium">
-                                                            <div className="flex items-center gap-2">
-                                                                <Avatar className="h-9 w-9">
-                                                                    <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
-                                                                </Avatar>
-                                                                {student.name}
-                                                            </div>
-                                                        </TableCell>
-                                                        {rankingSubjects.map(subject => (
-                                                            <TableCell key={subject} className="text-center font-semibold">
-                                                                {student.grades?.[subject] || '—'}
-                                                            </TableCell>
-                                                        ))}
-                                                        <TableCell className="text-right font-extrabold text-primary">{student.average?.toFixed(1)}%</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={rankingSubjects.length + 3} className="h-24 text-center text-muted-foreground">
-                                                        No grades entered for this class and exam combination yet.
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                                )}
-                                </>
+                            ) : (
+                               <Accordion type="single" collapsible className="w-full">
+                                   {allClasses.map(c => {
+                                       const rankedStudents = rankedStudentsByClass[c.id] || [];
+                                       return (
+                                        <AccordionItem value={c.id} key={c.id}>
+                                            <AccordionTrigger className="text-lg font-semibold">{c.name}</AccordionTrigger>
+                                            <AccordionContent>
+                                                {rankedStudents.length > 0 ? (
+                                                     <div className="w-full overflow-auto rounded-lg border">
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>Rank</TableHead>
+                                                                    <TableHead>Student</TableHead>
+                                                                    {rankingSubjects.map(subject => (
+                                                                        <TableHead key={subject} className="text-center">{subject}</TableHead>
+                                                                    ))}
+                                                                    <TableHead className="text-right font-bold">Average</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {rankedStudents.map((student) => (
+                                                                    <TableRow key={student.id}>
+                                                                        <TableCell className="font-bold text-lg text-center">{student.rank}</TableCell>
+                                                                        <TableCell className="font-medium">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Avatar className="h-9 w-9">
+                                                                                    <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                                                                                </Avatar>
+                                                                                {student.name}
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        {rankingSubjects.map(subject => (
+                                                                            <TableCell key={subject} className="text-center font-semibold">
+                                                                                {student.grades?.[subject] || '—'}
+                                                                            </TableCell>
+                                                                        ))}
+                                                                        <TableCell className="text-right font-extrabold text-primary">{student.average?.toFixed(1)}%</TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-center text-muted-foreground py-8">No grades submitted for this class for the selected exam.</div>
+                                                )}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                       )
+                                    })}
+                               </Accordion>
                             )}
                         </CardContent>
                     </Card>
@@ -500,3 +485,4 @@ export default function AdminGradesPage() {
         </div>
     );
 }
+
