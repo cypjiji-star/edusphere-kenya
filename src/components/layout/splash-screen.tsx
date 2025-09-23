@@ -6,14 +6,20 @@ import { AppLogo } from "../ui/app-logo";
 
 export function SplashScreen() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 2500); // Show splash screen for 2.5 seconds
 
     return () => clearTimeout(timer);
   }, []);
+
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <AnimatePresence>
