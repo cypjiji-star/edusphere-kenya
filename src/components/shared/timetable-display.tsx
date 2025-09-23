@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -621,12 +622,12 @@ export function TimetableDisplay({
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <CardTitle>Timetable for {selectedName}</CardTitle>
-                  {view === "class" && user?.role === "Admin" && (
+                  {(view === "class" && user?.role === "admin") ? (
                     <CardDescription>
                       Drag subjects from the right panel and drop them into time
                       slots.
                     </CardDescription>
-                  )}
+                  ) : null}
                 </div>
                 <div className="flex w-full flex-col sm:flex-row sm:flex-wrap md:w-auto items-center gap-2">
                   <Select defaultValue={currentYear.toString()}>
@@ -660,7 +661,7 @@ export function TimetableDisplay({
                     </SelectContent>
                   </Select>
                   {renderFilterDropdown()}
-                  {user?.role === "Admin" && (
+                  {user?.role === "admin" && (
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="outline" className="w-full sm:w-auto">
@@ -962,7 +963,7 @@ export function TimetableDisplay({
                 </div>
               )}
             </CardContent>
-            {view === "class" && user?.role === "Admin" && (
+            {view === "class" && user?.role === "admin" && (
               <CardFooter className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setTimetable({})}>
                   Clear Timetable
@@ -1001,7 +1002,7 @@ export function TimetableDisplay({
             )}
           </Card>
         </div>
-        {view === "class" && user?.role === "Admin" && (
+        {view === "class" && user?.role === "admin" && (
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -18,13 +19,13 @@ import { firestore } from "@/lib/firebase";
 import { Badge } from "../ui/badge";
 
 export function FloatingSupportWidget() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const searchParams = useSearchParams();
   const schoolId = searchParams.get("schoolId");
   const [unreadCount, setUnreadCount] = React.useState(0);
 
   React.useEffect(() => {
-    if (!user || !schoolId) return;
+    if (!user || !schoolId || role === 'admin') return;
 
     const q = query(
       collection(firestore, `schools/${schoolId}/support-chats`),
@@ -48,7 +49,11 @@ export function FloatingSupportWidget() {
     });
 
     return () => unsubscribe();
-  }, [user, schoolId]);
+  }, [user, schoolId, role]);
+
+  if (role === 'admin') {
+    return null; // Don't render for admins, they have the popover
+  }
 
   return (
     <Sheet>

@@ -131,7 +131,7 @@ export default function StudentManagementPage() {
         filtered = filtered.filter((s) => s.classId === classFilter);
     }
     return filtered;
-  }, [students, searchTerm, classFilter, classes]);
+  }, [students, searchTerm, classFilter]);
 
   const paginatedStudents = React.useMemo(() => {
     const startIndex = (page - 1) * studentsPerPage;
