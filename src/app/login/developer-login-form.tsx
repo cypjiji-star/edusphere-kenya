@@ -87,21 +87,10 @@ export function DeveloperLoginForm() {
         />
       </div>
 
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={isLoading}
-      >
+      <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Developer Login
       </Button>
-
-      <div className="mt-4 text-center text-sm">
-        Don&apos;t have an account?{" "}
-        <Link href="/developer/create-dev-account" className="underline">
-          Sign up as a developer
-        </Link>
-      </div>
     </form>
   );
 }

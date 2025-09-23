@@ -18,11 +18,6 @@ export default function DeveloperLayout({
 }) {
   const pathname = usePathname();
 
-  // Allow access to developer create page without auth
-  if (pathname === "/developer/create-dev-account") {
-    return <Suspense>{children}</Suspense>;
-  }
-
   return (
     <AuthCheck requiredRole="developer">
       <SidebarProvider>

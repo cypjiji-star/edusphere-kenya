@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Loader2,
   AlertTriangle,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -207,67 +208,75 @@ export default function DeveloperDashboard() {
             Oversee all school instances on the platform.
           </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Create New School
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Provision New School</DialogTitle>
-              <DialogDescription>
-                Fill in the details to set up a new school instance and its
-                first administrator.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="school-name">School Name</Label>
-                <Input
-                  id="school-name"
-                  placeholder="e.g., Lakeview International School"
-                  value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
-                />
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/developer/create-dev-account">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Create Developer
+            </Link>
+          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Create New School
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Provision New School</DialogTitle>
+                <DialogDescription>
+                  Fill in the details to set up a new school instance and its
+                  first administrator.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="school-name">School Name</Label>
+                  <Input
+                    id="school-name"
+                    placeholder="e.g., Lakeview International School"
+                    value={schoolName}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-email">Initial Admin Email</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    placeholder="principal@lakeview.ac.ke"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-password">Set Admin Password</Label>
+                  <Input
+                    id="admin-password"
+                    type="password"
+                    placeholder="Must be at least 6 characters"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="admin-email">Initial Admin Email</Label>
-                <Input
-                  id="admin-email"
-                  type="email"
-                  placeholder="principal@lakeview.ac.ke"
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="admin-password">Set Admin Password</Label>
-                <Input
-                  id="admin-password"
-                  type="password"
-                  placeholder="Must be at least 6 characters"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <DialogClose asChild>
-                <Button onClick={handleCreateSchool} disabled={isCreating}>
-                  {isCreating && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Create School
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button onClick={handleCreateSchool} disabled={isCreating}>
+                    {isCreating && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Create School
+                  </Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {errorMessage && (
