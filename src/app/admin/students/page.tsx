@@ -51,6 +51,7 @@ type Student = {
   name: string;
   admissionNumber: string;
   class: string;
+  classId: string;
   avatarUrl: string;
   status: "Active" | "Inactive" | "Graduated";
 };
@@ -127,10 +128,7 @@ export default function StudentManagementPage() {
       );
     }
     if (classFilter !== "All Classes") {
-      const selectedClass = classes.find(c => c.name === classFilter);
-      if (selectedClass) {
-          filtered = filtered.filter((s) => s.class && s.class.startsWith(selectedClass.name));
-      }
+        filtered = filtered.filter((s) => s.classId === classFilter);
     }
     return filtered;
   }, [students, searchTerm, classFilter, classes]);
@@ -177,7 +175,7 @@ export default function StudentManagementPage() {
               <SelectContent>
                 <SelectItem value="All Classes">All Classes</SelectItem>
                 {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

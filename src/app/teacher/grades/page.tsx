@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -63,6 +64,7 @@ import {
 } from "@/components/ui/accordion";
 import { saveGradesAction } from "./actions";
 import { Combobox } from "@/components/ui/combobox";
+import { useAuth } from "@/context/auth-context";
 
 type Student = {
   id: string;
