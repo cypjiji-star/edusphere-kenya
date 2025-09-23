@@ -466,32 +466,30 @@ export default function TeacherHealthPage() {
                                                     </FormItem> 
                                                   )}
                                                 />
-                                                 <FormField
+                                                <FormField
                                                     control={form.control}
                                                     name="urgency"
                                                     render={({ field }) => (
                                                         <FormItem className="space-y-3">
-                                                            <FormLabel>Urgency Level</FormLabel>
-                                                            <RadioGroup
-                                                                onValueChange={field.onChange}
-                                                                defaultValue={field.value}
-                                                                className="flex space-x-4"
-                                                            >
-                                                                {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
-                                                                    <FormItem key={level} className="flex items-center space-x-2 space-y-0">
-                                                                        <FormControl>
-                                                                            <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
-                                                                        </FormControl>
-                                                                        <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
-                                                                            <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
-                                                                        </Label>
-                                                                    </FormItem>
-                                                                ))}
-                                                            </RadioGroup>
-                                                            <FormMessage />
+                                                        <FormLabel>Urgency Level</FormLabel>
+                                                        <RadioGroup
+                                                            onValueChange={field.onChange}
+                                                            defaultValue={field.value}
+                                                            className="flex space-x-4"
+                                                        >
+                                                            {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                            <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                                <RadioGroupItem value={level} id={`urgency-teacher-${level}`} />
+                                                                <Label htmlFor={`urgency-teacher-${level}`} className="font-normal">
+                                                                    <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                                </Label>
+                                                            </FormItem>
+                                                            ))}
+                                                        </RadioGroup>
+                                                        <FormMessage />
                                                         </FormItem>
                                                     )}
-                                                />
+                                                    />
                                             </div>
                                             <div className="space-y-6">
                                                 <FormField 
