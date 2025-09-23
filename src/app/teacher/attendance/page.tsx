@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -55,6 +56,7 @@ import { Label } from "@/components/ui/label";
 import { DateRange } from "react-day-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Combobox } from '@/components/ui/combobox';
 
 
 type AttendanceStatus = "present" | "absent" | "late" | "unmarked";
@@ -673,22 +675,13 @@ export default function AttendancePage() {
                         <CardDescription>Search for a student to view their complete attendance history for the term.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Command className="rounded-lg border shadow-md">
-                            <CommandInput
-                                placeholder="Search student by name or admission number..."
-                                value={studentSearchTerm}
-                                onValueChange={setStudentSearchTerm}
-                            />
-                            <CommandList>
-                                <CommandEmpty>{studentSearchTerm ? "No students found." : "Start typing to search..."}</CommandEmpty>
-                                {displayedStudents.map(student => (
-                                    <CommandItem key={student.id} onSelect={() => { setSelectedStudentForAnalytics(student); setStudentSearchTerm(''); }}>
-                                        <User className="mr-2" />
-                                        <span>{student.name}</span>
-                                    </CommandItem>
-                                ))}
-                            </CommandList>
-                        </Command>
+                        <Combobox
+                            options={displayedStudents.map(s => ({ value: s.id, label: s.name }))}
+                            value={selectedStudentForAnalytics?.id || ''}
+                            onValueChange={(value) => setSelectedStudentForAnalytics(allTeacherStudents.find(s => s.id === value) || null)}
+                            placeholder="Search student by name or admission number..."
+                            emptyMessage="No students found."
+                        />
 
                         {selectedStudentForAnalytics && (
                             <div className="mt-6">
@@ -733,11 +726,11 @@ export default function AttendancePage() {
                                                     <TableRow><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead>Recorded By</TableHead></TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                {studentFilteredRecords.map((record: any) => (
-                                                    <TableRow key={record.date.seconds}>
+                                                {studentFilteredRecords.map((record: any, index: number) => (
+                                                    <TableRow key={index}>
                                                         <TableCell>{record.date.toDate().toLocaleDateString()}</TableCell>
                                                         <TableCell>{getAttendanceBadge(record.status)}</TableCell>
-                                                        <TableCell>{record.teacherName}</TableCell>
+                                                        <TableCell>{record.teacher}</TableCell>
                                                     </TableRow>
                                                 ))}
                                                 </TableBody>

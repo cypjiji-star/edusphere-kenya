@@ -70,6 +70,7 @@ import { useAuth } from '@/context/auth-context';
 import { logAuditEvent } from '@/lib/audit-log.service';
 import { deleteUserAction, updateUserAuthAction, createUserAction } from '@/app/developer/actions';
 import { Separator } from '@/components/ui/separator';
+import { Combobox } from '@/components/ui/combobox';
 
 
 type UserRole = 'Admin' | 'Teacher' | 'Student' | 'Parent' | string;
@@ -536,14 +537,12 @@ export default function UserManagementListPage() {
                                     <div className="grid gap-6 py-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="role-create">User Role</Label>
-                                            <Select name="role" onValueChange={setNewUserRole}>
-                                                <SelectTrigger id="role-create">
-                                                    <SelectValue placeholder="Select a role" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                            <Combobox
+                                                options={roles.map(r => ({ value: r, label: r }))}
+                                                value={newUserRole}
+                                                onValueChange={setNewUserRole}
+                                                placeholder="Select a role..."
+                                            />
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">

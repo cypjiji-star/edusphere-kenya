@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -38,6 +39,7 @@ import { useAuth } from '@/context/auth-context';
 import { saveGradesAction } from './actions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Combobox } from '@/components/ui/combobox';
 
 type Student = {
     id: string;
@@ -284,30 +286,33 @@ export default function TeacherGradesPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
                                 <div className="space-y-2">
                                     <Label>Class</Label>
-                                    <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={isLoading.classes}>
-                                        <SelectTrigger><SelectValue placeholder="Select a class..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                    <Combobox
+                                        options={allClasses.map(c => ({ value: c.id, label: c.name }))}
+                                        value={selectedClassId}
+                                        onValueChange={setSelectedClassId}
+                                        placeholder="Select a class..."
+                                        disabled={isLoading.classes}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Subject</Label>
-                                    <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={isLoading.subjects}>
-                                        <SelectTrigger><SelectValue placeholder="Select a subject..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {allSubjects.map(s => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                     <Combobox
+                                        options={allSubjects.map(s => ({ value: s.name, label: s.name }))}
+                                        value={selectedSubject}
+                                        onValueChange={setSelectedSubject}
+                                        placeholder="Select a subject..."
+                                        disabled={isLoading.subjects}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Exam</Label>
-                                    <Select value={selectedExamId} onValueChange={setSelectedExamId} disabled={isLoading.exams}>
-                                        <SelectTrigger><SelectValue placeholder="Select an exam..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {openExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                    <Combobox
+                                        options={openExams.map(e => ({ value: e.id, label: e.title }))}
+                                        value={selectedExamId}
+                                        onValueChange={setSelectedExamId}
+                                        placeholder="Select an exam..."
+                                        disabled={isLoading.exams}
+                                    />
                                 </div>
                             </div>
                         </CardHeader>
@@ -377,12 +382,13 @@ export default function TeacherGradesPage() {
                         <CardHeader>
                             <div className="space-y-2">
                                 <Label>Select an Exam to View History</Label>
-                                <Select value={rankingExamId} onValueChange={setRankingExamId} disabled={isLoading.exams}>
-                                    <SelectTrigger className="w-full md:w-72"><SelectValue placeholder="Select an archived exam..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {archivedExams.map(exam => <SelectItem key={exam.id} value={exam.id}>{exam.title}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={archivedExams.map(e => ({ value: e.id, label: e.title }))}
+                                    value={rankingExamId}
+                                    onValueChange={setRankingExamId}
+                                    placeholder="Select an archived exam..."
+                                    disabled={isLoading.exams}
+                                />
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -450,5 +456,3 @@ export default function TeacherGradesPage() {
         </div>
     );
 }
-
-    

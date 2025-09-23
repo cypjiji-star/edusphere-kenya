@@ -97,6 +97,7 @@ import { logAuditEvent } from '@/lib/audit-log.service';
 import { useAuth } from '@/context/auth-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { createUserAction } from '@/app/developer/actions';
+import { Combobox } from '@/components/ui/combobox';
 
 const enrolmentSchema = z.object({
   studentFirstName: z.string().min(2, 'First name is required.'),
@@ -637,7 +638,18 @@ export default function StudentEnrolmentPage() {
                             <CardTitle>Academic & Administrative</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                             <FormField control={form.control} name="classId" render={({ field }) => ( <FormItem><FormLabel>Assign to Class</FormLabel><FormControl><Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue placeholder="Select a class" /></SelectTrigger><SelectContent>{classOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select></FormControl><FormMessage /></FormItem> )}/>
+                             <FormField control={form.control} name="classId" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Assign to Class</FormLabel>
+                                <Combobox
+                                    options={classOptions}
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                    placeholder="Select a class"
+                                />
+                                <FormMessage />
+                                </FormItem>
+                             )}/>
                              <FormField control={form.control} name="admissionYear" render={({ field }) => ( <FormItem><FormLabel>Year of Admission</FormLabel><FormControl><Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue placeholder="Select a year" /></SelectTrigger><SelectContent>{years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent></Select></FormControl><FormMessage /></FormItem> )}/>
                              <Separator />
                              <FormField control={form.control} name="amountPaid" render={({ field }) => ( <FormItem><FormLabel>Initial Fee Payment (KES)</FormLabel><div className="relative"><CircleDollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><FormControl><Input type="number" placeholder="0" className="pl-10" {...field} /></FormControl></div><FormMessage /></FormItem> )}/>

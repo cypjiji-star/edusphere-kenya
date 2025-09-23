@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -37,7 +38,7 @@ import { Label } from '@/components/ui/label';
 import { firestore, auth } from '@/lib/firebase';
 import { doc, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, collection, Timestamp, onSnapshot, query, where, writeBatch, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
-import { light } from '@/lib/haptic';
+import { Combobox } from '@/components/ui/combobox';
 
 
 export const lessonPlanSchema = z.object({
@@ -233,7 +234,6 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
   }
   
   const handleGenerateContent = async (field: AiField) => {
-    light();
     setAiLoadingField(field);
 
     const result = await generateContentAction({
@@ -309,18 +309,12 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subject</FormLabel>
-                      <FormControl>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a subject" />
-                            </SelectTrigger>
-                          <SelectContent>
-                            {subjects.map((subject) => (
-                              <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
+                        <Combobox
+                            options={subjects.map(s => ({ value: s, label: s }))}
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Select a subject"
+                        />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -331,18 +325,12 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grade / Form</FormLabel>
-                      <FormControl>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a grade" />
-                            </SelectTrigger>
-                          <SelectContent>
-                            {grades.map((grade) => (
-                              <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
+                        <Combobox
+                            options={grades.map(g => ({ value: g, label: g }))}
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Select a grade"
+                        />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -478,7 +466,7 @@ export function LessonPlanForm({ lessonPlanId, prefilledDate, schoolId }: Lesson
         <Separator className="my-8"/>
 
         <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading || !!aiLoadingField} className="w-full md:w-auto" onClick={() => light()}>
+            <Button type="submit" disabled={isLoading || !!aiLoadingField} className="w-full md:w-auto">
                 {isLoading ? (
                 <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

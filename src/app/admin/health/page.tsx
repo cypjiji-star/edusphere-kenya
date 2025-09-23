@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -74,6 +75,7 @@ import { collection, query, onSnapshot, where, doc, getDoc, addDoc, serverTimest
 import { useSearchParams } from 'next/navigation';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/context/auth-context';
+import { Combobox } from '@/components/ui/combobox';
 
 type IncidentType = 'Health' | 'Discipline' | 'Accident' | 'Bullying' | 'Safety Issue' | 'Other';
 type IncidentStatus = 'Reported' | 'Under Review' | 'Resolved' | 'Archived';
@@ -524,18 +526,13 @@ export default function AdminHealthPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Student(s) Involved</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a student" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {allStudents.map((s) => (
-                                    <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                               <Combobox
+                                options={allStudents.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                placeholder="Select a student..."
+                                emptyMessage="No students found."
+                              />
                               <FormDescription>Multi-student selection coming soon.</FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -850,16 +847,13 @@ export default function AdminHealthPage() {
               <CardContent>
                 <div className="max-w-md mb-6">
                   <Label htmlFor="student-health-select">Select a Student</Label>
-                  <Select onValueChange={(value: string) => setSelectedHealthStudent(value)}>
-                    <SelectTrigger id="student-health-select">
-                      <SelectValue placeholder="Search and select a student..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allStudents.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={allStudents.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
+                    value={selectedHealthStudent || ''}
+                    onValueChange={setSelectedHealthStudent}
+                    placeholder="Search and select a student..."
+                    emptyMessage="No students found."
+                  />
                 </div>
                 {currentHealthRecord ? (
                   <Card>
@@ -929,16 +923,13 @@ export default function AdminHealthPage() {
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label>Student</Label>
-                        <Select value={medStudentId} onValueChange={setMedStudentId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a student" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allStudents.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>{s.name} ({s.class})</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                            options={allStudents.map(s => ({ value: s.id, label: `${s.name} (${s.class})` }))}
+                            value={medStudentId}
+                            onValueChange={setMedStudentId}
+                            placeholder="Select a student..."
+                            emptyMessage="No students found."
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="med-name">Medication Name</Label>
