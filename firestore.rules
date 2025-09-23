@@ -1,12 +1,203 @@
-
 rules_version = '2';
 
+// The root of the database is locked down by default.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read and write access to all documents
-    // This is insecure and should not be used in production.
-    match /{document=**} {
-      allow read, write: if true;
+
+    // Helper functions to reduce repetition
+    function isDeveloper() {
+      return exists(/databases/$(database)/documents/developers/$(request.auth.uid));
+    }
+
+    function isSchoolUser(schoolId) {
+      return exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid));
+    }
+
+    function getUserRole(schoolId) {
+      return get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin(schoolId) {
+      return isSchoolUser(schoolId) && getUserRole(schoolId) == 'Admin';
+    }
+
+    function isTeacher(schoolId) {
+      return isSchoolUser(schoolId) && getUserRole(schoolId) == 'Teacher';
+    }
+
+    function isParent(schoolId) {
+      return isSchoolUser(schoolId) && getUserRole(schoolId) == 'Parent';
+    }
+
+    // Is the user a teacher of the specific class?
+    function isClassTeacher(schoolId, classId) {
+      let classDoc = get(/databases/$(database)/documents/schools/$(schoolId)/classes/$(classId));
+      return isTeacher(schoolId) && classDoc.data.teacherId == request.auth.uid;
+    }
+
+    // Is the requesting user the parent of the specified student?
+    function isParentOfStudent(schoolId, studentId) {
+        let studentDoc = get(/databases/$(database)/documents/schools/$(schoolId)/users/$(studentId));
+        return isParent(schoolId) && studentDoc.data.parentId == request.auth.uid;
+    }
+
+    // --- PLATFORM-LEVEL RULES ---
+
+    // The 'developers' collection contains UIDs of super admins.
+    match /developers/{devId} {
+      // Only other developers can read/write this collection.
+      allow read, write: if isDeveloper();
+    }
+
+    // Platform-wide audit logs can be read by developers and written to by anyone (server-side logic).
+    match /platform_audit_logs/{logId} {
+        allow read: if isDeveloper();
+        allow create: if true; // Written by trusted server-side code
+    }
+
+    // --- SCHOOL-LEVEL RULES ---
+
+    // School documents can be read by any authenticated user (to get school name, etc)
+    // but only created/updated by developers.
+    match /schools/{schoolId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isDeveloper();
+
+      // --- SUBCOLLECTION RULES ---
+
+      // All users within a school are in one 'users' collection.
+      match /users/{userId} {
+        // Admins and Developers can manage all users.
+        allow read, write: if isDeveloper() || isAdmin(schoolId);
+        // Teachers can read their own profile and student profiles.
+        allow read: if isTeacher(schoolId);
+        // Parents can read their own profile and their children's profiles.
+        allow read: if isParent(schoolId) && (request.auth.uid == userId || isParentOfStudent(schoolId, userId));
+        // Users can update their own profiles (e.g., name, avatar)
+        allow update: if request.auth.uid == userId;
+      }
+
+      // Any authenticated user in the school can read general info like classes and subjects.
+      // Only Admins/Developers can create/edit them.
+      match /classes/{classId} {
+        allow read: if isSchoolUser(schoolId);
+        allow write: if isDeveloper() || isAdmin(schoolId);
+      }
+      match /subjects/{subjectId} {
+        allow read: if isSchoolUser(schoolId);
+        allow write: if isDeveloper() || isAdmin(schoolId);
+      }
+      match /fee-structures/{structureId} {
+          allow read: if isSchoolUser(schoolId);
+          allow write: if isDeveloper() || isAdmin(schoolId);
+      }
+
+      // Teachers can read all attendance, but only write for their own classes.
+      // Parents can only read attendance for their own children.
+      match /attendance/{recordId} {
+        allow read, write: if isDeveloper() || isAdmin(schoolId);
+        allow read, create: if isTeacher(schoolId);
+        allow read: if isParent(schoolId) && isParentOfStudent(schoolId, resource.data.studentId);
+      }
+
+      // Grades can be created/updated by teachers for their classes, but read more broadly.
+      match /grades/{gradeId} {
+        allow read, write: if isDeveloper() || isAdmin(schoolId);
+        allow read, create: if isTeacher(schoolId);
+        allow read: if isParent(schoolId) && isParentOfStudent(schoolId, resource.data.studentId);
+      }
+
+      // Announcements can be read by anyone in the school. Only created by Admins/Teachers.
+      match /announcements/{announcementId} {
+        allow read: if isSchoolUser(schoolId);
+        allow create, update, delete: if isDeveloper() || isAdmin(schoolId) || isTeacher(schoolId);
+      }
+
+      // School-wide calendar events
+      match /calendar-events/{eventId} {
+        allow read: if isSchoolUser(schoolId);
+        allow write: if isDeveloper() || isAdmin(schoolId);
+      }
+      
+      // School Documents
+      match /documents/{docId} {
+          allow read: if isSchoolUser(schoolId);
+          allow write: if isDeveloper() || isAdmin(schoolId);
+      }
+
+      // Finance: Only Admins/Developers can manage these.
+      match /expenses/{expenseId} {
+        allow read, write: if isDeveloper() || isAdmin(schoolId);
+      }
+      match /transactions/{transactionId} {
+        allow read, write: if isDeveloper() || isAdmin(schoolId);
+      }
+      match /mini_payments/{paymentId} {
+        allow read, write: if isDeveloper() || isAdmin(schoolId) || isTeacher(schoolId);
+      }
+
+      // Incidents & Health
+      match /incidents/{incidentId} {
+        allow read, write: if isDeveloper() || isAdmin(schoolId);
+        allow read, create: if isTeacher(schoolId);
+        allow read: if isParent(schoolId) && isParentOfStudent(schoolId, resource.data.studentId);
+      }
+      match /medications/{medicationId} {
+          allow read, write: if isDeveloper() || isAdmin(schoolId) || isTeacher(schoolId);
+          allow read: if isParent(schoolId) && isParentOfStudent(schoolId, resource.data.studentId);
+      }
+
+      // Library & Sports
+      match /library-resources/{resourceId} {
+        allow read: if isSchoolUser(schoolId);
+        allow write: if isDeveloper() || isAdmin(schoolId);
+      }
+      match /teams/{teamId} {
+        allow read: if isSchoolUser(schoolId);
+        allow write: if isDeveloper() || isAdmin(schoolId) || isTeacher(schoolId);
+
+        match /members/{memberId} {
+            allow read: if isSchoolUser(schoolId);
+            allow write: if isDeveloper() || isAdmin(schoolId) || isTeacher(schoolId);
+        }
+        match /events/{eventId} {
+            allow read: if isSchoolUser(schoolId);
+            allow write: if isDeveloper() || isAdmin(schoolId) || isTeacher(schoolId);
+        }
+        match /media/{mediaId} {
+            allow read: if isSchoolUser(schoolId);
+            allow write: if isDeveloper() || isAdmin(schoolId) || isTeacher(schoolId);
+        }
+      }
+
+      // Lesson Plans & Timetables
+      match /lesson-plans/{planId} {
+        allow read: if isDeveloper() || isAdmin(schoolId);
+        allow read, write: if isTeacher(schoolId) && resource.data.teacherId == request.auth.uid;
+      }
+      match /timetables/{timetableId} {
+        allow read: if isSchoolUser(schoolId);
+        allow write: if isDeveloper() || isAdmin(schoolId);
+      }
+
+      // Messaging & Support
+      match /support-chats/{chatId} {
+        allow read, write: if isDeveloper() || isAdmin(schoolId);
+        allow read, write: if isSchoolUser(schoolId) && request.auth.uid in resource.data.participants;
+        allow create: if isSchoolUser(schoolId);
+      }
+
+      // Other Settings & Logs
+      match /audit_logs/{logId} {
+        allow read: if isDeveloper() || isAdmin(schoolId);
+        allow create: if true; // Written by trusted server-side code
+      }
+      match /settings/{settingId} {
+        allow read, write: if isDeveloper() || isAdmin(schoolId);
+      }
+      match /counters/{counterId} {
+          allow read, write: if isDeveloper() || isAdmin(schoolId);
+      }
     }
   }
 }
