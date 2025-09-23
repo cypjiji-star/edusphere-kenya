@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -48,7 +49,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { initialRolePermissions } from "@/app/admin/permissions/roles-data";
-import { defaultPeriods } from "@/app/admin/timetable/timetable-data";
+import { defaultPeriods } from "@/app/teacher/timetable/timetable-data";
 import { createUserAction } from "./actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { NiceError } from "@/components/ui/nice-error";
