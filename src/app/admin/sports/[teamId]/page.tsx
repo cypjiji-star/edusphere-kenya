@@ -78,6 +78,8 @@ import {
 } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 type TeamDetails = {
   name: string;
   coach: string;
