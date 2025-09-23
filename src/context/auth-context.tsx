@@ -69,7 +69,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
           
-          const schoolId = searchParams.get("schoolId") || (typeof window !== 'undefined' ? window.sessionStorage.getItem("schoolId") : null);
+          let schoolId = searchParams.get("schoolId");
+          if (schoolId) {
+            if (typeof window !== "undefined") {
+              window.sessionStorage.setItem("schoolId", schoolId);
+            }
+          } else {
+             if (typeof window !== "undefined") {
+                schoolId = window.sessionStorage.getItem("schoolId");
+             }
+          }
+
 
           if (schoolId) {
             const userDocRef = doc(
