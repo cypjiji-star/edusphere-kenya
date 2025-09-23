@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -192,7 +191,7 @@ export default function ParentGradesPage() {
         }
     });
 
-    const q = query(collection(firestore, `schools/${schoolId}/students`), where('parentId', '==', parentId));
+    const q = query(collection(firestore, `schools/${schoolId}/users`), where('role', '==', 'Student'), where('parentId', '==', parentId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedChildren = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Child));
         setChildrenData(fetchedChildren);
@@ -204,7 +203,7 @@ export default function ParentGradesPage() {
         unsubAcademic();
         unsubscribe();
     }
-  }, [schoolId, parentId, selectedChild]);
+  }, [schoolId, parentId]);
 
   const getTermDates = (term: string) => {
     const [termName, yearStr] = term.split('-');
