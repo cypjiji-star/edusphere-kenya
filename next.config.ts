@@ -1,5 +1,80 @@
 import type { NextConfig } from "next";
 
+const withPWA = require("@ducanh2912/next-pwa").default({
+  dest: "public",
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  swcMinify: true,
+  disable: process.env.NODE_ENV === "development",
+  workboxOptions: {
+    disableDevLogs: true,
+  },
+  // Setting a simple background color for the splash screen
+  // to make the transition to the app's animated splash screen seamless.
+  extendDefaultRuntimeCaching: true,
+  fallbacks: {
+    document: "/offline",
+  },
+  cacheStartUrl: true,
+  dynamicStartUrl: true,
+  generatemanifest: true,
+  manifest: {
+    name: "EduSphere Kenya",
+    short_name: "EduSphere",
+    description: "Empowering Kenya's Future, One School at a Time.",
+    background_color: "#0B0F19",
+    theme_color: "#0B0F19",
+    display: "standalone",
+    orientation: "portrait",
+    start_url: "/",
+    scope: "/",
+    icons: [
+      {
+        src: "/icons/icon-72x72.png",
+        sizes: "72x72",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-96x96.png",
+        sizes: "96x96",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-128x128.png",
+        sizes: "128x128",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-144x144.png",
+        sizes: "144x144",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-152x152.png",
+        sizes: "152x152",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-384x384.png",
+        sizes: "384x384",
+        type: "image/png",
+      },
+      {
+        src: "/icons/icon-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any maskable",
+      },
+    ],
+  },
+});
+
 const nextConfig: NextConfig = {
   // ✅ Recommended for stability
   reactStrictMode: true,
@@ -53,4 +128,4 @@ const nextConfig: NextConfig = {
   transpilePackages: ["jspdf", "jspdf-autotable"],
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
