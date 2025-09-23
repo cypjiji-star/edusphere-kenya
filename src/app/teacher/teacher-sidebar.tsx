@@ -145,11 +145,6 @@ const navGroups = [
         badgeKey: null,
       },
       {
-        href: "/teacher/messaging",
-        label: "Direct Messaging",
-        icon: MessageCircle,
-      },
-      {
         href: "/teacher/calendar",
         label: "Events Calendar",
         icon: Calendar,

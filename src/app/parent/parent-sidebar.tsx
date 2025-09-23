@@ -90,12 +90,6 @@ const navItems = [
     icon: Calendar,
     badgeKey: null,
   },
-  {
-    href: "/parent/messaging",
-    label: "Direct Messaging",
-    icon: MessageCircle,
-    badgeKey: "unreadMessages",
-  },
 ];
 
 export function ParentSidebar() {
