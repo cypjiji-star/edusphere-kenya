@@ -200,18 +200,12 @@ export function TeacherSidebar() {
   };
 
   React.useEffect(() => {
-    if (user && schoolId) {
-      const userDocRef = doc(firestore, `schools/${schoolId}/users`, user.uid);
-      const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const userData = docSnap.data();
-          setTeacherName(userData.name || "Teacher");
-          setTeacherEmail(userData.email || "");
-        }
-      });
-      return () => unsubscribe();
+    if (user) {
+      setTeacherName(user.displayName || "Teacher");
+      setTeacherEmail(user.email || "");
     }
-  }, [user, schoolId]);
+  }, [user]);
+
 
   React.useEffect(() => {
     if (!schoolId || !user) return;

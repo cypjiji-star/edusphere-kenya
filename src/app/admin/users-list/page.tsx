@@ -52,7 +52,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +80,8 @@ import {
   FileText,
   GraduationCap,
   Loader2,
+  Contact2,
+  Crown,
 } from "lucide-react";
 import { firestore } from "@/lib/firebase";
 import {
@@ -90,13 +92,12 @@ import {
   updateDoc,
   Timestamp,
   getDocs,
+  setDoc,
   where,
 } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { MultiSelect } from "@/components/ui/multi-select";
 import { useAuth } from "@/context/auth-context";
 import { logAuditEvent } from "@/lib/audit-log.service";
 import {
@@ -107,7 +108,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Combobox } from "@/components/ui/combobox";
 
-type UserRole = "Admin" | "Teacher" | "Student" | "Parent" | string;
+type UserRole = "Admin" | "Teacher" | "Parent" | "Student" | string;
 type UserStatus =
   | "Active"
   | "Pending"
@@ -426,13 +427,9 @@ export default function UserManagementListPage() {
 
   const handleDeleteUser = async () => {
     if (!userToDelete || !schoolId || !adminUser) return;
-
     try {
       const result = await deleteUserAction(userToDelete.id, schoolId);
-
-      if (!result.success) {
-        throw new Error(result.message);
-      }
+      if (!result.success) throw new Error(result.message);
 
       await logAuditEvent({
         schoolId,
@@ -1033,11 +1030,12 @@ export default function UserManagementListPage() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="all">All Users</TabsTrigger>
               <TabsTrigger value="Teacher">Teachers</TabsTrigger>
               <TabsTrigger value="Parent">Parents</TabsTrigger>
               <TabsTrigger value="Admin">Admins</TabsTrigger>
+              <TabsTrigger value="Student">Students</TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="mt-4">
               {isLoading ? (
@@ -1073,6 +1071,15 @@ export default function UserManagementListPage() {
                 </div>
               ) : (
                 renderUserTable("Admin")
+              )}
+            </TabsContent>
+            <TabsContent value="Student" className="mt-4">
+              {isLoading ? (
+                <div className="flex h-64 items-center justify-center">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                </div>
+              ) : (
+                renderUserTable("Student")
               )}
             </TabsContent>
           </Tabs>

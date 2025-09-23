@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Calendar, PlusCircle } from "lucide-react";
-import { TimetableBuilder } from "./timetable-builder";
+import { TimetableDisplay } from "@/components/shared/timetable-display";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -149,7 +149,7 @@ export default function TimetablePage() {
         </Dialog>
       </div>
 
-      <TimetableBuilder />
+      <TimetableDisplay view="class" schoolId={schoolId!} />
     </div>
   );
 }

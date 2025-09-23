@@ -83,7 +83,7 @@ import {
   addDoc,
   getDocs,
 } from "firebase/firestore";
-import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
 type DraggableSubjectType = {
   name: string;
@@ -187,10 +187,15 @@ function DroppableCell({
   );
 }
 
-export function TimetableBuilder() {
-  const searchParams = useSearchParams();
-  const schoolId = searchParams.get("schoolId");
-  const [view, setView] = React.useState("Class View");
+export function TimetableDisplay({
+  view: initialView,
+  schoolId,
+}: {
+  view: "class" | "teacher" | "room";
+  schoolId: string;
+}) {
+  const { user } = useAuth();
+  const [view, setView] = React.useState(initialView);
   const [selectedItem, setSelectedItem] = React.useState<string | undefined>();
   const [timetable, setTimetable] = React.useState<TimetableData>({});
   const [allTimetables, setAllTimetables] = React.useState<AllTimetables>({});
@@ -228,7 +233,7 @@ export function TimetableBuilder() {
           name: `${doc.data().name} ${doc.data().stream || ""}`.trim(),
         }));
         setAllClasses(classesData);
-        if (!selectedItem && classesData.length > 0) {
+        if (view === 'class' && !selectedItem && classesData.length > 0) {
           setSelectedItem(classesData[0].id);
         }
       },
@@ -240,10 +245,18 @@ export function TimetableBuilder() {
         where("role", "==", "Teacher"),
       ),
       (snapshot) => {
-        setAllTeachers(snapshot.docs.map((doc) => doc.data().name));
+        const teacherNames = snapshot.docs.map((doc) => doc.data().name);
+        setAllTeachers(teacherNames);
+        if(view === 'teacher' && !selectedItem && user) {
+            setSelectedItem(user.displayName || teacherNames[0]);
+        }
       },
     );
+    
     setAllRooms(["Science Lab", "Room 12A", "Room 10B", "Staff Room"]);
+    if(view === 'room' && !selectedItem){
+        setSelectedItem("Science Lab");
+    }
 
     const unsubPeriods = onSnapshot(
       doc(firestore, `schools/${schoolId}/timetableSettings`, "periods"),
@@ -289,12 +302,12 @@ export function TimetableBuilder() {
       unsubSubjects();
       unsubTimetables();
     };
-  }, [schoolId, selectedItem]);
+  }, [schoolId, selectedItem, view, user]);
 
   React.useEffect(() => {
     if (!selectedItem) return;
 
-    if (view === "Class View") {
+    if (view === "class") {
       setTimetable(allTimetables[selectedItem] || {});
     } else {
       const aggregatedTimetable: TimetableData = {};
@@ -311,11 +324,11 @@ export function TimetableBuilder() {
             if (!lesson || !lesson.subject) return;
             let match = false;
             if (
-              view === "Teacher View" &&
+              view === "teacher" &&
               lesson.subject.teacher === selectedItem
             ) {
               match = true;
-            } else if (view === "Room View" && lesson.room === selectedItem) {
+            } else if (view === "room" && lesson.room === selectedItem) {
               match = true;
             }
             if (match) {
@@ -348,13 +361,13 @@ export function TimetableBuilder() {
     let items: { id: string; name: string }[] | string[] = [];
     let placeholder = `Select ${view.split(" ")[0]}`;
     switch (view) {
-      case "Class View":
+      case "class":
         items = allClasses;
         break;
-      case "Teacher View":
+      case "teacher":
         items = allTeachers;
         break;
-      case "Room View":
+      case "room":
         items = allRooms;
         break;
     }
@@ -410,7 +423,7 @@ export function TimetableBuilder() {
       | DraggableSubjectType
       | undefined;
 
-    if (over && subject && selectedItem && view === "Class View") {
+    if (over && subject && selectedItem && view === "class") {
       const [day, periodIdStr] = over.id.toString().split("-");
       const periodId = parseInt(periodIdStr, 10);
       const periodTime = periods.find((p) => p.id === periodId)?.time;
@@ -436,7 +449,7 @@ export function TimetableBuilder() {
         };
         return newTimetable;
       });
-    } else if (view !== "Class View") {
+    } else if (view !== "class") {
       toast({
         title: "Read-only View",
         description: `You can only edit timetables in "Class View".`,
@@ -446,7 +459,7 @@ export function TimetableBuilder() {
   };
 
   const handleClearCell = (day: string, periodTime: string) => {
-    if (view !== "Class View") return;
+    if (view !== "class") return;
     setTimetable((prev) => {
       const newTimetable = { ...prev };
       if (newTimetable[day] && newTimetable[day][periodTime]) {
@@ -457,7 +470,7 @@ export function TimetableBuilder() {
   };
 
   const handleSave = async () => {
-    if (!selectedItem || !schoolId || view !== "Class View") return;
+    if (!selectedItem || !schoolId || view !== "class") return;
     try {
       const timetableRef = doc(
         firestore,
@@ -556,7 +569,7 @@ export function TimetableBuilder() {
   if (
     !selectedItem &&
     !isLoading &&
-    view === "Class View" &&
+    view === "class" &&
     allClasses.length === 0
   ) {
     return (
@@ -578,7 +591,7 @@ export function TimetableBuilder() {
     );
   }
 
-  if (isLoading || !selectedItem) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -598,7 +611,7 @@ export function TimetableBuilder() {
 
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const selectedName =
-    view === "Class View"
+    view === "class" && selectedItem
       ? allClasses.find((c) => c.id === selectedItem)?.name || selectedItem
       : selectedItem;
 
@@ -611,10 +624,12 @@ export function TimetableBuilder() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <CardTitle>Timetable for {selectedName}</CardTitle>
-                  <CardDescription>
-                    Drag subjects from the right panel and drop them into time
-                    slots.
-                  </CardDescription>
+                  {view === "class" && (
+                    <CardDescription>
+                      Drag subjects from the right panel and drop them into time
+                      slots.
+                    </CardDescription>
+                  )}
                 </div>
                 <div className="flex w-full flex-col sm:flex-row sm:flex-wrap md:w-auto items-center gap-2">
                   <Select defaultValue={currentYear.toString()}>
@@ -631,123 +646,125 @@ export function TimetableBuilder() {
                   </Select>
                   <Select
                     value={view}
-                    onValueChange={(v) => {
+                    onValueChange={(v: 'class' | 'teacher' | 'room') => {
                       setView(v);
-                      if (v === "Class View")
+                      if (v === "class")
                         setSelectedItem(allClasses[0]?.id);
-                      if (v === "Teacher View") setSelectedItem(allTeachers[0]);
-                      if (v === "Room View") setSelectedItem(allRooms[0]);
+                      if (v === "teacher") setSelectedItem(allTeachers[0]);
+                      if (v === "room") setSelectedItem(allRooms[0]);
                     }}
                   >
                     <SelectTrigger className="w-full sm:w-auto">
                       <SelectValue placeholder="Select view" />
                     </SelectTrigger>
                     <SelectContent>
-                      {["Class View", "Teacher View", "Room View"].map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="class">Class View</SelectItem>
+                      <SelectItem value="teacher">Teacher View</SelectItem>
+                      <SelectItem value="room">Room View</SelectItem>
                     </SelectContent>
                   </Select>
                   {renderFilterDropdown()}
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full sm:w-auto">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Define Periods
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-xl">
-                      <DialogHeader>
-                        <DialogTitle>Manage School Day Periods</DialogTitle>
-                        <DialogDescription>
-                          Define the time slots for lessons, breaks, and other
-                          activities. These will apply to all timetables.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="py-4 max-h-[60vh] overflow-y-auto pr-4 space-y-4">
-                        {periods.map((period, index) => {
-                          const [startTime, endTime] = period.time.split(" - ");
-                          return (
-                            <div
-                              key={period.id}
-                              className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-center gap-4 border-b pb-4"
-                            >
-                              <div className="space-y-1.5">
-                                <Label htmlFor={`start-time-${period.id}`}>
-                                  Start Time
-                                </Label>
-                                <Input
-                                  id={`start-time-${period.id}`}
-                                  type="time"
-                                  value={startTime}
-                                  onChange={(e) =>
-                                    updatePeriod(
-                                      period.id,
-                                      "time",
-                                      `${e.target.value} - ${endTime}`,
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label htmlFor={`end-time-${period.id}`}>
-                                  End Time
-                                </Label>
-                                <Input
-                                  id={`end-time-${period.id}`}
-                                  type="time"
-                                  value={endTime}
-                                  onChange={(e) =>
-                                    updatePeriod(
-                                      period.id,
-                                      "time",
-                                      `${startTime} - ${e.target.value}`,
-                                    )
-                                  }
-                                />
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="self-end text-destructive hover:text-destructive"
-                                onClick={() => removePeriod(period.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2">
-                        <Button
-                          variant="outline"
-                          className="w-full sm:w-auto"
-                          onClick={addPeriod}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add New Period
+                  {user?.role === "Admin" && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-auto">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Define Periods
                         </Button>
-                        <DialogClose asChild>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-xl">
+                        <DialogHeader>
+                          <DialogTitle>Manage School Day Periods</DialogTitle>
+                          <DialogDescription>
+                            Define the time slots for lessons, breaks, and other
+                            activities. These will apply to all timetables.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4 max-h-[60vh] overflow-y-auto pr-4 space-y-4">
+                          {periods.map((period, index) => {
+                            const [startTime, endTime] = period.time.split(
+                              " - ",
+                            );
+                            return (
+                              <div
+                                key={period.id}
+                                className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-center gap-4 border-b pb-4"
+                              >
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`start-time-${period.id}`}>
+                                    Start Time
+                                  </Label>
+                                  <Input
+                                    id={`start-time-${period.id}`}
+                                    type="time"
+                                    value={startTime}
+                                    onChange={(e) =>
+                                      updatePeriod(
+                                        period.id,
+                                        "time",
+                                        `${e.target.value} - ${endTime}`,
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`end-time-${period.id}`}>
+                                    End Time
+                                  </Label>
+                                  <Input
+                                    id={`end-time-${period.id}`}
+                                    type="time"
+                                    value={endTime}
+                                    onChange={(e) =>
+                                      updatePeriod(
+                                        period.id,
+                                        "time",
+                                        `${startTime} - ${e.target.value}`,
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="self-end text-destructive hover:text-destructive"
+                                  onClick={() => removePeriod(period.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <DialogFooter className="border-t pt-4 flex-col sm:flex-row gap-2">
                           <Button
-                            variant="secondary"
+                            variant="outline"
                             className="w-full sm:w-auto"
+                            onClick={addPeriod}
                           >
-                            Cancel
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add New Period
                           </Button>
-                        </DialogClose>
-                        <DialogClose asChild>
-                          <Button
-                            className="w-full sm:w-auto"
-                            onClick={handleSavePeriods}
-                          >
-                            Save Periods
-                          </Button>
-                        </DialogClose>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                          <DialogClose asChild>
+                            <Button
+                              variant="secondary"
+                              className="w-full sm:w-auto"
+                            >
+                              Cancel
+                            </Button>
+                          </DialogClose>
+                          <DialogClose asChild>
+                            <Button
+                              className="w-full sm:w-auto"
+                              onClick={handleSavePeriods}
+                            >
+                              Save Periods
+                            </Button>
+                          </DialogClose>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" className="w-full sm:w-auto">
@@ -838,13 +855,13 @@ export function TimetableBuilder() {
                                       <p className="text-xs opacity-80">
                                         {cellData.subject.teacher}
                                       </p>
-                                      {view !== "Class View" && (
+                                      {view !== "class" && (
                                         <p className="text-xs opacity-80 mt-1">
                                           @{cellData.className}
                                         </p>
                                       )}
                                     </div>
-                                    {view === "Class View" && (
+                                    {view === "class" && (
                                       <div className="text-right">
                                         <Dialog>
                                           <DialogTrigger asChild>
@@ -947,7 +964,7 @@ export function TimetableBuilder() {
                 </div>
               )}
             </CardContent>
-            <CardFooter className="flex justify-end gap-2">
+            {view === 'class' && <CardFooter className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setTimetable({})}>
                 Clear Timetable
               </Button>
@@ -981,10 +998,10 @@ export function TimetableBuilder() {
                 <Save className="mr-2 h-4 w-4" />
                 Save Timetable
               </Button>
-            </CardFooter>
+            </CardFooter>}
           </Card>
         </div>
-        <div className="lg:col-span-1">
+        {view === 'class' && <div className="lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle>Available Subjects</CardTitle>
@@ -1059,7 +1076,7 @@ export function TimetableBuilder() {
               </Dialog>
             </CardContent>
           </Card>
-        </div>
+        </div>}
       </div>
     </DndContext>
   );
