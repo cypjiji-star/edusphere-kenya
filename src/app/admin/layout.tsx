@@ -8,7 +8,7 @@ import {
 import { AdminSidebar } from "./admin-sidebar";
 import { Suspense } from "react";
 import { AuthCheck } from "@/lib/auth-check";
-import { FloatingChatWidget } from "@/components/layout/support-widget-client";
+import { FloatingSupportWidget } from "@/components/layout/support-widget-client";
 
 export default function AdminLayout({
   children,
@@ -28,7 +28,7 @@ export default function AdminLayout({
             <SidebarTrigger />
             {children}
             <Suspense>
-              <FloatingChatWidget />
+              <FloatingSupportWidget />
             </Suspense>
           </main>
         </SidebarInset>

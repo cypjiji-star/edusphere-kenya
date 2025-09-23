@@ -7,23 +7,7 @@ import {
 import { ParentSidebar } from "./parent-sidebar";
 import { Suspense } from "react";
 import { AuthCheck } from "@/lib/auth-check";
-import dynamic from "next/dynamic";
-import { Loader2 } from "lucide-react";
-
-const FloatingSupportWidget = dynamic(
-  () =>
-    import("@/components/layout/floating-support-widget").then(
-      (mod) => mod.FloatingSupportWidget,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="fixed bottom-6 right-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary shadow-lg">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    ),
-  },
-);
+import { FloatingSupportWidget } from "@/components/layout/support-widget-client";
 
 export default function ParentLayout({
   children,
