@@ -530,7 +530,32 @@ export default function AdminHealthPage() {
                                                     <FormField control={form.control} name="incidentTime" render={({ field }) => ( <FormItem> <FormLabel>Time</FormLabel> <FormControl> <Input type="time" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                                                 </div>
                                                 <FormField control={form.control} name="location" render={({ field }) => ( <FormItem> <FormLabel>Location</FormLabel> <FormControl> <Input placeholder="e.g., Science Lab, Playground" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
-                                                <FormField control={form.control} name="urgency" render={({ field }) => ( <FormItem> <FormLabel>Urgency Level</FormLabel> <FormControl> <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"> {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => ( <FormItem key={level} className="flex items-center space-x-2 space-y-0"> <FormControl> <RadioGroupItem value={level} id={`urgency-admin-${level}`} /> </FormControl> <Label htmlFor={`urgency-admin-${level}`} className="font-normal"> <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge> </Label> </FormItem> ))} </RadioGroup> </FormControl> <FormMessage /> </FormItem> )}/>
+                                                <FormField
+                                                  control={form.control}
+                                                  name="urgency"
+                                                  render={({ field }) => (
+                                                    <FormItem>
+                                                      <FormLabel>Urgency Level</FormLabel>
+                                                      <RadioGroup
+                                                        onValueChange={field.onChange}
+                                                        defaultValue={field.value}
+                                                        className="flex space-x-4"
+                                                      >
+                                                        {(['Low', 'Medium', 'High', 'Critical'] as const).map(level => (
+                                                          <FormItem key={level} className="flex items-center space-x-2 space-y-0">
+                                                            <FormControl>
+                                                              <RadioGroupItem value={level} id={`urgency-admin-${level}`} />
+                                                            </FormControl>
+                                                            <Label htmlFor={`urgency-admin-${level}`} className="font-normal">
+                                                              <Badge className={cn(getUrgencyBadge(level))}>{level}</Badge>
+                                                            </Label>
+                                                          </FormItem>
+                                                        ))}
+                                                      </RadioGroup>
+                                                      <FormMessage />
+                                                    </FormItem>
+                                                  )}
+                                                />
                                             </div>
                                             <div className="space-y-6">
                                                 <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Detailed Description</FormLabel> <FormControl> <Textarea placeholder="Describe the condition, diagnosis, or incident..." className="min-h-[120px]" {...field}/> </FormControl> <FormMessage /> </FormItem> )}/>
