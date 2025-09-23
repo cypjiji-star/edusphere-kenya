@@ -671,14 +671,16 @@ export default function MyLibraryPage() {
                 <div className="space-y-2">
                   <Label>Select Book</Label>
                   <Combobox
-                    options={borrowedItems.map((item) => ({
-                      value: item.id,
-                      label: `${item.title} (${item.quantity} available)`,
-                    }))}
+                    options={borrowedItems
+                      .filter((item) => item.quantity > 0)
+                      .map((item) => ({
+                        value: item.id,
+                        label: `${item.title} (${item.quantity} available)`,
+                      }))}
                     value={selectedBookForAssignment}
                     onValueChange={setSelectedBookForAssignment}
                     placeholder="Select a borrowed book..."
-                    emptyMessage="No borrowed books."
+                    emptyMessage="No available books."
                   />
                 </div>
                 <Button

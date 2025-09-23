@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -207,6 +208,7 @@ export default function UserManagementListPage() {
   const [newUserPhone, setNewUserPhone] = React.useState("");
   const [newUserStartYear, setNewUserStartYear] = React.useState("");
   const [newUserSalary, setNewUserSalary] = React.useState("");
+  const [isCreateUserOpen, setIsCreateUserOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!schoolId) {
@@ -329,6 +331,7 @@ export default function UserManagementListPage() {
         setNewUserPhone("");
         setNewUserStartYear("");
         setNewUserSalary("");
+        setIsCreateUserOpen(false);
       } else {
         throw new Error(result.message);
       }
@@ -508,9 +511,7 @@ export default function UserManagementListPage() {
                             {user.name?.slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium bg-muted dark:bg-transparent px-2 py-1 rounded-md">
-                          {user.name}
-                        </span>
+                        <span className="font-medium">{user.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -674,6 +675,7 @@ export default function UserManagementListPage() {
                       type="button"
                       variant="destructive"
                       className="w-full sm:w-auto"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete User Account
@@ -740,7 +742,7 @@ export default function UserManagementListPage() {
               </CardDescription>
             </div>
             <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-              <Dialog>
+              <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
                 <DialogTrigger asChild>
                   <Button>
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -799,63 +801,43 @@ export default function UserManagementListPage() {
                         onChange={(e) => setNewUserPassword(e.target.value)}
                       />
                     </div>
-
-                    {(newUserRole === "Teacher" || newUserRole === "Admin") && (
-                      <>
-                        <Separator />
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="phone-create">Phone Number</Label>
-                            <Input
-                              id="phone-create"
-                              type="tel"
-                              placeholder="Optional"
-                              value={newUserPhone}
-                              onChange={(e) => setNewUserPhone(e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="start-year-create">
-                              Year Started
-                            </Label>
-                            <Input
-                              id="start-year-create"
-                              type="number"
-                              placeholder="Optional"
-                              value={newUserStartYear}
-                              onChange={(e) =>
-                                setNewUserStartYear(e.target.value)
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="salary-create">Salary (KES)</Label>
-                          <Input
-                            id="salary-create"
-                            type="number"
-                            placeholder="Optional"
-                            value={newUserSalary}
-                            onChange={(e) => setNewUserSalary(e.target.value)}
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {newUserRole === "Teacher" && (
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Assign Classes</Label>
-                        {/* <MultiSelect
-                          options={classes.map((c) => ({
-                            value: c.id,
-                            label: c.name,
-                          }))}
-                          selected={newUserClasses}
-                          onChange={setNewUserClasses}
-                          placeholder="Select classes..."
-                        /> */}
+                        <Label htmlFor="phone-create">Phone Number</Label>
+                        <Input
+                          id="phone-create"
+                          type="tel"
+                          placeholder="Optional"
+                          value={newUserPhone}
+                          onChange={(e) => setNewUserPhone(e.target.value)}
+                        />
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        <Label htmlFor="start-year-create">
+                          Year Started
+                        </Label>
+                        <Input
+                          id="start-year-create"
+                          type="number"
+                          placeholder="Optional"
+                          value={newUserStartYear}
+                          onChange={(e) =>
+                            setNewUserStartYear(e.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="salary-create">Salary (KES)</Label>
+                      <Input
+                        id="salary-create"
+                        type="number"
+                        placeholder="Optional"
+                        value={newUserSalary}
+                        onChange={(e) => setNewUserSalary(e.target.value)}
+                      />
+                    </div>
                   </div>
                   <DialogFooter>
                     <DialogClose asChild>
@@ -863,14 +845,12 @@ export default function UserManagementListPage() {
                         Cancel
                       </Button>
                     </DialogClose>
-                    <DialogClose asChild>
-                      <Button onClick={handleCreateUser} disabled={isSaving}>
-                        {isSaving && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Create User Account
-                      </Button>
-                    </DialogClose>
+                    <Button onClick={handleCreateUser} disabled={isSaving}>
+                      {isSaving && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Create User Account
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -1056,12 +1036,11 @@ export default function UserManagementListPage() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="all">All Users</TabsTrigger>
               <TabsTrigger value="Teacher">Teachers</TabsTrigger>
               <TabsTrigger value="Parent">Parents</TabsTrigger>
               <TabsTrigger value="Admin">Admins</TabsTrigger>
-              <TabsTrigger value="Student">Students</TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="mt-4">
               {isLoading ? (
@@ -1097,15 +1076,6 @@ export default function UserManagementListPage() {
                 </div>
               ) : (
                 renderUserTable("Admin")
-              )}
-            </TabsContent>
-            <TabsContent value="Student" className="mt-4">
-              {isLoading ? (
-                <div className="flex h-64 items-center justify-center">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
-              ) : (
-                renderUserTable("Student")
               )}
             </TabsContent>
           </Tabs>

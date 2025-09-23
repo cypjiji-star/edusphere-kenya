@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -122,13 +123,13 @@ export default function StudentManagementPage() {
       filtered = filtered.filter(
         (s) =>
           s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          s.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase())
+          (s.admissionNumber && s.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
     if (classFilter !== "All Classes") {
       const selectedClass = classes.find(c => c.name === classFilter);
       if (selectedClass) {
-          filtered = filtered.filter((s) => s.class.startsWith(selectedClass.name));
+          filtered = filtered.filter((s) => s.class && s.class.startsWith(selectedClass.name));
       }
     }
     return filtered;
