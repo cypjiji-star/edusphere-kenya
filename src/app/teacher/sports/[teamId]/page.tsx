@@ -369,9 +369,9 @@ export default function TeamDetailsPage({
           </div>
           <div className="flex w-full md:w-auto items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href={`/teacher/sports?schoolId=${schoolId}`}>
+              <Link href={`/admin/sports?schoolId=${schoolId}`}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to My Teams
+                Back to All Teams
               </Link>
             </Button>
           </div>
