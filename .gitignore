@@ -38,3 +38,6 @@ serviceAccountKey.json
 # Environment Variables
 .env
 .env*.local
+.env*
+firebase-service-account.json
+stripe-keys.js
