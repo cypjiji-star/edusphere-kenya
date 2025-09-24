@@ -322,67 +322,21 @@ export default function BrandingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-6">
-                  <div className="space-y-2">
-                    <Label>School Logo</Label>
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={logoUrl} />
-                        <AvatarFallback>SL</AvatarFallback>
-                      </Avatar>
-                      <Button asChild variant="outline" className="w-full">
-                        <Label htmlFor="logo-upload" className="cursor-pointer">
-                          {isUploadingLogo ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                              Uploading...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="mr-2 h-4 w-4" />
-                              Upload New Logo
-                            </>
-                          )}
-                        </Label>
-                      </Button>
-                      <Input
-                        id="logo-upload"
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleLogoChange}
-                        disabled={isUploadingLogo}
-                      />
-                    </div>
-                    <FormDescription>
-                      Recommended format: PNG or SVG.
-                    </FormDescription>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Login Page Cover Image</Label>
-                    <Card className="overflow-hidden w-full">
-                      <CardContent className="p-0">
-                        <div className="relative aspect-video w-full">
-                          <Image
-                            src={coverImageUrl}
-                            alt="Cover Image Preview"
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      </CardContent>
-                      <CardFooter className="p-2 bg-muted/50">
-                        <Button
-                          asChild
-                          variant="secondary"
-                          size="sm"
-                          className="w-full"
-                        >
+                <Form {...form}>
+                  <form className="space-y-6">
+                    <div className="space-y-2">
+                      <Label>School Logo</Label>
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-16 w-16">
+                          <AvatarImage src={logoUrl} />
+                          <AvatarFallback>SL</AvatarFallback>
+                        </Avatar>
+                        <Button asChild variant="outline" className="w-full">
                           <Label
-                            htmlFor="cover-image-upload"
+                            htmlFor="logo-upload"
                             className="cursor-pointer"
                           >
-                            {isUploadingCover ? (
+                            {isUploadingLogo ? (
                               <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
                                 Uploading...
@@ -390,27 +344,78 @@ export default function BrandingPage() {
                             ) : (
                               <>
                                 <Upload className="mr-2 h-4 w-4" />
-                                Upload New Cover Image
+                                Upload New Logo
                               </>
                             )}
                           </Label>
                         </Button>
                         <Input
-                          id="cover-image-upload"
+                          id="logo-upload"
                           type="file"
                           className="hidden"
                           accept="image/*"
-                          onChange={handleCoverImageChange}
-                          disabled={isUploadingCover}
+                          onChange={handleLogoChange}
+                          disabled={isUploadingLogo}
                         />
-                      </CardFooter>
-                    </Card>
-                    <FormDescription>
-                      This image is shown on the dashboard login page
-                      (1920x1080px recommended).
-                    </FormDescription>
-                  </div>
-                </form>
+                      </div>
+                      <FormDescription>
+                        Recommended format: PNG or SVG.
+                      </FormDescription>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Login Page Cover Image</Label>
+                      <Card className="overflow-hidden w-full">
+                        <CardContent className="p-0">
+                          <div className="relative aspect-video w-full">
+                            <Image
+                              src={coverImageUrl}
+                              alt="Cover Image Preview"
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        </CardContent>
+                        <CardFooter className="p-2 bg-muted/50">
+                          <Button
+                            asChild
+                            variant="secondary"
+                            size="sm"
+                            className="w-full"
+                          >
+                            <Label
+                              htmlFor="cover-image-upload"
+                              className="cursor-pointer"
+                            >
+                              {isUploadingCover ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="mr-2 h-4 w-4" />
+                                  Upload New Cover Image
+                                </>
+                              )}
+                            </Label>
+                          </Button>
+                          <Input
+                            id="cover-image-upload"
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleCoverImageChange}
+                            disabled={isUploadingCover}
+                          />
+                        </CardFooter>
+                      </Card>
+                      <FormDescription>
+                        This image is shown on the dashboard login page
+                        (1920x1080px recommended).
+                      </FormDescription>
+                    </div>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
             <div className="space-y-6">
