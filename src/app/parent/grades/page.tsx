@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -354,8 +355,8 @@ export default function ParentGradesPage() {
         const studentTotals: Record<string, { total: number; count: number }> =
           {};
 
-        for (const doc of allGradesSnapshot.docs) {
-          const data = doc.data();
+        for (const gradeDoc of allGradesSnapshot.docs) {
+          const data = gradeDoc.data();
           const examSnap = await getDoc(
             doc(firestore, "schools", schoolId, "exams", data.examId),
           );
