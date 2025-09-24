@@ -1,5 +1,13 @@
 {
-  "functions": {
-    "source": "campushub-genkit"
+    "functions": {
+      "source": "campushub-genkit"
+    },
+    "hosting": {
+      "rewrites": [
+        {
+          "source": "**",
+          "function": "app"
+        }
+      ]
+    }
   }
-}
