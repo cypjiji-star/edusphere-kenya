@@ -1,6 +1,4 @@
 
-import type { NextConfig } from "next";
-
 const withPWA = require("@ducanh2912/next-pwa").default({
   dest: "public",
   cacheOnFrontEndNav: true,
@@ -46,7 +44,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   },
 });
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
   typescript: { ignoreBuildErrors: false },
   eslint: { ignoreDuringBuilds: true },
@@ -66,4 +65,4 @@ const nextConfig: NextConfig = {
   // ✅ Removed output: 'export' to support dynamic pages
 };
 
-export default withPWA(nextConfig);
+module.exports = withPWA(nextConfig);
