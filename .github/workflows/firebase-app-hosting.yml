@@ -22,10 +22,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
+      - name: Install root dependencies
         run: npm install
 
-      - name: Build application
+      - name: Install backend dependencies
+        run: cd campushub-genkit && npm install
+
+      - name: Build application (Frontend & Backend)
         run: npm run build
         
       - name: Authenticate with Google Cloud
