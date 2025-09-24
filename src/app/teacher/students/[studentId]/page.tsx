@@ -10,16 +10,14 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, Phone, Users, History, FileText } from "lucide-react";
+import { ArrowLeft, User, Phone, Users, History, FileText, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import React, { useEffect, useState } from "react";
 import { firestore } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
-
-export const dynamicParams = false;
 
 type StudentData = {
   id: string;
@@ -40,19 +38,20 @@ type StudentData = {
 export default function StudentProfilePage({
   params,
 }: {
-  params: Promise<{ studentId: string }>;
+  params: { studentId: string };
 }) {
-  const { studentId } = React.use(params);
+  const { studentId } = params;
   const searchParams = useSearchParams();
   const schoolId = searchParams.get("schoolId");
   const [student, setStudent] = useState<StudentData | null>(null);
-  const [formattedDob, setFormattedDob] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [clientReady, setClientReady] = useState(false);
 
   useEffect(() => {
     setClientReady(true);
     if (schoolId && studentId) {
       const getStudentData = async () => {
+        setIsLoading(true);
         const studentRef = doc(
           firestore,
           "schools",
@@ -63,6 +62,14 @@ export default function StudentProfilePage({
         const docSnap = await getDoc(studentRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
+          const dob = data.dateOfBirth
+            ? (data.dateOfBirth as Timestamp).toDate().toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })
+            : "N/A";
+
           setStudent({
             id: docSnap.id,
             name: data.name,
@@ -71,7 +78,7 @@ export default function StudentProfilePage({
             avatarUrl:
               data.avatarUrl || `https://picsum.photos/seed/${docSnap.id}/100`,
             overallGrade: "78%", // Placeholder
-            dateOfBirth: data.dateOfBirth?.toDate().toISOString() || "",
+            dateOfBirth: dob,
             studentContact: data.phone || "N/A",
             guardian: {
               name: data.parentName || "N/A",
@@ -79,22 +86,20 @@ export default function StudentProfilePage({
               contact: data.parentPhone || "N/A",
             },
           });
-          if (data.dateOfBirth) {
-            setFormattedDob(
-              data.dateOfBirth
-                .toDate()
-                .toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                }),
-            );
-          }
         }
+        setIsLoading(false);
       };
       getStudentData();
     }
   }, [studentId, schoolId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!student) {
     return (
@@ -178,7 +183,7 @@ export default function StudentProfilePage({
                   <p className="font-medium text-muted-foreground">
                     Date of Birth
                   </p>
-                  <p>{clientReady ? formattedDob : ""}</p>
+                  <p>{clientReady ? student.dateOfBirth : ""}</p>
                 </div>
                 <div>
                   <p className="font-medium text-muted-foreground">
