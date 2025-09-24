@@ -14,32 +14,40 @@ jobs:
       id-token: write
     
     steps:
+      # 1. Checkout your code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Setup Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # 3. Install dependencies
       - name: Install root dependencies
         run: npm install
 
       - name: Install backend dependencies
         run: cd campushub-genkit && npm install
 
-      - name: Build application (Frontend & Backend)
+      # 4. Build frontend & backend
+      - name: Build application
         run: npm run build
         
+      # 5. Authenticate with Google Cloud
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
           service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
 
-      - name: Deploy to Firebase App Hosting
-        uses: firebase/actions/setup-gcloud@v0
+      # 6. Setup gcloud CLI
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ vars.PROJECT_ID }}
-          
-      - run: gcloud apphosting backends deploy ${{ vars.BACKEND_ID }} --source=.
+
+      # 7. Deploy to Firebase App Hosting
+      - name: Deploy backend
+        run: gcloud apphosting backends deploy ${{ vars.BACKEND_ID }} --source=.
