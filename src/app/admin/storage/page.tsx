@@ -60,6 +60,7 @@ import {
   updateDoc,
   deleteDoc,
   runTransaction,
+  where,
 } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
