@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -128,6 +127,13 @@ type TeacherClass = {
   name: string;
 };
 
+type Child = {
+    id: string;
+    name: string;
+    class: string;
+    classId: string;
+}
+
 export default function MyLibraryPage() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get("schoolId");
@@ -162,12 +168,13 @@ export default function MyLibraryPage() {
   const [studentMap, setStudentMap] = React.useState<
     Record<string, { className: string }>
   >({});
+  
+  const parentId = user?.uid;
 
   React.useEffect(() => {
+    setClientReady(true);
     if (!schoolId || !user) return;
     const teacherId = user.uid;
-
-    setClientReady(true);
 
     const borrowedQuery = query(
       collection(
@@ -559,294 +566,93 @@ export default function MyLibraryPage() {
           My Library
         </h1>
         <p className="text-muted-foreground">
-          Manage your borrowed books, reservations, and view your borrowing
-          history.
+          View your child's library activity, including borrowed books and assignments.
         </p>
       </div>
 
-      <Tabs defaultValue="borrowed" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-flex">
-          <TabsTrigger value="borrowed">Currently Borrowed</TabsTrigger>
+    <div className="flex items-center gap-2 mb-6">
+        <User className="h-5 w-5 text-primary" />
+        <Select value={selectedChild} onValueChange={setSelectedChild}>
+            <SelectTrigger className="w-full md:w-[240px]">
+            <SelectValue placeholder="Select a child" />
+            </SelectTrigger>
+            <SelectContent>
+            {childrenData.map((child) => (
+                <SelectItem key={child.id} value={child.id}>
+                {child.name}
+                </SelectItem>
+            ))}
+            </SelectContent>
+        </Select>
+    </div>
+
+      <Tabs defaultValue="assignments" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="assignments">Student Assignments</TabsTrigger>
-          <TabsTrigger value="history">Borrowing History</TabsTrigger>
           <TabsTrigger value="requests">My Requests</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="borrowed" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Currently Borrowed Items</CardTitle>
-              <CardDescription>
-                These are the items you have checked out from the library.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {borrowedItems.length > 0 ? (
-                <div className="space-y-4">
-                  {borrowedItems.map((item) => (
-                    <Card key={item.id}>
-                      <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                          <div className="font-semibold">
-                            {item.title}{" "}
-                            <Badge variant="secondary">
-                              {item.quantity} copies
-                            </Badge>
-                          </div>
-                          {clientReady && (
-                            <p className="text-sm text-muted-foreground">
-                              Borrowed:{" "}
-                              {item.borrowedDate.toDate().toLocaleDateString()}{" "}
-                              | Due:{" "}
-                              {item.dueDate.toDate().toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRenew(item)}
-                        >
-                          <RotateCw className="mr-2 h-4 w-4" />
-                          Renew
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                  <div className="text-center">
-                    <Book className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">
-                      No Borrowed Items
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      You have not borrowed any items from the library.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="assignments" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Assign Books to Students</CardTitle>
+              <CardTitle>Assigned Books</CardTitle>
               <CardDescription>
-                Distribute the books you have borrowed to students in your
-                class.
+                Books assigned to your child by their teachers.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
-                <div className="space-y-2">
-                  <Label>Select Class</Label>
-                  <Combobox
-                    options={teacherClasses.map((c) => ({
-                      value: c.id,
-                      label: c.name,
-                    }))}
-                    value={selectedClassForAssignment}
-                    onValueChange={setSelectedClassForAssignment}
-                    placeholder="Select a class..."
-                    emptyMessage="No classes found."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Select Student</Label>
-                  <Combobox
-                    options={filteredStudentsForAssignment.map((student) => ({
-                      value: student.id,
-                      label: student.name,
-                    }))}
-                    value={selectedStudentForAssignment}
-                    onValueChange={setSelectedStudentForAssignment}
-                    placeholder="Select a student..."
-                    emptyMessage="No students in this class."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Select Book</Label>
-                  <Combobox
-                    options={borrowedItems
-                      .filter((item) => item.quantity > 0)
-                      .map((item) => ({
-                        value: item.id,
-                        label: `${item.title} (${item.quantity} available)`,
-                      }))}
-                    value={selectedBookForAssignment}
-                    onValueChange={setSelectedBookForAssignment}
-                    placeholder="Select a borrowed book..."
-                    emptyMessage="No available books."
-                  />
-                </div>
-                <Button
-                  onClick={handleAssignBook}
-                  className="self-end"
-                  disabled={
-                    !selectedBookForAssignment || !selectedStudentForAssignment
-                  }
-                >
-                  <Users className="mr-2 h-4 w-4" />
-                  Assign to Student
-                </Button>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="font-semibold mb-2">Current Assignments</h3>
-                {isAssignmentsLoading ? (
-                  <div className="flex items-center justify-center p-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
-                ) : Object.keys(groupedAssignments).length > 0 ? (
-                  <Accordion type="single" collapsible className="w-full">
-                    {Object.entries(groupedAssignments).map(
-                      ([className, books]) => (
-                        <AccordionItem key={className} value={className}>
-                          <AccordionTrigger className="text-lg font-semibold">
-                            {className}
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            <Accordion
-                              type="single"
-                              collapsible
-                              className="w-full pl-4"
-                            >
-                              {Object.entries(books).map(
-                                ([bookTitle, assignments]) => (
-                                  <AccordionItem
-                                    key={bookTitle}
-                                    value={bookTitle}
-                                  >
-                                    <AccordionTrigger>
-                                      {bookTitle} ({assignments.length} copies
-                                      assigned)
-                                    </AccordionTrigger>
-                                    <AccordionContent>
-                                      <Table>
-                                        <TableHeader>
-                                          <TableRow>
-                                            <TableHead>Student</TableHead>
-                                            <TableHead>Date Assigned</TableHead>
-                                            <TableHead className="text-right">
-                                              Status
-                                            </TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {assignments.map((assignment) => (
-                                            <TableRow key={assignment.id}>
-                                              <TableCell>
-                                                {assignment.studentName}
-                                              </TableCell>
-                                              <TableCell>
-                                                {clientReady
-                                                  ? assignment.assignedDate
-                                                      ?.toDate()
-                                                      .toLocaleDateString()
-                                                  : ""}
-                                              </TableCell>
-                                              <TableCell className="text-right">
-                                                {assignment.status ===
-                                                "Assigned" ? (
-                                                  <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                      handleConfirmReturn(
-                                                        assignment,
-                                                      )
-                                                    }
-                                                  >
-                                                    Confirm Return
-                                                  </Button>
-                                                ) : (
-                                                  <Badge
-                                                    variant="default"
-                                                    className="bg-green-600"
-                                                  >
-                                                    Returned
-                                                  </Badge>
-                                                )}
-                                              </TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                    </AccordionContent>
-                                  </AccordionItem>
-                                ),
-                              )}
-                            </Accordion>
-                          </AccordionContent>
-                        </AccordionItem>
-                      ),
-                    )}
-                  </Accordion>
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    <p>No books have been assigned to students yet.</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="history" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Borrowing History</CardTitle>
-                <CardDescription>
-                  A log of all the items you have previously borrowed.
-                </CardDescription>
-              </div>
-              <Button variant="outline" onClick={handlePrintHistory}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print History
-              </Button>
-            </CardHeader>
             <CardContent>
-              {isHistoryLoading ? (
-                <div className="flex h-40 items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              {isAssignmentsLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
-              ) : historyItems.length > 0 ? (
-                <div className="space-y-4">
-                  {historyItems.map((item) => (
-                    <Card key={item.id} className="bg-muted/50">
-                      <CardContent className="p-4">
-                        <div className="font-semibold">{item.title}</div>
-                        {clientReady &&
-                          item.borrowedDate &&
-                          item.returnedDate && (
-                            <p className="text-sm text-muted-foreground">
-                              Borrowed:{" "}
-                              {item.borrowedDate.toDate().toLocaleDateString()}{" "}
-                              | Returned:{" "}
-                              {item.returnedDate.toDate().toLocaleDateString()}
-                            </p>
-                          )}
-                      </CardContent>
-                    </Card>
-                  ))}
+              ) : studentAssignments.length > 0 ? (
+                <div className="w-full overflow-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Book Title</TableHead>
+                        <TableHead>Assigned By</TableHead>
+                        <TableHead>Date Assigned</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {studentAssignments.map((assignment) => (
+                        <TableRow key={assignment.id}>
+                          <TableCell>{assignment.bookTitle}</TableCell>
+                          <TableCell>{assignment.teacherName}</TableCell>
+                          <TableCell>
+                            {clientReady
+                              ? assignment.assignedDate
+                                  ?.toDate()
+                                  .toLocaleDateString()
+                              : ""}
+                          </TableCell>
+                          <TableCell className="text-right">
+                          <Badge
+                            variant={
+                              assignment.status === "Assigned"
+                                ? "secondary"
+                                : "default"
+                            }
+                            className={
+                              assignment.status === "Returned"
+                                ? "bg-green-600"
+                                : ""
+                            }
+                          >
+                            {assignment.status}
+                          </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
-                <div className="flex min-h-[200px] items-center justify-center rounded-lg border-2 border-dashed border-muted">
-                  <div className="text-center">
-                    <History className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">No History</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Your borrowing history is empty.
-                    </p>
+                 <div className="text-center text-muted-foreground py-8">
+                    <p>No books have been assigned to your child yet.</p>
                   </div>
-                </div>
               )}
             </CardContent>
           </Card>
@@ -950,4 +756,3 @@ export default function MyLibraryPage() {
     </div>
   );
 }
-
