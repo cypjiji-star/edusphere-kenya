@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -26,6 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -98,7 +103,7 @@ const getStatusBadge = (status: StudentFeeInfo["status"]) => {
       return <Badge className="bg-green-600 hover:bg-green-700">Paid</Badge>;
     case "Partial":
       return (
-        <Badge className="bg-blue-500 hover:bg-blue-600">Partial Payment</Badge>
+        <Badge className="bg-blue-500 hover:bg-blue-500">Partial Payment</Badge>
       );
     case "Overdue":
       return <Badge variant="destructive">Overdue</Badge>;
