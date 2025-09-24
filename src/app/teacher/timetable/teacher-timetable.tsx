@@ -17,9 +17,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { User, Loader2 } from "lucide-react";
 import { firestore } from "@/lib/firebase";
-import { collection, query, onSnapshot, doc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
 
 type Lesson = {
@@ -28,6 +35,7 @@ type Lesson = {
 };
 type TimetableData = Record<string, Record<string, Lesson>>;
 type Period = { id: number; time: string; isBreak?: boolean; title?: string };
+type Child = { id: string; name: string; classId: string };
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
