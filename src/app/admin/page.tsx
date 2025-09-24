@@ -98,7 +98,7 @@ const activityCategoryLinks: Record<string, string> = {
   Registration: "/admin/enrolment",
   Grades: "/admin/grades",
   Attendance: "/admin/attendance",
-  Academics: "/admin/lesson-plans",
+  Academics: "/teacher/assignments",
   Comms: "/admin/announcements",
   Security: "/admin/logs",
   Finance: "/admin/fees",
@@ -307,7 +307,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div>
+    <div className="p-4 md:p-6 lg:p-8">
       <Card className="mb-8 overflow-hidden">
         <CardHeader className="bg-muted/30">
           <CardTitle className="font-headline text-3xl font-bold text-primary flex items-center gap-3">

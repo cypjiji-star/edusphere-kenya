@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -84,6 +85,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
 type DraggableSubjectType = {
   name: string;
@@ -190,6 +192,7 @@ function DroppableCell({
 export function TimetableBuilder() {
   const searchParams = useSearchParams();
   const schoolId = searchParams.get("schoolId");
+  const { user } = useAuth();
   const [view, setView] = React.useState("Class View");
   const [selectedItem, setSelectedItem] = React.useState<string | undefined>();
   const [timetable, setTimetable] = React.useState<TimetableData>({});
@@ -228,7 +231,7 @@ export function TimetableBuilder() {
           name: `${doc.data().name} ${doc.data().stream || ""}`.trim(),
         }));
         setAllClasses(classesData);
-        if (!selectedItem && classesData.length > 0) {
+        if (view === "Class View" && !selectedItem && classesData.length > 0) {
           setSelectedItem(classesData[0].id);
         }
       },
@@ -240,10 +243,18 @@ export function TimetableBuilder() {
         where("role", "==", "Teacher"),
       ),
       (snapshot) => {
-        setAllTeachers(snapshot.docs.map((doc) => doc.data().name));
+        const teacherNames = snapshot.docs.map((doc) => doc.data().name);
+        setAllTeachers(teacherNames);
+        if (view === "Teacher View" && user && !selectedItem) {
+          setSelectedItem(user.displayName || teacherNames[0]);
+        }
       },
     );
+
     setAllRooms(["Science Lab", "Room 12A", "Room 10B", "Staff Room"]);
+    if (view === "Room View" && !selectedItem) {
+      setSelectedItem("Science Lab");
+    }
 
     const unsubPeriods = onSnapshot(
       doc(firestore, `schools/${schoolId}/timetableSettings`, "periods"),
@@ -289,7 +300,7 @@ export function TimetableBuilder() {
       unsubSubjects();
       unsubTimetables();
     };
-  }, [schoolId]);
+  }, [schoolId, view, user, selectedItem]);
 
   React.useEffect(() => {
     if (!selectedItem) return;
@@ -611,10 +622,12 @@ export function TimetableBuilder() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <CardTitle>Timetable for {selectedName}</CardTitle>
-                  <CardDescription>
-                    Drag subjects from the right panel and drop them into time
-                    slots.
-                  </CardDescription>
+                  {view === "Class View" && (
+                    <CardDescription>
+                      Drag subjects from the right panel and drop them into time
+                      slots.
+                    </CardDescription>
+                  )}
                 </div>
                 <div className="flex w-full flex-col sm:flex-row sm:flex-wrap md:w-auto items-center gap-2">
                   <Select defaultValue={currentYear.toString()}>

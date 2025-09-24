@@ -11,26 +11,17 @@ import { AdminSidebar } from "./admin-sidebar";
 import { Suspense } from "react";
 import { AuthCheck } from "@/lib/auth-check";
 import { FloatingChatWidget } from "./floating-chat-widget";
-import { usePathname } from "next/navigation";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  // Don't apply admin layout to sub-pages that have their own layout
-  if (pathname.includes("/admin/timetable")) {
-    return <Suspense>{children}</Suspense>;
-  }
-
   return (
     <AuthCheck requiredRole="admin">
       <SidebarProvider>
         <Sidebar>
-          <Suspense>
-            <AdminSidebar />
-          </Suspense>
+          <AdminSidebar />
         </Sidebar>
         <SidebarInset className="h-screen max-h-screen overflow-hidden p-2">
           <main className="relative h-full w-full overflow-auto rounded-xl shadow bg-background">
