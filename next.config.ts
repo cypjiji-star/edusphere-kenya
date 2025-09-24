@@ -1,3 +1,4 @@
+
 import type { NextConfig } from "next";
 
 const withPWA = require("@ducanh2912/next-pwa").default({
@@ -57,7 +58,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.unsplash.com", port: "", pathname: "/**" },
       { protocol: "https", hostname: "picsum.photos", port: "", pathname: "/**" },
       { protocol: "https", hostname: "i.ibb.co", port: "", pathname: "/**" },
-      { protocol: "https," hostname: "i.postimg.cc", port: "", pathname: "/**" },
+      { protocol: "https", hostname: "i.postimg.cc", port: "", pathname: "/**" },
     ],
   },
 
