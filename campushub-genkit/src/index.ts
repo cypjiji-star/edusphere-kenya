@@ -8,6 +8,8 @@
  */
 
 import { setGlobalOptions } from "firebase-functions";
+import { onRequest } from "firebase-functions/v2/https";
+import { resolve } from "path";
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -24,7 +26,12 @@ import { setGlobalOptions } from "firebase-functions";
 // this will be the maximum concurrent request count.
 setGlobalOptions({ maxInstances: 10 });
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+export const app = onRequest(
+  {
+    // The location of the Next.js app is relative to the functions directory.
+    // The functions directory is `campushub-genkit` in this project.
+    // The Next.js app is in the parent directory, so we use `..`.
+    // It's important that this points to the `.next` directory.
+    app: resolve(__dirname, "..", ".next"),
+  },
+);
