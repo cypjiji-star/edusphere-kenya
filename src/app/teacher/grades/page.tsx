@@ -208,7 +208,7 @@ export default function TeacherGradesPage() {
     setIsLoading((prev) => ({ ...prev, students: true }));
     try {
       const studentsQuery = query(
-        collection(firestore, `schools/${schoolId}/users`),
+        collection(firestore, "schools", schoolId, "users"),
         where("role", "==", "Student"),
         where("classId", "==", selectedClassId),
         orderBy("name"),
