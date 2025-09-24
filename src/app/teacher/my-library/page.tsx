@@ -572,18 +572,6 @@ export default function MyLibraryPage() {
 
     <div className="flex items-center gap-2 mb-6">
         <User className="h-5 w-5 text-primary" />
-        <Select value={selectedChild} onValueChange={setSelectedChild}>
-            <SelectTrigger className="w-full md:w-[240px]">
-            <SelectValue placeholder="Select a child" />
-            </SelectTrigger>
-            <SelectContent>
-            {childrenData.map((child) => (
-                <SelectItem key={child.id} value={child.id}>
-                {child.name}
-                </SelectItem>
-            ))}
-            </SelectContent>
-        </Select>
     </div>
 
       <Tabs defaultValue="assignments" className="w-full">
