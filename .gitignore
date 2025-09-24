@@ -41,3 +41,6 @@ serviceAccountKey.json
 .env*
 firebase-service-account.json
 stripe-keys.js
+.env*
+serviceAccountKey.json
+src/app/admin/profile/page.tsx
